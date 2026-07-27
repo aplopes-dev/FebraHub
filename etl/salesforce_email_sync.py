@@ -84,6 +84,51 @@ def decodar(v):
         out += t.decode(enc or 'utf-8', errors='replace') if isinstance(t, bytes) else t
     return out
 
+def buscar_os_dois(imap):
+    """Varre a caixa UMA vez, do mais recente ao mais antigo, e separa o
+    primeiro CSV de pagamento e o primeiro de alunos pelo assunto.
+    Evita reler a caixa duas vezes (que causava pegar o e-mail errado)."""
+    print(f"  procurando PG='{ASSUNTO_PG}' | AL='{ASSUNTO_AL}'")
+    status, dados = imap.search(None, 'ALL')
+    if status != 'OK':
+        return None, None, None, None
+    ids = dados[0].split()
+    csv_pg = ass_pg = csv_al = ass_al = None
+    for eid in reversed(ids[-60:]):
+        if csv_pg and csv_al:
+            break
+        status, msg_data = imap.fetch(eid, '(RFC822)')
+        if status != 'OK':
+            continue
+        msg = email.message_from_bytes(msg_data[0][1])
+        assunto = decodar(msg.get('Subject', ''))
+        al = assunto.lower()
+        eh_pg = ASSUNTO_PG.lower() in al
+        eh_al = ASSUNTO_AL.lower() in al
+        if not (eh_pg or eh_al):
+            continue
+        print(f"    match: '{assunto[:55]}' -> pg={eh_pg} al={eh_al}")
+        # pega o CSV deste e-mail
+        conteudo = None
+        for parte in msg.walk():
+            nome = decodar(parte.get_filename() or '')
+            if nome.lower().endswith('.csv'):
+                bruto = parte.get_payload(decode=True)
+                if bruto:
+                    conteudo = bruto.decode('latin-1', errors='replace')
+                    break
+        if not conteudo:
+            continue
+        # ATENÇÃO à ordem: 'pagamentos' contém 'alunos'? não. mas
+        # 'Base alunos' e 'Base pagamentos' são exclusivos. Ainda assim,
+        # se ambos casarem (não deveria), prioriza o mais específico.
+        if eh_pg and not csv_pg:
+            csv_pg, ass_pg = conteudo, assunto
+        elif eh_al and not csv_al:
+            csv_al, ass_al = conteudo, assunto
+    return csv_pg, ass_pg, csv_al, ass_al
+
+
 def baixar_csv_mais_recente(imap, assunto_contem):
     """Procura o e-mail mais recente cujo assunto contém `assunto_contem`
     e devolve o conteúdo do primeiro anexo .csv (texto latin-1)."""
@@ -91,8 +136,8 @@ def baixar_csv_mais_recente(imap, assunto_contem):
     status, dados = imap.search(None, 'ALL')
     if status != 'OK': return None, None
     ids = dados[0].split()
-    # do mais recente para o mais antigo
-    for eid in reversed(ids):
+    # do mais recente para o mais antigo — limita aos 40 mais recentes
+    for eid in reversed(ids[-40:]):
         status, msg_data = imap.fetch(eid, '(RFC822)')
         if status != 'OK': continue
         msg = email.message_from_bytes(msg_data[0][1])
@@ -321,8 +366,7 @@ def main():
     imap.select('INBOX')
 
     print("Buscando relatórios...")
-    csv_pg, ass_pg = baixar_csv_mais_recente(imap, ASSUNTO_PG)
-    csv_al, ass_al = baixar_csv_mais_recente(imap, ASSUNTO_AL)
+    csv_pg, ass_pg, csv_al, ass_al = buscar_os_dois(imap)
     imap.logout()
 
     if not csv_pg:
