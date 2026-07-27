@@ -1640,6 +1640,21 @@ function HubComercial() {
   const carregFluxo = ehGeral ? geralMensal.isLoading : rankCat.isLoading;
   const erroFluxo = ehGeral ? geralMensal.error : rankCat.error;
 
+  /* Recorte curto (Hoje / 7 dias) conta pela data de APROVAÇÃO: uma venda
+     aprovada hoje é o movimento do dia, mesmo que paga dias antes — por
+     pagamento ela não aparecia. Onde não há data_aprovacao (linhas antigas)
+     cai no pagamento, via coalesce, pra não sumir nada. Mês, ano e os totais
+     seguem por data_pagamento (`data`/`data_pagamento`), critério do
+     financeiro já validado. Só substitui a coluna de data; nada mais muda. */
+  const curto = modo === "hoje" || modo === "7d";
+  const recorte = (linhas, faixa, campoPag = "data") =>
+    curto
+      ? (linhas ?? []).filter((r) => {
+          const d = String(r.data_aprovacao ?? r[campoPag] ?? "").slice(0, 10);
+          return d && d >= faixa.inicio && d <= faixa.fim;
+        })
+      : noPeriodo(linhas, faixa, campoPag);
+
   /* KPIs do período. O Comercial mostra só o BRUTO (valor_bruto = valor
      vendido): a consultora vendeu o valor cheio, o repasse não é decisão
      dela — e o líquido, após repasses, é assunto do Financeiro. As
@@ -1648,9 +1663,9 @@ function HubComercial() {
   const kpi = useMemo(() => {
     const somaB = (ls) => ls.reduce((s, r) => s + Number(r.valor_bruto ?? 0), 0);
     const somaM = (ls) => ls.reduce((s, r) => s + Number(r.conta_matricula ?? 0), 0);
-    const dentro = noPeriodo(linhasFluxo, { inicio, fim }, "data");
+    const dentro = recorte(linhasFluxo, { inicio, fim }, "data");
     const menosUmAno = (d) => `${Number(d.slice(0, 4)) - 1}${d.slice(4)}`;
-    const antes = noPeriodo(linhasFluxo, { inicio: menosUmAno(inicio), fim: menosUmAno(fim) }, "data");
+    const antes = recorte(linhasFluxo, { inicio: menosUmAno(inicio), fim: menosUmAno(fim) }, "data");
     const bruto = somaB(dentro), brutoAnt = somaB(antes), matriculas = somaM(dentro);
     return {
       receita: bruto,
@@ -1689,7 +1704,7 @@ function HubComercial() {
     const origem = ehGeral
       ? (geralMensal.data ?? [])
       : (matfat.data ?? []).filter((r) => String(r.categoria) === categoria);
-    const dentro = noPeriodo(origem, { inicio, fim }, "data");
+    const dentro = recorte(origem, { inicio, fim }, "data");
     const m = new Map();
     for (const r of dentro) {
       const k = String(r.mes ?? "").slice(0, 7);
@@ -1715,7 +1730,7 @@ function HubComercial() {
     const doFiltro = ehGeral
       ? (cursos.data ?? [])
       : (cursos.data ?? []).filter((r) => String(r.categoria) === categoria);
-    const base = geral ? doFiltro : noPeriodo(doFiltro, { inicio, fim }, "data");
+    const base = geral ? doFiltro : recorte(doFiltro, { inicio, fim }, "data");
     const porNome = new Map();
     for (const r of base) {
       const nome = String(r.consultora ?? "");
@@ -1749,7 +1764,7 @@ function HubComercial() {
     // Geral usa a view consolidada (chave = consultora, sem coluna de
     // exibição); as categorias usam o histórico (chave de exibição).
     const origem = ehGeral ? (geralCons.data ?? []) : vendasCat;
-    const base = geral ? origem : noPeriodo(origem, { inicio, fim }, "data");
+    const base = geral ? origem : recorte(origem, { inicio, fim }, "data");
     const m = new Map();
     for (const r of base) {
       const k = ehGeral ? (r.consultora ?? "—") : (r.consultor_id_exibicao ?? r.consultora ?? "—");
@@ -1783,7 +1798,7 @@ function HubComercial() {
         });
       }
     }
-    for (const r of noPeriodo(carinhas.data, { inicio, fim }, "data_pagamento")) {
+    for (const r of recorte(carinhas.data, { inicio, fim }, "data_pagamento")) {
       const a = time.get(r.consultor_id ?? r.consultora ?? "—");
       if (!a) continue;
       const cor = String(r.carinha ?? "").trim().toLowerCase();
@@ -1801,7 +1816,7 @@ function HubComercial() {
   // filtro global (view = uma linha por venda; filtro por nome + data).
   const verdesLinhas = useMemo(() => {
     if (!verdesDe) return [];
-    return noPeriodo(
+    return recorte(
       (verdesDet.data ?? []).filter((v) => String(v.consultora) === verdesDe),
       { inicio, fim }, "data"
     ).map((v) => ({
