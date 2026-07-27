@@ -112,6 +112,9 @@ def baixar_csv_mais_recente(imap, assunto_contem):
 # ---------- transformação ----------
 def tratar_pagamento(texto_csv):
     linhas = list(csv.DictReader(io.StringIO(texto_csv), delimiter=';'))
+    if linhas and 'Id pagamento' not in linhas[0]:
+        raise SystemExit("Arquivo de PAGAMENTO não tem a coluna 'Id pagamento' — "
+                         "e-mail/anexo trocado? Abortando para não gravar errado.")
     if not linhas:
         raise SystemExit("Pagamento: CSV vazio — abortando.")
     saida, faltando = [], {'valor': 0, 'original_id_venda': 0, 'data_pagamento': 0}
@@ -147,6 +150,9 @@ def tratar_pagamento(texto_csv):
 
 def tratar_alunos(texto_csv):
     linhas = list(csv.DictReader(io.StringIO(texto_csv), delimiter=';'))
+    if linhas and 'Curso(2)' not in linhas[0]:
+        raise SystemExit("Arquivo de ALUNOS não tem a coluna 'Curso(2)' — "
+                         "e-mail/anexo trocado? Abortando para não gravar errado.")
     if not linhas:
         raise SystemExit("Alunos: CSV vazio — abortando.")
     saida, faltando = [], {'original_id_venda': 0, 'data_matricula': 0}
@@ -238,25 +244,43 @@ def carga_incremental(tabela, linhas, coluna_data):
             f"Se for intencional, faça a carga completa manualmente.")
     print(f"  {tabela}: janela {de} a {ate} ({dias} dias)")
 
-    # Proteção: valida um lote de amostra ANTES de apagar. Se o formato
-    # estiver errado (data vazia, FK), falha aqui sem ter apagado nada.
-    url = f"{SB_URL}/rest/v1/{tabela}"
-    try:
-        _req(url, corpo=linhas[:1], metodo='POST', extra={'Prefer': 'return=minimal'})
-        # a linha de teste entrou; remove para não duplicar
-        chave = 'pagamento_id' if tabela == 'fato_pagamento_base' else 'matricula_id'
-        if linhas[0].get(chave):
-            _req(f"{SB_URL}/rest/v1/{tabela}?{chave}=eq.{linhas[0][chave]}", metodo='DELETE')
-    except SystemExit as e:
-        raise SystemExit(f"{tabela}: linha de teste rejeitada, NADA foi apagado. {e}")
+    # Estratégia SEM buraco: primeiro UPSERT de todas as linhas (merge por
+    # chave — não falha em duplicata), depois apaga o que sobrou na janela
+    # e NÃO veio no arquivo (linhas que deixaram de existir no Salesforce).
+    # Se o upsert falhar por formato, nada foi apagado — base intacta.
+    chave = 'pagamento_id' if tabela == 'fato_pagamento_base' else 'matricula_id'
+    url = f"{SB_URL}/rest/v1/{tabela}?on_conflict={chave}"
 
-    # validação passou -> agora sim apaga a janela e reinsere tudo
-    _req(f"{SB_URL}/rest/v1/{tabela}?{coluna_data}=gte.{de}&{coluna_data}=lte.{ate}",
-         metodo='DELETE')
+    chaves_arquivo = set()
     for i in range(0, len(linhas), 500):
-        _req(url, corpo=linhas[i:i+500], metodo='POST',
-             extra={'Prefer': 'return=minimal'})
-    print(f"  {tabela}: {len(linhas)} linhas gravadas ({de} a {ate})")
+        lote = linhas[i:i+500]
+        _req(url, corpo=lote, metodo='POST',
+             extra={'Prefer': 'resolution=merge-duplicates,return=minimal'})
+        for r in lote:
+            if r.get(chave): chaves_arquivo.add(str(r[chave]))
+
+    # apaga da janela só o que NÃO veio no arquivo (registros que sumiram)
+    # busca as chaves atuais na janela
+    resp = _req_get(f"{SB_URL}/rest/v1/{tabela}?select={chave}"
+                    f"&{coluna_data}=gte.{de}&{coluna_data}=lte.{ate}")
+    if resp:
+        no_banco = {str(x[chave]) for x in resp if x.get(chave)}
+        sumiram = no_banco - chaves_arquivo
+        for k in sumiram:
+            _req(f"{SB_URL}/rest/v1/{tabela}?{chave}=eq.{k}", metodo='DELETE')
+        print(f"  {tabela}: {len(linhas)} upsert, {len(sumiram)} removidos ({de} a {ate})")
+    else:
+        print(f"  {tabela}: {len(linhas)} upsert ({de} a {ate})")
+
+def _req_get(url):
+    """GET que devolve a lista JSON (para comparar chaves na janela)."""
+    headers = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}'}
+    req = urllib.request.Request(url, headers=headers, method='GET')
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode())
+    except Exception:
+        return None
 
 def _req(url, corpo=None, metodo='GET', extra=None):
     headers = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
