@@ -287,7 +287,34 @@ export const useMarketingOrigemVendas = () =>
 export const useMarketingAtribuicao = () =>
   useView("vw_marketing_atribuicao_campanha");
 
-export const usePedagogicoTurmas  = () => useView("vw_pedagogico_turmas");
+/* ============ PEDAGÓGICO / SUCESSO DO CLIENTE ============
+   Foco em SAÚDE (acompanhamento), não lista de tarefas. Tudo vem do
+   Salesforce. Conclusão, notas e NPS não são medidos — não existem na fonte.
+   Presença cobre só as turmas com credenciamento confiável (176 de 197). */
+
+// KPIs de recompra (fidelização): uma linha agregada — alunos únicos,
+// matrículas, cursos por aluno, taxa de recompra.
+export const usePedagogicoKpis = () => useView("vw_pedagogico_kpis");
+// KPIs de presença: comparecimento geral + cobertura (turmas credenciadas).
+export const usePedagogicoPresencaKpis = () => useView("vw_pedagogico_presenca_kpis");
+// Taxa de comparecimento por TRIMESTRE (série). `matriculas` é o tamanho da
+// amostra — o front de-enfatiza trimestres com poucas (<~30) matrículas.
+export const usePedagogicoPresencaTempo = () =>
+  useView("vw_pedagogico_presenca_tempo", { ordem: ["periodo"] });
+// Cursos que mais fidelizam (taxa_recompra por curso). `alunos` = amostra.
+export const usePedagogicoRecompraCurso = () =>
+  useView("vw_pedagogico_recompra_curso", { ordem: ["curso"] });
+// Cursos com mais falta (taxa_comparecimento por curso; piores no topo no front).
+export const usePedagogicoPresencaCurso = () =>
+  useView("vw_pedagogico_presenca_curso", { ordem: ["curso"] });
+// O insight central: recompra de quem compareceu vs quem faltou (por `grupo`).
+export const usePedagogicoPresencaRecompra = () =>
+  useView("vw_pedagogico_presenca_recompra", { ordem: ["grupo"] });
+// Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
+// único — ordeno por todas as colunas discriminantes pra paginação estável.
+export const usePedagogicoAusentes = () =>
+  useView("vw_pedagogico_ausentes", { ordem: ["aluno_id", "curso", "turma"] });
+
 export const useEventosDesempenho = () => useView("vw_eventos_desempenho");
 export const useDiretoriaConsol   = () => useView("vw_diretoria_consolidado");
 

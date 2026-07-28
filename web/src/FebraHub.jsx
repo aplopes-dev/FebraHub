@@ -7,7 +7,7 @@ import {
   Clock, Receipt, Hourglass, ChevronLeft, ChevronRight, ChevronDown,
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
-  Boxes, PackageX,
+  Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -27,7 +27,10 @@ import {
   useLojaProdutosVendidosMes, useLojaEstoque, useLojaPerformanceCurso,
   useMarketingResumoMensal, useMarketingDesempenho, useMarketingOrigemVendas,
   useMarketingAtribuicao,
-  usePedagogicoTurmas, useEventosDesempenho,
+  usePedagogicoKpis, usePedagogicoPresencaKpis, usePedagogicoPresencaTempo,
+  usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
+  usePedagogicoPresencaRecompra, usePedagogicoAusentes,
+  useEventosDesempenho,
   useDiretoriaConsol, useIntegracaoStatus,
   porMes, variacao, moeda, numero,
 } from "./lib/dados";
@@ -3136,26 +3139,295 @@ function HubMarketing() {
   );
 }
 
+/* Taxa vinda da view pode chegar como fração (0.55) ou percentual (55). O
+   anon não vê o valor real (RLS zera), então não dá pra fixar a escala —
+   normalizo pros dois formatos: <= 1.5 é fração e vira 0–100. */
+const pctTaxa = (v) => {
+  const n = Number(v ?? 0);
+  return n <= 1.5 ? n * 100 : n;
+};
+const fmtPct = (v, casas = 0) => (v == null ? "—" : `${pctTaxa(v).toFixed(casas)}%`);
+
+/* Rótulo de trimestre defensivo: `periodo` pode vir "2024-Q3", "2024-T3",
+   "2024-3" ou "2024-07" (mês). YYYY-MM vira o trimestre do mês; o resto usa o
+   dígito 1–4 do fim. Sem casar, mostra o texto cru — nunca inventa. */
+const rotuloTri = (p) => {
+  const s = String(p ?? "").trim();
+  const mm = s.match(/^(\d{4})-(\d{2})$/);
+  if (mm) return `T${Math.floor((Number(mm[2]) - 1) / 3) + 1}/${mm[1].slice(2)}`;
+  const q = s.match(/(\d{4}).*?([1-4])\s*$/);
+  if (q) return `T${q[2]}/${q[1].slice(2)}`;
+  return s || "—";
+};
+
+/* Linha da taxa de comparecimento por trimestre. Pontos com amostra pequena
+   (poucas matrículas) saem VAZADOS e cinza e NÃO entram na linha nem no
+   domínio Y — o início de 2022 e trimestres esparsos não distorcem a leitura.
+   Não reusa LinhaEvolucao: ali a série é mensal e a área liga buracos; aqui a
+   amostra pequena é espalhada. */
+function LinhaPresenca({ serie }) {
+  if (serie.length < 2) return <Estado vazio vazioTitulo="Série insuficiente" vazioDica="Poucos trimestres com presença medida para desenhar a linha." />;
+  const W = 720, H = 196, padL = 40, padR = 14, padT = 20, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB, plotBottom = padT + plotH;
+  const n = serie.length;
+  const base = (serie.some((p) => !p.pequena) ? serie.filter((p) => !p.pequena) : serie).map((p) => p.taxa);
+  let vMax = Math.min(100, Math.ceil((Math.max(...base) + 6) / 5) * 5);
+  let vMin = Math.max(0, Math.floor((Math.min(...base) - 6) / 5) * 5);
+  if (vMax <= vMin) vMax = Math.min(100, vMin + 10);
+  const x = (i) => padL + (i / (n - 1)) * plotW;
+  const y = (v) => Math.max(padT, Math.min(plotBottom, plotBottom - ((v - vMin) / (vMax - vMin || 1)) * plotH));
+  const confIdx = serie.map((_, i) => i).filter((i) => !serie[i].pequena);
+  const linha = confIdx.map((i) => `${x(i)},${y(serie[i].taxa)}`).join(" ");
+  const yticks = [vMin, Math.round((vMin + vMax) / 2), vMax];
+  const passo = Math.max(1, Math.round((n - 1) / 5));
+  const xi = [];
+  for (let i = 0; i < n; i += passo) xi.push(i);
+  if (xi.at(-1) !== n - 1) xi.push(n - 1);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      {yticks.map((v, i) => {
+        const yy = y(v);
+        return (
+          <g key={i}>
+            <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" />
+            <text x={padL - 8} y={yy + 3.5} fontSize="10.5" textAnchor="end" fill={C.faint} fontFamily={SANS}>{v}%</text>
+          </g>
+        );
+      })}
+      {confIdx.length > 1 && <polyline points={linha} fill="none" stroke={C.up} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+      {serie.map((p, i) => (p.pequena
+        ? <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.6" fill="none" stroke={C.faint} strokeWidth="1.2" />
+        : <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.8" fill={C.up} />))}
+      {xi.map((i) => (
+        <text key={i} x={x(i)} y={H - 9} fontSize="10" textAnchor="middle" fill={C.faint} fontFamily={SANS}>{serie[i].rotulo}</text>
+      ))}
+    </svg>
+  );
+}
+
+/* Ranking de cursos por uma taxa (0–100): fideliza (recompra, dourado) e
+   falta (dourado→âmbar). Mostra a amostra pra ninguém ler um n=2 como
+   tendência. Barra proporcional à própria taxa. */
+function RankingCurso({ linhas, cor, sufixo, vazioTitulo, vazioDica }) {
+  if (!linhas.length) return <Estado vazio vazioTitulo={vazioTitulo} vazioDica={vazioDica} />;
+  const max = Math.max(...linhas.map((l) => l.valor), 1);
+  return (
+    <div>
+      {linhas.map((l, i) => (
+        <div key={l.rotulo + i} style={{ padding: "7px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.rotulo}>{l.rotulo}</span>
+            <span style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 10.5, color: C.faint }}>{numero(l.amostra)} {sufixo}</span>
+              <span style={{ fontFamily: GROTESK, fontSize: 13.5, fontWeight: 700, color: cor }}>{l.valor.toFixed(0)}%</span>
+            </span>
+          </div>
+          <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+            <div style={{ width: `${(l.valor / max) * 100}%`, height: "100%", borderRadius: 3, background: cor }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* O insight central da seção: quem compareceu recompra mais do que quem
+   faltou. Grupo de maior recompra em verde; o resto neutro. A diferença em
+   pontos é a manchete. */
+function InsightRetencao({ grupos, spread }) {
+  if (!grupos.length) return <Estado vazio vazioTitulo="Sem dado de retenção" vazioDica="A relação presença × recompra aparece com o setor pedagógico conectado." />;
+  const max = Math.max(...grupos.map((g) => g.taxa), 1);
+  return (
+    <div style={{ padding: "2px 2px" }}>
+      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 14, lineHeight: 1.5 }}>
+        Quem <b style={{ color: C.up }}>comparece</b> volta a comprar mais do que quem falta — a presença antecipa a retenção.
+      </div>
+      {grupos.map((g, i) => (
+        <div key={g.grupo} style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? C.up : C.muted }}>{g.grupo}</span>
+            <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              {g.alunos > 0 && <span style={{ fontSize: 10.5, color: C.faint }}>{numero(g.recompraram)} de {numero(g.alunos)}</span>}
+              <span style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: i === 0 ? C.up : C.text }}>{g.taxa.toFixed(0)}%</span>
+            </span>
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+            <div style={{ width: `${(g.taxa / max) * 100}%`, height: "100%", borderRadius: 4, background: i === 0 ? `linear-gradient(90deg, ${C.up}, #4FAE7A)` : "rgba(255,255,255,.22)" }} />
+          </div>
+        </div>
+      ))}
+      {spread != null && spread > 0 && (
+        <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: `${C.up}14`, border: `1px solid ${C.up}33`, fontSize: 12, color: C.bright }}>
+          <b style={{ fontFamily: GROTESK, color: C.up }}>+{spread.toFixed(0)} pontos</b> de recompra a favor de quem comparece.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Hub Pedagógico / Sucesso do Cliente. Foco em SAÚDE: acompanhamento, não
+   fila de tarefas. Tudo vem do Salesforce; conclusão, notas e NPS não são
+   medidos (não existem na fonte). Presença cobre só as turmas com
+   credenciamento confiável. */
 function HubPedagogico() {
-  const t = usePedagogicoTurmas();
-  const mat = useMemo(() => porMes(t.data ?? [], "mes", "matriculas"), [t.data]);
-  const conc = useMemo(() => porMes(t.data ?? [], "mes", "concluintes"), [t.data]);
-  const v = variacao(mat);
-  const cursos = useMemo(() => agrupar(t.data ?? [], "nome_curso", "matriculas").slice(0, 8), [t.data]);
-  const taxa = v.atual ? ((conc.at(-1)?.valor / v.atual) * 100).toFixed(1) : null;
+  const kpis = usePedagogicoKpis();
+  const presKpis = usePedagogicoPresencaKpis();
+  const presTempo = usePedagogicoPresencaTempo();
+  const recompraCurso = usePedagogicoRecompraCurso();
+  const presCurso = usePedagogicoPresencaCurso();
+  const presRecompra = usePedagogicoPresencaRecompra();
+  const ausentes = usePedagogicoAusentes();
+  const [verReativar, setVerReativar] = useState(false);
+
+  const k = kpis.data?.[0] ?? {};
+  const pk = presKpis.data?.[0] ?? {};
+  const cursosPorAluno = k.cursos_por_aluno != null
+    ? Number(k.cursos_por_aluno).toLocaleString("pt-BR", { maximumFractionDigits: 1 })
+    : "—";
+
+  // Série trimestral: amostra pequena (<30 matrículas) fica de-enfatizada.
+  const serieTri = useMemo(() =>
+    (presTempo.data ?? [])
+      .filter((r) => r.periodo != null)
+      .map((r) => ({
+        rotulo: rotuloTri(r.periodo),
+        taxa: pctTaxa(r.taxa_comparecimento),
+        amostra: Number(r.matriculas ?? 0),
+        pequena: Number(r.matriculas ?? 0) < 30,
+      }))
+      .sort((a, b) => String(a.rotulo).localeCompare(String(b.rotulo))),
+    [presTempo.data]);
+  const temPequena = serieTri.some((p) => p.pequena);
+
+  // Cursos que mais fidelizam (recompra desc).
+  const fideliza = useMemo(() =>
+    (recompraCurso.data ?? [])
+      .map((r) => ({ rotulo: r.curso ?? "—", valor: pctTaxa(r.taxa_recompra), amostra: Number(r.alunos ?? 0) }))
+      .filter((r) => r.amostra > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6),
+    [recompraCurso.data]);
+
+  // Cursos com mais falta: mostra a % que FALTOU (100 − comparecimento), piores no topo.
+  const maisFalta = useMemo(() =>
+    (presCurso.data ?? [])
+      .map((r) => ({ rotulo: r.curso ?? "—", valor: 100 - pctTaxa(r.taxa_comparecimento), amostra: Number(r.matriculas ?? 0) }))
+      .filter((r) => r.amostra > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6),
+    [presCurso.data]);
+
+  // Insight: recompra por grupo (compareceu vs faltou), maior primeiro.
+  const grupos = useMemo(() =>
+    (presRecompra.data ?? [])
+      .map((r) => ({ grupo: r.grupo ?? "—", taxa: pctTaxa(r.taxa_recompra), alunos: Number(r.alunos ?? 0), recompraram: Number(r.recompraram ?? 0) }))
+      .sort((a, b) => b.taxa - a.taxa),
+    [presRecompra.data]);
+  const spread = grupos.length >= 2 ? grupos[0].taxa - grupos.at(-1).taxa : null;
+
+  const reativar = ausentes.data ?? [];
 
   return (
-    <Estado carregando={t.isLoading} erro={t.error} vazio={!t.data?.length}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, marginBottom: 26 }}>
-        <Kpi label="Matrículas" valor={numero(v.atual)} delta={v.delta} up={v.up} serie={v.serie} parcial={v.parcial != null ? numero(v.parcial) : null} />
-        <Kpi label="Concluintes" valor={numero(conc.at(-1)?.valor)} delta={variacao(conc).delta} up={variacao(conc).up} serie={conc} />
-        <Kpi label="Conclusão" valor={taxa ?? "—"} unidade="%" nota="mês corrente" />
-        <Kpi label="Cursos ativos" valor={numero(cursos.length)} nota="no recorte" />
+    <>
+      <style>{`
+        .pedKpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        @media (min-width: 720px)  { .pedKpis { grid-template-columns: repeat(4, 1fr); } }
+        .pedMid, .pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+        @media (min-width: 1000px) {
+          .pedMid { grid-template-columns: 7fr 5fr; }   /* comparecimento no tempo · insight retenção */
+          .pedBot { grid-template-columns: 1fr 1fr; }   /* fideliza · falta */
+        }
+      `}</style>
+
+      {/* ---- KPIs de saúde ---- */}
+      <div className="pedKpis" style={{ marginBottom: 12 }}>
+        <ChipKpi compacto hero Icone={Repeat} label="Taxa de recompra" valor={fmtPct(k.taxa_recompra)} nota="alunos que voltaram" />
+        <ChipKpi compacto Icone={UserCheck} label="Comparecimento" valor={fmtPct(pk.taxa_comparecimento_geral)}
+          sub={pk.turmas_cobertas ? `${numero(pk.turmas_cobertas)} turmas credenciadas` : "turmas credenciadas"} />
+        <ChipKpi compacto Icone={Users} label="Alunos únicos" valor={k.alunos_unicos != null ? numero(k.alunos_unicos) : "—"} nota="na base" />
+        <ChipKpi compacto Icone={BookOpen} label="Cursos por aluno" valor={cursosPorAluno} nota="média" />
       </div>
-      <Bloco titulo="Matrículas por curso" canto="acumulado" sem>
-        <Lista linhas={cursos} formatar={numero} />
-      </Bloco>
-    </Estado>
+
+      {/* ---- Comparecimento no tempo · insight de retenção ---- */}
+      <div className="pedMid" style={{ marginBottom: 12 }}>
+        <Bloco titulo="Comparecimento no tempo" canto="taxa por trimestre" altura={250}>
+          <Estado carregando={presTempo.isLoading} erro={presTempo.error} vazio={serieTri.length < 2}
+            vazioTitulo="Sem série de presença" vazioDica="Aparece com o setor pedagógico conectado.">
+            <LinhaPresenca serie={serieTri} />
+            {temPequena && (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, color: C.faint, marginTop: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.2px solid ${C.faint}`, flexShrink: 0 }} />
+                trimestres com menos de 30 matrículas — amostra pequena, fora da linha
+              </div>
+            )}
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Presença prevê retenção" canto="recompra · compareceu × faltou">
+          <Estado carregando={presRecompra.isLoading} erro={presRecompra.error} vazio={!grupos.length}
+            vazioTitulo="Sem dado de retenção" vazioDica="Aparece com o setor pedagógico conectado.">
+            <InsightRetencao grupos={grupos} spread={spread} />
+          </Estado>
+        </Bloco>
+      </div>
+
+      {/* ---- Cursos: fidelizam · faltam ---- */}
+      <div className="pedBot" style={{ marginBottom: 12 }}>
+        <Bloco titulo="Cursos que mais fidelizam" canto="recompra do aluno" sem altura={250}>
+          <Estado carregando={recompraCurso.isLoading} erro={recompraCurso.error} vazio={!fideliza.length}
+            vazioTitulo="Sem recompra por curso" vazioDica="Aparece com o setor pedagógico conectado.">
+            <RankingCurso linhas={fideliza} cor={C.gold} sufixo="alunos" />
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Cursos com mais falta" canto="% que faltou · piores no topo" sem altura={250}>
+          <Estado carregando={presCurso.isLoading} erro={presCurso.error} vazio={!maisFalta.length}
+            vazioTitulo="Sem falta por curso" vazioDica="Aparece com o setor pedagógico conectado.">
+            <RankingCurso linhas={maisFalta} cor={C.warn} sufixo="matrículas" />
+          </Estado>
+        </Bloco>
+      </div>
+
+      {/* ---- Reativação (secundária: foco é saúde, não ação) ---- */}
+      <div style={{ marginBottom: 8 }}>
+        <button onClick={() => setVerReativar((v) => !v)} style={{
+          display: "inline-flex", alignItems: "center", gap: 7, background: "transparent",
+          border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer",
+          color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: SANS,
+        }}>
+          <Activity size={14} /> Lista de reativação{reativar.length ? ` · ${numero(reativar.length)} alunos` : ""}
+          {verReativar ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {verReativar && (
+          <div style={{ marginTop: 10 }}>
+            <Bloco titulo="Reativação" canto="ausentes · secundário" sem altura={230}>
+              <Estado carregando={ausentes.isLoading} erro={ausentes.error} vazio={!reativar.length}
+                vazioTitulo="Ninguém para reativar" vazioDica="Aparece com o setor pedagógico conectado.">
+                <div>
+                  {reativar.slice(0, 60).map((r, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, padding: "7px 20px", borderBottom: `1px solid ${C.hair}` }}>
+                      <span style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+                        <span style={{ fontFamily: GROTESK, fontSize: 11, color: C.faint, flexShrink: 0 }}>#{r.aluno_id}</span>
+                        <span style={{ fontSize: 12.5, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.curso}>{r.curso ?? "—"}</span>
+                        {r.turma && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>· {r.turma}</span>}
+                      </span>
+                      <span style={{ fontFamily: GROTESK, fontSize: 12.5, fontWeight: 700, color: C.muted, flexShrink: 0 }}>{moeda(r.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Estado>
+            </Bloco>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Transparência ---- */}
+      <div style={{ fontSize: 11, color: C.faint, lineHeight: 1.6, marginTop: 4 }}>
+        <b style={{ color: C.muted }}>Transparência.</b> A presença cobre {pk.turmas_cobertas ? numero(pk.turmas_cobertas) : "—"} turmas
+        com credenciamento confiável; as demais ficam de fora do comparecimento. Conclusão, notas e NPS
+        não são medidos — não estão no Salesforce.
+      </div>
+
+      <RodapeIntegracoes fontes={["salesforce"]} />
+    </>
   );
 }
 
