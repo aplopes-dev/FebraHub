@@ -3284,18 +3284,51 @@ function parseGGB(texto) {
   return { ...medias, nota_treinador, respondentes: resp.length };
 }
 
-// Acha a coluna de NPS ("recomendaria") no header e tira a média. Flexível:
-// as demais perguntas variam entre eventos e são ignoradas.
+// Escala 1-5 em texto ("5 — Definitivamente sim"): pega o 1º dígito. Robusto
+// contra o travessão mal codificado — não depende do resto do rótulo.
+const notaEscala = (v) => { const m = String(v ?? "").match(/^\s*(\d)/); return m ? Number(m[1]) : null; };
+// "Submitted At" -> data ISO (aceita YYYY-MM-DD e DD/MM/YYYY).
+const dataISO = (v) => {
+  const s = String(v ?? "").trim();
+  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null;
+};
+// Colunas do CSV do Make Forms -> campos da fato_avaliacao (confirmado pela
+// gestora). A escala é 1-5 e NÃO é convertida. `recomendacao` é o indicador
+// principal (nps). Evento/treinador vêm à parte; a data sai de "Submitted At".
+const CSV_EVENTO_MAP = { satisfacao_geral: "q_conteudo", utilidade_conteudo: "q_material", metodologia: "q_clareza", dominio_treinador: "q_dominio", aplicacao_conhecimento: "q_aplicacao", recomendacao: "nps" };
+
+/* Processa o CSV do Make Forms. Casa colunas pelo NOME (sem acento, tolerante
+   a mojibake nos VALORES, que só lemos o 1º dígito). Devolve as médias 1-5
+   mapeadas, o comentário (principal_aprendizado juntado) e a data (Submitted
+   At). Encoding: o form lê o arquivo como UTF-8 antes de chamar aqui. */
 function parseCSVEvento(texto) {
   const primeira = String(texto ?? "").split("\n")[0] ?? "";
   const delim = (primeira.match(/;/g) || []).length > (primeira.match(/,/g) || []).length ? ";" : ",";
   const linhas = parseDelimitado(texto, delim).filter((l) => l.some((c) => String(c).trim() !== ""));
-  if (linhas.length < 2) return { nps: null, respondentes: 0, coluna: null };
-  const header = linhas[0];
-  const idx = header.findIndex((h) => semAcento(h).includes("recomendaria"));
-  if (idx < 0) return { nps: null, respondentes: linhas.length - 1, coluna: null };
-  const vals = linhas.slice(1).map((l) => notaNum(l[idx]));
-  return { nps: mediaNotas(vals), respondentes: linhas.length - 1, coluna: header[idx] };
+  if (linhas.length < 2) return { medias: {}, nps: null, comentario: null, data_curso: null, respondentes: 0, encontradas: [] };
+  // Normaliza o nome da coluna: sem acento, minúsculo, e espaço≡underscore
+  // (o header pode vir "satisfacao_geral" ou "Satisfação Geral").
+  const chaveCol = (s) => semAcento(s).trim().replace(/[\s_]+/g, "_");
+  const header = linhas[0].map(chaveCol);
+  const corpo = linhas.slice(1);
+  const idxDe = (nome) => { const n = chaveCol(nome); const e = header.indexOf(n); return e >= 0 ? e : header.findIndex((h) => h.includes(n)); };
+
+  const medias = {}, encontradas = [];
+  for (const [col, campo] of Object.entries(CSV_EVENTO_MAP)) {
+    const idx = idxDe(col);
+    if (idx < 0) continue;
+    encontradas.push(campo);
+    medias[campo] = mediaNotas(corpo.map((l) => notaEscala(l[idx])));
+  }
+  const idxCom = idxDe("principal_aprendizado");
+  const comentario = idxCom >= 0 ? (corpo.map((l) => String(l[idxCom] ?? "").trim()).filter(Boolean).join("\n") || null) : null;
+  const idxData = idxDe("submitted at");
+  const data_curso = idxData >= 0 ? (corpo.map((l) => dataISO(l[idxData])).find(Boolean) ?? null) : null;
+  return { medias, nps: medias.nps ?? null, comentario, data_curso, respondentes: corpo.length, encontradas };
 }
 const nota1 = (v) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 
@@ -3491,19 +3524,24 @@ function FormAvaliacaoGGB({ onSalvo }) {
   );
 }
 
-/* Eventos — anexar CSV do Make Forms. O parser acha a coluna de indicação
-   ("recomendaria") e tira a média; as demais perguntas variam e são ignoradas.
-   Grava com fonte='evento' (sem nota de treinador — não existe no CSV). */
+// Rótulo p/ o preview do evento (campos mapeados do CSV).
+const EV_ROTULO = { q_conteudo: "Satisfação", q_material: "Utilidade", q_clareza: "Metodologia", q_dominio: "Domínio", q_aplicacao: "Aplicação", nps: "Indicação" };
+const EV_ORDEM = ["nps", "q_conteudo", "q_material", "q_clareza", "q_dominio", "q_aplicacao"];
+
+/* Eventos — anexar CSV do Make Forms. Lido como UTF-8. As respostas são escala
+   1-5 em texto ("5 — Definitivamente sim") — pegamos o 1º dígito. Casa colunas
+   pelo nome (satisfacao_geral, recomendacao, …). Evento/treinador vêm à parte;
+   a data sai de "Submitted At". Grava fonte='evento' (escala 1-5, sem converter). */
 function FormAvaliacaoEvento({ onSalvo }) {
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState("");
   const [evento, setEvento] = useState("");
   const [treinador, setTreinador] = useState("");
-  const [data, setData] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
   const previa = useMemo(() => (texto.trim() ? parseCSVEvento(texto) : null), [texto]);
-  const pronto = !!(previa && previa.nps != null && evento.trim() && treinador.trim() && data);
+  const achou = !!(previa && previa.encontradas.length);
+  const pronto = !!(achou && evento.trim() && treinador.trim());
 
   const aoAnexar = (e) => {
     const file = e.target.files?.[0];
@@ -3512,12 +3550,16 @@ function FormAvaliacaoEvento({ onSalvo }) {
     const r = new FileReader();
     r.onload = () => setTexto(String(r.result ?? ""));
     r.onerror = () => setErro("Não consegui ler o arquivo.");
-    r.readAsText(file);
+    r.readAsText(file, "UTF-8"); // força UTF-8: o CSV vem UTF-8 e o default pode virar latin-1
   };
   const salvar = async () => {
     setSalvando(true); setErro(null);
     try {
-      await salvarAvaliacao({ fonte: "evento", curso: evento.trim(), treinador: treinador.trim(), data_curso: data, nps: previa.nps, respondentes: previa.respondentes });
+      await salvarAvaliacao({
+        fonte: "evento", curso: evento.trim(), treinador: treinador.trim(),
+        data_curso: previa.data_curso, comentario: previa.comentario,
+        respondentes: previa.respondentes, ...previa.medias,
+      });
       onSalvo();
     } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
   };
@@ -3529,20 +3571,28 @@ function FormAvaliacaoEvento({ onSalvo }) {
         <input type="file" accept=".csv,text/csv" onChange={aoAnexar} style={{ display: "none" }} />
       </label>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div style={{ gridColumn: "1 / -1" }}><label style={labelAv}>Nome do evento</label><input style={inputAv} value={evento} onChange={(e) => setEvento(e.target.value)} /></div>
+        <div><label style={labelAv}>Nome do evento</label><input style={inputAv} value={evento} onChange={(e) => setEvento(e.target.value)} /></div>
         <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
-        <div><label style={labelAv}>Data</label><input type="date" style={inputAv} value={data} onChange={(e) => setData(e.target.value)} /></div>
       </div>
       {previa && (
         <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
-          {previa.nps != null ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-              <div><div style={{ fontSize: 9.5, color: C.faint }}>Indicação (média)</div><div style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.up }}>{nota1(previa.nps)}</div></div>
-              <div><div style={{ fontSize: 9.5, color: C.faint }}>Respondentes</div><div style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.text }}>{numero(previa.respondentes)}</div></div>
-              <div style={{ minWidth: 0, fontSize: 10.5, color: C.dim }}>coluna: <span style={{ color: C.muted }}>{previa.coluna}</span></div>
-            </div>
+          {achou ? (
+            <>
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
+                Prévia · {previa.respondentes} respondentes · escala 1–5 · {previa.data_curso ? `data ${dataCurta(previa.data_curso)}` : "sem data"}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {EV_ORDEM.filter((c) => previa.medias[c] != null).map((c) => (
+                  <div key={c} style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 9.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{EV_ROTULO[c]}</div>
+                    <div style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: c === "nps" ? C.up : C.text }}>{nota1(previa.medias[c])}</div>
+                  </div>
+                ))}
+              </div>
+              {previa.medias.nps == null && <div style={{ marginTop: 8, fontSize: 11.5, color: C.warn }}>Não achei a coluna “recomendacao” (indicação). Confira o CSV.</div>}
+            </>
           ) : (
-            <div style={{ fontSize: 12, color: C.warn }}>Não achei uma coluna de indicação (texto “recomendaria”) no CSV. Confira o arquivo.</div>
+            <div style={{ fontSize: 12, color: C.warn }}>Nenhuma coluna reconhecida (satisfacao_geral, recomendacao…). Confira se é o CSV do Make Forms.</div>
           )}
         </div>
       )}
@@ -3829,7 +3879,7 @@ function HubPedagogico() {
             <ListaAvaliacao linhas={avGGB} comTreinador />
           </Estado>
         </Bloco>
-        <Bloco titulo="Eventos" canto={`só indicação · ${numero(avEvento.length)} evento(s)`} sem altura={230}>
+        <Bloco titulo="Eventos" canto={`indicação · escala 1–5 · ${numero(avEvento.length)} evento(s)`} sem altura={230}>
           <Estado carregando={avaliacao.isLoading} erro={avaliacao.error} vazio={!avEvento.length}
             vazioTitulo="Sem avaliações de evento" vazioDica='Use "Anexar CSV de evento" para registrar.'>
             <ListaAvaliacao linhas={avEvento} comTreinador={false} />
