@@ -307,22 +307,46 @@ export const usePedagogicoRecompraCurso = () =>
 // Cursos com mais falta (taxa_comparecimento por curso; piores no topo no front).
 export const usePedagogicoPresencaCurso = () =>
   useView("vw_pedagogico_presenca_curso", { ordem: ["curso"] });
-// Painel de Maestros: os clientes VIP (compraram MAESTRIA). Uma linha por
-// maestro — nome/email/telefone (PII, restrita ao setor), total investido,
-// nº de cursos, última compra, ativo, taxa de presença, dias sem comprar.
-// Ordeno por chave estável; o front reordena por investido (desc).
-export const usePedagogicoMaestrosDetalhe = () =>
-  useView("vw_pedagogico_maestros_detalhe", { ordem: ["total_investido", "nome"] });
+// Painel de Maestros: os clientes VIP (compraram MAESTRIA). `_completo` já
+// junta as anotações editáveis (apelido/empresa/faturamento/observacoes) aos
+// campos do maestro; a chave é `cpf` (= aluno_id em maestro_anotacao). PII
+// restrita ao setor. Ordeno por chave estável; o front reordena por investido.
+export const usePedagogicoMaestrosCompleto = () =>
+  useView("vw_pedagogico_maestros_completo", { ordem: ["total_investido", "nome"] });
 // KPIs do grupo de maestros: total + contadores de validade da Maestria
 // (validos, perto_vencer, vencidos). Validade = 12 meses desde a compra da
 // MAESTRIA; "vencido" é benefício expirado (oportunidade de renovação), não
 // deixou de ser maestro. Uma linha só.
 export const usePedagogicoMaestrosKpis = () =>
   useView("vw_pedagogico_maestros_kpis");
+// Anotações cruas (maestro_anotacao) — a view _completo não expõe `cargo`, e
+// aqui o form de edição pré-preenche esse campo. RLS libera só ao pedagógico.
+export const usePedagogicoMaestroAnotacoes = () =>
+  useView("maestro_anotacao", { ordem: ["aluno_id"] });
+// Avaliações (GGB + eventos): uma linha por curso/evento com as médias já
+// calculadas — media_indicacao (alunos), media_nota_treinador (só GGB) e
+// media_qualidade. Os KPIs trazem contagens por fonte.
+export const usePedagogicoAvaliacao = () =>
+  useView("vw_pedagogico_avaliacao", { ordem: ["fonte", "curso"] });
+export const usePedagogicoAvaliacaoKpis = () =>
+  useView("vw_pedagogico_avaliacao_kpis", { ordem: ["fonte"] });
 // Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
 // único — ordeno por todas as colunas discriminantes pra paginação estável.
 export const usePedagogicoAusentes = () =>
   useView("vw_pedagogico_ausentes", { ordem: ["aluno_id", "curso", "turma"] });
+
+/* ESCRITA (exceção sancionada ao "front só lê view"): as tabelas
+   fato_avaliacao e maestro_anotacao têm policies de INSERT/UPDATE com
+   pode_ver('pedagogico'). A gravação vai com o JWT da sessão; a RLS barra
+   quem não for do setor. Erros sobem pro form tratar. */
+export async function salvarAvaliacao(registro) {
+  const { error } = await supabase.from("fato_avaliacao").insert(registro);
+  if (error) throw new Error(error.message);
+}
+export async function salvarMaestroAnotacao(anotacao) {
+  const { error } = await supabase.from("maestro_anotacao").upsert(anotacao, { onConflict: "aluno_id" });
+  if (error) throw new Error(error.message);
+}
 
 export const useEventosDesempenho = () => useView("vw_eventos_desempenho");
 export const useDiretoriaConsol   = () => useView("vw_diretoria_consolidado");
