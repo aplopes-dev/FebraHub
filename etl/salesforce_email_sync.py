@@ -43,8 +43,9 @@ SB_KEY = os.environ['SUPABASE_SERVICE_KEY']
 # assunto real dos e-mails do Salesforce agendado:
 #   'Relatar resultados (Base pagamentos - dia a dia)'
 #   'Relatar resultados (Base alunos - dia a dia)'
-ASSUNTO_PG = os.environ.get('SF_ASSUNTO_PAGAMENTO', 'Base pagamentos')
-ASSUNTO_AL = os.environ.get('SF_ASSUNTO_ALUNOS', 'Base alunos')
+# .strip() + 'or' garante que secret VAZIO caia no padrão (não sobrescreve com '')
+ASSUNTO_PG = (os.environ.get('SF_ASSUNTO_PAGAMENTO') or '').strip() or 'Base pagamentos'
+ASSUNTO_AL = (os.environ.get('SF_ASSUNTO_ALUNOS') or '').strip() or 'Base alunos'
 
 # quanto de um campo obrigatório pode faltar antes de abortar (fração)
 LIMITE_VAZIO = 0.10
@@ -88,6 +89,9 @@ def buscar_os_dois(imap):
     """Varre a caixa UMA vez, do mais recente ao mais antigo, e separa o
     primeiro CSV de pagamento e o primeiro de alunos pelo assunto.
     Evita reler a caixa duas vezes (que causava pegar o e-mail errado)."""
+    if not ASSUNTO_PG.strip() or not ASSUNTO_AL.strip():
+        raise SystemExit("Assunto de busca vazio — abortando para não casar "
+                         "com e-mails errados. Verifique SF_ASSUNTO_*.")
     print(f"  procurando PG='{ASSUNTO_PG}' | AL='{ASSUNTO_AL}'")
     status, dados = imap.search(None, 'ALL')
     if status != 'OK':
@@ -105,7 +109,9 @@ def buscar_os_dois(imap):
         al = assunto.lower()
         eh_pg = ASSUNTO_PG.lower() in al
         eh_al = ASSUNTO_AL.lower() in al
-        if not (eh_pg or eh_al):
+        # exclusivo: se casar com os dois (ou nenhum), ignora — evita pegar
+        # e-mail genérico ('New Form Submission') que não é relatório
+        if eh_pg == eh_al:
             continue
         print(f"    match: '{assunto[:55]}' -> pg={eh_pg} al={eh_al}")
         # pega o CSV deste e-mail
