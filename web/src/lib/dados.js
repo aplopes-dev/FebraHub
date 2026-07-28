@@ -287,7 +287,86 @@ export const useMarketingOrigemVendas = () =>
 export const useMarketingAtribuicao = () =>
   useView("vw_marketing_atribuicao_campanha");
 
-export const usePedagogicoTurmas  = () => useView("vw_pedagogico_turmas");
+/* ============ PEDAGÓGICO / SUCESSO DO CLIENTE ============
+   Foco em SAÚDE (acompanhamento), não lista de tarefas. Tudo vem do
+   Salesforce. Conclusão, notas e NPS não são medidos — não existem na fonte.
+   Presença cobre só as turmas com credenciamento confiável (176 de 197). */
+
+// KPIs de recompra (fidelização): uma linha agregada — alunos únicos,
+// matrículas, cursos por aluno, taxa de recompra.
+export const usePedagogicoKpis = () => useView("vw_pedagogico_kpis");
+// KPIs de presença: comparecimento geral + cobertura (turmas credenciadas).
+export const usePedagogicoPresencaKpis = () => useView("vw_pedagogico_presenca_kpis");
+// Taxa de comparecimento por TRIMESTRE (série). `matriculas` é o tamanho da
+// amostra — o front de-enfatiza trimestres com poucas (<~30) matrículas.
+export const usePedagogicoPresencaTempo = () =>
+  useView("vw_pedagogico_presenca_tempo", { ordem: ["periodo"] });
+// Cursos que mais fidelizam (taxa_recompra por curso). `alunos` = amostra.
+export const usePedagogicoRecompraCurso = () =>
+  useView("vw_pedagogico_recompra_curso", { ordem: ["curso"] });
+// Cursos com mais falta (taxa_comparecimento por curso; piores no topo no front).
+export const usePedagogicoPresencaCurso = () =>
+  useView("vw_pedagogico_presenca_curso", { ordem: ["curso"] });
+// Painel de Maestros: os clientes VIP (compraram MAESTRIA). `_completo` já
+// junta as anotações editáveis (apelido/empresa/faturamento/observacoes) aos
+// campos do maestro; a chave é `cpf` (= aluno_id em maestro_anotacao). PII
+// restrita ao setor. Ordeno por chave estável; o front reordena por investido.
+export const usePedagogicoMaestrosCompleto = () =>
+  useView("vw_pedagogico_maestros_completo", { ordem: ["total_investido", "nome"] });
+// KPIs do grupo de maestros: total + contadores de validade da Maestria
+// (validos, perto_vencer, vencidos). Validade = 12 meses desde a compra da
+// MAESTRIA; "vencido" é benefício expirado (oportunidade de renovação), não
+// deixou de ser maestro. Uma linha só.
+export const usePedagogicoMaestrosKpis = () =>
+  useView("vw_pedagogico_maestros_kpis");
+// Anotações cruas (maestro_anotacao) — a view _completo não expõe `cargo`, e
+// aqui o form de edição pré-preenche esse campo. RLS libera só ao pedagógico.
+export const usePedagogicoMaestroAnotacoes = () =>
+  useView("maestro_anotacao", { ordem: ["aluno_id"] });
+// Avaliações (GGB + eventos): uma linha por curso/evento com as médias já
+// calculadas — media_indicacao (alunos), media_nota_treinador (só GGB) e
+// media_qualidade. Os KPIs trazem contagens por fonte.
+export const usePedagogicoAvaliacao = () =>
+  useView("vw_pedagogico_avaliacao", { ordem: ["fonte", "curso"] });
+export const usePedagogicoAvaliacaoKpis = () =>
+  useView("vw_pedagogico_avaliacao_kpis", { ordem: ["fonte"] });
+// Retenção (entrada manual): casos crus (fato_retencao), o resumo
+// (vw_pedagogico_retencao: total_casos/retidos/cancelados/taxa) e os motivos
+// (vw_pedagogico_retencao_motivos: motivo, retidos vs cancelados).
+export const usePedagogicoRetencaoCasos = () =>
+  useView("fato_retencao", { ordem: ["data_ligacao", "id"] });
+export const usePedagogicoRetencao = () =>
+  useView("vw_pedagogico_retencao");
+export const usePedagogicoRetencaoMotivos = () =>
+  useView("vw_pedagogico_retencao_motivos", { ordem: ["motivo"] });
+// Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
+// único — ordeno por todas as colunas discriminantes pra paginação estável.
+export const usePedagogicoAusentes = () =>
+  useView("vw_pedagogico_ausentes", { ordem: ["aluno_id", "curso", "turma"] });
+
+/* ESCRITA (exceção sancionada ao "front só lê view"): as tabelas
+   fato_avaliacao e maestro_anotacao têm policies de INSERT/UPDATE com
+   pode_ver('pedagogico'). A gravação vai com o JWT da sessão; a RLS barra
+   quem não for do setor. Erros sobem pro form tratar. */
+export async function salvarAvaliacao(registro) {
+  const { error } = await supabase.from("fato_avaliacao").insert(registro);
+  if (error) throw new Error(error.message);
+}
+export async function salvarMaestroAnotacao(anotacao) {
+  const { error } = await supabase.from("maestro_anotacao").upsert(anotacao, { onConflict: "aluno_id" });
+  if (error) throw new Error(error.message);
+}
+// Retenção: sem `id` insere um caso novo; com `id` atualiza (ex.: mudar o
+// desfecho de 'pendente' para 'retido'/'cancelado' depois da ligação).
+export async function salvarRetencao(registro) {
+  const { id, ...campos } = registro;
+  const q = id != null
+    ? supabase.from("fato_retencao").update(campos).eq("id", id)
+    : supabase.from("fato_retencao").insert(campos);
+  const { error } = await q;
+  if (error) throw new Error(error.message);
+}
+
 export const useEventosDesempenho = () => useView("vw_eventos_desempenho");
 export const useDiretoriaConsol   = () => useView("vw_diretoria_consolidado");
 

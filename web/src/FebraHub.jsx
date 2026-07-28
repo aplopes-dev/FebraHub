@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, createContext, useContext } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
   LayoutDashboard, Lock, Mail, AlertTriangle, Package, LogOut, Power,
@@ -7,7 +7,8 @@ import {
   Clock, Receipt, Hourglass, ChevronLeft, ChevronRight, ChevronDown,
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
-  Boxes, PackageX,
+  Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity, ShieldCheck,
+  Check, Upload, Pencil, Star, Plus, PhoneCall,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -27,7 +28,14 @@ import {
   useLojaProdutosVendidosMes, useLojaEstoque, useLojaPerformanceCurso,
   useMarketingResumoMensal, useMarketingDesempenho, useMarketingOrigemVendas,
   useMarketingAtribuicao,
-  usePedagogicoTurmas, useEventosDesempenho,
+  usePedagogicoKpis, usePedagogicoPresencaKpis, usePedagogicoPresencaTempo,
+  usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
+  usePedagogicoMaestrosCompleto, usePedagogicoMaestrosKpis, usePedagogicoMaestroAnotacoes,
+  usePedagogicoAvaliacao, usePedagogicoAvaliacaoKpis,
+  usePedagogicoRetencaoCasos, usePedagogicoRetencao, usePedagogicoRetencaoMotivos,
+  salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
+  usePedagogicoAusentes,
+  useEventosDesempenho,
   useDiretoriaConsol, useIntegracaoStatus,
   porMes, variacao, moeda, numero,
 } from "./lib/dados";
@@ -3136,26 +3144,961 @@ function HubMarketing() {
   );
 }
 
-function HubPedagogico() {
-  const t = usePedagogicoTurmas();
-  const mat = useMemo(() => porMes(t.data ?? [], "mes", "matriculas"), [t.data]);
-  const conc = useMemo(() => porMes(t.data ?? [], "mes", "concluintes"), [t.data]);
-  const v = variacao(mat);
-  const cursos = useMemo(() => agrupar(t.data ?? [], "nome_curso", "matriculas").slice(0, 8), [t.data]);
-  const taxa = v.atual ? ((conc.at(-1)?.valor / v.atual) * 100).toFixed(1) : null;
+/* Taxa vinda da view pode chegar como fração (0.55) ou percentual (55). O
+   anon não vê o valor real (RLS zera), então não dá pra fixar a escala —
+   normalizo pros dois formatos: <= 1.5 é fração e vira 0–100. */
+const pctTaxa = (v) => {
+  const n = Number(v ?? 0);
+  return n <= 1.5 ? n * 100 : n;
+};
+const fmtPct = (v, casas = 0) => (v == null ? "—"
+  : `${pctTaxa(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`);
+
+/* Rótulo de trimestre defensivo: `periodo` pode vir "2024-Q3", "2024-T3",
+   "2024-3" ou "2024-07" (mês). YYYY-MM vira o trimestre do mês; o resto usa o
+   dígito 1–4 do fim. Sem casar, mostra o texto cru — nunca inventa. */
+const rotuloTri = (p) => {
+  const s = String(p ?? "").trim();
+  const mm = s.match(/^(\d{4})-(\d{2})$/);
+  if (mm) return `T${Math.floor((Number(mm[2]) - 1) / 3) + 1}/${mm[1].slice(2)}`;
+  const q = s.match(/(\d{4}).*?([1-4])\s*$/);
+  if (q) return `T${q[2]}/${q[1].slice(2)}`;
+  return s || "—";
+};
+
+/* Linha da taxa de comparecimento por trimestre. Pontos com amostra pequena
+   (poucas matrículas) saem VAZADOS e cinza e NÃO entram na linha nem no
+   domínio Y — o início de 2022 e trimestres esparsos não distorcem a leitura.
+   Não reusa LinhaEvolucao: ali a série é mensal e a área liga buracos; aqui a
+   amostra pequena é espalhada. */
+function LinhaPresenca({ serie }) {
+  if (serie.length < 2) return <Estado vazio vazioTitulo="Série insuficiente" vazioDica="Poucos trimestres com presença medida para desenhar a linha." />;
+  const W = 720, H = 196, padL = 40, padR = 14, padT = 20, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB, plotBottom = padT + plotH;
+  const n = serie.length;
+  const base = (serie.some((p) => !p.pequena) ? serie.filter((p) => !p.pequena) : serie).map((p) => p.taxa);
+  let vMax = Math.min(100, Math.ceil((Math.max(...base) + 6) / 5) * 5);
+  let vMin = Math.max(0, Math.floor((Math.min(...base) - 6) / 5) * 5);
+  if (vMax <= vMin) vMax = Math.min(100, vMin + 10);
+  const x = (i) => padL + (i / (n - 1)) * plotW;
+  const y = (v) => Math.max(padT, Math.min(plotBottom, plotBottom - ((v - vMin) / (vMax - vMin || 1)) * plotH));
+  const confIdx = serie.map((_, i) => i).filter((i) => !serie[i].pequena);
+  const linha = confIdx.map((i) => `${x(i)},${y(serie[i].taxa)}`).join(" ");
+  const yticks = [vMin, Math.round((vMin + vMax) / 2), vMax];
+  const passo = Math.max(1, Math.round((n - 1) / 5));
+  const xi = [];
+  for (let i = 0; i < n; i += passo) xi.push(i);
+  if (xi.at(-1) !== n - 1) xi.push(n - 1);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      {yticks.map((v, i) => {
+        const yy = y(v);
+        return (
+          <g key={i}>
+            <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" />
+            <text x={padL - 8} y={yy + 3.5} fontSize="10.5" textAnchor="end" fill={C.faint} fontFamily={SANS}>{v}%</text>
+          </g>
+        );
+      })}
+      {confIdx.length > 1 && <polyline points={linha} fill="none" stroke={C.up} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+      {serie.map((p, i) => (p.pequena
+        ? <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.6" fill="none" stroke={C.faint} strokeWidth="1.2" />
+        : <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.8" fill={C.up} />))}
+      {xi.map((i) => (
+        <text key={i} x={x(i)} y={H - 9} fontSize="10" textAnchor="middle" fill={C.faint} fontFamily={SANS}>{serie[i].rotulo}</text>
+      ))}
+    </svg>
+  );
+}
+
+/* Ranking de cursos por uma taxa (0–100): fideliza (recompra, dourado) e
+   falta (dourado→âmbar). Mostra a amostra pra ninguém ler um n=2 como
+   tendência. Barra proporcional à própria taxa. */
+function RankingCurso({ linhas, cor, sufixo, vazioTitulo, vazioDica }) {
+  if (!linhas.length) return <Estado vazio vazioTitulo={vazioTitulo} vazioDica={vazioDica} />;
+  const max = Math.max(...linhas.map((l) => l.valor), 1);
+  return (
+    <div>
+      {linhas.map((l, i) => (
+        <div key={l.rotulo + i} style={{ padding: "7px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.rotulo}>{l.rotulo}</span>
+            <span style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 10.5, color: C.faint }}>{numero(l.amostra)} {sufixo}</span>
+              <span style={{ fontFamily: GROTESK, fontSize: 13.5, fontWeight: 700, color: cor }}>{l.valor.toFixed(0)}%</span>
+            </span>
+          </div>
+          <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+            <div style={{ width: `${(l.valor / max) * 100}%`, height: "100%", borderRadius: 3, background: cor }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============ AVALIAÇÕES: PARSERS + UI DE ENTRADA ============ */
+// Tokenizador que respeita aspas: um campo entre "..." pode conter o
+// delimitador E quebras de linha (comentários do GGB); "" é aspa escapada.
+function parseDelimitado(texto, delim) {
+  const s = String(texto ?? "").replace(/\r\n?/g, "\n");
+  const linhas = [];
+  let linha = [], campo = "", aspas = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (aspas) {
+      if (c === '"') { if (s[i + 1] === '"') { campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === delim) { linha.push(campo); campo = ""; }
+    else if (c === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+    else campo += c;
+  }
+  if (campo.length || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+// "9,5" | "9.5" | " 10 " -> número; vazio/lixo -> null.
+const notaNum = (v) => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) ? n : null; };
+const mediaNotas = (arr) => { const v = arr.filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// Ordem das 8 colunas de nota do bloco GGB -> campos da fato_avaliacao
+// (confirmado pela gestora). A 8ª é a indicação ("NPS"); a 9ª é comentário.
+const GGB_CAMPOS = ["q_conteudo", "q_clareza", "q_material", "q_aplicacao", "q_dominio", "q_pontualidade", "q_duvidas", "nps"];
+const GGB_ROTULO = { q_conteudo: "Conteúdo", q_clareza: "Clareza", q_material: "Material", q_aplicacao: "Aplicação", q_dominio: "Domínio", q_pontualidade: "Pontualidade", q_duvidas: "Dúvidas", nps: "Indicação (alunos)" };
+
+/* Processa o bloco colado do GGB (TSV; comentários entre aspas podem ter
+   quebras de linha). Devolve as 8 médias + nota do treinador + respondentes.
+   Não grava — o form mostra o preview e só então insere. */
+function parseGGB(texto) {
+  const linhas = parseDelimitado(texto, "\t");
+  let nota_treinador = null;
+  for (const l of linhas) {
+    const m = l.join(" ").match(/NOTA\s+D[AO]\s+TREINADOR[A]?\s*[:\-]?\s*([\d.,]+)/i);
+    if (m) { nota_treinador = notaNum(m[1]); break; }
+  }
+  // Respondentes: linhas com >= 8 colunas e 1º campo numérico (exclui
+  // cabeçalho de texto e a linha da nota da treinadora).
+  const resp = linhas.filter((l) => l.length >= 8 && notaNum(l[0]) != null);
+  const medias = {};
+  GGB_CAMPOS.forEach((campo, i) => { medias[campo] = mediaNotas(resp.map((l) => notaNum(l[i]))); });
+  return { ...medias, nota_treinador, respondentes: resp.length };
+}
+
+// Escala 1-5 em texto ("5 — Definitivamente sim"): pega o 1º dígito. Robusto
+// contra o travessão mal codificado — não depende do resto do rótulo.
+const notaEscala = (v) => { const m = String(v ?? "").match(/^\s*(\d)/); return m ? Number(m[1]) : null; };
+// "Submitted At" -> data ISO (aceita YYYY-MM-DD e DD/MM/YYYY).
+const dataISO = (v) => {
+  const s = String(v ?? "").trim();
+  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null;
+};
+// Colunas do CSV do Make Forms -> campos da fato_avaliacao (confirmado pela
+// gestora). A escala é 1-5 e NÃO é convertida. `recomendacao` é o indicador
+// principal (nps). Evento/treinador vêm à parte; a data sai de "Submitted At".
+const CSV_EVENTO_MAP = { satisfacao_geral: "q_conteudo", utilidade_conteudo: "q_material", metodologia: "q_clareza", dominio_treinador: "q_dominio", aplicacao_conhecimento: "q_aplicacao", recomendacao: "nps" };
+
+/* Processa o CSV do Make Forms. Casa colunas pelo NOME (sem acento, tolerante
+   a mojibake nos VALORES, que só lemos o 1º dígito). Devolve as médias 1-5
+   mapeadas, o comentário (principal_aprendizado juntado) e a data (Submitted
+   At). Encoding: o form lê o arquivo como UTF-8 antes de chamar aqui. */
+function parseCSVEvento(texto) {
+  const primeira = String(texto ?? "").split("\n")[0] ?? "";
+  const delim = (primeira.match(/;/g) || []).length > (primeira.match(/,/g) || []).length ? ";" : ",";
+  const linhas = parseDelimitado(texto, delim).filter((l) => l.some((c) => String(c).trim() !== ""));
+  if (linhas.length < 2) return { medias: {}, nps: null, comentario: null, data_curso: null, respondentes: 0, encontradas: [] };
+  // Normaliza o nome da coluna: sem acento, minúsculo, e espaço≡underscore
+  // (o header pode vir "satisfacao_geral" ou "Satisfação Geral").
+  const chaveCol = (s) => semAcento(s).trim().replace(/[\s_]+/g, "_");
+  const header = linhas[0].map(chaveCol);
+  const corpo = linhas.slice(1);
+  const idxDe = (nome) => { const n = chaveCol(nome); const e = header.indexOf(n); return e >= 0 ? e : header.findIndex((h) => h.includes(n)); };
+
+  const medias = {}, encontradas = [];
+  for (const [col, campo] of Object.entries(CSV_EVENTO_MAP)) {
+    const idx = idxDe(col);
+    if (idx < 0) continue;
+    encontradas.push(campo);
+    medias[campo] = mediaNotas(corpo.map((l) => notaEscala(l[idx])));
+  }
+  const idxCom = idxDe("principal_aprendizado");
+  const comentario = idxCom >= 0 ? (corpo.map((l) => String(l[idxCom] ?? "").trim()).filter(Boolean).join("\n") || null) : null;
+  const idxData = idxDe("submitted at");
+  const data_curso = idxData >= 0 ? (corpo.map((l) => dataISO(l[idxData])).find(Boolean) ?? null) : null;
+  return { medias, nps: medias.nps ?? null, comentario, data_curso, respondentes: corpo.length, encontradas };
+}
+const nota1 = (v) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+// Estilos de formulário reaproveitados nos modais.
+const inputAv = { width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "9px 11px", color: C.text, fontFamily: SANS, fontSize: 13 };
+const labelAv = { fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 4, display: "block" };
+
+// Modal centralizado (backdrop fecha ao clicar fora).
+function ModalCentro({ titulo, onFechar, children, largura = 560 }) {
+  return (
+    <>
+      <div onClick={onFechar} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.62)" }} />
+      <div className="rolagem" style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 61,
+        width: `min(${largura}px, 94vw)`, maxHeight: "88vh", overflowY: "auto",
+        background: "#141418", border: `1px solid ${C.cardLine}`, borderRadius: 16, boxShadow: "0 24px 64px rgba(0,0,0,.6)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: `1px solid ${C.hair}`, position: "sticky", top: 0, background: "#141418", zIndex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: C.bright }}>{titulo}</span>
+          <button onClick={onFechar} aria-label="Fechar" style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", display: "flex" }}><X size={18} /></button>
+        </div>
+        <div style={{ padding: 18 }}>{children}</div>
+      </div>
+    </>
+  );
+}
+
+// Botão primário/erro reutilizado nos modais.
+function BotaoSalvar({ onClick, disabled, salvando, children }) {
+  return (
+    <button onClick={onClick} disabled={disabled || salvando} style={{
+      display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none",
+      background: disabled || salvando ? "rgba(255,255,255,.08)" : `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`,
+      color: disabled || salvando ? C.faint : "#1A1305", fontWeight: 800, fontSize: 13, fontFamily: SANS,
+      cursor: disabled || salvando ? "default" : "pointer",
+    }}>
+      {salvando ? <Loader2 size={14} className="girar" /> : <Check size={14} />} {children}
+    </button>
+  );
+}
+
+/* Painel de Maestros: os clientes VIP (compraram MAESTRIA). Lista por maestro
+   ordenada por investido; inativo (>12 meses sem comprar) fica destacado em
+   âmbar como alerta de acompanhamento. Expõe PII (nome/e-mail) — exceção
+   justificada, restrita ao setor pedagógico pela RLS da view. */
+const dataCurta = (d) => {
+  if (!d) return "—";
+  const [a, m] = String(d).slice(0, 10).split("-");
+  return m ? `${MESES[Number(m) - 1].slice(0, 3).toLowerCase()}/${a.slice(2)}` : "—";
+};
+// Selo de validade da Maestria: verde (Válido), âmbar (Perto de vencer),
+// vermelho (Vencido = benefício expirado, oportunidade de renovação).
+const COR_STATUS_MAESTRIA = { "válido": C.up, "valido": C.up, "perto de vencer": C.warn, "vencido": C.down };
+const corStatus = (s) => COR_STATUS_MAESTRIA[String(s ?? "").trim().toLowerCase()] ?? C.muted;
+
+// Contador de validade com número colorido — mesma altura do ChipKpi compacto.
+function TileValidade({ Icone, label, valor, cor, nota }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, minHeight: 56, background: "rgba(255,255,255,.03)", border: `1px solid ${cor}33`, borderRadius: 10, padding: "8px 11px" }}>
+      <span style={{ width: 25, height: 25, borderRadius: 7, background: `${cor}1E`, color: cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icone size={13} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+          <span style={{ fontFamily: GROTESK, fontSize: 18, fontWeight: 700, color: cor }}>{valor}</span>
+          {nota && <span style={{ fontSize: 9.5, color: C.faint }}>{nota}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LinhaMaestro({ m, onEditar }) {
+  const cor = corStatus(m.status_maestria);
+  const s = String(m.status_maestria ?? "").trim().toLowerCase();
+  const acao = s === "vencido" || s === "perto de vencer"; // realça quem pede ação
+  const subInfo = [m.empresa, m.email].filter(Boolean).join(" · ") || "—";
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      padding: "9px 20px", borderBottom: `1px solid ${C.hair}`,
+      background: acao ? `${cor}12` : "transparent",
+    }}>
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+        {m.status_maestria && (
+          <span title={m.vence_em ? `Maestria vence em ${dataCurta(m.vence_em)}` : m.status_maestria}
+            style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".2px", padding: "2px 8px", borderRadius: 999, color: cor, background: `${cor}1A`, border: `1px solid ${cor}44`, whiteSpace: "nowrap", flexShrink: 0 }}>
+            {m.status_maestria}
+          </span>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email || m.nome}>
+            {m.nome}{m.como_gosta_ser_chamado ? <span style={{ color: C.faint, fontWeight: 600 }}> · {m.como_gosta_ser_chamado}</span> : null}
+          </div>
+          <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subInfo}</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+        <span style={{ textAlign: "right", width: 48 }}>
+          <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{numero(m.total_cursos)}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>cursos</div>
+        </span>
+        <span style={{ textAlign: "right", width: 46 }}>
+          <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{m.taxa_presenca != null ? fmtPct(m.taxa_presenca) : "—"}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>presença</div>
+        </span>
+        <span style={{ textAlign: "right", width: 54 }}>
+          <div style={{ fontSize: 11.5, color: cor, fontWeight: 600 }}>{dataCurta(m.vence_em)}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>vence</div>
+        </span>
+        <span style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.gold, width: 72, textAlign: "right" }}>{moeda(m.total_investido)}</span>
+        <button onClick={() => onEditar(m)} aria-label={`Editar ${m.nome}`} title="Editar anotações"
+          style={{ background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 8, padding: "5px 6px", cursor: "pointer", color: C.muted, display: "flex", flexShrink: 0 }}>
+          <Pencil size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Número BR tolerante: "5.000.000,50" | "5000000" | "R$ 5.000" -> número.
+const parseBRNumero = (v) => {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const limpo = s.replace(/[^\d.,]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : null;
+};
+
+/* GGB — colar o bloco de respostas. Parser mostra a prévia (8 médias + nota da
+   treinadora + respondentes) antes de gravar; só insere no fato_avaliacao ao
+   confirmar. Grava com fonte='ggb'. */
+function FormAvaliacaoGGB({ onSalvo }) {
+  const [texto, setTexto] = useState("");
+  const [curso, setCurso] = useState("");
+  const [treinador, setTreinador] = useState("");
+  const [data, setData] = useState("");
+  const [turma, setTurma] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const previa = useMemo(() => (texto.trim() ? parseGGB(texto) : null), [texto]);
+  const pronto = !!(previa && previa.respondentes > 0 && curso.trim() && treinador.trim() && data);
+
+  const salvar = async () => {
+    setSalvando(true); setErro(null);
+    try {
+      const { respondentes, ...medias } = previa;
+      await salvarAvaliacao({ fonte: "ggb", curso: curso.trim(), treinador: treinador.trim(), data_curso: data, turma: turma.trim() || null, respondentes, ...medias });
+      onSalvo();
+    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
+  };
 
   return (
-    <Estado carregando={t.isLoading} erro={t.error} vazio={!t.data?.length}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, marginBottom: 26 }}>
-        <Kpi label="Matrículas" valor={numero(v.atual)} delta={v.delta} up={v.up} serie={v.serie} parcial={v.parcial != null ? numero(v.parcial) : null} />
-        <Kpi label="Concluintes" valor={numero(conc.at(-1)?.valor)} delta={variacao(conc).delta} up={variacao(conc).up} serie={conc} />
-        <Kpi label="Conclusão" valor={taxa ?? "—"} unidade="%" nota="mês corrente" />
-        <Kpi label="Cursos ativos" valor={numero(cursos.length)} nota="no recorte" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <label style={labelAv}>Bloco de respostas (colar do GGB)</label>
+        <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={6}
+          placeholder={"Cole as linhas (uma por respondente, 8 notas + comentário, separadas por tabulação) e a linha final NOTA DA TREINADORA: X,X"}
+          style={{ ...inputAv, fontFamily: "monospace", fontSize: 12, resize: "vertical" }} />
       </div>
-      <Bloco titulo="Matrículas por curso" canto="acumulado" sem>
-        <Lista linhas={cursos} formatar={numero} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div><label style={labelAv}>Curso GGB</label><input style={inputAv} value={curso} onChange={(e) => setCurso(e.target.value)} placeholder="Ex.: GGB Fortaleza" /></div>
+        <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
+        <div><label style={labelAv}>Data do curso</label><input type="date" style={inputAv} value={data} onChange={(e) => setData(e.target.value)} /></div>
+        <div><label style={labelAv}>Turma (opcional)</label><input style={inputAv} value={turma} onChange={(e) => setTurma(e.target.value)} /></div>
+      </div>
+      {previa && previa.respondentes > 0 && (
+        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
+            Prévia · {previa.respondentes} {previa.respondentes === 1 ? "respondente" : "respondentes"}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {GGB_CAMPOS.map((c) => (
+              <div key={c} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 9.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{GGB_ROTULO[c]}</div>
+                <div style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: c === "nps" ? C.up : C.text }}>{nota1(previa[c])}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11.5, color: C.muted }}>
+            Nota da treinadora: <b style={{ color: previa.nota_treinador != null ? C.gold : C.faint }}>{nota1(previa.nota_treinador)}</b>
+            {previa.nota_treinador == null && <span style={{ color: C.warn }}> · não encontrei a linha "NOTA DA TREINADORA"</span>}
+          </div>
+        </div>
+      )}
+      {texto.trim() && previa && previa.respondentes === 0 && <div style={{ fontSize: 12, color: C.warn }}>Nenhum respondente reconhecido — confira se as colunas estão separadas por tabulação.</div>}
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>Gravar avaliação</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+// Rótulo p/ o preview do evento (campos mapeados do CSV).
+const EV_ROTULO = { q_conteudo: "Satisfação", q_material: "Utilidade", q_clareza: "Metodologia", q_dominio: "Domínio", q_aplicacao: "Aplicação", nps: "Indicação" };
+const EV_ORDEM = ["nps", "q_conteudo", "q_material", "q_clareza", "q_dominio", "q_aplicacao"];
+
+/* Eventos — anexar CSV do Make Forms. Lido como UTF-8. As respostas são escala
+   1-5 em texto ("5 — Definitivamente sim") — pegamos o 1º dígito. Casa colunas
+   pelo nome (satisfacao_geral, recomendacao, …). Evento/treinador vêm à parte;
+   a data sai de "Submitted At". Grava fonte='evento' (escala 1-5, sem converter). */
+function FormAvaliacaoEvento({ onSalvo }) {
+  const [texto, setTexto] = useState("");
+  const [arquivo, setArquivo] = useState("");
+  const [evento, setEvento] = useState("");
+  const [treinador, setTreinador] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const previa = useMemo(() => (texto.trim() ? parseCSVEvento(texto) : null), [texto]);
+  const achou = !!(previa && previa.encontradas.length);
+  const pronto = !!(achou && evento.trim() && treinador.trim());
+
+  const aoAnexar = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setArquivo(file.name); setErro(null);
+    const r = new FileReader();
+    r.onload = () => setTexto(String(r.result ?? ""));
+    r.onerror = () => setErro("Não consegui ler o arquivo.");
+    r.readAsText(file, "UTF-8"); // força UTF-8: o CSV vem UTF-8 e o default pode virar latin-1
+  };
+  const salvar = async () => {
+    setSalvando(true); setErro(null);
+    try {
+      await salvarAvaliacao({
+        fonte: "evento", curso: evento.trim(), treinador: treinador.trim(),
+        data_curso: previa.data_curso, comentario: previa.comentario,
+        respondentes: previa.respondentes, ...previa.medias,
+      });
+      onSalvo();
+    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, padding: "16px", borderRadius: 10, border: `1px dashed ${C.cardLine}`, cursor: "pointer", color: C.muted, fontSize: 13, fontWeight: 600 }}>
+        <Upload size={16} /> {arquivo || "Escolher CSV do Make Forms"}
+        <input type="file" accept=".csv,text/csv" onChange={aoAnexar} style={{ display: "none" }} />
+      </label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div><label style={labelAv}>Nome do evento</label><input style={inputAv} value={evento} onChange={(e) => setEvento(e.target.value)} /></div>
+        <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
+      </div>
+      {previa && (
+        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
+          {achou ? (
+            <>
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
+                Prévia · {previa.respondentes} respondentes · escala 1–5 · {previa.data_curso ? `data ${dataCurta(previa.data_curso)}` : "sem data"}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {EV_ORDEM.filter((c) => previa.medias[c] != null).map((c) => (
+                  <div key={c} style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 9.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{EV_ROTULO[c]}</div>
+                    <div style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: c === "nps" ? C.up : C.text }}>{nota1(previa.medias[c])}</div>
+                  </div>
+                ))}
+              </div>
+              {previa.medias.nps == null && <div style={{ marginTop: 8, fontSize: 11.5, color: C.warn }}>Não achei a coluna “recomendacao” (indicação). Confira o CSV.</div>}
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: C.warn }}>Nenhuma coluna reconhecida (satisfacao_geral, recomendacao…). Confira se é o CSV do Make Forms.</div>
+          )}
+        </div>
+      )}
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>Gravar avaliação</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+/* Edição das anotações do maestro (grava em maestro_anotacao por aluno_id=CPF). */
+function FormMaestro({ maestro, cargoInicial, onSalvo }) {
+  const [apelido, setApelido] = useState(maestro.como_gosta_ser_chamado ?? "");
+  const [empresa, setEmpresa] = useState(maestro.empresa ?? "");
+  const [faturamento, setFaturamento] = useState(maestro.faturamento != null ? String(maestro.faturamento) : "");
+  const [cargo, setCargo] = useState(cargoInicial ?? "");
+  const [observacoes, setObservacoes] = useState(maestro.observacoes ?? "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  const salvar = async () => {
+    setSalvando(true); setErro(null);
+    try {
+      await salvarMaestroAnotacao({
+        aluno_id: maestro.cpf,
+        como_gosta_ser_chamado: apelido.trim() || null,
+        empresa: empresa.trim() || null,
+        faturamento: parseBRNumero(faturamento),
+        cargo: cargo.trim() || null,
+        observacoes: observacoes.trim() || null,
+      });
+      onSalvo();
+    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 12.5, color: C.muted }}>{maestro.nome} · <span style={{ color: C.faint }}>{maestro.email || "—"}</span></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div><label style={labelAv}>Como gosta de ser chamado?</label><input style={inputAv} value={apelido} onChange={(e) => setApelido(e.target.value)} /></div>
+        <div><label style={labelAv}>Cargo</label><input style={inputAv} value={cargo} onChange={(e) => setCargo(e.target.value)} /></div>
+        <div><label style={labelAv}>Empresa</label><input style={inputAv} value={empresa} onChange={(e) => setEmpresa(e.target.value)} /></div>
+        <div><label style={labelAv}>Faturamento (R$)</label><input style={inputAv} inputMode="numeric" value={faturamento} onChange={(e) => setFaturamento(e.target.value)} placeholder="Ex.: 5.000.000" /></div>
+      </div>
+      <div><label style={labelAv}>Observações</label><textarea rows={3} style={{ ...inputAv, resize: "vertical" }} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} /></div>
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} salvando={salvando}>Salvar anotações</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+/* Lista de avaliações por curso/evento. `comTreinador`: no GGB mostra a nota
+   do treinador ao lado da indicação (alunos); em eventos ela não existe. */
+function ListaAvaliacao({ linhas, comTreinador }) {
+  return (
+    <div>
+      {linhas.map((r, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "9px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.curso}>{r.curso}</div>
+            <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.treinador || "—"} · {numero(r.respondentes)} resp.</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+            <span style={{ textAlign: "right", width: 62 }}>
+              <div style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.up }}>{nota1(r.media_indicacao)}</div>
+              <div style={{ fontSize: 9, color: C.dim }}>indicação</div>
+            </span>
+            {comTreinador && (
+              <span style={{ textAlign: "right", width: 62 }}>
+                <div style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: r.media_nota_treinador != null ? C.gold : C.faint }}>{r.media_nota_treinador != null ? nota1(r.media_nota_treinador) : "—"}</div>
+                <div style={{ fontSize: 9, color: C.dim }}>treinador</div>
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============ RETENÇÃO (entrada manual) ============ */
+// Desfecho da ligação de retenção: pendente (aguarda), retido (sucesso),
+// cancelado. Os valores gravados são minúsculos — mesma string que as views
+// vw_pedagogico_retencao(_motivos) contam.
+const DESFECHOS = [{ key: "pendente", label: "Pendente", cor: C.warn }, { key: "retido", label: "Retido", cor: C.up }, { key: "cancelado", label: "Cancelado", cor: C.down }];
+const desfechoInfo = (d) => DESFECHOS.find((x) => x.key === String(d ?? "").trim().toLowerCase()) ?? { key: "", label: d || "—", cor: C.muted };
+
+/* Registrar/editar um caso de retenção. Sem `id` insere; com `id` atualiza
+   (ex.: mudar o desfecho de pendente para retido/cancelado após a ligação). */
+function FormRetencao({ caso, onSalvo }) {
+  const editando = !!caso?.id;
+  const [nome, setNome] = useState(caso?.nome_cliente ?? "");
+  const [curso, setCurso] = useState(caso?.curso ?? "");
+  const [motivo, setMotivo] = useState(caso?.motivo_cancelamento ?? "");
+  const [data, setData] = useState(caso?.data_ligacao ? String(caso.data_ligacao).slice(0, 10) : "");
+  const [desfecho, setDesfecho] = useState(caso?.desfecho ?? "pendente");
+  const [obs, setObs] = useState(caso?.observacoes ?? "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const pronto = !!(nome.trim() && curso.trim());
+
+  const salvar = async () => {
+    setSalvando(true); setErro(null);
+    try {
+      await salvarRetencao({
+        ...(editando ? { id: caso.id } : {}),
+        nome_cliente: nome.trim(), curso: curso.trim(),
+        motivo_cancelamento: motivo.trim() || null,
+        data_ligacao: data || null, desfecho,
+        observacoes: obs.trim() || null,
+      });
+      onSalvo();
+    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div><label style={labelAv}>Nome do cliente</label><input style={inputAv} value={nome} onChange={(e) => setNome(e.target.value)} /></div>
+        <div><label style={labelAv}>Curso</label><input style={inputAv} value={curso} onChange={(e) => setCurso(e.target.value)} /></div>
+        <div style={{ gridColumn: "1 / -1" }}><label style={labelAv}>Motivo do cancelamento</label><input style={inputAv} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: Financeiro, Agenda, Expectativa…" /></div>
+        <div><label style={labelAv}>Data da ligação</label><input type="date" style={inputAv} value={data} onChange={(e) => setData(e.target.value)} /></div>
+        <div>
+          <label style={labelAv}>Desfecho</label>
+          <Segmentado valor={desfecho} onChange={setDesfecho} opcoes={DESFECHOS.map((d) => ({ key: d.key, label: d.label }))} />
+        </div>
+      </div>
+      <div><label style={labelAv}>Observações</label><textarea rows={3} style={{ ...inputAv, resize: "vertical" }} value={obs} onChange={(e) => setObs(e.target.value)} /></div>
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>{editando ? "Atualizar caso" : "Registrar caso"}</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+function LinhaRetencao({ c, onEditar }) {
+  const d = desfechoInfo(c.desfecho);
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 20px", borderBottom: `1px solid ${C.hair}` }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.nome_cliente}</div>
+        <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {c.curso}{c.motivo_cancelamento ? ` · ${c.motivo_cancelamento}` : ""}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <span style={{ fontSize: 10.5, color: C.faint, width: 52, textAlign: "right" }}>{c.data_ligacao ? dataCurta(c.data_ligacao) : "—"}</span>
+        <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, color: d.cor, background: `${d.cor}1A`, border: `1px solid ${d.cor}44`, whiteSpace: "nowrap", width: 78, textAlign: "center" }}>{d.label}</span>
+        <button onClick={() => onEditar(c)} aria-label="Editar caso" title="Editar / registrar desfecho"
+          style={{ background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 8, padding: "5px 6px", cursor: "pointer", color: C.muted, display: "flex" }}>
+          <Pencil size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Motivos mais frequentes: barra 100% (retidos verde / cancelados vermelho).
+function ListaMotivos({ linhas }) {
+  return (
+    <div>
+      {linhas.map((m, i) => {
+        const r = Number(m.retidos ?? 0), c = Number(m.cancelados ?? 0), t = r + c || 1;
+        return (
+          <div key={i} style={{ padding: "8px 20px", borderBottom: `1px solid ${C.hair}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 5 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.motivo}>{m.motivo || "—"}</span>
+              <span style={{ fontSize: 10.5, color: C.faint, flexShrink: 0 }}><b style={{ color: C.up }}>{numero(r)}</b> retidos · <b style={{ color: C.down }}>{numero(c)}</b> cancel.</span>
+            </div>
+            <div style={{ display: "flex", height: 5, borderRadius: 3, overflow: "hidden", background: "rgba(255,255,255,.06)" }}>
+              <div style={{ width: `${(r / t) * 100}%`, background: C.up }} />
+              <div style={{ width: `${(c / t) * 100}%`, background: C.down }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Hub Pedagógico / Sucesso do Cliente. Foco em SAÚDE: acompanhamento, não
+   fila de tarefas. Tudo vem do Salesforce; conclusão, notas e NPS não são
+   medidos (não existem na fonte). Presença cobre só as turmas com
+   credenciamento confiável. */
+function HubPedagogico() {
+  const kpis = usePedagogicoKpis();
+  const presKpis = usePedagogicoPresencaKpis();
+  const presTempo = usePedagogicoPresencaTempo();
+  const recompraCurso = usePedagogicoRecompraCurso();
+  const presCurso = usePedagogicoPresencaCurso();
+  const maestros = usePedagogicoMaestrosCompleto();
+  const maestrosKpis = usePedagogicoMaestrosKpis();
+  const anotacoes = usePedagogicoMaestroAnotacoes();
+  const avaliacao = usePedagogicoAvaliacao();
+  const avaliacaoKpis = usePedagogicoAvaliacaoKpis();
+  const retencaoCasos = usePedagogicoRetencaoCasos();
+  const retencao = usePedagogicoRetencao();
+  const retencaoMotivos = usePedagogicoRetencaoMotivos();
+  const ausentes = usePedagogicoAusentes();
+  const qc = useQueryClient();
+  const [verReativar, setVerReativar] = useState(false);
+  const [statusMaestro, setStatusMaestro] = useState("todos");
+  const [modalAv, setModalAv] = useState(null);       // 'ggb' | 'evento' | null
+  const [maestroEdit, setMaestroEdit] = useState(null); // maestro sendo editado
+  const [retEdit, setRetEdit] = useState(null);         // caso de retenção ('novo' | caso | null)
+
+  // Após gravar: recarrega as views afetadas e fecha o modal.
+  const aposSalvar = () => { qc.invalidateQueries(); setModalAv(null); setMaestroEdit(null); setRetEdit(null); };
+  // cargo não vem na view _completo — pré-preenche do maestro_anotacao cru.
+  const cargoPorCpf = useMemo(() => {
+    const m = new Map();
+    for (const a of anotacoes.data ?? []) if (a.aluno_id != null) m.set(String(a.aluno_id), a.cargo ?? "");
+    return m;
+  }, [anotacoes.data]);
+
+  const k = kpis.data?.[0] ?? {};
+  const pk = presKpis.data?.[0] ?? {};
+  const cursosPorAluno = k.cursos_por_aluno != null
+    ? Number(k.cursos_por_aluno).toLocaleString("pt-BR", { maximumFractionDigits: 1 })
+    : "—";
+
+  // Série trimestral: amostra pequena (<30 matrículas) fica de-enfatizada.
+  const serieTri = useMemo(() =>
+    (presTempo.data ?? [])
+      .filter((r) => r.periodo != null)
+      .map((r) => ({
+        rotulo: rotuloTri(r.periodo),
+        taxa: pctTaxa(r.taxa_comparecimento),
+        amostra: Number(r.matriculas ?? 0),
+        pequena: Number(r.matriculas ?? 0) < 30,
+      }))
+      .sort((a, b) => String(a.rotulo).localeCompare(String(b.rotulo))),
+    [presTempo.data]);
+  const temPequena = serieTri.some((p) => p.pequena);
+
+  // Cursos que mais fidelizam (recompra desc).
+  const fideliza = useMemo(() =>
+    (recompraCurso.data ?? [])
+      .map((r) => ({ rotulo: r.curso ?? "—", valor: pctTaxa(r.taxa_recompra), amostra: Number(r.alunos ?? 0) }))
+      .filter((r) => r.amostra > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6),
+    [recompraCurso.data]);
+
+  // Cursos com mais falta: mostra a % que FALTOU (100 − comparecimento), piores no topo.
+  const maisFalta = useMemo(() =>
+    (presCurso.data ?? [])
+      .map((r) => ({ rotulo: r.curso ?? "—", valor: 100 - pctTaxa(r.taxa_comparecimento), amostra: Number(r.matriculas ?? 0) }))
+      .filter((r) => r.amostra > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6),
+    [presCurso.data]);
+
+  // Maestros (VIP): lista por investido (desc), com filtro por status de
+  // validade. Ativos/inativos/média saem da agregação do detalhe (a view de
+  // kpis não os traz); os contadores de VALIDADE (válidos/perto/vencidos) vêm
+  // da vw_pedagogico_maestros_kpis, mesma fonte do selo por linha.
+  const listaMaestros = useMemo(() => {
+    const arr = [...(maestros.data ?? [])].sort((a, b) => Number(b.total_investido ?? 0) - Number(a.total_investido ?? 0));
+    if (statusMaestro === "todos") return arr;
+    return arr.filter((m) => String(m.status_maestria ?? "").trim().toLowerCase() === statusMaestro);
+  }, [maestros.data, statusMaestro]);
+  const maestrosKpi = useMemo(() => {
+    const arr = maestros.data ?? [];
+    const ativos = arr.filter((m) => m.ativo).length;
+    const invest = arr.reduce((s, m) => s + Number(m.total_investido ?? 0), 0);
+    const fatGrupo = arr.reduce((s, m) => s + Number(m.faturamento ?? 0), 0);
+    return { total: arr.length, ativos, inativos: arr.length - ativos, media: arr.length ? invest / arr.length : 0, fatGrupo };
+  }, [maestros.data]);
+  const mk = maestrosKpis.data?.[0] ?? {};
+  const temMaestros = (maestros.data?.length ?? 0) > 0;
+
+  // Avaliações separadas por fonte; KPIs (contagens) por fonte.
+  const avGGB = useMemo(() => (avaliacao.data ?? []).filter((r) => r.fonte === "ggb"), [avaliacao.data]);
+  const avEvento = useMemo(() => (avaliacao.data ?? []).filter((r) => r.fonte === "evento"), [avaliacao.data]);
+  const avKpi = useMemo(() => {
+    const m = new Map();
+    for (const r of avaliacaoKpis.data ?? []) m.set(r.fonte, r);
+    return m;
+  }, [avaliacaoKpis.data]);
+
+  // Retenção: casos recentes primeiro; motivos por frequência (retidos+cancel).
+  const casos = useMemo(() =>
+    [...(retencaoCasos.data ?? [])].sort((a, b) => String(b.data_ligacao ?? "").localeCompare(String(a.data_ligacao ?? ""))),
+    [retencaoCasos.data]);
+  const pendentes = useMemo(() => casos.filter((c) => String(c.desfecho ?? "").trim().toLowerCase() === "pendente").length, [casos]);
+  const motivos = useMemo(() =>
+    [...(retencaoMotivos.data ?? [])].sort((a, b) => (Number(b.retidos ?? 0) + Number(b.cancelados ?? 0)) - (Number(a.retidos ?? 0) + Number(a.cancelados ?? 0))),
+    [retencaoMotivos.data]);
+  const ret = retencao.data?.[0] ?? {};
+
+  const reativar = ausentes.data ?? [];
+
+  return (
+    <>
+      <style>{`
+        .pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        .pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+        @media (min-width: 720px)  { .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); } }
+        @media (min-width: 1000px) { .pedBot { grid-template-columns: 1fr 1fr; } }  /* fideliza · falta */
+      `}</style>
+
+      {/* ---- KPIs de saúde ---- */}
+      <div className="pedKpis" style={{ marginBottom: 12 }}>
+        <ChipKpi compacto hero Icone={Repeat} label="Recompra (grade)" valor={fmtPct(k.taxa_recompra, 1)} nota="cursos CIS + GGB" />
+        <ChipKpi compacto Icone={UserCheck} label="Comparecimento" valor={fmtPct(pk.taxa_comparecimento_geral)}
+          sub={pk.turmas_cobertas ? `${numero(pk.turmas_cobertas)} turmas credenciadas` : "turmas credenciadas"} />
+        <ChipKpi compacto Icone={Users} label="Alunos únicos" valor={k.alunos_unicos != null ? numero(k.alunos_unicos) : "—"} nota="na base" />
+        <ChipKpi compacto Icone={BookOpen} label="Cursos por aluno" valor={cursosPorAluno} nota="média" />
+      </div>
+
+      {/* ---- Comparecimento no tempo (largura total) ---- */}
+      <Bloco titulo="Comparecimento no tempo" canto="taxa por trimestre">
+        <Estado carregando={presTempo.isLoading} erro={presTempo.error} vazio={serieTri.length < 2}
+          vazioTitulo="Sem série de presença" vazioDica="Aparece com o setor pedagógico conectado.">
+          <LinhaPresenca serie={serieTri} />
+          {temPequena && (
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, color: C.faint, marginTop: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.2px solid ${C.faint}`, flexShrink: 0 }} />
+              trimestres com menos de 30 matrículas — amostra pequena, fora da linha
+            </div>
+          )}
+        </Estado>
       </Bloco>
-    </Estado>
+
+      {/* ---- Maestros (clientes VIP · compraram MAESTRIA) ---- */}
+      <Bloco titulo="Maestros" canto="clientes VIP · MAESTRIA" sem>
+        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <div className="pedMaestrosKpi">
+            <ChipKpi compacto hero Icone={Crown} label="Maestros" valor={temMaestros ? numero(maestrosKpi.total) : "—"} nota="clientes VIP" />
+            <ChipKpi compacto Icone={UserCheck} label="Ativos" valor={temMaestros ? numero(maestrosKpi.ativos) : "—"} nota="compra < 12 meses" />
+            <ChipKpi compacto Icone={AlertTriangle} label="Inativos" valor={temMaestros ? numero(maestrosKpi.inativos) : "—"} nota="+ de 12 meses parado" />
+            <ChipKpi compacto Icone={Wallet} label="Média investida" valor={temMaestros ? moeda(maestrosKpi.media) : "—"} nota="por maestro" />
+            <ChipKpi compacto Icone={TrendingUp} label="Faturamento do grupo" valor={maestrosKpi.fatGrupo ? moeda(maestrosKpi.fatGrupo) : "—"} nota="anotado · empresas" />
+            {/* Validade da Maestria (12 meses desde a compra) — números coloridos. */}
+            <TileValidade Icone={ShieldCheck} label="Válidos" valor={temMaestros ? numero(mk.validos) : "—"} cor={C.up} nota="vigente" />
+            <TileValidade Icone={Clock} label="Perto de vencer" valor={temMaestros ? numero(mk.perto_vencer) : "—"} cor={C.warn} nota="agir" />
+            <TileValidade Icone={ShieldAlert} label="Vencidos" valor={temMaestros ? numero(mk.vencidos) : "—"} cor={C.down} nota="renovar" />
+          </div>
+        </div>
+        {/* Filtro por status de validade — ajuda a gestora a agir nos que vão vencer. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <Segmentado label="Validade" valor={statusMaestro} onChange={setStatusMaestro}
+            opcoes={[{ key: "todos", label: "Todos" }, { key: "perto de vencer", label: "Perto de vencer" }, { key: "vencido", label: "Vencidos" }, { key: "válido", label: "Válidos" }]} />
+          <span style={{ fontSize: 10.5, color: C.faint }}>{numero(listaMaestros.length)} {listaMaestros.length === 1 ? "maestro" : "maestros"}</span>
+        </div>
+        <div className="rolagem" style={{ maxHeight: 250, overflowY: "auto" }}>
+          <Estado carregando={maestros.isLoading} erro={maestros.error} vazio={!listaMaestros.length}
+            vazioTitulo={temMaestros ? "Nenhum maestro nesse status" : "Sem maestros no acesso"}
+            vazioDica={temMaestros ? "Troque o filtro de validade acima." : "Painel restrito ao setor pedagógico — aparece com o setor conectado."}>
+            {listaMaestros.map((m, i) => <LinhaMaestro key={i} m={m} onEditar={setMaestroEdit} />)}
+          </Estado>
+        </div>
+        <div style={{ padding: "8px 20px", fontSize: 10, color: C.dim, borderTop: `1px solid ${C.hair}` }}>
+          Contém dados pessoais (nome, e-mail, telefone) — exceção justificada, restrita ao setor pedagógico.
+        </div>
+      </Bloco>
+
+      {/* ---- Cursos: fidelizam · faltam ---- */}
+      <div className="pedBot" style={{ marginBottom: 12 }}>
+        <Bloco titulo="Cursos que mais fidelizam" canto="recompra do aluno" sem altura={250}>
+          <Estado carregando={recompraCurso.isLoading} erro={recompraCurso.error} vazio={!fideliza.length}
+            vazioTitulo="Sem recompra por curso" vazioDica="Aparece com o setor pedagógico conectado.">
+            <RankingCurso linhas={fideliza} cor={C.gold} sufixo="alunos" />
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Cursos com mais falta" canto="% que faltou · piores no topo" sem altura={250}>
+          <Estado carregando={presCurso.isLoading} erro={presCurso.error} vazio={!maisFalta.length}
+            vazioTitulo="Sem falta por curso" vazioDica="Aparece com o setor pedagógico conectado.">
+            <RankingCurso linhas={maisFalta} cor={C.warn} sufixo="matrículas" />
+          </Estado>
+        </Bloco>
+      </div>
+
+      {/* ---- Avaliações (GGB colado + Eventos por CSV) ---- */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <Star size={15} style={{ color: C.gold, flexShrink: 0 }} />
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Avaliações</span>
+          <span style={{ fontSize: 11, color: C.faint }}>indicação dos alunos · nota do treinador</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => setModalAv("ggb")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
+            <Plus size={13} /> Colar notas GGB
+          </button>
+          <button onClick={() => setModalAv("evento")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
+            <Upload size={13} /> Anexar CSV de evento
+          </button>
+        </div>
+      </div>
+      <div className="pedBot" style={{ marginBottom: 12 }}>
+        <Bloco titulo="GGB" canto={`indicação + treinador · ${numero(avGGB.length)} curso(s)`} sem altura={230}>
+          <Estado carregando={avaliacao.isLoading} erro={avaliacao.error} vazio={!avGGB.length}
+            vazioTitulo="Sem avaliações GGB" vazioDica='Use "Colar notas GGB" para registrar a primeira.'>
+            <ListaAvaliacao linhas={avGGB} comTreinador />
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Eventos" canto={`indicação · escala 1–5 · ${numero(avEvento.length)} evento(s)`} sem altura={230}>
+          <Estado carregando={avaliacao.isLoading} erro={avaliacao.error} vazio={!avEvento.length}
+            vazioTitulo="Sem avaliações de evento" vazioDica='Use "Anexar CSV de evento" para registrar.'>
+            <ListaAvaliacao linhas={avEvento} comTreinador={false} />
+          </Estado>
+        </Bloco>
+      </div>
+
+      {/* ---- Retenção (entrada manual: ligações de win-back) ---- */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <PhoneCall size={15} style={{ color: C.up, flexShrink: 0 }} />
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Retenção</span>
+          <span style={{ fontSize: 11, color: C.faint }}>ligações de win-back · sucesso da equipe</span>
+        </div>
+        <button onClick={() => setRetEdit("novo")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
+          <Plus size={13} /> Registrar caso
+        </button>
+      </div>
+      <div className="pedKpis" style={{ marginBottom: 12 }}>
+        <ChipKpi compacto hero Icone={PhoneCall} label="Casos" valor={ret.total_casos != null ? numero(ret.total_casos) : "—"} nota={pendentes ? `${numero(pendentes)} pendentes` : "ligações"} />
+        <ChipKpi compacto Icone={ShieldCheck} label="Retidos" valor={ret.retidos != null ? numero(ret.retidos) : "—"} nota="win-back" />
+        <ChipKpi compacto Icone={AlertTriangle} label="Cancelados" valor={ret.cancelados != null ? numero(ret.cancelados) : "—"} nota="perdidos" />
+        <ChipKpi compacto Icone={Target} label="Taxa de retenção" valor={fmtPct(ret.taxa_retencao)} nota="sucesso da equipe" />
+      </div>
+      <div className="pedBot" style={{ marginBottom: 12 }}>
+        <Bloco titulo="Casos" canto={`recentes primeiro · ${numero(casos.length)}`} sem altura={250}>
+          <Estado carregando={retencaoCasos.isLoading} erro={retencaoCasos.error} vazio={!casos.length}
+            vazioTitulo="Sem casos registrados" vazioDica='Use "Registrar caso" para lançar a primeira ligação.'>
+            {casos.map((c) => <LinhaRetencao key={c.id} c={c} onEditar={setRetEdit} />)}
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Motivos mais frequentes" canto="retidos × cancelados" sem altura={250}>
+          <Estado carregando={retencaoMotivos.isLoading} erro={retencaoMotivos.error} vazio={!motivos.length}
+            vazioTitulo="Sem motivos ainda" vazioDica="Aparecem conforme os casos são registrados.">
+            <ListaMotivos linhas={motivos} />
+          </Estado>
+        </Bloco>
+      </div>
+
+      {/* ---- Reativação (secundária: foco é saúde, não ação) ---- */}
+      <div style={{ marginBottom: 8 }}>
+        <button onClick={() => setVerReativar((v) => !v)} style={{
+          display: "inline-flex", alignItems: "center", gap: 7, background: "transparent",
+          border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer",
+          color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: SANS,
+        }}>
+          <Activity size={14} /> Lista de reativação{reativar.length ? ` · ${numero(reativar.length)} alunos` : ""}
+          {verReativar ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {verReativar && (
+          <div style={{ marginTop: 10 }}>
+            <Bloco titulo="Reativação" canto="ausentes · secundário" sem altura={230}>
+              <Estado carregando={ausentes.isLoading} erro={ausentes.error} vazio={!reativar.length}
+                vazioTitulo="Ninguém para reativar" vazioDica="Aparece com o setor pedagógico conectado.">
+                <div>
+                  {reativar.slice(0, 60).map((r, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, padding: "7px 20px", borderBottom: `1px solid ${C.hair}` }}>
+                      <span style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+                        <span style={{ fontFamily: GROTESK, fontSize: 11, color: C.faint, flexShrink: 0 }}>#{r.aluno_id}</span>
+                        <span style={{ fontSize: 12.5, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.curso}>{r.curso ?? "—"}</span>
+                        {r.turma && <span style={{ fontSize: 11, color: C.faint, flexShrink: 0 }}>· {r.turma}</span>}
+                      </span>
+                      <span style={{ fontFamily: GROTESK, fontSize: 12.5, fontWeight: 700, color: C.muted, flexShrink: 0 }}>{moeda(r.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Estado>
+            </Bloco>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Transparência ---- */}
+      <div style={{ fontSize: 11, color: C.faint, lineHeight: 1.6, marginTop: 4 }}>
+        <b style={{ color: C.muted }}>Transparência.</b> A presença cobre {pk.turmas_cobertas ? numero(pk.turmas_cobertas) : "—"} turmas
+        com credenciamento confiável; as demais ficam de fora do comparecimento. Conclusão, notas e NPS
+        não são medidos — não estão no Salesforce.
+      </div>
+
+      <RodapeIntegracoes fontes={["salesforce"]} />
+
+      {/* ---- Modais de entrada (gravam nas tabelas; RLS gate pedagógico) ---- */}
+      {modalAv === "ggb" && (
+        <ModalCentro titulo="Avaliação GGB — colar respostas" largura={640} onFechar={() => setModalAv(null)}>
+          <FormAvaliacaoGGB onSalvo={aposSalvar} />
+        </ModalCentro>
+      )}
+      {modalAv === "evento" && (
+        <ModalCentro titulo="Avaliação de evento — anexar CSV" onFechar={() => setModalAv(null)}>
+          <FormAvaliacaoEvento onSalvo={aposSalvar} />
+        </ModalCentro>
+      )}
+      {maestroEdit && (
+        <ModalCentro titulo="Editar maestro" onFechar={() => setMaestroEdit(null)}>
+          <FormMaestro maestro={maestroEdit} cargoInicial={cargoPorCpf.get(String(maestroEdit.cpf)) ?? ""} onSalvo={aposSalvar} />
+        </ModalCentro>
+      )}
+      {retEdit && (
+        <ModalCentro titulo={retEdit === "novo" ? "Registrar caso de retenção" : "Editar caso de retenção"} onFechar={() => setRetEdit(null)}>
+          <FormRetencao caso={retEdit === "novo" ? null : retEdit} onSalvo={aposSalvar} />
+        </ModalCentro>
+      )}
+    </>
   );
 }
 
