@@ -330,6 +330,15 @@ export const usePedagogicoAvaliacao = () =>
   useView("vw_pedagogico_avaliacao", { ordem: ["fonte", "curso"] });
 export const usePedagogicoAvaliacaoKpis = () =>
   useView("vw_pedagogico_avaliacao_kpis", { ordem: ["fonte"] });
+// Retenção (entrada manual): casos crus (fato_retencao), o resumo
+// (vw_pedagogico_retencao: total_casos/retidos/cancelados/taxa) e os motivos
+// (vw_pedagogico_retencao_motivos: motivo, retidos vs cancelados).
+export const usePedagogicoRetencaoCasos = () =>
+  useView("fato_retencao", { ordem: ["data_ligacao", "id"] });
+export const usePedagogicoRetencao = () =>
+  useView("vw_pedagogico_retencao");
+export const usePedagogicoRetencaoMotivos = () =>
+  useView("vw_pedagogico_retencao_motivos", { ordem: ["motivo"] });
 // Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
 // único — ordeno por todas as colunas discriminantes pra paginação estável.
 export const usePedagogicoAusentes = () =>
@@ -345,6 +354,16 @@ export async function salvarAvaliacao(registro) {
 }
 export async function salvarMaestroAnotacao(anotacao) {
   const { error } = await supabase.from("maestro_anotacao").upsert(anotacao, { onConflict: "aluno_id" });
+  if (error) throw new Error(error.message);
+}
+// Retenção: sem `id` insere um caso novo; com `id` atualiza (ex.: mudar o
+// desfecho de 'pendente' para 'retido'/'cancelado' depois da ligação).
+export async function salvarRetencao(registro) {
+  const { id, ...campos } = registro;
+  const q = id != null
+    ? supabase.from("fato_retencao").update(campos).eq("id", id)
+    : supabase.from("fato_retencao").insert(campos);
+  const { error } = await q;
   if (error) throw new Error(error.message);
 }
 

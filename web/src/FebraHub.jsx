@@ -8,7 +8,7 @@ import {
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
   Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity, ShieldCheck,
-  Check, Upload, Pencil, Star, Plus,
+  Check, Upload, Pencil, Star, Plus, PhoneCall,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -32,7 +32,8 @@ import {
   usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
   usePedagogicoMaestrosCompleto, usePedagogicoMaestrosKpis, usePedagogicoMaestroAnotacoes,
   usePedagogicoAvaliacao, usePedagogicoAvaliacaoKpis,
-  salvarAvaliacao, salvarMaestroAnotacao,
+  usePedagogicoRetencaoCasos, usePedagogicoRetencao, usePedagogicoRetencaoMotivos,
+  salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
   usePedagogicoAusentes,
   useEventosDesempenho,
   useDiretoriaConsol, useIntegracaoStatus,
@@ -3422,7 +3423,7 @@ function LinhaMaestro({ m, onEditar }) {
         )}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email || m.nome}>
-            {m.nome}{m.apelido ? <span style={{ color: C.faint, fontWeight: 600 }}> · {m.apelido}</span> : null}
+            {m.nome}{m.como_gosta_ser_chamado ? <span style={{ color: C.faint, fontWeight: 600 }}> · {m.como_gosta_ser_chamado}</span> : null}
           </div>
           <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subInfo}</div>
         </div>
@@ -3606,7 +3607,7 @@ function FormAvaliacaoEvento({ onSalvo }) {
 
 /* Edição das anotações do maestro (grava em maestro_anotacao por aluno_id=CPF). */
 function FormMaestro({ maestro, cargoInicial, onSalvo }) {
-  const [apelido, setApelido] = useState(maestro.apelido ?? "");
+  const [apelido, setApelido] = useState(maestro.como_gosta_ser_chamado ?? "");
   const [empresa, setEmpresa] = useState(maestro.empresa ?? "");
   const [faturamento, setFaturamento] = useState(maestro.faturamento != null ? String(maestro.faturamento) : "");
   const [cargo, setCargo] = useState(cargoInicial ?? "");
@@ -3619,7 +3620,7 @@ function FormMaestro({ maestro, cargoInicial, onSalvo }) {
     try {
       await salvarMaestroAnotacao({
         aluno_id: maestro.cpf,
-        apelido: apelido.trim() || null,
+        como_gosta_ser_chamado: apelido.trim() || null,
         empresa: empresa.trim() || null,
         faturamento: parseBRNumero(faturamento),
         cargo: cargo.trim() || null,
@@ -3633,7 +3634,7 @@ function FormMaestro({ maestro, cargoInicial, onSalvo }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ fontSize: 12.5, color: C.muted }}>{maestro.nome} · <span style={{ color: C.faint }}>{maestro.email || "—"}</span></div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div><label style={labelAv}>Apelido</label><input style={inputAv} value={apelido} onChange={(e) => setApelido(e.target.value)} /></div>
+        <div><label style={labelAv}>Como gosta de ser chamado?</label><input style={inputAv} value={apelido} onChange={(e) => setApelido(e.target.value)} /></div>
         <div><label style={labelAv}>Cargo</label><input style={inputAv} value={cargo} onChange={(e) => setCargo(e.target.value)} /></div>
         <div><label style={labelAv}>Empresa</label><input style={inputAv} value={empresa} onChange={(e) => setEmpresa(e.target.value)} /></div>
         <div><label style={labelAv}>Faturamento (R$)</label><input style={inputAv} inputMode="numeric" value={faturamento} onChange={(e) => setFaturamento(e.target.value)} placeholder="Ex.: 5.000.000" /></div>
@@ -3676,6 +3677,107 @@ function ListaAvaliacao({ linhas, comTreinador }) {
   );
 }
 
+/* ============ RETENÇÃO (entrada manual) ============ */
+// Desfecho da ligação de retenção: pendente (aguarda), retido (sucesso),
+// cancelado. Os valores gravados são minúsculos — mesma string que as views
+// vw_pedagogico_retencao(_motivos) contam.
+const DESFECHOS = [{ key: "pendente", label: "Pendente", cor: C.warn }, { key: "retido", label: "Retido", cor: C.up }, { key: "cancelado", label: "Cancelado", cor: C.down }];
+const desfechoInfo = (d) => DESFECHOS.find((x) => x.key === String(d ?? "").trim().toLowerCase()) ?? { key: "", label: d || "—", cor: C.muted };
+
+/* Registrar/editar um caso de retenção. Sem `id` insere; com `id` atualiza
+   (ex.: mudar o desfecho de pendente para retido/cancelado após a ligação). */
+function FormRetencao({ caso, onSalvo }) {
+  const editando = !!caso?.id;
+  const [nome, setNome] = useState(caso?.nome_cliente ?? "");
+  const [curso, setCurso] = useState(caso?.curso ?? "");
+  const [motivo, setMotivo] = useState(caso?.motivo_cancelamento ?? "");
+  const [data, setData] = useState(caso?.data_ligacao ? String(caso.data_ligacao).slice(0, 10) : "");
+  const [desfecho, setDesfecho] = useState(caso?.desfecho ?? "pendente");
+  const [obs, setObs] = useState(caso?.observacoes ?? "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const pronto = !!(nome.trim() && curso.trim());
+
+  const salvar = async () => {
+    setSalvando(true); setErro(null);
+    try {
+      await salvarRetencao({
+        ...(editando ? { id: caso.id } : {}),
+        nome_cliente: nome.trim(), curso: curso.trim(),
+        motivo_cancelamento: motivo.trim() || null,
+        data_ligacao: data || null, desfecho,
+        observacoes: obs.trim() || null,
+      });
+      onSalvo();
+    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div><label style={labelAv}>Nome do cliente</label><input style={inputAv} value={nome} onChange={(e) => setNome(e.target.value)} /></div>
+        <div><label style={labelAv}>Curso</label><input style={inputAv} value={curso} onChange={(e) => setCurso(e.target.value)} /></div>
+        <div style={{ gridColumn: "1 / -1" }}><label style={labelAv}>Motivo do cancelamento</label><input style={inputAv} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: Financeiro, Agenda, Expectativa…" /></div>
+        <div><label style={labelAv}>Data da ligação</label><input type="date" style={inputAv} value={data} onChange={(e) => setData(e.target.value)} /></div>
+        <div>
+          <label style={labelAv}>Desfecho</label>
+          <Segmentado valor={desfecho} onChange={setDesfecho} opcoes={DESFECHOS.map((d) => ({ key: d.key, label: d.label }))} />
+        </div>
+      </div>
+      <div><label style={labelAv}>Observações</label><textarea rows={3} style={{ ...inputAv, resize: "vertical" }} value={obs} onChange={(e) => setObs(e.target.value)} /></div>
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>{editando ? "Atualizar caso" : "Registrar caso"}</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+function LinhaRetencao({ c, onEditar }) {
+  const d = desfechoInfo(c.desfecho);
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 20px", borderBottom: `1px solid ${C.hair}` }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.nome_cliente}</div>
+        <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {c.curso}{c.motivo_cancelamento ? ` · ${c.motivo_cancelamento}` : ""}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <span style={{ fontSize: 10.5, color: C.faint, width: 52, textAlign: "right" }}>{c.data_ligacao ? dataCurta(c.data_ligacao) : "—"}</span>
+        <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, color: d.cor, background: `${d.cor}1A`, border: `1px solid ${d.cor}44`, whiteSpace: "nowrap", width: 78, textAlign: "center" }}>{d.label}</span>
+        <button onClick={() => onEditar(c)} aria-label="Editar caso" title="Editar / registrar desfecho"
+          style={{ background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 8, padding: "5px 6px", cursor: "pointer", color: C.muted, display: "flex" }}>
+          <Pencil size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Motivos mais frequentes: barra 100% (retidos verde / cancelados vermelho).
+function ListaMotivos({ linhas }) {
+  return (
+    <div>
+      {linhas.map((m, i) => {
+        const r = Number(m.retidos ?? 0), c = Number(m.cancelados ?? 0), t = r + c || 1;
+        return (
+          <div key={i} style={{ padding: "8px 20px", borderBottom: `1px solid ${C.hair}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 5 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.motivo}>{m.motivo || "—"}</span>
+              <span style={{ fontSize: 10.5, color: C.faint, flexShrink: 0 }}><b style={{ color: C.up }}>{numero(r)}</b> retidos · <b style={{ color: C.down }}>{numero(c)}</b> cancel.</span>
+            </div>
+            <div style={{ display: "flex", height: 5, borderRadius: 3, overflow: "hidden", background: "rgba(255,255,255,.06)" }}>
+              <div style={{ width: `${(r / t) * 100}%`, background: C.up }} />
+              <div style={{ width: `${(c / t) * 100}%`, background: C.down }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* Hub Pedagógico / Sucesso do Cliente. Foco em SAÚDE: acompanhamento, não
    fila de tarefas. Tudo vem do Salesforce; conclusão, notas e NPS não são
    medidos (não existem na fonte). Presença cobre só as turmas com
@@ -3691,15 +3793,19 @@ function HubPedagogico() {
   const anotacoes = usePedagogicoMaestroAnotacoes();
   const avaliacao = usePedagogicoAvaliacao();
   const avaliacaoKpis = usePedagogicoAvaliacaoKpis();
+  const retencaoCasos = usePedagogicoRetencaoCasos();
+  const retencao = usePedagogicoRetencao();
+  const retencaoMotivos = usePedagogicoRetencaoMotivos();
   const ausentes = usePedagogicoAusentes();
   const qc = useQueryClient();
   const [verReativar, setVerReativar] = useState(false);
   const [statusMaestro, setStatusMaestro] = useState("todos");
   const [modalAv, setModalAv] = useState(null);       // 'ggb' | 'evento' | null
   const [maestroEdit, setMaestroEdit] = useState(null); // maestro sendo editado
+  const [retEdit, setRetEdit] = useState(null);         // caso de retenção ('novo' | caso | null)
 
   // Após gravar: recarrega as views afetadas e fecha o modal.
-  const aposSalvar = () => { qc.invalidateQueries(); setModalAv(null); setMaestroEdit(null); };
+  const aposSalvar = () => { qc.invalidateQueries(); setModalAv(null); setMaestroEdit(null); setRetEdit(null); };
   // cargo não vem na view _completo — pré-preenche do maestro_anotacao cru.
   const cargoPorCpf = useMemo(() => {
     const m = new Map();
@@ -3772,6 +3878,16 @@ function HubPedagogico() {
     for (const r of avaliacaoKpis.data ?? []) m.set(r.fonte, r);
     return m;
   }, [avaliacaoKpis.data]);
+
+  // Retenção: casos recentes primeiro; motivos por frequência (retidos+cancel).
+  const casos = useMemo(() =>
+    [...(retencaoCasos.data ?? [])].sort((a, b) => String(b.data_ligacao ?? "").localeCompare(String(a.data_ligacao ?? ""))),
+    [retencaoCasos.data]);
+  const pendentes = useMemo(() => casos.filter((c) => String(c.desfecho ?? "").trim().toLowerCase() === "pendente").length, [casos]);
+  const motivos = useMemo(() =>
+    [...(retencaoMotivos.data ?? [])].sort((a, b) => (Number(b.retidos ?? 0) + Number(b.cancelados ?? 0)) - (Number(a.retidos ?? 0) + Number(a.cancelados ?? 0))),
+    [retencaoMotivos.data]);
+  const ret = retencao.data?.[0] ?? {};
 
   const reativar = ausentes.data ?? [];
 
@@ -3887,6 +4003,38 @@ function HubPedagogico() {
         </Bloco>
       </div>
 
+      {/* ---- Retenção (entrada manual: ligações de win-back) ---- */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <PhoneCall size={15} style={{ color: C.up, flexShrink: 0 }} />
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Retenção</span>
+          <span style={{ fontSize: 11, color: C.faint }}>ligações de win-back · sucesso da equipe</span>
+        </div>
+        <button onClick={() => setRetEdit("novo")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
+          <Plus size={13} /> Registrar caso
+        </button>
+      </div>
+      <div className="pedKpis" style={{ marginBottom: 12 }}>
+        <ChipKpi compacto hero Icone={PhoneCall} label="Casos" valor={ret.total_casos != null ? numero(ret.total_casos) : "—"} nota={pendentes ? `${numero(pendentes)} pendentes` : "ligações"} />
+        <ChipKpi compacto Icone={ShieldCheck} label="Retidos" valor={ret.retidos != null ? numero(ret.retidos) : "—"} nota="win-back" />
+        <ChipKpi compacto Icone={AlertTriangle} label="Cancelados" valor={ret.cancelados != null ? numero(ret.cancelados) : "—"} nota="perdidos" />
+        <ChipKpi compacto Icone={Target} label="Taxa de retenção" valor={fmtPct(ret.taxa_retencao)} nota="sucesso da equipe" />
+      </div>
+      <div className="pedBot" style={{ marginBottom: 12 }}>
+        <Bloco titulo="Casos" canto={`recentes primeiro · ${numero(casos.length)}`} sem altura={250}>
+          <Estado carregando={retencaoCasos.isLoading} erro={retencaoCasos.error} vazio={!casos.length}
+            vazioTitulo="Sem casos registrados" vazioDica='Use "Registrar caso" para lançar a primeira ligação.'>
+            {casos.map((c) => <LinhaRetencao key={c.id} c={c} onEditar={setRetEdit} />)}
+          </Estado>
+        </Bloco>
+        <Bloco titulo="Motivos mais frequentes" canto="retidos × cancelados" sem altura={250}>
+          <Estado carregando={retencaoMotivos.isLoading} erro={retencaoMotivos.error} vazio={!motivos.length}
+            vazioTitulo="Sem motivos ainda" vazioDica="Aparecem conforme os casos são registrados.">
+            <ListaMotivos linhas={motivos} />
+          </Estado>
+        </Bloco>
+      </div>
+
       {/* ---- Reativação (secundária: foco é saúde, não ação) ---- */}
       <div style={{ marginBottom: 8 }}>
         <button onClick={() => setVerReativar((v) => !v)} style={{
@@ -3943,6 +4091,11 @@ function HubPedagogico() {
       {maestroEdit && (
         <ModalCentro titulo="Editar maestro" onFechar={() => setMaestroEdit(null)}>
           <FormMaestro maestro={maestroEdit} cargoInicial={cargoPorCpf.get(String(maestroEdit.cpf)) ?? ""} onSalvo={aposSalvar} />
+        </ModalCentro>
+      )}
+      {retEdit && (
+        <ModalCentro titulo={retEdit === "novo" ? "Registrar caso de retenção" : "Editar caso de retenção"} onFechar={() => setRetEdit(null)}>
+          <FormRetencao caso={retEdit === "novo" ? null : retEdit} onSalvo={aposSalvar} />
         </ModalCentro>
       )}
     </>
