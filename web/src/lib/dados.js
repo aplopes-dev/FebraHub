@@ -313,6 +313,12 @@ export const usePedagogicoPresencaCurso = () =>
 // Ordeno por chave estável; o front reordena por investido (desc).
 export const usePedagogicoMaestrosDetalhe = () =>
   useView("vw_pedagogico_maestros_detalhe", { ordem: ["total_investido", "nome"] });
+// KPIs do grupo de maestros: total + contadores de validade da Maestria
+// (validos, perto_vencer, vencidos). Validade = 12 meses desde a compra da
+// MAESTRIA; "vencido" é benefício expirado (oportunidade de renovação), não
+// deixou de ser maestro. Uma linha só.
+export const usePedagogicoMaestrosKpis = () =>
+  useView("vw_pedagogico_maestros_kpis");
 // Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
 // único — ordeno por todas as colunas discriminantes pra paginação estável.
 export const usePedagogicoAusentes = () =>

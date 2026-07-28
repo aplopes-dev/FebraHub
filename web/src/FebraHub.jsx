@@ -7,7 +7,7 @@ import {
   Clock, Receipt, Hourglass, ChevronLeft, ChevronRight, ChevronDown,
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
-  Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity,
+  Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity, ShieldCheck,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -29,7 +29,7 @@ import {
   useMarketingAtribuicao,
   usePedagogicoKpis, usePedagogicoPresencaKpis, usePedagogicoPresencaTempo,
   usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
-  usePedagogicoMaestrosDetalhe, usePedagogicoAusentes,
+  usePedagogicoMaestrosDetalhe, usePedagogicoMaestrosKpis, usePedagogicoAusentes,
   useEventosDesempenho,
   useDiretoriaConsol, useIntegracaoStatus,
   porMes, variacao, moeda, numero,
@@ -3242,36 +3242,70 @@ const dataCurta = (d) => {
   const [a, m] = String(d).slice(0, 10).split("-");
   return m ? `${MESES[Number(m) - 1].slice(0, 3).toLowerCase()}/${a.slice(2)}` : "—";
 };
+// Selo de validade da Maestria: verde (Válido), âmbar (Perto de vencer),
+// vermelho (Vencido = benefício expirado, oportunidade de renovação).
+const COR_STATUS_MAESTRIA = { "válido": C.up, "valido": C.up, "perto de vencer": C.warn, "vencido": C.down };
+const corStatus = (s) => COR_STATUS_MAESTRIA[String(s ?? "").trim().toLowerCase()] ?? C.muted;
+
+// Contador de validade com número colorido — mesma altura do ChipKpi compacto.
+function TileValidade({ Icone, label, valor, cor, nota }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, minHeight: 56, background: "rgba(255,255,255,.03)", border: `1px solid ${cor}33`, borderRadius: 10, padding: "8px 11px" }}>
+      <span style={{ width: 25, height: 25, borderRadius: 7, background: `${cor}1E`, color: cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icone size={13} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+          <span style={{ fontFamily: GROTESK, fontSize: 18, fontWeight: 700, color: cor }}>{valor}</span>
+          {nota && <span style={{ fontSize: 9.5, color: C.faint }}>{nota}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function LinhaMaestro({ m }) {
   const inativo = !m.ativo;
+  const cor = corStatus(m.status_maestria);
+  const s = String(m.status_maestria ?? "").trim().toLowerCase();
+  const acao = s === "vencido" || s === "perto de vencer"; // realça quem pede ação
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       padding: "9px 20px", borderBottom: `1px solid ${C.hair}`,
-      background: inativo ? `${C.warn}0F` : "transparent",
+      background: acao ? `${cor}12` : "transparent",
     }}>
-      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
-        {inativo && <span title="mais de 12 meses sem comprar" style={{ width: 6, height: 6, borderRadius: "50%", background: C.warn, flexShrink: 0 }} />}
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+        {m.status_maestria && (
+          <span title={m.vence_em ? `Maestria vence em ${dataCurta(m.vence_em)}` : m.status_maestria}
+            style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".2px", padding: "2px 8px", borderRadius: 999, color: cor, background: `${cor}1A`, border: `1px solid ${cor}44`, whiteSpace: "nowrap", flexShrink: 0 }}>
+            {m.status_maestria}
+          </span>
+        )}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email || m.nome}>{m.nome}</div>
           <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email || "—"}</div>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-        <span style={{ textAlign: "right", width: 58 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 15, flexShrink: 0 }}>
+        <span style={{ textAlign: "right", width: 50 }}>
           <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{numero(m.total_cursos)}</div>
           <div style={{ fontSize: 9, color: C.dim }}>cursos</div>
         </span>
-        <span style={{ textAlign: "right", width: 52 }}>
+        <span style={{ textAlign: "right", width: 48 }}>
           <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{m.taxa_presenca != null ? fmtPct(m.taxa_presenca) : "—"}</div>
           <div style={{ fontSize: 9, color: C.dim }}>presença</div>
         </span>
-        <span style={{ textAlign: "right", width: 58 }}>
+        <span style={{ textAlign: "right", width: 56 }}>
           <div style={{ fontSize: 11.5, color: inativo ? C.warn : C.muted, fontWeight: 600 }}>{dataCurta(m.ultima_compra)}</div>
           <div style={{ fontSize: 9, color: C.dim }}>{inativo ? `${mesesDe(m.dias_sem_comprar)}m atrás` : "última"}</div>
         </span>
-        <span style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.gold, width: 76, textAlign: "right" }}>{moeda(m.total_investido)}</span>
+        <span style={{ textAlign: "right", width: 56 }}>
+          <div style={{ fontSize: 11.5, color: cor, fontWeight: 600 }}>{dataCurta(m.vence_em)}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>vence</div>
+        </span>
+        <span style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.gold, width: 74, textAlign: "right" }}>{moeda(m.total_investido)}</span>
       </div>
     </div>
   );
@@ -3288,8 +3322,10 @@ function HubPedagogico() {
   const recompraCurso = usePedagogicoRecompraCurso();
   const presCurso = usePedagogicoPresencaCurso();
   const maestros = usePedagogicoMaestrosDetalhe();
+  const maestrosKpis = usePedagogicoMaestrosKpis();
   const ausentes = usePedagogicoAusentes();
   const [verReativar, setVerReativar] = useState(false);
+  const [statusMaestro, setStatusMaestro] = useState("todos");
 
   const k = kpis.data?.[0] ?? {};
   const pk = presKpis.data?.[0] ?? {};
@@ -3329,18 +3365,23 @@ function HubPedagogico() {
       .slice(0, 6),
     [presCurso.data]);
 
-  // Maestros (VIP): lista por investido (desc). Os KPIs do grupo saem da
-  // agregação do detalhe — a view de kpis não está no schema cache, e derivar
-  // do detalhe garante consistência com a lista. Inativo = campo `ativo` falso.
-  const listaMaestros = useMemo(() =>
-    [...(maestros.data ?? [])].sort((a, b) => Number(b.total_investido ?? 0) - Number(a.total_investido ?? 0)),
-    [maestros.data]);
+  // Maestros (VIP): lista por investido (desc), com filtro por status de
+  // validade. Ativos/inativos/média saem da agregação do detalhe (a view de
+  // kpis não os traz); os contadores de VALIDADE (válidos/perto/vencidos) vêm
+  // da vw_pedagogico_maestros_kpis, mesma fonte do selo por linha.
+  const listaMaestros = useMemo(() => {
+    const arr = [...(maestros.data ?? [])].sort((a, b) => Number(b.total_investido ?? 0) - Number(a.total_investido ?? 0));
+    if (statusMaestro === "todos") return arr;
+    return arr.filter((m) => String(m.status_maestria ?? "").trim().toLowerCase() === statusMaestro);
+  }, [maestros.data, statusMaestro]);
   const maestrosKpi = useMemo(() => {
     const arr = maestros.data ?? [];
     const ativos = arr.filter((m) => m.ativo).length;
     const invest = arr.reduce((s, m) => s + Number(m.total_investido ?? 0), 0);
     return { total: arr.length, ativos, inativos: arr.length - ativos, media: arr.length ? invest / arr.length : 0 };
   }, [maestros.data]);
+  const mk = maestrosKpis.data?.[0] ?? {};
+  const temMaestros = (maestros.data?.length ?? 0) > 0;
 
   const reativar = ausentes.data ?? [];
 
@@ -3380,15 +3421,26 @@ function HubPedagogico() {
       <Bloco titulo="Maestros" canto="clientes VIP · MAESTRIA" sem>
         <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.hair}` }}>
           <div className="pedMaestrosKpi">
-            <ChipKpi compacto hero Icone={Crown} label="Maestros" valor={maestrosKpi.total ? numero(maestrosKpi.total) : "—"} nota="clientes VIP" />
-            <ChipKpi compacto Icone={UserCheck} label="Ativos" valor={maestrosKpi.total ? numero(maestrosKpi.ativos) : "—"} nota="compra < 12 meses" />
-            <ChipKpi compacto Icone={AlertTriangle} label="Inativos" valor={maestrosKpi.total ? numero(maestrosKpi.inativos) : "—"} nota="+ de 12 meses parado" />
-            <ChipKpi compacto Icone={Wallet} label="Média investida" valor={maestrosKpi.total ? moeda(maestrosKpi.media) : "—"} nota="por maestro" />
+            <ChipKpi compacto hero Icone={Crown} label="Maestros" valor={temMaestros ? numero(maestrosKpi.total) : "—"} nota="clientes VIP" />
+            <ChipKpi compacto Icone={UserCheck} label="Ativos" valor={temMaestros ? numero(maestrosKpi.ativos) : "—"} nota="compra < 12 meses" />
+            <ChipKpi compacto Icone={AlertTriangle} label="Inativos" valor={temMaestros ? numero(maestrosKpi.inativos) : "—"} nota="+ de 12 meses parado" />
+            <ChipKpi compacto Icone={Wallet} label="Média investida" valor={temMaestros ? moeda(maestrosKpi.media) : "—"} nota="por maestro" />
+            {/* Validade da Maestria (12 meses desde a compra) — números coloridos. */}
+            <TileValidade Icone={ShieldCheck} label="Válidos" valor={temMaestros ? numero(mk.validos) : "—"} cor={C.up} nota="vigente" />
+            <TileValidade Icone={Clock} label="Perto de vencer" valor={temMaestros ? numero(mk.perto_vencer) : "—"} cor={C.warn} nota="agir" />
+            <TileValidade Icone={ShieldAlert} label="Vencidos" valor={temMaestros ? numero(mk.vencidos) : "—"} cor={C.down} nota="renovar" />
           </div>
         </div>
-        <div className="rolagem" style={{ maxHeight: 268, overflowY: "auto" }}>
+        {/* Filtro por status de validade — ajuda a gestora a agir nos que vão vencer. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <Segmentado label="Validade" valor={statusMaestro} onChange={setStatusMaestro}
+            opcoes={[{ key: "todos", label: "Todos" }, { key: "perto de vencer", label: "Perto de vencer" }, { key: "vencido", label: "Vencidos" }, { key: "válido", label: "Válidos" }]} />
+          <span style={{ fontSize: 10.5, color: C.faint }}>{numero(listaMaestros.length)} {listaMaestros.length === 1 ? "maestro" : "maestros"}</span>
+        </div>
+        <div className="rolagem" style={{ maxHeight: 250, overflowY: "auto" }}>
           <Estado carregando={maestros.isLoading} erro={maestros.error} vazio={!listaMaestros.length}
-            vazioTitulo="Sem maestros no acesso" vazioDica="Painel restrito ao setor pedagógico — aparece com o setor conectado.">
+            vazioTitulo={temMaestros ? "Nenhum maestro nesse status" : "Sem maestros no acesso"}
+            vazioDica={temMaestros ? "Troque o filtro de validade acima." : "Painel restrito ao setor pedagógico — aparece com o setor conectado."}>
             {listaMaestros.map((m, i) => <LinhaMaestro key={i} m={m} />)}
           </Estado>
         </div>
