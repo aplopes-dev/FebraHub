@@ -307,9 +307,12 @@ export const usePedagogicoRecompraCurso = () =>
 // Cursos com mais falta (taxa_comparecimento por curso; piores no topo no front).
 export const usePedagogicoPresencaCurso = () =>
   useView("vw_pedagogico_presenca_curso", { ordem: ["curso"] });
-// O insight central: recompra de quem compareceu vs quem faltou (por `grupo`).
-export const usePedagogicoPresencaRecompra = () =>
-  useView("vw_pedagogico_presenca_recompra", { ordem: ["grupo"] });
+// Painel de Maestros: os clientes VIP (compraram MAESTRIA). Uma linha por
+// maestro — nome/email/telefone (PII, restrita ao setor), total investido,
+// nº de cursos, última compra, ativo, taxa de presença, dias sem comprar.
+// Ordeno por chave estável; o front reordena por investido (desc).
+export const usePedagogicoMaestrosDetalhe = () =>
+  useView("vw_pedagogico_maestros_detalhe", { ordem: ["total_investido", "nome"] });
 // Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
 // único — ordeno por todas as colunas discriminantes pra paginação estável.
 export const usePedagogicoAusentes = () =>

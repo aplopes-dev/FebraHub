@@ -29,7 +29,7 @@ import {
   useMarketingAtribuicao,
   usePedagogicoKpis, usePedagogicoPresencaKpis, usePedagogicoPresencaTempo,
   usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
-  usePedagogicoPresencaRecompra, usePedagogicoAusentes,
+  usePedagogicoMaestrosDetalhe, usePedagogicoAusentes,
   useEventosDesempenho,
   useDiretoriaConsol, useIntegracaoStatus,
   porMes, variacao, moeda, numero,
@@ -3146,7 +3146,8 @@ const pctTaxa = (v) => {
   const n = Number(v ?? 0);
   return n <= 1.5 ? n * 100 : n;
 };
-const fmtPct = (v, casas = 0) => (v == null ? "—" : `${pctTaxa(v).toFixed(casas)}%`);
+const fmtPct = (v, casas = 0) => (v == null ? "—"
+  : `${pctTaxa(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`);
 
 /* Rótulo de trimestre defensivo: `periodo` pode vir "2024-Q3", "2024-T3",
    "2024-3" ou "2024-07" (mês). YYYY-MM vira o trimestre do mês; o resto usa o
@@ -3231,36 +3232,47 @@ function RankingCurso({ linhas, cor, sufixo, vazioTitulo, vazioDica }) {
   );
 }
 
-/* O insight central da seção: quem compareceu recompra mais do que quem
-   faltou. Grupo de maior recompra em verde; o resto neutro. A diferença em
-   pontos é a manchete. */
-function InsightRetencao({ grupos, spread }) {
-  if (!grupos.length) return <Estado vazio vazioTitulo="Sem dado de retenção" vazioDica="A relação presença × recompra aparece com o setor pedagógico conectado." />;
-  const max = Math.max(...grupos.map((g) => g.taxa), 1);
+/* Painel de Maestros: os clientes VIP (compraram MAESTRIA). Lista por maestro
+   ordenada por investido; inativo (>12 meses sem comprar) fica destacado em
+   âmbar como alerta de acompanhamento. Expõe PII (nome/e-mail) — exceção
+   justificada, restrita ao setor pedagógico pela RLS da view. */
+const mesesDe = (dias) => Math.max(0, Math.round(Number(dias ?? 0) / 30));
+const dataCurta = (d) => {
+  if (!d) return "—";
+  const [a, m] = String(d).slice(0, 10).split("-");
+  return m ? `${MESES[Number(m) - 1].slice(0, 3).toLowerCase()}/${a.slice(2)}` : "—";
+};
+
+function LinhaMaestro({ m }) {
+  const inativo = !m.ativo;
   return (
-    <div style={{ padding: "2px 2px" }}>
-      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 14, lineHeight: 1.5 }}>
-        Quem <b style={{ color: C.up }}>comparece</b> volta a comprar mais do que quem falta — a presença antecipa a retenção.
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      padding: "9px 20px", borderBottom: `1px solid ${C.hair}`,
+      background: inativo ? `${C.warn}0F` : "transparent",
+    }}>
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
+        {inativo && <span title="mais de 12 meses sem comprar" style={{ width: 6, height: 6, borderRadius: "50%", background: C.warn, flexShrink: 0 }} />}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.email || m.nome}>{m.nome}</div>
+          <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email || "—"}</div>
+        </div>
       </div>
-      {grupos.map((g, i) => (
-        <div key={g.grupo} style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: i === 0 ? C.up : C.muted }}>{g.grupo}</span>
-            <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              {g.alunos > 0 && <span style={{ fontSize: 10.5, color: C.faint }}>{numero(g.recompraram)} de {numero(g.alunos)}</span>}
-              <span style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: i === 0 ? C.up : C.text }}>{g.taxa.toFixed(0)}%</span>
-            </span>
-          </div>
-          <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
-            <div style={{ width: `${(g.taxa / max) * 100}%`, height: "100%", borderRadius: 4, background: i === 0 ? `linear-gradient(90deg, ${C.up}, #4FAE7A)` : "rgba(255,255,255,.22)" }} />
-          </div>
-        </div>
-      ))}
-      {spread != null && spread > 0 && (
-        <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: `${C.up}14`, border: `1px solid ${C.up}33`, fontSize: 12, color: C.bright }}>
-          <b style={{ fontFamily: GROTESK, color: C.up }}>+{spread.toFixed(0)} pontos</b> de recompra a favor de quem comparece.
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+        <span style={{ textAlign: "right", width: 58 }}>
+          <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{numero(m.total_cursos)}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>cursos</div>
+        </span>
+        <span style={{ textAlign: "right", width: 52 }}>
+          <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{m.taxa_presenca != null ? fmtPct(m.taxa_presenca) : "—"}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>presença</div>
+        </span>
+        <span style={{ textAlign: "right", width: 58 }}>
+          <div style={{ fontSize: 11.5, color: inativo ? C.warn : C.muted, fontWeight: 600 }}>{dataCurta(m.ultima_compra)}</div>
+          <div style={{ fontSize: 9, color: C.dim }}>{inativo ? `${mesesDe(m.dias_sem_comprar)}m atrás` : "última"}</div>
+        </span>
+        <span style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.gold, width: 76, textAlign: "right" }}>{moeda(m.total_investido)}</span>
+      </div>
     </div>
   );
 }
@@ -3275,7 +3287,7 @@ function HubPedagogico() {
   const presTempo = usePedagogicoPresencaTempo();
   const recompraCurso = usePedagogicoRecompraCurso();
   const presCurso = usePedagogicoPresencaCurso();
-  const presRecompra = usePedagogicoPresencaRecompra();
+  const maestros = usePedagogicoMaestrosDetalhe();
   const ausentes = usePedagogicoAusentes();
   const [verReativar, setVerReativar] = useState(false);
 
@@ -3317,58 +3329,73 @@ function HubPedagogico() {
       .slice(0, 6),
     [presCurso.data]);
 
-  // Insight: recompra por grupo (compareceu vs faltou), maior primeiro.
-  const grupos = useMemo(() =>
-    (presRecompra.data ?? [])
-      .map((r) => ({ grupo: r.grupo ?? "—", taxa: pctTaxa(r.taxa_recompra), alunos: Number(r.alunos ?? 0), recompraram: Number(r.recompraram ?? 0) }))
-      .sort((a, b) => b.taxa - a.taxa),
-    [presRecompra.data]);
-  const spread = grupos.length >= 2 ? grupos[0].taxa - grupos.at(-1).taxa : null;
+  // Maestros (VIP): lista por investido (desc). Os KPIs do grupo saem da
+  // agregação do detalhe — a view de kpis não está no schema cache, e derivar
+  // do detalhe garante consistência com a lista. Inativo = campo `ativo` falso.
+  const listaMaestros = useMemo(() =>
+    [...(maestros.data ?? [])].sort((a, b) => Number(b.total_investido ?? 0) - Number(a.total_investido ?? 0)),
+    [maestros.data]);
+  const maestrosKpi = useMemo(() => {
+    const arr = maestros.data ?? [];
+    const ativos = arr.filter((m) => m.ativo).length;
+    const invest = arr.reduce((s, m) => s + Number(m.total_investido ?? 0), 0);
+    return { total: arr.length, ativos, inativos: arr.length - ativos, media: arr.length ? invest / arr.length : 0 };
+  }, [maestros.data]);
 
   const reativar = ausentes.data ?? [];
 
   return (
     <>
       <style>{`
-        .pedKpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
-        @media (min-width: 720px)  { .pedKpis { grid-template-columns: repeat(4, 1fr); } }
-        .pedMid, .pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
-        @media (min-width: 1000px) {
-          .pedMid { grid-template-columns: 7fr 5fr; }   /* comparecimento no tempo · insight retenção */
-          .pedBot { grid-template-columns: 1fr 1fr; }   /* fideliza · falta */
-        }
+        .pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        .pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+        @media (min-width: 720px)  { .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); } }
+        @media (min-width: 1000px) { .pedBot { grid-template-columns: 1fr 1fr; } }  /* fideliza · falta */
       `}</style>
 
       {/* ---- KPIs de saúde ---- */}
       <div className="pedKpis" style={{ marginBottom: 12 }}>
-        <ChipKpi compacto hero Icone={Repeat} label="Taxa de recompra" valor={fmtPct(k.taxa_recompra)} nota="alunos que voltaram" />
+        <ChipKpi compacto hero Icone={Repeat} label="Recompra (grade)" valor={fmtPct(k.taxa_recompra, 1)} nota="cursos CIS + GGB" />
         <ChipKpi compacto Icone={UserCheck} label="Comparecimento" valor={fmtPct(pk.taxa_comparecimento_geral)}
           sub={pk.turmas_cobertas ? `${numero(pk.turmas_cobertas)} turmas credenciadas` : "turmas credenciadas"} />
         <ChipKpi compacto Icone={Users} label="Alunos únicos" valor={k.alunos_unicos != null ? numero(k.alunos_unicos) : "—"} nota="na base" />
         <ChipKpi compacto Icone={BookOpen} label="Cursos por aluno" valor={cursosPorAluno} nota="média" />
       </div>
 
-      {/* ---- Comparecimento no tempo · insight de retenção ---- */}
-      <div className="pedMid" style={{ marginBottom: 12 }}>
-        <Bloco titulo="Comparecimento no tempo" canto="taxa por trimestre" altura={250}>
-          <Estado carregando={presTempo.isLoading} erro={presTempo.error} vazio={serieTri.length < 2}
-            vazioTitulo="Sem série de presença" vazioDica="Aparece com o setor pedagógico conectado.">
-            <LinhaPresenca serie={serieTri} />
-            {temPequena && (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, color: C.faint, marginTop: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.2px solid ${C.faint}`, flexShrink: 0 }} />
-                trimestres com menos de 30 matrículas — amostra pequena, fora da linha
-              </div>
-            )}
+      {/* ---- Comparecimento no tempo (largura total) ---- */}
+      <Bloco titulo="Comparecimento no tempo" canto="taxa por trimestre">
+        <Estado carregando={presTempo.isLoading} erro={presTempo.error} vazio={serieTri.length < 2}
+          vazioTitulo="Sem série de presença" vazioDica="Aparece com o setor pedagógico conectado.">
+          <LinhaPresenca serie={serieTri} />
+          {temPequena && (
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, color: C.faint, marginTop: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.2px solid ${C.faint}`, flexShrink: 0 }} />
+              trimestres com menos de 30 matrículas — amostra pequena, fora da linha
+            </div>
+          )}
+        </Estado>
+      </Bloco>
+
+      {/* ---- Maestros (clientes VIP · compraram MAESTRIA) ---- */}
+      <Bloco titulo="Maestros" canto="clientes VIP · MAESTRIA" sem>
+        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.hair}` }}>
+          <div className="pedMaestrosKpi">
+            <ChipKpi compacto hero Icone={Crown} label="Maestros" valor={maestrosKpi.total ? numero(maestrosKpi.total) : "—"} nota="clientes VIP" />
+            <ChipKpi compacto Icone={UserCheck} label="Ativos" valor={maestrosKpi.total ? numero(maestrosKpi.ativos) : "—"} nota="compra < 12 meses" />
+            <ChipKpi compacto Icone={AlertTriangle} label="Inativos" valor={maestrosKpi.total ? numero(maestrosKpi.inativos) : "—"} nota="+ de 12 meses parado" />
+            <ChipKpi compacto Icone={Wallet} label="Média investida" valor={maestrosKpi.total ? moeda(maestrosKpi.media) : "—"} nota="por maestro" />
+          </div>
+        </div>
+        <div className="rolagem" style={{ maxHeight: 268, overflowY: "auto" }}>
+          <Estado carregando={maestros.isLoading} erro={maestros.error} vazio={!listaMaestros.length}
+            vazioTitulo="Sem maestros no acesso" vazioDica="Painel restrito ao setor pedagógico — aparece com o setor conectado.">
+            {listaMaestros.map((m, i) => <LinhaMaestro key={i} m={m} />)}
           </Estado>
-        </Bloco>
-        <Bloco titulo="Presença prevê retenção" canto="recompra · compareceu × faltou">
-          <Estado carregando={presRecompra.isLoading} erro={presRecompra.error} vazio={!grupos.length}
-            vazioTitulo="Sem dado de retenção" vazioDica="Aparece com o setor pedagógico conectado.">
-            <InsightRetencao grupos={grupos} spread={spread} />
-          </Estado>
-        </Bloco>
-      </div>
+        </div>
+        <div style={{ padding: "8px 20px", fontSize: 10, color: C.dim, borderTop: `1px solid ${C.hair}` }}>
+          Contém dados pessoais (nome, e-mail, telefone) — exceção justificada, restrita ao setor pedagógico.
+        </div>
+      </Bloco>
 
       {/* ---- Cursos: fidelizam · faltam ---- */}
       <div className="pedBot" style={{ marginBottom: 12 }}>
