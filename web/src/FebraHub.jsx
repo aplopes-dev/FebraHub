@@ -8,7 +8,7 @@ import {
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
   Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity, ShieldCheck,
-  Check, Upload, Pencil, Star, Plus, PhoneCall,
+  Check, Upload, Pencil, Star, Plus, PhoneCall, Send, Link2,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -33,6 +33,7 @@ import {
   usePedagogicoMaestrosCompleto, usePedagogicoMaestrosKpis, usePedagogicoMaestroAnotacoes,
   usePedagogicoAvaliacao, usePedagogicoAvaliacaoKpis,
   usePedagogicoRetencaoCasos, usePedagogicoRetencao, usePedagogicoRetencaoMotivos,
+  usePedagogicoPainel,
   salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
   usePedagogicoAusentes,
   useEventosDesempenho,
@@ -3778,6 +3779,86 @@ function ListaMotivos({ linhas }) {
   );
 }
 
+/* ============ AUTOMAÇÃO DE CONFIRMAÇÕES ============
+   Onde a operadora (Gisele) acompanha e destrava o fluxo de confirmação de
+   presença (job Python externo dispara as mensagens). A tela diz o que fazer,
+   não mostra dado cru. */
+const dataDDMM = (d) => { if (!d) return "—"; const p = String(d).slice(0, 10).split("-"); return p[2] && p[1] ? `${p[2]}/${p[1]}` : "—"; };
+const emNDias = (n) => { if (n == null) return "—"; const v = Number(n); return v === 0 ? "hoje" : v < 0 ? `há ${-v} dias` : `em ${v} dias`; };
+const corDias = (n) => { if (n == null) return C.faint; const v = Number(n); return v <= 10 ? C.down : v <= 20 ? C.gold : C.faint; };
+// Pendência urgente (CRIAR GRUPO — URGENTE) em vermelho; as demais em dourado.
+const corPendencia = (p) => (/URGENTE/i.test(String(p ?? "")) ? C.down : C.gold);
+
+// Faixa de pendências no topo do hub — cards clicáveis. Só renderiza se houver.
+function FaixaPendencias({ pendencias, onAbrir }) {
+  if (!pendencias.length) return null;
+  return (
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+      {pendencias.map((t) => {
+        const cor = corPendencia(t.pendencia);
+        return (
+          <button key={t.turma_id} onClick={() => onAbrir(t)} style={{
+            display: "flex", alignItems: "center", gap: 9, textAlign: "left", cursor: "pointer",
+            background: `${cor}12`, border: `1px solid ${cor}44`, borderRadius: 12, padding: "10px 13px",
+            color: C.text, fontFamily: SANS, minWidth: 220, flex: "1 1 220px", maxWidth: 340,
+          }}>
+            <AlertTriangle size={16} style={{ color: cor, flexShrink: 0 }} />
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 9.5, fontWeight: 800, letterSpacing: ".3px", textTransform: "uppercase", color: cor }}>{t.pendencia}</span>
+              <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.curso}>{t.curso}</span>
+              <span style={{ display: "block", fontSize: 10.5, color: C.faint }}>{emNDias(t.dias_para_inicio)}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Tabela das turmas do painel. Clique na linha (ou em "colar link") abre o
+// drawer da turma (bloco 2).
+function TabelaConfirmacoes({ turmas, onAbrir }) {
+  const th = (txt, alin) => <th style={{ textAlign: alin, padding: "8px 12px", fontSize: 9.5, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.dim, whiteSpace: "nowrap" }}>{txt}</th>;
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: SANS }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${C.hair}` }}>
+            {th("Turma", "left")}{th("Início", "left")}{th("Matr.", "right")}{th("Enviadas", "right")}{th("Confirmaram", "right")}{th("Grupo", "left")}{th("Pendência", "left")}
+          </tr>
+        </thead>
+        <tbody>
+          {turmas.map((t) => {
+            const cd = corDias(t.dias_para_inicio);
+            return (
+              <tr key={t.turma_id} onClick={() => onAbrir(t)} style={{ borderBottom: `1px solid ${C.hair}`, cursor: "pointer" }}>
+                <td style={{ padding: "9px 12px" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }} title={t.curso}>{t.curso}</div>
+                </td>
+                <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>{dataDDMM(t.data_inicio)}</span>
+                  <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 999, color: cd, background: `${cd}1A`, border: `1px solid ${cd}44` }}>{emNDias(t.dias_para_inicio)}</span>
+                </td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: GROTESK, fontSize: 12.5, color: C.text }}>{numero(t.matriculados)}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: GROTESK, fontSize: 12.5, color: C.text }}>{numero(t.confirmacao_enviada)}</td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: GROTESK, fontSize: 12.5, color: C.up }}>{numero(t.confirmaram)}</td>
+                <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
+                  {t.grupo_criado
+                    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: C.up, fontWeight: 700 }}><Check size={13} /> criado</span>
+                    : <span onClick={(e) => { e.stopPropagation(); onAbrir(t); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: C.gold, cursor: "pointer", padding: "3px 9px", borderRadius: 8, border: `1px solid ${C.gold}55`, background: `${C.gold}14` }}><Link2 size={12} /> colar link</span>}
+                </td>
+                <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
+                  {t.pendencia ? <span style={{ fontSize: 11, fontWeight: 700, color: corPendencia(t.pendencia) }}>{t.pendencia}</span> : <span style={{ color: C.faint }}>—</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* Hub Pedagógico / Sucesso do Cliente. Foco em SAÚDE: acompanhamento, não
    fila de tarefas. Tudo vem do Salesforce; conclusão, notas e NPS não são
    medidos (não existem na fonte). Presença cobre só as turmas com
@@ -3796,8 +3877,10 @@ function HubPedagogico() {
   const retencaoCasos = usePedagogicoRetencaoCasos();
   const retencao = usePedagogicoRetencao();
   const retencaoMotivos = usePedagogicoRetencaoMotivos();
+  const painel = usePedagogicoPainel();
   const ausentes = usePedagogicoAusentes();
   const qc = useQueryClient();
+  const [turmaSel, setTurmaSel] = useState(null); // turma aberta no drawer (bloco 2)
   const [verReativar, setVerReativar] = useState(false);
   const [statusMaestro, setStatusMaestro] = useState("todos");
   const [modalAv, setModalAv] = useState(null);       // 'ggb' | 'evento' | null
@@ -3889,16 +3972,32 @@ function HubPedagogico() {
     [retencaoMotivos.data]);
   const ret = retencao.data?.[0] ?? {};
 
+  // Automação de confirmações: derivações do painel (1 linha por turma).
+  const turmasPainel = painel.data ?? [];
+  const pendencias = useMemo(() => turmasPainel.filter((t) => t.pendencia != null), [turmasPainel]);
+  const confKpi = useMemo(() => {
+    const fila = turmasPainel.reduce((s, t) => s + Math.max(0, Number(t.matriculados ?? 0) - Number(t.confirmacao_enviada ?? 0)), 0);
+    const aguardando = turmasPainel.reduce((s, t) => s + Number(t.aguardando_link_grupo ?? 0), 0);
+    const conf = turmasPainel.reduce((s, t) => s + Number(t.confirmaram ?? 0), 0);
+    const env = turmasPainel.reduce((s, t) => s + Number(t.confirmacao_enviada ?? 0), 0);
+    return { fila, aguardando, taxa: env > 0 ? (conf / env) * 100 : null };
+  }, [turmasPainel]);
+  const abrirTurma = (t) => setTurmaSel(t);
+
   const reativar = ausentes.data ?? [];
 
   return (
     <>
       <style>{`
         .pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        .pedConfKpis { display: grid; grid-template-columns: 1fr; gap: 9px; }
         .pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
-        @media (min-width: 720px)  { .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); } }
+        @media (min-width: 720px)  { .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); } .pedConfKpis { grid-template-columns: repeat(3, 1fr); } }
         @media (min-width: 1000px) { .pedBot { grid-template-columns: 1fr 1fr; } }  /* fideliza · falta */
       `}</style>
+
+      {/* ---- Faixa de pendências da automação (topo; só se houver) ---- */}
+      <FaixaPendencias pendencias={pendencias} onAbrir={abrirTurma} />
 
       {/* ---- KPIs de saúde ---- */}
       <div className="pedKpis" style={{ marginBottom: 12 }}>
@@ -4067,6 +4166,24 @@ function HubPedagogico() {
           </div>
         )}
       </div>
+
+      {/* ---- Automação de confirmações (KPIs + tabela; drawer no bloco 2) ---- */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 4 }}>
+        <Send size={15} style={{ color: C.gold, flexShrink: 0 }} />
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Automação de confirmações</span>
+        <span style={{ fontSize: 11, color: C.faint }}>fila de presença · grupos de WhatsApp</span>
+      </div>
+      <div className="pedConfKpis" style={{ marginBottom: 12 }}>
+        <ChipKpi compacto hero Icone={Send} label="Fila de confirmação" valor={numero(confKpi.fila)} nota="aguardando 1ª mensagem" />
+        <ChipKpi compacto Icone={Link2} label="Aguardando link do grupo" valor={numero(confKpi.aguardando)} nota="confirmaram, sem grupo" />
+        <ChipKpi compacto Icone={UserCheck} label="Taxa de confirmação" valor={fmtPct(confKpi.taxa)} nota="responderam SIM" />
+      </div>
+      <Bloco titulo="Turmas" canto="clique para abrir · cadastro e links" sem altura={320}>
+        <Estado carregando={painel.isLoading} erro={painel.error} vazio={!turmasPainel.length}
+          vazioTitulo="Nenhuma turma futura" vazioDica="As turmas aparecem aqui conforme entram no Salesforce.">
+          <TabelaConfirmacoes turmas={turmasPainel} onAbrir={abrirTurma} />
+        </Estado>
+      </Bloco>
 
       {/* ---- Transparência ---- */}
       <div style={{ fontSize: 11, color: C.faint, lineHeight: 1.6, marginTop: 4 }}>

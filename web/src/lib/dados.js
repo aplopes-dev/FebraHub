@@ -103,7 +103,9 @@ async function buscarTudo(nome, seletor, ordem) {
 function useView(nome, opcoes = {}) {
   return useQuery({
     queryKey: ["view", nome],
-    staleTime: 5 * 60 * 1000,
+    // Padrão 5 min; dados operacionais (ex.: fila de confirmação) passam
+    // staleTime menor pra atualizar mais rápido.
+    staleTime: opcoes.staleTime ?? 5 * 60 * 1000,
     queryFn: () => buscarTudo(nome, opcoes.seletor ?? "*", opcoes.ordem),
   });
 }
@@ -339,6 +341,11 @@ export const usePedagogicoRetencao = () =>
   useView("vw_pedagogico_retencao");
 export const usePedagogicoRetencaoMotivos = () =>
   useView("vw_pedagogico_retencao_motivos", { ordem: ["motivo"] });
+
+/* AUTOMAÇÃO DE CONFIRMAÇÕES (operacional — staleTime 60s). O painel traz uma
+   linha por turma futura com os contadores do fluxo e a `pendencia` pronta. */
+export const usePedagogicoPainel = () =>
+  useView("vw_pedagogico_painel", { ordem: ["data_inicio", "turma_id"], staleTime: 60 * 1000 });
 // Lista de reativação (secundária): aluno_id, curso, turma, valor. Sem id
 // único — ordeno por todas as colunas discriminantes pra paginação estável.
 export const usePedagogicoAusentes = () =>
