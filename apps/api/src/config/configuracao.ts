@@ -111,6 +111,10 @@ export interface Configuracao {
   appUrl?: string;
   etlToken?: string;
   uploadMaxBytes: number;
+  oauth: {
+    contaAzul: { clientId?: string; clientSecret?: string; escopo: string };
+    meta: { appId?: string; appSecret?: string };
+  };
 }
 
 export function carregarConfiguracao(): Configuracao {
@@ -178,5 +182,27 @@ export function carregarConfiguracao(): Configuracao {
     appUrl: bruto.APP_URL,
     etlToken: bruto.ETL_TOKEN,
     uploadMaxBytes: paraInt(process.env.UPLOAD_MAX_BYTES, 25 * 1024 * 1024),
+    // Credenciais OAuth das fontes externas. NÃO entram na validação de boot:
+    // a API tem que subir sem elas (nem todo ambiente conecta integração).
+    // Quando faltam, a rota de integração responde INTEGRACAO_NAO_CONFIGURADA
+    // dizendo qual variável falta — erro legível, não 500.
+    //
+    // Onde elas vivem: até aqui só o serviço `etl` lia /opt/febrahub/etl.env.
+    // Agora quem autoriza é a API, então o mesmo arquivo entra no `env_file`
+    // dela no docker-compose.prod.yml.
+    oauth: {
+      contaAzul: {
+        clientId: process.env.CONTAAZUL_CLIENT_ID,
+        clientSecret: process.env.CONTAAZUL_CLIENT_SECRET,
+        // O Conta Azul v2 roda sobre Cognito: sem
+        // `aws.cognito.signin.user.admin` o authorize devolve escopo inválido.
+        // Configurável porque o provedor já mudou a lista de escopos antes.
+        escopo: process.env.CONTAAZUL_SCOPE ?? 'openid profile aws.cognito.signin.user.admin',
+      },
+      meta: {
+        appId: process.env.META_APP_ID,
+        appSecret: process.env.META_APP_SECRET,
+      },
+    },
   };
 }

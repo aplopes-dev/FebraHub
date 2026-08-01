@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { carregarConfiguracao } from './config/configuracao';
@@ -10,6 +11,7 @@ import { DadosModule } from './modules/dados/dados.module';
 import { ArquivosModule } from './modules/arquivos/arquivos.module';
 import { PedagogicoModule } from './modules/pedagogico/pedagogico.module';
 import { IngestModule } from './modules/ingest/ingest.module';
+import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { HealthController } from './modules/health/health.controller';
 import { SessaoGuard } from './common/guards/sessao.guard';
@@ -43,6 +45,10 @@ import { SetorGuard } from './common/guards/setor.guard';
       },
     }),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    // Agenda em processo. Hoje só a renovação diária dos tokens OAuth
+    // (modules/integracoes/renovacao.cron.ts) — o resto do agendamento
+    // continua no cron do host, que chama os ETLs.
+    ScheduleModule.forRoot(),
     DatabaseModule,
     StorageModule,
     AuthModule,
@@ -50,6 +56,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     ArquivosModule,
     PedagogicoModule,
     IngestModule,
+    IntegracoesModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -81,17 +81,47 @@ export default function PaginaIntegracoes() {
     // Estado operacional: 30s para o painel refletir uma reconexão feita na
     // aba ao lado sem precisar de F5.
     staleTime: 30_000,
+    // Contraria o padrão global (refetchOnWindowFocus: false, que existe
+    // porque o painel fica aberto na TV o dia inteiro). Aqui é o oposto: a
+    // autorização acontece em OUTRA aba, e voltar para esta é exatamente o
+    // momento em que o estado mudou.
+    refetchOnWindowFocus: true,
     enabled: !!dados && liberado,
   });
 
   const conectar = useMutation({
-    mutationFn: urlAutorizacao,
-    onSuccess: (r) => {
-      setAviso(null);
-      // Aba nova: o login do provedor não cabe dentro do painel (frame
-      // bloqueado) e voltar por cima da tela perderia o contexto de quem clicou.
-      window.open(r.url, "_blank", "noopener,noreferrer");
+    /* Aba nova: o provedor recusa carregar dentro de iframe, e navegar por
+       cima do painel perderia o contexto de quem clicou.
+
+       A aba é aberta ANTES do fetch, ainda dentro do clique: um
+       `window.open` depois de um `await` já está fora do gesto do usuário e o
+       bloqueador de pop-up o descarta. Ela nasce em branco e só recebe a URL
+       quando a API responde.
+
+       Sem `noopener` porque com essa flag o navegador devolve `null` e não
+       haveria como navegá-la; o `opener` é anulado logo em seguida, o que
+       fecha a mesma brecha (reverse tabnabbing). */
+    mutationFn: async (fonte: string) => {
+      const aba = window.open("", "_blank");
+      if (aba) aba.opener = null;
+      try {
+        const r = await urlAutorizacao(fonte);
+        if (aba) aba.location.href = r.url;
+        return { ...r, abriu: !!aba };
+      } catch (e) {
+        aba?.close();
+        throw e;
+      }
     },
+    onSuccess: (r) =>
+      setAviso(
+        r.abriu
+          ? null
+          : {
+              erro: true,
+              texto: `O navegador bloqueou a aba de autorização. Abra este endereço manualmente: ${r.url}`,
+            },
+      ),
     onError: (e: Error) => setAviso({ erro: true, texto: e.message }),
   });
 

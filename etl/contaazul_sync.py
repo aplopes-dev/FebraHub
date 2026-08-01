@@ -15,12 +15,16 @@ quebra. Aqui o token vive na tabela integracao_tokens: o script lê
 pela API (GET /ingest/token/contaazul), renova, e grava o novo de
 volta (POST /ingest/integracao_tokens). Nunca mais Postman.
 
-AUTORIZAÇÃO INICIAL (uma vez, manual):
+AUTORIZAÇÃO INICIAL (uma vez):
 OAuth2 Authorization Code exige um humano autorizar no navegador uma
-vez. Faça isso no Postman ou na extensão Chrome da Conta Azul, pegue
-o primeiro refresh_token, e rode:
+vez — isso nenhum servidor faz sozinho. Faça pelo PAINEL:
+    /integracoes → Conta Azul → Conectar
+O fluxo inteiro (authorize → callback → token → banco) roda dentro do
+FebraHub. Sem Postman, sem copiar segredo à mão.
+
+O --semear-token abaixo continua existindo como saída de emergência,
+para quando já se tem o refresh token e o painel está indisponível:
     python contaazul_sync.py --semear-token SEU_REFRESH_TOKEN
-Isso grava o token inicial no banco. Depois, o script se vira.
 
 Uso:
     pip install requests

@@ -958,6 +958,20 @@ model IntegracaoToken {
   @@map("integracao_tokens")
 }
 
+/// Parametro `state` do OAuth2, de uso unico e validade curta (15 min).
+/// Existe porque o callback e PUBLICO — quem o chama e o navegador
+/// redirecionado pelo provedor, entao nao ha sessao para conferir. Sem o
+/// state, qualquer um poderia chamar o callback com um `code` proprio e
+/// plantar a conta dele como integracao da Febracis.
+model IntegracaoEstadoOauth {
+  state    String   @id
+  fonte    String
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([criadoEm], map: "ix_integracao_estado_oauth_criado_em")
+  @@map("integracao_estado_oauth")
+}
+
 // --------------------------------------------------------------------
 // LEGADO
 // Legado do Supabase — nao usar em codigo novo.

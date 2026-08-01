@@ -3,10 +3,17 @@ FebraHub · meta_sync.py
 Puxa gasto/alcance por anúncio da Marketing API e grava em fato_meta_insights.
 
 Variáveis de ambiente:
-  META_TOKEN        token de longa duração (60 dias)
+  META_TOKEN        token de longa duração (60 dias) — SEMENTE apenas; ver abaixo
   META_ACCOUNT_ID   act_426283099062813
   FEBRAHUB_API_URL
   FEBRAHUB_ETL_TOKEN
+
+DE ONDE VEM O TOKEN:
+Primeiro de integracao_tokens ('meta'), pela API. É o token que o painel de
+Integrações gravou e que a rotina diária da API renova por
+`grant_type=fb_exchange_token` ANTES de vencer — enquanto ela rodar, ele nunca
+expira. O META_TOKEN do etl.env é só o fallback do valor semeado à mão, que é
+justamente o que expirava a cada 60 dias e derrubava a carga (31/07/2026).
 
 Uso:
   python meta_sync.py                # últimos 2 meses (rotina diária)
@@ -19,7 +26,28 @@ import febrahub_cliente as fc
 
 fc.carregar_env()
 
-TOKEN   = os.environ['META_TOKEN']
+def _token() -> str:
+    """Token do banco se houver; senão o do .env.
+
+    Nesta ordem porque o do banco é o RENOVADO. O do arquivo só entra na
+    primeira carga (antes de alguém conectar pelo painel) e quando o banco
+    ainda não tem a linha — comportamento idêntico ao de antes, então nada
+    quebra em ambiente que nunca usou o painel de Integrações.
+    """
+    reg = fc.ler_token('meta') or {}
+    do_banco = (reg.get('access_token') or '').strip()
+    if do_banco:
+        return do_banco
+    do_env = (os.environ.get('META_TOKEN') or '').strip()
+    if not do_env:
+        raise SystemExit(
+            'Sem token do Meta: conecte a fonte em Integrações no painel '
+            '(ou defina META_TOKEN no etl.env).'
+        )
+    return do_env
+
+
+TOKEN   = _token()
 ACCOUNT = os.environ['META_ACCOUNT_ID']
 API     = 'https://graph.facebook.com/v25.0'
 

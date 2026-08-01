@@ -123,6 +123,22 @@ services:
       ETL_TOKEN: ${ETL_TOKEN}
       APP_VERSION: ${TAG:-1.0.0}
       TZ: America/Bahia
+    env_file:
+      # As credenciais OAuth (CONTAAZUL_CLIENT_ID/SECRET/SCOPE, META_APP_ID/
+      # SECRET) sempre viveram neste arquivo, lido só pelo serviço `etl`. Quem
+      # autoriza agora é a API — o módulo de Integrações monta a URL do
+      # provedor e troca o código por token — então ela precisa enxergar as
+      # mesmas variáveis. Mesmo arquivo, para não haver duas cópias do segredo
+      # em lugares diferentes saindo de sincronia.
+      #
+      # `required: false` porque a API tem que subir sem ele: sem as
+      # credenciais só as rotas de integração ficam indisponíveis (com erro
+      # legível), e o resto do painel continua de pé.
+      #
+      # Nada aqui sobrescreve o bloco `environment` acima — no Compose, o que
+      # está em `environment` vence o `env_file`.
+      - path: ${FEBRAHUB_DIR:-/opt/febrahub}/etl.env
+        required: false
     ports:
       - '127.0.0.1:3261:3261'
     networks: [interna]

@@ -167,15 +167,27 @@ o nome da tabela e a chave vêm de fora e viram identificador na consulta.
 
 **Conta Azul — o token.** A API v2 **rotaciona o refresh_token** a cada
 renovação: o antigo morre na hora. Por isso o token não é secret, e sim
-linha na tabela `integracao_tokens` — o script lê, renova e grava o novo. A
-autorização inicial é manual, uma vez só:
+linha na tabela `integracao_tokens` — o script lê, renova e grava o novo.
+
+A autorização inicial se faz **pelo painel**: `/integracoes` → *Conectar*
+(visível para admin). O fluxo OAuth roda dentro do FebraHub e o token cai
+direto no banco — sem Postman e sem copiar segredo à mão.
+
+O `--semear-token` continua existindo como saída de emergência (quando se tem
+o refresh token em mãos e o painel está fora do ar):
 
 ```bash
 python contaazul_sync.py --semear-token <refresh_token_inicial>
 ```
 
-Os dois scripts (receber e pagar) compartilham a mesma integração; semear
+Os dois scripts (receber e pagar) compartilham a mesma integração; conectar
 uma vez basta.
+
+**Meta Ads — o token.** O `meta_sync.py` lê o token de `integracao_tokens`
+('meta') e só cai no `META_TOKEN` do `etl.env` se não houver linha. Quem mantém
+o do banco vivo é a rotina diária da API, que troca o token de longa duração
+por outro **antes** de vencer (`grant_type=fb_exchange_token`) — depois de
+expirado não há o que trocar, e volta a ser reautorização no navegador.
 
 **Salesforce — carga incremental.** O relatório filtra por *data de
 aprovação*, e o script apaga e reinsere pelo **mesmo** critério — foi o
