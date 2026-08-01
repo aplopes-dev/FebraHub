@@ -227,7 +227,11 @@ export const CATALOGO: Record<string, ViewCatalogada> = {
   },
   vw_loja_receita_periodo: {
     setor: 'loja',
-    ordem: ['data', 'forma'],
+    // A ordem veio do dados.js antigo, que pedia ['data','forma'] — mas a view
+    // em produção não tem coluna `forma` (é data, cupom_id, numero_cupom,
+    // valor, cliente_id, vendedor_id). O ORDER BY quebrava a leitura inteira
+    // com 42703, e o Hub Loja recebia erro em vez de dado.
+    ordem: ['data', 'cupom_id'],
     descricao: 'Receita da loja com dimensão de data',
   },
 

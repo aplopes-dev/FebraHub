@@ -53,7 +53,15 @@ executar() {
   echo "── $rotulo ──"
   # 2>&1 para o erro entrar no log junto do resto; o timeout evita que uma API
   # pendurada segure o cron até o dia seguinte.
-  saida=$(timeout 1800 $COMPOSE run --rm --no-deps etl $cmd 2>&1)
+  # Teto por fonte: o Sympla percorre 81 eventos com pedidos e participantes
+  # paginados e, sob rate limit da origem, passa de 30 min. Um teto único
+  # mataria a carga no meio e o registro diria "erro" numa fonte saudável.
+  local teto=1800
+  case "$apelido" in
+    sympla)     teto=5400 ;;
+    salesforce) teto=3600 ;;
+  esac
+  saida=$(timeout "$teto" $COMPOSE run --rm --no-deps etl $cmd 2>&1)
   codigo=$?
   fim=$(date +%s); dur=$((fim - inicio))
 
