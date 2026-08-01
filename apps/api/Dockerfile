@@ -33,9 +33,13 @@ RUN corepack enable && apk add --no-cache python3 make g++ openssl
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/
 RUN pnpm install --filter @febrahub/api... --prod --frozen-lockfile
-# O client gerado precisa vir junto: ele não está no pacote publicado.
-COPY --from=build /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+# O client é gerado de novo aqui em vez de copiado do estágio de build: com
+# pnpm ele nasce dentro do store (node_modules/.pnpm/@prisma+client@.../),
+# não em apps/api/node_modules/.prisma, e copiar o caminho errado quebra o
+# build sem dizer por quê. Gerar custa segundos e sempre acerta o lugar.
+COPY apps/api/prisma ./apps/api/prisma
+WORKDIR /app/apps/api
+RUN npx prisma generate
 
 # ---------- 4. runtime ----------
 FROM node:22.14-alpine AS runtime
@@ -47,6 +51,7 @@ RUN apk add --no-cache openssl tzdata && \
 
 COPY --from=prod-deps --chown=febra:febra /app/node_modules /app/node_modules
 COPY --from=prod-deps --chown=febra:febra /app/apps/api/node_modules /app/apps/api/node_modules
+COPY --from=prod-deps --chown=febra:febra /app/package.json /app/pnpm-workspace.yaml /app/
 COPY --from=build --chown=febra:febra /app/apps/api/dist ./dist
 COPY --from=build --chown=febra:febra /app/apps/api/package.json ./package.json
 # As migrations vão junto: o deploy roda `prisma migrate deploy` deste container.
