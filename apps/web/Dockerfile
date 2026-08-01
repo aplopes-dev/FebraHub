@@ -7,9 +7,9 @@
 FROM node:22.14-alpine AS deps
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/
-RUN pnpm install --filter @febrahub/web... --frozen-lockfile=false
+RUN pnpm install --filter @febrahub/web... --frozen-lockfile
 
 # ---------- 2. build ----------
 FROM node:22.14-alpine AS build
@@ -17,7 +17,7 @@ WORKDIR /app
 RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web ./apps/web
 
 # Variável NEXT_PUBLIC_ entra no bundle em tempo de build: precisa existir
