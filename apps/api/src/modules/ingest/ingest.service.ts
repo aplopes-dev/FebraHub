@@ -88,7 +88,7 @@ export class IngestService {
 
     // As colunas são a união do que veio, mas só as graváveis de verdade na
     // tabela — o PostgREST rejeitava coluna desconhecida e o ETL nem percebia.
-    const { gravaveis, geradas } = await this.colunasDe(tabela);
+    const { gravaveis, geradas, tipos } = await this.colunasDe(tabela);
     const enviadas = [...new Set(linhas.flatMap((l) => Object.keys(l)))];
     const colunas = enviadas.filter((c) => gravaveis.has(c));
     const ignoradas = enviadas.filter((c) => !gravaveis.has(c));
@@ -118,7 +118,23 @@ export class IngestService {
     const gravadas = await this.prisma.$transaction(async (tx) => {
       let n = 0;
       for (const linha of linhas) {
-        const valores = Prisma.join(colunas.map((c) => Prisma.sql`${linha[c] ?? null}`), ', ');
+        // O cast por coluna existe porque o Prisma envia todo parâmetro string
+        // como `text`, e o Postgres NÃO converte text -> timestamptz/date/
+        // numeric implicitamente em prepared statement (erro 42804). O tipo
+        // vem do catálogo, nunca do cliente, então pode entrar como raw.
+        const valores = Prisma.join(
+          colunas.map((c) => {
+            const bruto = linha[c] ?? null;
+            // jsonb precisa chegar como string JSON, não como objeto JS.
+            const v =
+              bruto !== null && typeof bruto === 'object' ? JSON.stringify(bruto) : bruto;
+            const tipo = tipos.get(c);
+            return tipo
+              ? Prisma.sql`${v}::${Prisma.raw(tipo)}`
+              : Prisma.sql`${v}`;
+          }),
+          ', ',
+        );
         const set = atualiza.length
           ? Prisma.sql`DO UPDATE SET ${Prisma.join(
               atualiza.map((c) => Prisma.sql`${ident(c)} = EXCLUDED.${ident(c)}`),
@@ -264,17 +280,31 @@ export class IngestService {
    */
   private async colunasDe(
     tabela: string,
-  ): Promise<{ colunas: Set<string>; gravaveis: Set<string>; geradas: Set<string> }> {
-    type Coluna = { column_name: string; is_generated: string };
+  ): Promise<{
+    colunas: Set<string>;
+    gravaveis: Set<string>;
+    geradas: Set<string>;
+    tipos: Map<string, string>;
+  }> {
+    type Coluna = { column_name: string; is_generated: string; tipo: string };
+    // format_type devolve o nome que o próprio Postgres aceita num cast
+    // ("timestamp with time zone", "numeric", "text"), incluindo modificador.
     const linhas: Coluna[] = await this.prisma.$queryRaw<Coluna[]>`
-      SELECT column_name, is_generated FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name = ${tabela}
+      SELECT c.column_name,
+             c.is_generated,
+             format_type(a.atttypid, a.atttypmod) AS tipo
+        FROM information_schema.columns c
+        JOIN pg_attribute a
+          ON a.attrelid = (quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass
+         AND a.attname = c.column_name
+       WHERE c.table_schema = 'public' AND c.table_name = ${tabela}
     `;
     const colunas = new Set<string>(linhas.map((l: Coluna) => l.column_name));
     const geradas = new Set<string>(
       linhas.filter((l: Coluna) => l.is_generated === 'ALWAYS').map((l: Coluna) => l.column_name),
     );
     const gravaveis = new Set<string>([...colunas].filter((c) => !geradas.has(c)));
-    return { colunas, gravaveis, geradas };
+    const tipos = new Map<string, string>(linhas.map((l: Coluna) => [l.column_name, l.tipo]));
+    return { colunas, gravaveis, geradas, tipos };
   }
 }
