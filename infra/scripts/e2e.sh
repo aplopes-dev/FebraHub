@@ -52,8 +52,11 @@ t "relacao fora do catalogo = 404"         404 "$(cod -b c_admin.txt $B/api/dado
 
 echo "── dados reais ──"
 t "receita de cursos"     "87657297.28" "$(js -b c_admin.txt $B/api/dados/vw_diretoria_consolidado | python3 -c 'import sys,json;print(round(sum(float(r["receita_liquida"] or 0) for r in json.load(sys.stdin) if r["unidade_negocio"]=="cursos"),2))')"
-t "linhas do ranking comercial"  8233 "$(js -b c_admin.txt $B/api/dados/vw_comercial_ranking_historico | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))')"
-t "ingressos de eventos"         3862 "$(js -b c_admin.txt $B/api/dados/vw_eventos_desempenho | python3 -c 'import sys,json;print(sum(int(r["ingressos"] or 0) for r in json.load(sys.stdin)))')"
+t "linhas do ranking comercial (>= 8233)" ok "$(js -b c_admin.txt $B/api/dados/vw_comercial_ranking_historico | python3 -c 'import sys,json;print("ok" if len(json.load(sys.stdin)) >= 8233 else "abaixo do piso")')"
+# Piso, não igualdade: os ETLs rodam todo dia e o número CRESCE. Fixar o valor
+# do dia da migração faria o teste falhar justamente quando a carga funcionou —
+# foi o que aconteceu quando o Sympla trouxe 3986 contra os 3862 chumbados aqui.
+t "ingressos de eventos (>= 3862)" ok "$(js -b c_admin.txt $B/api/dados/vw_eventos_desempenho | python3 -c 'import sys,json;print("ok" if sum(int(r["ingressos"] or 0) for r in json.load(sys.stdin)) >= 3862 else "abaixo do piso")')"
 t "paginacao completa (>1000)"   True "$(js -b c_admin.txt $B/api/dados/vw_comercial_ranking_historico | python3 -c 'import sys,json;print(len(json.load(sys.stdin))>1000)')"
 
 echo "── arquivos (MinIO) ──"
