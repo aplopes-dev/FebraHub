@@ -169,12 +169,29 @@ Foi construído um módulo de **Integrações dentro do próprio FebraHub**
    que mata a dependência recorrente: o Meta deixa de exigir uma reautorização a
    cada 60 dias, porque o sistema troca o token enquanto ele ainda é válido.
 
-**Configuração única, feita uma vez no painel de cada provedor:** cadastrar a
-URL de callback acima como redirect URI autorizada. Sem isso o provedor recusa o
-retorno — é a exigência do protocolo, não uma limitação do sistema.
+### O que falta fazer, uma vez só
+
+A tela `/integracoes` já está no ar e diz exatamente o que falta em cada fonte.
+São três passos, todos de configuração e nenhum recorrente:
+
+1. **Cadastrar a URL de callback** no painel de cada provedor, como redirect URI
+   autorizada:
+   - Conta Azul → `https://febracis.aplopes.com/api/integracoes/contaazul/callback`
+   - Meta Ads → `https://febracis.aplopes.com/api/integracoes/meta/callback`
+
+   Sem isso o provedor recusa o retorno. É exigência do protocolo OAuth, não do
+   sistema: é o que impede um site qualquer de receber o código de autorização.
+
+2. **Informar o `META_APP_ID`** em `/opt/febrahub/etl.env`. Vieram do GitHub o
+   `META_TOKEN` e o `META_APP_SECRET`, mas não o App ID — ele está no painel do
+   Facebook Developers, na página do app. Sem ele não dá nem para montar a URL
+   de autorização. A tela mostra essa pendência por escrito.
+
+3. **Clicar em Conectar** nas duas fontes e autorizar.
 
 Depois disso, nenhuma das onze integrações depende de nada fora da VPS em
-operação normal.
+operação normal — inclusive a renovação, que passa a acontecer sozinha antes de
+cada vencimento.
 
 ---
 
