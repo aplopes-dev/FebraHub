@@ -83,6 +83,15 @@ def openapi() -> dict:
     return json.loads(corpo)
 
 
+def colunas_e_pk(spec: dict, rel: str) -> tuple[list[str], list[str]]:
+    """Colunas e chave primária de uma relação, lidas da spec.
+    O PostgREST marca a PK na descrição da propriedade com '<pk/>'."""
+    props = (spec.get("definitions", {}).get(rel, {}) or {}).get("properties", {}) or {}
+    cols = list(props.keys())
+    pk = [c for c, d in props.items() if "<pk/>" in (d.get("description") or "")]
+    return cols, pk
+
+
 def contar(rel: str) -> int | None:
     status, headers, _ = req(
         f"{URL}/rest/v1/{rel}?select=*&limit=1",
@@ -98,14 +107,26 @@ def contar(rel: str) -> int | None:
     return None
 
 
-def baixar(rel: str, total: int | None) -> tuple[bytes, int, str | None]:
-    """Pagina por Range. Sem ORDER BY estável o Postgres pode repetir/pular
-    linhas entre páginas — por isso ordenamos por todas as colunas."""
+def baixar(rel: str, total: int | None, cols: list[str], pk: list[str]) -> tuple[bytes, int, str | None]:
+    """Pagina por Range.
+
+    Duas armadilhas, ambas já custaram caro neste projeto:
+
+    1. O PostgREST corta a resposta no 'Max rows' do projeto (1000) sem avisar.
+       Pedir um Range maior não levanta o teto — só faz o lote voltar menor que
+       o pedido, o que parece 'acabou' e não é. Por isso a parada é lote vazio
+       ou total atingido, nunca 'veio menos que pedi'.
+
+    2. Paginar sem ORDER BY estável deixa o Postgres livre para repetir e pular
+       linhas entre páginas. Ordenamos pela PK; sem PK, por todas as colunas.
+    """
+    ordem = pk or cols
+    ordem_qs = "".join(f"&order={c}.asc" for c in ordem[:8])
     linhas: list[str] = []
     de = 0
     while True:
         status, _, corpo = req(
-            f"{URL}/rest/v1/{rel}?select=*",
+            f"{URL}/rest/v1/{rel}?select=*{ordem_qs}",
             {**H_REST, "Range-Unit": "items", "Range": f"{de}-{de + PAGINA - 1}"},
         )
         if status >= 400:
@@ -115,10 +136,10 @@ def baixar(rel: str, total: int | None) -> tuple[bytes, int, str | None]:
             break
         linhas.extend(json.dumps(x, ensure_ascii=False, default=str) for x in lote)
         de += len(lote)
-        if len(lote) < PAGINA:
+        if total is not None and len(linhas) >= total:
             break
-        if total is not None and de >= total:
-            break
+        if len(linhas) > 5_000_000:  # trava contra paginação que não converge
+            return b"", len(linhas), "abortado: mais de 5M linhas"
     return ("\n".join(linhas) + "\n").encode() if linhas else b"", len(linhas), None
 
 
@@ -159,12 +180,18 @@ def main() -> None:
 
     for rel in relacoes:
         total = contar(rel)
-        dados, n, erro = baixar(rel, total)
+        cols, pk = colunas_e_pk(spec, rel)
+        dados, n, erro = baixar(rel, total, cols, pk)
         if erro:
             manifesto["erros"][rel] = erro
             print(f"[ERRO] {rel}: {erro}", flush=True)
             continue
-        manifesto["relacoes"][rel] = {"contagem_declarada": total, "linhas_exportadas": n}
+        manifesto["relacoes"][rel] = {
+            "contagem_declarada": total,
+            "linhas_exportadas": n,
+            "colunas": cols,
+            "pk": pk,
+        }
         marca = "" if (total is None or total == n) else f"  <-- DIVERGE (declarado {total})"
         print(f"[ok] {rel}: {n} linhas{marca}", flush=True)
         if dados:

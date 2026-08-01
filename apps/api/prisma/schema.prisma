@@ -1,0 +1,978 @@
+// ====================================================================
+// FebraHub — schema Prisma
+//
+// O banco NAO nasceu deste schema. As 43 tabelas de negocio (dim_*, fato_*,
+// mv_*, stg_*) ja existiam no Supabase e vieram com os dados reais para o
+// Postgres proprio. Este arquivo as descreve; nao as cria.
+// Quem este arquivo cria de fato sao as 6 tabelas de aplicacao no topo —
+// as que substituem o Supabase Auth e o Supabase Storage.
+//
+// Duas coisas de proposito NAO estao aqui:
+//   1. As 109 views (vw_*) dos hubs. Elas somam, cruzam e agregam; virar
+//      model do Client nao ajudaria e amarraria o schema a cada mudanca de
+//      KPI. Leitura por $queryRaw, com o tipo declarado no service.
+//   2. Foreign keys entre tabelas de negocio. O banco importado nao tem
+//      nenhuma (o dump so trouxe as PKs), e inventar relacao aqui faria o
+//      Client prometer join que o banco nao garante — nenhuma ponte deste
+//      projeto chega a 100% de cobertura (ver docs/DESCOBERTAS.md §3).
+// ====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================================================================
+// APLICACAO — substitui o Supabase Auth e o Supabase Storage
+// ====================================================================
+
+/// Usuario do portal, no lugar de auth.users.
+/// Papel e setor moram aqui, e nao em uma tabela `perfis` a parte: aquela
+/// indirecao existia so porque o Supabase nao deixava tocar em auth.users.
+model Usuario {
+  id                 String    @id @default(uuid()) @db.Uuid
+  /// citext: "Dulce@febracis.com.br" e "dulce@febracis.com.br" sao a mesma
+  /// conta. Resolver isso com lower() no app funciona ate o dia em que um
+  /// caminho novo esquece o lower() e cria a segunda conta da mesma pessoa.
+  email              String    @unique @db.Citext
+  nome               String
+  /// Nunca a senha. argon2id — a configuracao esta no AuthService e no seed.
+  senhaHash          String    @map("senha_hash")
+  /// admin | gestor | membro — CHECK no banco, ver a migration 00000000000000_init.
+  papel              String
+  /// Setor primario. Acesso a setores adicionais vive em PerfilSetor.
+  setor              String
+  /// Desligamento nao apaga usuario: apaga-lo levaria junto a autoria dos
+  /// arquivos e a leitura da trilha de auditoria.
+  ativo              Boolean   @default(true)
+  /// Os 6 usuarios migrados nascem com true: a Admin API do Supabase nao
+  /// devolve encrypted_password, entao a senha antiga se perdeu na migracao
+  /// e cada um recebe uma temporaria gerada pelo seed.
+  precisaTrocarSenha Boolean   @default(false) @map("precisa_trocar_senha")
+  ultimoLogin        DateTime? @map("ultimo_login") @db.Timestamptz(6)
+  criadoEm           DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  setores  PerfilSetor[]
+  sessoes  Sessao[]
+  arquivos Arquivo[]
+
+  @@map("usuarios")
+}
+
+/// Setores extras que o usuario enxerga alem do proprio.
+/// Existe porque o acesso real nao e 1:1: o Financeiro tambem precisa do
+/// Comercial para conciliar venda contra recebimento.
+model PerfilSetor {
+  usuarioId String @map("usuario_id") @db.Uuid
+  setor     String
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, setor])
+  @@map("usuario_setores")
+}
+
+/// Uma linha por sessao viva. O id E o jti do refresh token, entao revogar
+/// e um UPDATE em linha conhecida, sem varrer tabela nem decodificar JWT.
+/// Guarda o hash, nunca o token: um dump vazado nao vira sessao valida.
+model Sessao {
+  /// Texto livre, nao uuid: o formato do jti e decisao do AuthService.
+  id         String    @id
+  usuarioId  String    @map("usuario_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  ip         String?
+  agente     String?
+  criadaEm   DateTime  @default(now()) @map("criada_em") @db.Timestamptz(6)
+  expiraEm   DateTime  @map("expira_em") @db.Timestamptz(6)
+  /// Preenchido no logout e na troca de senha (que derruba todas as sessoes).
+  revogadaEm DateTime? @map("revogada_em") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  /// Para o expurgo periodico varrer so o que ja venceu.
+  @@index([expiraEm])
+  @@map("sessoes")
+}
+
+/// Tentativa de login — alimenta o rate limit por e-mail e por IP.
+/// Separada de AuditoriaAcesso porque cresce em outra ordem de grandeza
+/// (todo bot que achar o /login escreve aqui) e tem expurgo proprio.
+model TentativaLogin {
+  id       BigInt   @id @default(autoincrement())
+  /// String comum, nao citext: aqui e o que a pessoa digitou, inclusive
+  /// e-mail que nao existe. E dado de tentativa, nao chave de usuario.
+  email    String
+  ip       String
+  agente   String?
+  sucesso  Boolean
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([email, criadoEm])
+  @@index([ip, criadoEm])
+  @@map("tentativas_login")
+}
+
+/// Metadado do que esta no MinIO. O bucket guarda bytes; quem sabe o nome
+/// original, quem subiu e a que registro o arquivo pertence e o banco.
+model Arquivo {
+  id           String    @id @default(uuid()) @db.Uuid
+  /// Caminho do objeto no bucket. Unico porque um objeto so pode ter um dono
+  /// de metadado — duas linhas apontando para a mesma chave fariam a exclusao
+  /// de uma apagar o arquivo da outra.
+  chave        String    @unique
+  nomeOriginal String    @map("nome_original")
+  mime         String
+  tamanho      Int
+  /// Hash do conteudo: deduplicacao na subida e integridade no download.
+  sha256       String
+  pasta        String
+  enviadoPor   String    @map("enviado_por") @db.Uuid
+  /// Vinculo generico (tipo + id) em vez de uma FK por hub: o anexo pode
+  /// pendurar em turma, evento ou pagamento, e os ids de negocio sao text de
+  /// sistemas diferentes. FK real exigiria uma coluna nova a cada hub novo.
+  vinculoTipo  String?   @map("vinculo_tipo")
+  vinculoId    String?   @map("vinculo_id")
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  /// Exclusao logica: o objeto sai do MinIO, a linha fica para a auditoria
+  /// saber que existiu e quem apagou.
+  excluidoEm   DateTime? @map("excluido_em") @db.Timestamptz(6)
+
+  /// Restrict de proposito: quem subiu arquivo nao se apaga, se desativa.
+  usuario Usuario @relation(fields: [enviadoPor], references: [id], onDelete: Restrict)
+
+  @@index([vinculoTipo, vinculoId])
+  @@index([enviadoPor, criadoEm])
+  @@index([pasta])
+  @@index([sha256])
+  @@map("arquivos")
+}
+
+/// Trilha de login, logout, upload e exclusao.
+model AuditoriaAcesso {
+  id        BigInt   @id @default(autoincrement())
+  /// Solto, SEM foreign key: a trilha tem que sobreviver ao usuario, e uma FK
+  /// aqui impediria registrar acao de conta que nunca existiu.
+  usuarioId String?  @map("usuario_id") @db.Uuid
+  acao      String
+  recurso   String
+  /// Contexto livre por acao (chave do arquivo, filtro da consulta, motivo).
+  /// jsonb e nao json: da para indexar e comparar depois.
+  detalhe   Json?    @db.JsonB
+  ip        String?
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([usuarioId, criadoEm])
+  @@index([acao, criadoEm])
+  @@map("auditoria_acesso")
+}
+
+// ====================================================================
+// NEGOCIO — as 43 tabelas que ja vieram com dados
+//
+// Regras que valem para o bloco inteiro:
+//
+//  * Todo *_id de negocio e text. Nao e desleixo: CPF tem zero a esquerda
+//    (05107434550). Vira bigint, perde o zero, fica com 10 digitos e nunca
+//    mais casa com nada — o mesmo vale para telefone e para id de sistema
+//    externo (Salesforce, Clint, Sympla) que so parece numero.
+//    A excecao esta na loja: la os ids sao contadores do PDV e sao bigint
+//    de verdade no banco (ver o comentario em FatoLojaCupom).
+//
+//  * Dinheiro e Decimal @db.Decimal, sem precisao declarada, porque as
+//    colunas sao numeric sem precisao no banco. Fixar (18,4) aqui faria o
+//    Prisma querer ALTER em 40 tabelas cheias na primeira migration.
+//
+//  * Quase toda coluna e opcional: a carga veio de 5 integracoes e so as PKs
+//    sao NOT NULL. O `?` aqui e o retrato honesto do dado, nao pessimismo.
+//
+//  * Data e date, timestamptz ou timestamp conforme o banco. Os tres
+//    convivem porque as fontes gravam diferente; nao unifique no schema —
+//    unifique na consulta, senao o Client passa a mentir sobre o fuso.
+// ====================================================================
+
+// --------------------------------------------------------------------
+// DIMENSOES
+// Dimensoes — o "quem" e o "o que". Chave natural do sistema de origem,
+// nunca id sintetico: e por ela que o ETL faz upsert todo dia.
+// --------------------------------------------------------------------
+
+/// cpf, telefone e doc_norm sao text e continuam text. CPF com zero a
+/// esquerda (05107434550) vira 10 digitos em qualquer tipo numerico e para
+/// de casar com tudo. doc_norm e o CPF so com digitos: e a ponte de 74% de
+/// cobertura entre comprador de evento e aluno.
+model DimAluno {
+  alunoId               String    @id @map("aluno_id")
+  nome                  String?
+  email                 String?
+  cidade                String?
+  estado                String?
+  idade                 Int?
+  dataNascimento        DateTime? @map("data_nascimento") @db.Date
+  cargo                 String?
+  empresa               String?
+  ultimaAtividade       DateTime? @map("ultima_atividade") @db.Date
+  dataUltimaModificacao DateTime? @map("data_ultima_modificacao") @db.Date
+  unidade               String?
+  consultorAtual        String?   @map("consultor_atual")
+  cursoAtual            String?   @map("curso_atual")
+  cpf                   String?
+  telefone              String?
+  sexo                  String?
+  docNorm               String?   @map("doc_norm")
+
+  @@map("dim_alunos")
+}
+
+model DimCalendario {
+  data        DateTime @id @db.Date
+  ano         Int?
+  mes         Int?
+  trimestre   Int?
+  diaSemana   String?  @map("dia_semana")
+  feriado     Boolean?
+  feriadoNome String?  @map("feriado_nome")
+
+  @@map("dim_calendario")
+}
+
+model DimConsultor {
+  consultorId  String   @id @map("consultor_id")
+  nome         String?
+  equipe       String?
+  ativo        Boolean?
+  email        String?
+  primeiroNome String?  @map("primeiro_nome")
+  sobrenome    String?
+  fotoUrl      String?  @map("foto_url")
+  ativa        Boolean?
+
+  @@map("dim_consultores")
+}
+
+model DimCurso {
+  cursoId         String   @id @map("curso_id")
+  nomeCurso       String?  @map("nome_curso")
+  tipo            String?
+  nomeCurto       String?  @map("nome_curto")
+  gradePedagogico Boolean? @map("grade_pedagogico")
+
+  @@map("dim_cursos")
+}
+
+model DimEvento {
+  eventoId     String    @id @map("evento_id")
+  idReferencia String?   @map("id_referencia")
+  nomeEvento   String?   @map("nome_evento")
+  dataInicio   DateTime? @map("data_inicio") @db.Timestamptz(6)
+  dataFinal    DateTime? @map("data_final") @db.Timestamptz(6)
+  localEvento  String?   @map("local_evento")
+  endereco     String?
+  bairro       String?
+  cidade       String?
+
+  @@map("dim_eventos")
+}
+
+/// grupoId aqui e uuid de verdade: a tabela nasceu no proprio app, nao veio
+/// de sistema externo.
+model DimGrupo {
+  grupoId      String    @id @map("grupo_id") @db.Uuid
+  nomeGrupo    String?   @map("nome_grupo")
+  arquivadoEm  DateTime? @map("arquivado_em") @db.Timestamp(6)
+  arquivadoPor String?   @map("arquivado_por") @db.Uuid
+
+  @@map("dim_grupos")
+}
+
+/// 66 mil leads do Clint. Cuidado: data_criacao e data_atualizacao estao
+/// 100% NULL — o mapper do ETL le a chave errada (docs/DIVIDAS.md §4).
+/// Serie temporal de lead usa FatoNegocioLead.dataCriacao ate isso virar.
+/// A ponte lead -> aluno e por telefone (ultimos 8 digitos), 40% de
+/// cobertura; por e-mail da 3% e nao serve.
+model DimLead {
+  leadId           String    @id @map("lead_id")
+  nome             String?
+  email            String?
+  telefoneCompleto String?   @map("telefone_completo")
+  dataCriacao      DateTime? @map("data_criacao") @db.Date
+  dataAtualizacao  DateTime? @map("data_atualizacao") @db.Timestamptz(6)
+  idEmpresa        String?   @map("id_empresa")
+  empresa          String?
+
+  @@map("dim_leads")
+}
+
+model DimOrigem {
+  origemId  String  @id @map("origem_id")
+  nome      String?
+  grupoId   String? @map("grupo_id")
+  grupoNome String? @map("grupo_nome")
+
+  @@map("dim_origens")
+}
+
+/// atualizadoPor era o uuid do auth.users do Supabase. As linhas antigas
+/// continuam apontando para ids que nao existem mais em lugar nenhum — sem
+/// FK de proposito, senao a migracao nao teria como entrar.
+model DimTurma {
+  turmaId               String    @id @map("turma_id")
+  curso                 String?
+  dataInicio            DateTime? @map("data_inicio") @db.Date
+  dataFim               DateTime? @map("data_fim") @db.Date
+  cidade                String?
+  unidade               String?
+  sigla                 String?
+  anoFiscal             Int?      @map("ano_fiscal")
+  horario               String?
+  local                 String?
+  capacidade            Int?
+  status                String?
+  sincronizadoEm        DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+  atualizadoPor         String?   @map("atualizado_por") @db.Uuid
+  atualizadoEm          DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  confirmaPedagogico    Boolean?  @map("confirma_pedagogico")
+  sfTurmaId             String?   @map("sf_turma_id")
+  horarioCredenciamento String?   @map("horario_credenciamento")
+  horarioInicio         String?   @map("horario_inicio")
+  linkGrupo             String?   @map("link_grupo")
+  horarioFim            String?   @map("horario_fim")
+  endereco              String?
+  nomeComercial         String?   @map("nome_comercial")
+  crmTemplateId         String?   @map("crm_template_id")
+
+  @@map("dim_turmas")
+}
+
+// --------------------------------------------------------------------
+// COMERCIAL
+// Comercial — leads do Clint e matriculas do Salesforce.
+// --------------------------------------------------------------------
+
+/// dataCriacao e timestamp SEM fuso, como veio do Clint.
+/// A coluna gerada data_criacao_dia que existia no Supabase nao sobreviveu
+/// ao import: filtro por dia usa data_criacao direto (o indice da migration
+/// 00000000000001 cobre isso).
+model FatoNegocioLead {
+  negocioId          String    @id @map("negocio_id")
+  origemId           String?   @map("origem_id")
+  consultorId        String?   @map("consultor_id")
+  emailConsultor     String?   @map("email_consultor")
+  nomeConsultor      String?   @map("nome_consultor")
+  leadId             String?   @map("lead_id")
+  nomeContato        String?   @map("nome_contato")
+  emailContato       String?   @map("email_contato")
+  dataCriacao        DateTime? @map("data_criacao") @db.Timestamp(6)
+  dataAlteracaoEtapa DateTime? @map("data_alteracao_etapa") @db.Timestamp(6)
+  dataAtualizacao    DateTime? @map("data_atualizacao") @db.Timestamp(6)
+  statusNegocio      String?   @map("status_negocio")
+  aplicativoOrigem   String?   @map("aplicativo_origem")
+  idAnuncio          String?   @map("id_anuncio")
+  nomeAnuncio        String?   @map("nome_anuncio")
+  nomeFormulario     String?   @map("nome_formulario")
+  nomeCampanha       String?   @map("nome_campanha")
+  etapaFunil         String?   @map("etapa_funil")
+  idEtapa            String?   @map("id_etapa")
+  valor              Decimal?  @db.Decimal
+  moeda              String?
+
+  @@map("fato_negocio_lead")
+}
+
+/// Matricula. A chave para somar receita e originalIdVenda (84% de
+/// cobertura, fecha em R$ 47,17M) — cruzar por alunoId DUPLICA o dinheiro,
+/// porque 42,6% dos alunos fizeram mais de um curso.
+model FatoBaseAluno {
+  matriculaId          String    @id @map("matricula_id")
+  alunoId              String?   @map("aluno_id")
+  cursoId              String?   @map("curso_id")
+  dataMatricula        DateTime? @map("data_matricula") @db.Date
+  statusMatricula      String?   @map("status_matricula")
+  dataConclusao        DateTime? @map("data_conclusao") @db.Date
+  originalIdVenda      String?   @map("original_id_venda")
+  consultorId          String?   @map("consultor_id")
+  tipoMatricula        String?   @map("tipo_matricula")
+  dataFechamentoVenda  DateTime? @map("data_fechamento_venda") @db.Date
+  turma                String?
+  valor                Decimal?  @db.Decimal
+  origemLead           String?   @map("origem_lead")
+  unidadeGeradoraVenda String?   @map("unidade_geradora_venda")
+  fase                 String?
+  ganho                Boolean?
+  treinador            String?
+  emailCliente         String?   @map("email_cliente")
+  telefoneCliente      String?   @map("telefone_cliente")
+  utmCampaign          String?   @map("utm_campaign")
+  ultimaOrigemLead     String?   @map("ultima_origem_lead")
+
+  @@map("fato_base_alunos")
+}
+
+model ConsultorUnidade {
+  consultorId String  @id @map("consultor_id")
+  nome        String?
+  unidade     String?
+
+  @@map("consultor_unidade")
+}
+
+model ConsultoraCategoria {
+  consultorId String    @map("consultor_id")
+  categoria   String
+  largada     DateTime? @db.Date
+
+  @@id([consultorId, categoria])
+  @@map("consultora_categoria")
+}
+
+// --------------------------------------------------------------------
+// FINANCEIRO
+// Financeiro — pagamento (Salesforce), contas (Conta Azul) e cartao (CisPay).
+// --------------------------------------------------------------------
+
+/// Pagamento de curso. Liga a matricula por originalIdVenda, nunca por aluno.
+/// 15% das linhas nao tem statusPagamento e 85 nao tem dataPagamento
+/// (docs/DIVIDAS.md §1 e §2): toda metrica daqui sai com rotulo de cobertura.
+model FatoPagamentoBase {
+  pagamentoId          String    @id @map("pagamento_id")
+  alunoId              String?   @map("aluno_id")
+  cursoId              String?   @map("curso_id")
+  consultorId          String?   @map("consultor_id")
+  dataPagamento        DateTime? @map("data_pagamento") @db.Date
+  valor                Decimal?  @db.Decimal
+  statusPagamento      String?   @map("status_pagamento")
+  formaPagamento       String?   @map("forma_pagamento")
+  originalIdVenda      String?   @map("original_id_venda")
+  nomeVenda            String?   @map("nome_venda")
+  tipoMatricula        String?   @map("tipo_matricula")
+  quantidadeParcelas   Int?      @map("quantidade_parcelas")
+  valorParcela         Decimal?  @map("valor_parcela") @db.Decimal
+  periodoFiscal        String?   @map("periodo_fiscal")
+  unidadeGeradoraVenda String?   @map("unidade_geradora_venda")
+  paymentId            String?   @map("payment_id")
+  dataAprovacao        DateTime? @map("data_aprovacao") @db.Date
+  dataFechamento       DateTime? @map("data_fechamento") @db.Date
+
+  @@map("fato_pagamento_base")
+}
+
+model FatoContasReceber {
+  parcelaId       String    @id @map("parcela_id")
+  eventoId        String?   @map("evento_id")
+  descricao       String?
+  cliente         String?
+  dataVencimento  DateTime? @map("data_vencimento") @db.Date
+  dataCompetencia DateTime? @map("data_competencia") @db.Date
+  dataPagamento   DateTime? @map("data_pagamento") @db.Date
+  status          String?
+  valor           Decimal?  @db.Decimal
+  valorPago       Decimal?  @map("valor_pago") @db.Decimal
+  categoria       String?
+  contaFinanceira String?   @map("conta_financeira")
+  centroCusto     String?   @map("centro_custo")
+  sincronizadoEm  DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+
+  @@map("fato_contas_receber")
+}
+
+model FatoContasPagar {
+  parcelaId       String    @id @map("parcela_id")
+  eventoId        String?   @map("evento_id")
+  descricao       String?
+  fornecedor      String?
+  dataVencimento  DateTime? @map("data_vencimento") @db.Date
+  dataCompetencia DateTime? @map("data_competencia") @db.Date
+  dataPagamento   DateTime? @map("data_pagamento") @db.Date
+  status          String?
+  valor           Decimal?  @db.Decimal
+  valorPago       Decimal?  @map("valor_pago") @db.Decimal
+  categoria       String?
+  centroCusto     String?   @map("centro_custo")
+  sincronizadoEm  DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+
+  @@map("fato_contas_pagar")
+}
+
+/// CisPay. Nao use codSalesforce como join: casa com 2,7% das vendas e caiu
+/// para 0% em 2026, porque a Febracis passou a cobrar por link de pagamento
+/// direto (docs/DESCOBERTAS.md §5). A tabela vale pelo fluxo de caixa
+/// (24.890 parcelas com data de liquidacao) e pelo MDR de 3,10% — o unico
+/// numero do projeto conferido contra o extrato bancario.
+/// valorBruto aqui e POR PARCELA, nao o total da venda.
+model FatoLiquidacaoCartao {
+  parcelaId         String    @id @map("parcela_id")
+  pagamentoCartaoId String?   @map("pagamento_cartao_id")
+  codSalesforce     String?   @map("cod_salesforce")
+  linkSalesforce    String?   @map("link_salesforce")
+  subsellerId       String?   @map("subseller_id")
+  dataVenda         DateTime? @map("data_venda") @db.Date
+  dataLiquidacao    DateTime? @map("data_liquidacao") @db.Date
+  formaPagamento    String?   @map("forma_pagamento")
+  tipoTransacao     String?   @map("tipo_transacao")
+  bandeira          String?
+  cartaoMascarado   String?   @map("cartao_mascarado")
+  numeroParcela     Int?      @map("numero_parcela")
+  totalParcelas     Int?      @map("total_parcelas")
+  valorBruto        Decimal?  @map("valor_bruto") @db.Decimal
+  valorLiquido      Decimal?  @map("valor_liquido") @db.Decimal
+  taxaCispay        Decimal?  @map("taxa_cispay") @db.Decimal
+  pctMdr            Decimal?  @map("pct_mdr") @db.Decimal
+  nsu               String?
+  autorizacao       String?
+  documento         String?
+  docNorm           String?   @map("doc_norm")
+  nomePortador      String?   @map("nome_portador")
+
+  @@map("fato_liquidacao_cartao")
+}
+
+model FatoExtratoCispay {
+  lancamentoId   String    @id @map("lancamento_id")
+  subsellerId    String?   @map("subseller_id")
+  dataLancamento DateTime? @map("data_lancamento") @db.Timestamptz(6)
+  descricao      String?
+  valorBruto     Decimal?  @map("valor_bruto") @db.Decimal
+  valorLiquido   Decimal?  @map("valor_liquido") @db.Decimal
+
+  @@map("fato_extrato_cispay")
+}
+
+/// Ponte pagamento -> curso, herdada de uma materialized view do Supabase.
+/// Chegou sem PK, entao leva @@ignore: nao aparece no Client e e lida por
+/// $queryRaw. Nao invente uma PK aqui — o par (venda, curso) se repete.
+model MvVendaCurso {
+  originalIdVenda String? @map("original_id_venda")
+  cursoId         String? @map("curso_id")
+
+  @@map("mv_venda_curso")
+  @@ignore
+}
+
+// --------------------------------------------------------------------
+// MARKETING
+// Marketing — investimento e entrega do Meta Ads.
+// --------------------------------------------------------------------
+
+/// Meta Ads, granularidade diaria por anuncio. PK composta
+/// (data, campanhaId, anuncioKey).
+model FatoMetaInsights {
+  data         DateTime  @db.Date
+  contaId      String?   @map("conta_id")
+  campanhaId   String    @map("campanha_id")
+  campanhaNome String?   @map("campanha_nome")
+  adsetId      String?   @map("adset_id")
+  adsetNome    String?   @map("adset_nome")
+  anuncioId    String?   @map("anuncio_id")
+  anuncioNome  String?   @map("anuncio_nome")
+  impressoes   BigInt?
+  alcance      BigInt?
+  cliques      BigInt?
+  gasto        Decimal?  @db.Decimal
+  leads        Int?
+  cpl          Decimal?  @db.Decimal
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  anuncioKey   String    @map("anuncio_key")
+
+  @@id([data, campanhaId, anuncioKey])
+  @@map("fato_meta_insights")
+}
+
+// --------------------------------------------------------------------
+// EVENTOS
+// Eventos — pedidos e participantes do Sympla.
+// --------------------------------------------------------------------
+
+/// Pedido do Sympla. valorTotal e bruto; valorLiquido ja desconta os ~11,5%
+/// da plataforma. Receita de evento nao entra na mesma conta que receita de
+/// curso: R$ 46 e R$ 6.138 somados nao significam nada.
+model FatoPedido {
+  pedidoId               String    @id @map("pedido_id")
+  eventoId               String?   @map("evento_id")
+  statusPedido           String?   @map("status_pedido")
+  dataPedido             DateTime? @map("data_pedido") @db.Timestamp(6)
+  dataAtualizacaoPedido  DateTime? @map("data_atualizacao_pedido") @db.Timestamp(6)
+  dataAprovacaoPedido    DateTime? @map("data_aprovacao_pedido") @db.Timestamp(6)
+  valorTotal             Decimal?  @map("valor_total") @db.Decimal
+  moeda                  String?
+  compradorNome          String?   @map("comprador_nome")
+  compradorEmail         String?   @map("comprador_email")
+  dataPedidoDia          DateTime? @map("data_pedido_dia") @db.Date
+  compradorSobrenome     String?   @map("comprador_sobrenome")
+  valorLiquido           Decimal?  @map("valor_liquido") @db.Decimal
+  formaPagamento         String?   @map("forma_pagamento")
+  compradorDocumento     String?   @map("comprador_documento")
+  compradorDocumentoTipo String?   @map("comprador_documento_tipo")
+  utmSource              String?   @map("utm_source")
+  utmMedium              String?   @map("utm_medium")
+  utmCampaign            String?   @map("utm_campaign")
+  taxaPlataforma         Decimal?  @map("taxa_plataforma") @db.Decimal
+  docNorm                String?   @map("doc_norm")
+  emailCompradorNorm     String?   @map("email_comprador_norm")
+
+  @@map("fato_pedidos")
+}
+
+/// Ingresso. Evento nao e topo de funil: dos alunos que foram a evento, 68%
+/// ja eram alunos. A conversao real evento -> curso e 2,9%, em 61 dias
+/// (docs/DESCOBERTAS.md §2).
+model FatoParticipante {
+  participanteId        String    @id @map("participante_id")
+  eventoId              String?   @map("evento_id")
+  pedidoId              String?   @map("pedido_id")
+  statusPedido          String?   @map("status_pedido")
+  dataPedido            DateTime? @map("data_pedido") @db.Timestamp(6)
+  dataAtualizacaoPedido DateTime? @map("data_atualizacao_pedido") @db.Timestamp(6)
+  dataAprovacaoPedido   DateTime? @map("data_aprovacao_pedido") @db.Timestamp(6)
+  nomeParticipante      String?   @map("nome_participante")
+  emailParticipante     String?   @map("email_participante")
+  numeroIngresso        String?   @map("numero_ingresso")
+  qrCodeIngresso        String?   @map("qr_code_ingresso")
+  tipoIngresso          String?   @map("tipo_ingresso")
+  valorIngresso         Decimal?  @map("valor_ingresso") @db.Decimal
+  dataPedidoDia         DateTime? @map("data_pedido_dia") @db.Date
+  emailNorm             String?   @map("email_norm")
+  checkIn               Boolean?  @map("check_in")
+  desconto              Decimal?  @db.Decimal
+
+  @@map("fato_participantes")
+}
+
+model FatoAvaliacaoEvento {
+  id            BigInt    @id
+  evento        String?
+  dataEvento    DateTime? @map("data_evento") @db.Date
+  notaIndicacao Int?      @map("nota_indicacao")
+  comentario    String?
+  criadoEm      DateTime? @map("criado_em") @db.Timestamptz(6)
+  respostas     String?
+  respostaId    String?   @map("resposta_id")
+
+  @@map("fato_avaliacao_evento")
+}
+
+// --------------------------------------------------------------------
+// PEDAGOGICO
+// Pedagogico — credenciamento, presenca, avaliacao e retencao.
+// --------------------------------------------------------------------
+
+/// PK composta (alunoId, cursoNorm, turma): o mesmo aluno se credencia em
+/// varias turmas, e o nome do curso chega sujo da fonte — cursoNorm e a
+/// versao normalizada que serve de chave.
+model FatoCredenciamento {
+  alunoId            String    @map("aluno_id")
+  cursoId            String?   @map("curso_id")
+  cursoNorm          String    @map("curso_norm")
+  turma              String
+  dataCredenciamento DateTime? @map("data_credenciamento") @db.Date
+  unidade            String?
+
+  @@id([alunoId, cursoNorm, turma])
+  @@map("fato_credenciamento")
+}
+
+/// Staging cru do ETL: tudo text, inclusive dataCredenciamento, e sem PK.
+/// @@ignore — nao e para consumir daqui, e o rascunho antes do
+/// FatoCredenciamento.
+model StgCredenciamento {
+  alunoId            String? @map("aluno_id")
+  cursoId            String? @map("curso_id")
+  cursoNorm          String? @map("curso_norm")
+  turma              String?
+  dataCredenciamento String? @map("data_credenciamento")
+  unidade            String?
+
+  @@map("stg_credenciamento")
+  @@ignore
+}
+
+model FatoAvaliacao {
+  id            BigInt    @id
+  fonte         String?
+  curso         String?
+  treinador     String?
+  dataCurso     DateTime? @map("data_curso") @db.Date
+  turma         String?
+  respondentes  Int?
+  qConteudo     Decimal?  @map("q_conteudo") @db.Decimal
+  qClareza      Decimal?  @map("q_clareza") @db.Decimal
+  qMaterial     Decimal?  @map("q_material") @db.Decimal
+  qAplicacao    Decimal?  @map("q_aplicacao") @db.Decimal
+  qDominio      Decimal?  @map("q_dominio") @db.Decimal
+  qPontualidade Decimal?  @map("q_pontualidade") @db.Decimal
+  qDuvidas      Decimal?  @map("q_duvidas") @db.Decimal
+  nps           Decimal?  @db.Decimal
+  comentario    String?
+  criadoEm      DateTime? @map("criado_em") @db.Timestamptz(6)
+  notaTreinador Decimal?  @map("nota_treinador") @db.Decimal
+
+  @@map("fato_avaliacao")
+}
+
+model FatoRetencao {
+  id                 BigInt    @id
+  nomeCliente        String?   @map("nome_cliente")
+  curso              String?
+  motivoCancelamento String?   @map("motivo_cancelamento")
+  dataLigacao        DateTime? @map("data_ligacao") @db.Date
+  desfecho           String?
+  observacoes        String?
+  registradoPor      String?   @map("registrado_por")
+  criadoEm           DateTime? @map("criado_em") @db.Timestamptz(6)
+
+  @@map("fato_retencao")
+}
+
+model MaestroAnotacao {
+  alunoId             String    @id @map("aluno_id")
+  comoGostaSerChamado String?   @map("como_gosta_ser_chamado")
+  empresa             String?
+  faturamento         String?
+  cargo               String?
+  observacoes         String?
+  atualizadoEm        DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("maestro_anotacao")
+}
+
+model PedagogicoEnvio {
+  alunoId      String    @map("aluno_id")
+  turmaId      String    @map("turma_id")
+  origem       String?
+  status       String?
+  contatoCrmId String?   @map("contato_crm_id")
+  canal        String?
+  confirmadoEm DateTime? @map("confirmado_em") @db.Timestamptz(6)
+  enviadoEm    DateTime? @map("enviado_em") @db.Timestamptz(6)
+  tentativas   Int?
+  erroMsg      String?   @map("erro_msg")
+  criadoEm     DateTime? @map("criado_em") @db.Timestamptz(6)
+  tipo         String
+  resposta     String?
+
+  @@id([alunoId, turmaId, tipo])
+  @@map("pedagogico_envios")
+}
+
+model PedagogicoTemplate {
+  tipo          String    @id
+  corpo         String?
+  ativo         Boolean?
+  atualizadoPor String?   @map("atualizado_por") @db.Uuid
+  atualizadoEm  DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("pedagogico_templates")
+}
+
+// --------------------------------------------------------------------
+// LOJA
+// Loja (Centro Conceito) — PDV proprio, metas e estoque.
+// --------------------------------------------------------------------
+
+/// A EXCECAO da regra "todo id e text": cupomId, clienteId, vendedorId e
+/// produtoId sao bigint no banco. Sao contadores internos do PDV da loja,
+/// nao documento nem id de sistema externo. Declarar String aqui quebraria
+/// o Client em runtime — o tipo tem que ser o do banco.
+model FatoLojaCupom {
+  cupomId      BigInt    @id @map("cupom_id")
+  numeroCupom  Int?      @map("numero_cupom")
+  serie        String?
+  chave        String?
+  dataEmissao  DateTime? @map("data_emissao") @db.Date
+  valor        Decimal?  @db.Decimal
+  clienteId    BigInt?   @map("cliente_id")
+  vendedorId   BigInt?   @map("vendedor_id")
+  cancelado    Boolean?
+  devolvido    Boolean?
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fato_loja_cupom")
+}
+
+model FatoLojaItem {
+  cupomId       BigInt    @map("cupom_id")
+  seqItem       Int       @map("seq_item")
+  produtoId     BigInt?   @map("produto_id")
+  descricao     String?
+  quantidade    Decimal?  @db.Decimal
+  valorUnitario Decimal?  @map("valor_unitario") @db.Decimal
+  valorItem     Decimal?  @map("valor_item") @db.Decimal
+  quantidadeDev Decimal?  @map("quantidade_dev") @db.Decimal
+  cancelado     Boolean?
+  atualizadoEm  DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([cupomId, seqItem])
+  @@map("fato_loja_item")
+}
+
+model FatoLojaPagamento {
+  cupomId       BigInt    @map("cupom_id")
+  seqItem       Int       @map("seq_item")
+  formaCodigo   String?   @map("forma_codigo")
+  forma         String?
+  meioCodigo    String?   @map("meio_codigo")
+  bandeira      String?
+  parcelas      Int?
+  valor         Decimal?  @db.Decimal
+  dataTransacao DateTime? @map("data_transacao") @db.Date
+  nsu           String?
+  atualizadoEm  DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([cupomId, seqItem])
+  @@map("fato_loja_pagamento")
+}
+
+model FatoLojaEstoque {
+  produtoId     BigInt    @id @map("produto_id")
+  codigo        String?
+  descricao     String?
+  precoUnitario Decimal?  @map("preco_unitario") @db.Decimal
+  saldo         Decimal?  @db.Decimal
+  fisico        Decimal?  @db.Decimal
+  reservado     Decimal?  @db.Decimal
+  estoqueMinimo Decimal?  @map("estoque_minimo") @db.Decimal
+  dataPosicao   DateTime? @map("data_posicao") @db.Date
+  atualizadoEm  DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  custoMedio    Decimal?  @map("custo_medio") @db.Decimal
+
+  @@map("fato_loja_estoque")
+}
+
+model FatoLojaCurso {
+  id           BigInt    @id
+  mesRef       DateTime? @map("mes_ref") @db.Date
+  ano          Int?
+  mesNome      String?   @map("mes_nome")
+  periodo      String?
+  curso        String?
+  turma        String?
+  treinador    String?
+  dinheiro     Decimal?  @db.Decimal
+  debito       Decimal?  @db.Decimal
+  credito      Decimal?  @db.Decimal
+  pix          Decimal?  @db.Decimal
+  total        Decimal?  @db.Decimal
+  meta         Decimal?  @db.Decimal
+  alunos       Int?
+  ticketMedio  Decimal?  @map("ticket_medio") @db.Decimal
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fato_loja_curso")
+}
+
+model FatoLojaReceitaExtra {
+  id           BigInt    @id
+  fonte        String?
+  dataVenda    DateTime? @map("data_venda") @db.Date
+  mesRef       DateTime? @map("mes_ref") @db.Date
+  descricao    String?
+  formaPagto   String?   @map("forma_pagto")
+  valor        Decimal?  @db.Decimal
+  quantidade   Decimal?  @db.Decimal
+  cliente      String?
+  documento    String?
+  observacao   String?
+  chaveOrigem  String?   @map("chave_origem")
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fato_loja_receita_extra")
+}
+
+model FatoLojaFechamento {
+  mesRef       DateTime  @id @map("mes_ref") @db.Date
+  ano          Int?
+  mesNome      String?   @map("mes_nome")
+  faturamento  Decimal?  @db.Decimal
+  metaMinima   Decimal?  @map("meta_minima") @db.Decimal
+  metaBasica   Decimal?  @map("meta_basica") @db.Decimal
+  metaMaster   Decimal?  @map("meta_master") @db.Decimal
+  detalhe      String?
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fato_loja_fechamento")
+}
+
+model FatoLojaMetaMes {
+  mesRef       DateTime  @id @map("mes_ref") @db.Date
+  ano          Int?
+  mesNome      String?   @map("mes_nome")
+  master       Decimal?  @db.Decimal
+  basica       Decimal?  @db.Decimal
+  minima       Decimal?  @db.Decimal
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fato_loja_meta_mes")
+}
+
+model FatoLojaMetaCurso {
+  mesRef       DateTime  @map("mes_ref") @db.Date
+  curso        String
+  metaProdutos Decimal?  @map("meta_produtos") @db.Decimal
+  metaCurso    Decimal?  @map("meta_curso") @db.Decimal
+  metaTotal    Decimal?  @map("meta_total") @db.Decimal
+  alunos       Int?
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([mesRef, curso])
+  @@map("fato_loja_meta_curso")
+}
+
+// --------------------------------------------------------------------
+// OPERACAO
+// Operacao — estado das integracoes.
+// --------------------------------------------------------------------
+
+model IntegracaoStatus {
+  fonte           String    @id
+  nomeExibicao    String?   @map("nome_exibicao")
+  ultimaSync      DateTime? @map("ultima_sync") @db.Timestamptz(6)
+  registros       Int?
+  status          String?
+  mensagem        String?
+  duracaoSegundos Decimal?  @map("duracao_segundos") @db.Decimal
+  atualizadoEm    DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("integracao_status")
+}
+
+/// Token de OAuth das integracoes, em claro. Divida conhecida: o valor certo
+/// e cifrar em repouso com chave fora do banco. Enquanto nao for, esta
+/// tabela nao pode aparecer em dump compartilhado nem em log.
+model IntegracaoToken {
+  integracao   String    @id
+  accessToken  String?   @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiraEm     DateTime? @map("expira_em") @db.Timestamptz(6)
+  atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("integracao_tokens")
+}
+
+// --------------------------------------------------------------------
+// LEGADO
+// Legado do Supabase — nao usar em codigo novo.
+// --------------------------------------------------------------------
+
+/// Tabelas do Supabase Auth, mantidas so como referencia da migracao — o id
+/// apontava para auth.users, que nao existe mais. Quem manda agora e
+/// Usuario / PerfilSetor. Nao escreva aqui.
+model PerfilLegado {
+  id    String  @id @db.Uuid
+  nome  String?
+  setor String?
+  papel String?
+
+  @@map("perfis")
+}
+
+model PerfilSetorLegado {
+  perfilId String @map("perfil_id") @db.Uuid
+  setor    String
+
+  @@id([perfilId, setor])
+  @@map("perfil_setores")
+}

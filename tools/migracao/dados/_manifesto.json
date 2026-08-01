@@ -1,0 +1,2420 @@
+{
+  "gerado_em": "2026-08-01T15:10:47Z",
+  "relacoes": {
+    "consultor_unidade": {
+      "contagem_declarada": 7,
+      "linhas_exportadas": 7,
+      "colunas": [
+        "consultor_id",
+        "nome",
+        "unidade"
+      ],
+      "pk": [
+        "consultor_id"
+      ]
+    },
+    "consultora_categoria": {
+      "contagem_declarada": 8,
+      "linhas_exportadas": 8,
+      "colunas": [
+        "consultor_id",
+        "categoria",
+        "largada"
+      ],
+      "pk": [
+        "consultor_id",
+        "categoria"
+      ]
+    },
+    "dim_alunos": {
+      "contagem_declarada": 13738,
+      "linhas_exportadas": 13738,
+      "colunas": [
+        "aluno_id",
+        "nome",
+        "email",
+        "cidade",
+        "estado",
+        "idade",
+        "data_nascimento",
+        "cargo",
+        "empresa",
+        "ultima_atividade",
+        "data_ultima_modificacao",
+        "unidade",
+        "consultor_atual",
+        "curso_atual",
+        "cpf",
+        "telefone",
+        "sexo",
+        "doc_norm"
+      ],
+      "pk": [
+        "aluno_id"
+      ]
+    },
+    "dim_calendario": {
+      "contagem_declarada": 2557,
+      "linhas_exportadas": 2557,
+      "colunas": [
+        "data",
+        "ano",
+        "mes",
+        "trimestre",
+        "dia_semana",
+        "feriado",
+        "feriado_nome"
+      ],
+      "pk": [
+        "data"
+      ]
+    },
+    "dim_consultores": {
+      "contagem_declarada": 137,
+      "linhas_exportadas": 137,
+      "colunas": [
+        "consultor_id",
+        "nome",
+        "equipe",
+        "ativo",
+        "email",
+        "primeiro_nome",
+        "sobrenome",
+        "foto_url",
+        "ativa"
+      ],
+      "pk": [
+        "consultor_id"
+      ]
+    },
+    "dim_cursos": {
+      "contagem_declarada": 158,
+      "linhas_exportadas": 158,
+      "colunas": [
+        "curso_id",
+        "nome_curso",
+        "tipo",
+        "nome_curto",
+        "grade_pedagogico"
+      ],
+      "pk": [
+        "curso_id"
+      ]
+    },
+    "dim_eventos": {
+      "contagem_declarada": 79,
+      "linhas_exportadas": 79,
+      "colunas": [
+        "evento_id",
+        "id_referencia",
+        "nome_evento",
+        "data_inicio",
+        "data_final",
+        "local_evento",
+        "endereco",
+        "bairro",
+        "cidade"
+      ],
+      "pk": [
+        "evento_id"
+      ]
+    },
+    "dim_grupos": {
+      "contagem_declarada": 10,
+      "linhas_exportadas": 10,
+      "colunas": [
+        "grupo_id",
+        "nome_grupo",
+        "arquivado_em",
+        "arquivado_por"
+      ],
+      "pk": [
+        "grupo_id"
+      ]
+    },
+    "dim_leads": {
+      "contagem_declarada": 66394,
+      "linhas_exportadas": 66394,
+      "colunas": [
+        "lead_id",
+        "nome",
+        "email",
+        "telefone_completo",
+        "data_criacao",
+        "data_atualizacao",
+        "id_empresa",
+        "empresa"
+      ],
+      "pk": [
+        "lead_id"
+      ]
+    },
+    "dim_origens": {
+      "contagem_declarada": 15,
+      "linhas_exportadas": 15,
+      "colunas": [
+        "origem_id",
+        "nome",
+        "grupo_id",
+        "grupo_nome"
+      ],
+      "pk": [
+        "origem_id"
+      ]
+    },
+    "dim_turmas": {
+      "contagem_declarada": 234,
+      "linhas_exportadas": 234,
+      "colunas": [
+        "turma_id",
+        "curso",
+        "data_inicio",
+        "data_fim",
+        "cidade",
+        "unidade",
+        "sigla",
+        "ano_fiscal",
+        "horario",
+        "local",
+        "capacidade",
+        "status",
+        "sincronizado_em",
+        "atualizado_por",
+        "atualizado_em",
+        "confirma_pedagogico",
+        "sf_turma_id",
+        "horario_credenciamento",
+        "horario_inicio",
+        "link_grupo",
+        "horario_fim",
+        "endereco",
+        "nome_comercial",
+        "crm_template_id"
+      ],
+      "pk": [
+        "turma_id"
+      ]
+    },
+    "fato_avaliacao": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "id",
+        "fonte",
+        "curso",
+        "treinador",
+        "data_curso",
+        "turma",
+        "respondentes",
+        "q_conteudo",
+        "q_clareza",
+        "q_material",
+        "q_aplicacao",
+        "q_dominio",
+        "q_pontualidade",
+        "q_duvidas",
+        "nps",
+        "comentario",
+        "criado_em",
+        "nota_treinador"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "fato_avaliacao_evento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "id",
+        "evento",
+        "data_evento",
+        "nota_indicacao",
+        "comentario",
+        "criado_em",
+        "respostas",
+        "resposta_id"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "fato_base_alunos": {
+      "contagem_declarada": 20100,
+      "linhas_exportadas": 20100,
+      "colunas": [
+        "matricula_id",
+        "aluno_id",
+        "curso_id",
+        "data_matricula",
+        "status_matricula",
+        "data_conclusao",
+        "original_id_venda",
+        "consultor_id",
+        "tipo_matricula",
+        "data_fechamento_venda",
+        "turma",
+        "valor",
+        "origem_lead",
+        "unidade_geradora_venda",
+        "fase",
+        "ganho",
+        "treinador",
+        "email_cliente",
+        "telefone_cliente",
+        "utm_campaign",
+        "ultima_origem_lead"
+      ],
+      "pk": [
+        "matricula_id"
+      ]
+    },
+    "fato_contas_pagar": {
+      "contagem_declarada": 10511,
+      "linhas_exportadas": 10511,
+      "colunas": [
+        "parcela_id",
+        "evento_id",
+        "descricao",
+        "fornecedor",
+        "data_vencimento",
+        "data_competencia",
+        "data_pagamento",
+        "status",
+        "valor",
+        "valor_pago",
+        "categoria",
+        "centro_custo",
+        "sincronizado_em"
+      ],
+      "pk": [
+        "parcela_id"
+      ]
+    },
+    "fato_contas_receber": {
+      "contagem_declarada": 12929,
+      "linhas_exportadas": 12929,
+      "colunas": [
+        "parcela_id",
+        "evento_id",
+        "descricao",
+        "cliente",
+        "data_vencimento",
+        "data_competencia",
+        "data_pagamento",
+        "status",
+        "valor",
+        "valor_pago",
+        "categoria",
+        "conta_financeira",
+        "centro_custo",
+        "sincronizado_em"
+      ],
+      "pk": [
+        "parcela_id"
+      ]
+    },
+    "fato_credenciamento": {
+      "contagem_declarada": 13976,
+      "linhas_exportadas": 13976,
+      "colunas": [
+        "aluno_id",
+        "curso_id",
+        "curso_norm",
+        "turma",
+        "data_credenciamento",
+        "unidade"
+      ],
+      "pk": [
+        "aluno_id",
+        "curso_norm",
+        "turma"
+      ]
+    },
+    "fato_extrato_cispay": {
+      "contagem_declarada": 172,
+      "linhas_exportadas": 172,
+      "colunas": [
+        "lancamento_id",
+        "subseller_id",
+        "data_lancamento",
+        "descricao",
+        "valor_bruto",
+        "valor_liquido"
+      ],
+      "pk": [
+        "lancamento_id"
+      ]
+    },
+    "fato_liquidacao_cartao": {
+      "contagem_declarada": 24890,
+      "linhas_exportadas": 24890,
+      "colunas": [
+        "parcela_id",
+        "pagamento_cartao_id",
+        "cod_salesforce",
+        "link_salesforce",
+        "subseller_id",
+        "data_venda",
+        "data_liquidacao",
+        "forma_pagamento",
+        "tipo_transacao",
+        "bandeira",
+        "cartao_mascarado",
+        "numero_parcela",
+        "total_parcelas",
+        "valor_bruto",
+        "valor_liquido",
+        "taxa_cispay",
+        "pct_mdr",
+        "nsu",
+        "autorizacao",
+        "documento",
+        "doc_norm",
+        "nome_portador"
+      ],
+      "pk": [
+        "parcela_id"
+      ]
+    },
+    "fato_loja_cupom": {
+      "contagem_declarada": 12541,
+      "linhas_exportadas": 12541,
+      "colunas": [
+        "cupom_id",
+        "numero_cupom",
+        "serie",
+        "chave",
+        "data_emissao",
+        "valor",
+        "cliente_id",
+        "vendedor_id",
+        "cancelado",
+        "devolvido",
+        "atualizado_em"
+      ],
+      "pk": [
+        "cupom_id"
+      ]
+    },
+    "fato_loja_curso": {
+      "contagem_declarada": 300,
+      "linhas_exportadas": 300,
+      "colunas": [
+        "id",
+        "mes_ref",
+        "ano",
+        "mes_nome",
+        "periodo",
+        "curso",
+        "turma",
+        "treinador",
+        "dinheiro",
+        "debito",
+        "credito",
+        "pix",
+        "total",
+        "meta",
+        "alunos",
+        "ticket_medio",
+        "atualizado_em"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "fato_loja_estoque": {
+      "contagem_declarada": 451,
+      "linhas_exportadas": 451,
+      "colunas": [
+        "produto_id",
+        "codigo",
+        "descricao",
+        "preco_unitario",
+        "saldo",
+        "fisico",
+        "reservado",
+        "estoque_minimo",
+        "data_posicao",
+        "atualizado_em",
+        "custo_medio"
+      ],
+      "pk": [
+        "produto_id"
+      ]
+    },
+    "fato_loja_fechamento": {
+      "contagem_declarada": 46,
+      "linhas_exportadas": 46,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "mes_nome",
+        "faturamento",
+        "meta_minima",
+        "meta_basica",
+        "meta_master",
+        "detalhe",
+        "atualizado_em"
+      ],
+      "pk": [
+        "mes_ref"
+      ]
+    },
+    "fato_loja_item": {
+      "contagem_declarada": 19110,
+      "linhas_exportadas": 19110,
+      "colunas": [
+        "cupom_id",
+        "seq_item",
+        "produto_id",
+        "descricao",
+        "quantidade",
+        "valor_unitario",
+        "valor_item",
+        "quantidade_dev",
+        "cancelado",
+        "atualizado_em"
+      ],
+      "pk": [
+        "cupom_id",
+        "seq_item"
+      ]
+    },
+    "fato_loja_meta_curso": {
+      "contagem_declarada": 135,
+      "linhas_exportadas": 135,
+      "colunas": [
+        "mes_ref",
+        "curso",
+        "meta_produtos",
+        "meta_curso",
+        "meta_total",
+        "alunos",
+        "atualizado_em"
+      ],
+      "pk": [
+        "mes_ref",
+        "curso"
+      ]
+    },
+    "fato_loja_meta_mes": {
+      "contagem_declarada": 17,
+      "linhas_exportadas": 17,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "mes_nome",
+        "master",
+        "basica",
+        "minima",
+        "atualizado_em"
+      ],
+      "pk": [
+        "mes_ref"
+      ]
+    },
+    "fato_loja_pagamento": {
+      "contagem_declarada": 12728,
+      "linhas_exportadas": 12728,
+      "colunas": [
+        "cupom_id",
+        "seq_item",
+        "forma_codigo",
+        "forma",
+        "meio_codigo",
+        "bandeira",
+        "parcelas",
+        "valor",
+        "data_transacao",
+        "nsu",
+        "atualizado_em"
+      ],
+      "pk": [
+        "cupom_id",
+        "seq_item"
+      ]
+    },
+    "fato_loja_receita_extra": {
+      "contagem_declarada": 229,
+      "linhas_exportadas": 229,
+      "colunas": [
+        "id",
+        "fonte",
+        "data_venda",
+        "mes_ref",
+        "descricao",
+        "forma_pagto",
+        "valor",
+        "quantidade",
+        "cliente",
+        "documento",
+        "observacao",
+        "chave_origem",
+        "atualizado_em"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "fato_meta_insights": {
+      "contagem_declarada": 46031,
+      "linhas_exportadas": 46031,
+      "colunas": [
+        "data",
+        "conta_id",
+        "campanha_id",
+        "campanha_nome",
+        "adset_id",
+        "adset_nome",
+        "anuncio_id",
+        "anuncio_nome",
+        "impressoes",
+        "alcance",
+        "cliques",
+        "gasto",
+        "leads",
+        "cpl",
+        "atualizado_em",
+        "anuncio_key"
+      ],
+      "pk": [
+        "data",
+        "campanha_id",
+        "anuncio_key"
+      ]
+    },
+    "fato_negocio_lead": {
+      "contagem_declarada": 59613,
+      "linhas_exportadas": 59613,
+      "colunas": [
+        "negocio_id",
+        "origem_id",
+        "consultor_id",
+        "email_consultor",
+        "nome_consultor",
+        "lead_id",
+        "nome_contato",
+        "email_contato",
+        "data_criacao",
+        "data_alteracao_etapa",
+        "data_atualizacao",
+        "status_negocio",
+        "aplicativo_origem",
+        "id_anuncio",
+        "nome_anuncio",
+        "nome_formulario",
+        "nome_campanha",
+        "etapa_funil",
+        "id_etapa",
+        "valor",
+        "moeda"
+      ],
+      "pk": [
+        "negocio_id"
+      ]
+    },
+    "fato_pagamento_base": {
+      "contagem_declarada": 12348,
+      "linhas_exportadas": 12348,
+      "colunas": [
+        "pagamento_id",
+        "aluno_id",
+        "curso_id",
+        "consultor_id",
+        "data_pagamento",
+        "valor",
+        "status_pagamento",
+        "forma_pagamento",
+        "original_id_venda",
+        "nome_venda",
+        "tipo_matricula",
+        "quantidade_parcelas",
+        "valor_parcela",
+        "periodo_fiscal",
+        "unidade_geradora_venda",
+        "payment_id",
+        "data_aprovacao",
+        "data_fechamento"
+      ],
+      "pk": [
+        "pagamento_id"
+      ]
+    },
+    "fato_participantes": {
+      "contagem_declarada": 3862,
+      "linhas_exportadas": 3862,
+      "colunas": [
+        "participante_id",
+        "evento_id",
+        "pedido_id",
+        "status_pedido",
+        "data_pedido",
+        "data_atualizacao_pedido",
+        "data_aprovacao_pedido",
+        "nome_participante",
+        "email_participante",
+        "numero_ingresso",
+        "qr_code_ingresso",
+        "tipo_ingresso",
+        "valor_ingresso",
+        "data_pedido_dia",
+        "email_norm",
+        "check_in",
+        "desconto"
+      ],
+      "pk": [
+        "participante_id"
+      ]
+    },
+    "fato_pedidos": {
+      "contagem_declarada": 3266,
+      "linhas_exportadas": 3266,
+      "colunas": [
+        "pedido_id",
+        "evento_id",
+        "status_pedido",
+        "data_pedido",
+        "data_atualizacao_pedido",
+        "data_aprovacao_pedido",
+        "valor_total",
+        "moeda",
+        "comprador_nome",
+        "comprador_email",
+        "data_pedido_dia",
+        "comprador_sobrenome",
+        "valor_liquido",
+        "forma_pagamento",
+        "comprador_documento",
+        "comprador_documento_tipo",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "taxa_plataforma",
+        "doc_norm",
+        "email_comprador_norm"
+      ],
+      "pk": [
+        "pedido_id"
+      ]
+    },
+    "fato_retencao": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "id",
+        "nome_cliente",
+        "curso",
+        "motivo_cancelamento",
+        "data_ligacao",
+        "desfecho",
+        "observacoes",
+        "registrado_por",
+        "criado_em"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "integracao_status": {
+      "contagem_declarada": 8,
+      "linhas_exportadas": 8,
+      "colunas": [
+        "fonte",
+        "nome_exibicao",
+        "ultima_sync",
+        "registros",
+        "status",
+        "mensagem",
+        "duracao_segundos",
+        "atualizado_em"
+      ],
+      "pk": [
+        "fonte"
+      ]
+    },
+    "integracao_tokens": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "integracao",
+        "access_token",
+        "refresh_token",
+        "expira_em",
+        "atualizado_em"
+      ],
+      "pk": [
+        "integracao"
+      ]
+    },
+    "maestro_anotacao": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "aluno_id",
+        "como_gosta_ser_chamado",
+        "empresa",
+        "faturamento",
+        "cargo",
+        "observacoes",
+        "atualizado_em"
+      ],
+      "pk": [
+        "aluno_id"
+      ]
+    },
+    "mv_venda_curso": {
+      "contagem_declarada": 25420,
+      "linhas_exportadas": 25420,
+      "colunas": [
+        "original_id_venda",
+        "curso_id"
+      ],
+      "pk": []
+    },
+    "pedagogico_envios": {
+      "contagem_declarada": 4,
+      "linhas_exportadas": 4,
+      "colunas": [
+        "aluno_id",
+        "turma_id",
+        "origem",
+        "status",
+        "contato_crm_id",
+        "canal",
+        "confirmado_em",
+        "enviado_em",
+        "tentativas",
+        "erro_msg",
+        "criado_em",
+        "tipo",
+        "resposta"
+      ],
+      "pk": [
+        "aluno_id",
+        "turma_id",
+        "tipo"
+      ]
+    },
+    "pedagogico_templates": {
+      "contagem_declarada": 2,
+      "linhas_exportadas": 2,
+      "colunas": [
+        "tipo",
+        "corpo",
+        "ativo",
+        "atualizado_por",
+        "atualizado_em"
+      ],
+      "pk": [
+        "tipo"
+      ]
+    },
+    "perfil_setores": {
+      "contagem_declarada": 2,
+      "linhas_exportadas": 2,
+      "colunas": [
+        "perfil_id",
+        "setor"
+      ],
+      "pk": [
+        "perfil_id",
+        "setor"
+      ]
+    },
+    "perfis": {
+      "contagem_declarada": 6,
+      "linhas_exportadas": 6,
+      "colunas": [
+        "id",
+        "nome",
+        "setor",
+        "papel"
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    "stg_credenciamento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "aluno_id",
+        "curso_id",
+        "curso_norm",
+        "turma",
+        "data_credenciamento",
+        "unidade"
+      ],
+      "pk": []
+    },
+    "vw_comercial_carinhas": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "original_id_venda",
+        "consultor_id",
+        "consultora",
+        "data_pagamento",
+        "valor",
+        "carinha",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_carinhas_ggb": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "data_pagamento",
+        "valor",
+        "carinha",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_cursos_por_consultora": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "consultora",
+        "curso",
+        "curso_curto",
+        "data",
+        "valor_bruto",
+        "valor",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_forma_tipo": {
+      "contagem_declarada": 65,
+      "linhas_exportadas": 65,
+      "colunas": [
+        "forma_pagamento",
+        "tipo",
+        "eh_stone"
+      ],
+      "pk": []
+    },
+    "vw_comercial_funil": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "etapa_funil",
+        "status_negocio",
+        "negocios",
+        "ganhos",
+        "valor_total",
+        "ticket_medio"
+      ],
+      "pk": []
+    },
+    "vw_comercial_geral_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_matriculas_faturamento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "mes",
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula"
+      ],
+      "pk": []
+    },
+    "vw_comercial_placar": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "verdes_total",
+        "vermelhas_total",
+        "amarelas_total",
+        "verdes_no_ciclo",
+        "vermelhas_no_ciclo",
+        "brindes_ganhos",
+        "semanais_perdidas",
+        "faltam_brinde",
+        "faltam_perder"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "vendas",
+        "receita",
+        "ticket_medio"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking_categoria": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking_geral": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "vendas",
+        "receita_bruta",
+        "receita",
+        "ticket_medio",
+        "matriculas",
+        "primeira_venda"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking_geral_consolidado": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula",
+        "consultora",
+        "foto_url",
+        "atual",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking_historico": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula",
+        "consultor_id_exibicao",
+        "consultora",
+        "foto_url",
+        "atual",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comercial_ranking_periodo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "consultor_id",
+        "consultora",
+        "foto_url",
+        "data",
+        "valor_bruto",
+        "valor",
+        "conta_matricula"
+      ],
+      "pk": []
+    },
+    "vw_comercial_sympla_jennifer": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "consultora",
+        "foto_url",
+        "eventos",
+        "ingressos",
+        "receita_liquida",
+        "ocupacao_media"
+      ],
+      "pk": []
+    },
+    "vw_comercial_verdes_detalhe": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "data",
+        "consultora",
+        "foto_url",
+        "cliente",
+        "codigo_turma",
+        "curso",
+        "categoria",
+        "valor",
+        "formas",
+        "n_formas",
+        "original_id_venda",
+        "link_salesforce",
+        "data_aprovacao"
+      ],
+      "pk": []
+    },
+    "vw_comprou_nao_compareceu": {
+      "contagem_declarada": 2145,
+      "linhas_exportadas": 2145,
+      "colunas": [
+        "aluno_id",
+        "curso_id",
+        "turma",
+        "valor",
+        "data_matricula",
+        "consultor_id"
+      ],
+      "pk": []
+    },
+    "vw_diretoria_consolidado": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "unidade_negocio",
+        "receita_liquida",
+        "transacoes"
+      ],
+      "pk": []
+    },
+    "vw_eventos_desempenho": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "evento_id",
+        "nome_evento",
+        "data_inicio",
+        "cidade",
+        "ingressos",
+        "compareceram",
+        "taxa_comparecimento",
+        "receita_bruta",
+        "receita_liquida",
+        "taxa_plataforma"
+      ],
+      "pk": [
+        "evento_id"
+      ]
+    },
+    "vw_financeiro_a_pagar_horizonte": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "horizonte",
+        "parcelas",
+        "a_pagar"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_a_receber_horizonte": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "horizonte",
+        "parcelas",
+        "a_receber"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_caixa_horizonte": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "horizonte",
+        "parcelas",
+        "a_receber"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_caixa_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "caixa"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_conciliacao_cispay": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "original_id_venda",
+        "payment_id",
+        "data_pagamento",
+        "cliente",
+        "nome_venda",
+        "consultor_id",
+        "tipo_matricula",
+        "status_pagamento",
+        "formas",
+        "valor_salesforce",
+        "valor_cispay",
+        "liquido_cispay",
+        "taxa_cispay",
+        "parcelas",
+        "primeira_liquidacao",
+        "ultima_liquidacao",
+        "situacao",
+        "link_salesforce"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_conciliacao_resumo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "situacao",
+        "vendas",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_despesa_categoria": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "parcelas",
+        "total",
+        "pago",
+        "em_aberto"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_despesa_categoria_periodo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "mes",
+        "data",
+        "parcelas",
+        "total",
+        "pago"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_formas_pagamento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "forma",
+        "vendas",
+        "receita"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_inadimplencia": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "vencidas",
+        "valor_vencido"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_inadimplencia_origem": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "origem",
+        "parcelas_vencidas",
+        "valor_vencido"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_liquido_por_curso": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "curso",
+        "parcelas",
+        "bruto",
+        "liquido",
+        "taxa_cartao"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_mdr": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "bandeira",
+        "forma_pagamento",
+        "parcelas",
+        "bruto",
+        "liquido",
+        "taxa",
+        "pct_efetivo"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_pagamentos": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "ano",
+        "origem_status",
+        "matriculas",
+        "com_status",
+        "pagos",
+        "pendentes",
+        "perdidos",
+        "sem_status",
+        "pct_pago"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_pago_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "parcelas",
+        "pago"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_perdas_cartao": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "tipo_transacao",
+        "ocorrencias",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_qualidade": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "total",
+        "sem_data",
+        "valor_sem_data",
+        "sem_status",
+        "pct_sem_status"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_recebido_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "parcelas",
+        "recebido"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_receita": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "unidade",
+        "tipo_receita",
+        "status_pagamento",
+        "forma_pagamento",
+        "transacoes",
+        "valor_bruto",
+        "valor_liquido"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_receita_categoria": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "mes",
+        "vendas",
+        "receita_bruta",
+        "receita_unidade",
+        "repasse"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_receita_categoria_periodo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "mes",
+        "data",
+        "vendas",
+        "receita_bruta",
+        "receita_unidade",
+        "repasse"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_receita_categoria_total": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "categoria",
+        "vendas",
+        "receita_bruta",
+        "receita_unidade",
+        "repasse"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_receita_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "receita",
+        "receita_bruta"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_reconciliacao_cartao": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "parcela_id",
+        "pagamento_id_link",
+        "original_id_venda",
+        "data_venda",
+        "data_liquidacao",
+        "bandeira",
+        "tipo_transacao",
+        "numero_parcela",
+        "total_parcelas",
+        "valor_liquidacao_bruto",
+        "valor_repassado",
+        "taxa_cispay",
+        "pct_mdr",
+        "taxa_total",
+        "pct_taxa_efetiva"
+      ],
+      "pk": [
+        "parcela_id"
+      ]
+    },
+    "vw_financeiro_reconciliacao_kpis": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "transacoes",
+        "total_bruto",
+        "total_repassado",
+        "total_taxa",
+        "pct_taxa_media"
+      ],
+      "pk": []
+    },
+    "vw_financeiro_reconciliacao_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "transacoes",
+        "bruto_liquidado",
+        "repassado",
+        "taxa_total",
+        "pct_taxa_media"
+      ],
+      "pk": []
+    },
+    "vw_integracao_status": {
+      "contagem_declarada": 8,
+      "linhas_exportadas": 8,
+      "colunas": [
+        "fonte",
+        "nome_exibicao",
+        "ultima_sync",
+        "registros",
+        "status",
+        "mensagem",
+        "horas_atras",
+        "frescor",
+        "rotulo"
+      ],
+      "pk": [
+        "fonte"
+      ]
+    },
+    "vw_loja_curso_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "cursos",
+        "alunos",
+        "faturamento",
+        "meta"
+      ],
+      "pk": []
+    },
+    "vw_loja_estoque": {
+      "contagem_declarada": 451,
+      "linhas_exportadas": 451,
+      "colunas": [
+        "produto_id",
+        "codigo",
+        "descricao",
+        "saldo",
+        "fisico",
+        "reservado",
+        "estoque_minimo",
+        "preco_unitario",
+        "custo_medio",
+        "valor_custo",
+        "valor_venda",
+        "abaixo_minimo",
+        "sem_movimento",
+        "data_posicao"
+      ],
+      "pk": [
+        "produto_id"
+      ]
+    },
+    "vw_loja_fechamento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "mes_nome",
+        "faturamento",
+        "meta_minima",
+        "meta_basica",
+        "meta_master",
+        "pct_minima",
+        "nivel_atingido",
+        "falta_proximo",
+        "detalhe",
+        "em_curso"
+      ],
+      "pk": [
+        "mes_ref"
+      ]
+    },
+    "vw_loja_formas_pagamento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "forma",
+        "transacoes",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_loja_kpis": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "ano",
+        "vendas",
+        "receita",
+        "ticket_medio",
+        "estoque_custo",
+        "estoque_venda",
+        "produtos",
+        "repor",
+        "sem_movimento"
+      ],
+      "pk": []
+    },
+    "vw_loja_kpis_ano": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "ano",
+        "receita",
+        "meses"
+      ],
+      "pk": []
+    },
+    "vw_loja_kpis_dia": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "dia",
+        "vendas",
+        "receita",
+        "ticket_medio"
+      ],
+      "pk": []
+    },
+    "vw_loja_kpis_mes": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "ano",
+        "mes_num",
+        "vendas",
+        "receita",
+        "ticket_medio",
+        "meta_minima",
+        "meta_basica",
+        "meta_master",
+        "nivel_atingido",
+        "pct_minima",
+        "proximo_nivel",
+        "falta_proximo",
+        "excedeu_master",
+        "resumo_meta",
+        "em_curso"
+      ],
+      "pk": []
+    },
+    "vw_loja_kpis_periodo": {
+      "contagem_declarada": 3,
+      "linhas_exportadas": 3,
+      "colunas": [
+        "periodo",
+        "vendas",
+        "receita",
+        "ticket_medio"
+      ],
+      "pk": []
+    },
+    "vw_loja_livrao": {
+      "contagem_declarada": 2,
+      "linhas_exportadas": 2,
+      "colunas": [
+        "mes_ref",
+        "vendas",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_loja_meta_curso": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes_ref",
+        "curso",
+        "meta_produtos",
+        "meta_total",
+        "alunos_meta",
+        "alunos_real",
+        "realizado",
+        "pct_meta"
+      ],
+      "pk": []
+    },
+    "vw_loja_meta_realizado": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "mes_nome",
+        "master",
+        "basica",
+        "minima",
+        "realizado",
+        "pct_minima",
+        "pct_basica",
+        "pct_master",
+        "nivel_atingido"
+      ],
+      "pk": [
+        "mes_ref"
+      ]
+    },
+    "vw_loja_performance_curso": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes_ref",
+        "ano",
+        "curso",
+        "turmas",
+        "alunos",
+        "faturamento",
+        "meta",
+        "por_aluno",
+        "pct_meta"
+      ],
+      "pk": []
+    },
+    "vw_loja_produtos_vendidos": {
+      "contagem_declarada": 246,
+      "linhas_exportadas": 246,
+      "colunas": [
+        "produto_id",
+        "produto",
+        "quantidade",
+        "faturamento"
+      ],
+      "pk": []
+    },
+    "vw_loja_produtos_vendidos_mes": {
+      "contagem_declarada": 1370,
+      "linhas_exportadas": 1370,
+      "colunas": [
+        "mes",
+        "produto_id",
+        "produto",
+        "quantidade",
+        "faturamento",
+        "cupons"
+      ],
+      "pk": []
+    },
+    "vw_loja_receita": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "vendas",
+        "receita",
+        "ticket_medio",
+        "primeira_venda",
+        "ultima_venda"
+      ],
+      "pk": []
+    },
+    "vw_loja_receita_consolidada": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "fonte",
+        "vendas",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_loja_receita_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "vendas",
+        "receita"
+      ],
+      "pk": []
+    },
+    "vw_loja_receita_periodo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "data",
+        "cupom_id",
+        "numero_cupom",
+        "valor",
+        "cliente_id",
+        "vendedor_id"
+      ],
+      "pk": [
+        "cupom_id"
+      ]
+    },
+    "vw_loja_receita_total_mes": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "ano",
+        "vendas",
+        "receita",
+        "receita_produtos",
+        "receita_outras",
+        "meta_minima",
+        "meta_basica",
+        "meta_master",
+        "pct_minima",
+        "nivel_atingido",
+        "em_curso"
+      ],
+      "pk": []
+    },
+    "vw_loja_serie": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "ano",
+        "receita",
+        "fonte",
+        "meta_minima",
+        "meta_basica",
+        "meta_master",
+        "pct_minima",
+        "nivel_atingido",
+        "falta_proximo",
+        "em_curso"
+      ],
+      "pk": []
+    },
+    "vw_loja_vendas_mensal": {
+      "contagem_declarada": 17,
+      "linhas_exportadas": 17,
+      "colunas": [
+        "mes",
+        "cupons",
+        "faturamento"
+      ],
+      "pk": []
+    },
+    "vw_marketing_atribuicao": {
+      "contagem_declarada": 71,
+      "linhas_exportadas": 71,
+      "colunas": [
+        "original_id_venda",
+        "nome_campanha",
+        "id_anuncio",
+        "data_lead",
+        "data_pagamento",
+        "categoria_curso",
+        "curso",
+        "valor_bruto",
+        "categoria"
+      ],
+      "pk": []
+    },
+    "vw_marketing_atribuicao_campanha": {
+      "contagem_declarada": 36,
+      "linhas_exportadas": 36,
+      "colunas": [
+        "mes",
+        "nome_campanha",
+        "categoria",
+        "vendas_atribuidas",
+        "faturamento_atribuido"
+      ],
+      "pk": []
+    },
+    "vw_marketing_desempenho": {
+      "contagem_declarada": 528,
+      "linhas_exportadas": 528,
+      "colunas": [
+        "mes",
+        "campanha_nome",
+        "tipo",
+        "categoria",
+        "produto",
+        "gasto",
+        "impressoes",
+        "alcance",
+        "cliques",
+        "leads",
+        "cpl"
+      ],
+      "pk": []
+    },
+    "vw_marketing_funil": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "etapa",
+        "consultora",
+        "leads"
+      ],
+      "pk": []
+    },
+    "vw_marketing_investimento": {
+      "contagem_declarada": 528,
+      "linhas_exportadas": 528,
+      "colunas": [
+        "mes",
+        "campanha_nome",
+        "praca",
+        "produto",
+        "impressoes",
+        "cliques",
+        "gasto",
+        "leads",
+        "cpl"
+      ],
+      "pk": []
+    },
+    "vw_marketing_leads": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "negocio_id",
+        "lead_id",
+        "data_criacao",
+        "mes",
+        "consultor_id",
+        "consultora",
+        "nome_campanha",
+        "id_anuncio",
+        "nome_anuncio",
+        "nome_formulario",
+        "aplicativo_origem",
+        "etapa",
+        "status_negocio",
+        "produto_campanha"
+      ],
+      "pk": [
+        "negocio_id"
+      ]
+    },
+    "vw_marketing_leads_campanha": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "nome_campanha",
+        "produto_campanha",
+        "id_anuncio",
+        "aplicativo_origem",
+        "leads",
+        "consultoras"
+      ],
+      "pk": []
+    },
+    "vw_marketing_leads_por_anuncio": {
+      "contagem_declarada": 451,
+      "linhas_exportadas": 451,
+      "colunas": [
+        "mes",
+        "id_anuncio",
+        "leads"
+      ],
+      "pk": []
+    },
+    "vw_marketing_origem": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "origem",
+        "grupo",
+        "nome_campanha",
+        "aplicativo_origem",
+        "leads",
+        "ganhos",
+        "taxa_conversao"
+      ],
+      "pk": []
+    },
+    "vw_marketing_origem_vendas": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "canal",
+        "vendas",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_marketing_resumo_mensal": {
+      "contagem_declarada": 31,
+      "linhas_exportadas": 31,
+      "colunas": [
+        "mes",
+        "investimento",
+        "leads",
+        "gasto_captacao",
+        "leads_captacao",
+        "cpl_medio"
+      ],
+      "pk": []
+    },
+    "vw_matricula_presenca": {
+      "contagem_declarada": 20100,
+      "linhas_exportadas": 20100,
+      "colunas": [
+        "matricula_id",
+        "aluno_id",
+        "curso_id",
+        "turma",
+        "valor",
+        "data_matricula",
+        "consultor_id",
+        "compareceu",
+        "primeiro_cred"
+      ],
+      "pk": [
+        "matricula_id"
+      ]
+    },
+    "vw_pedagogico_ausentes": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "aluno_id",
+        "turma",
+        "curso",
+        "consultor",
+        "data_matricula",
+        "valor"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_avaliacao": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "fonte",
+        "curso",
+        "treinador",
+        "turmas_avaliadas",
+        "respondentes",
+        "media_indicacao",
+        "media_nota_treinador",
+        "media_qualidade",
+        "ultima_avaliacao"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_avaliacao_kpis": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "fonte",
+        "avaliacoes",
+        "cursos",
+        "media_indicacao_geral"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_cobertura": {
+      "contagem_declarada": 116,
+      "linhas_exportadas": 116,
+      "colunas": [
+        "turma",
+        "matriculados",
+        "compareceram",
+        "cobertura"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_fila": {
+      "contagem_declarada": 99,
+      "linhas_exportadas": 99,
+      "colunas": [
+        "aluno_id",
+        "turma_id",
+        "nome",
+        "whatsapp",
+        "email",
+        "telefone_bruto",
+        "canal",
+        "telefone_invalido",
+        "curso",
+        "nome_comercial",
+        "data_inicio",
+        "data_fim",
+        "horario_credenciamento",
+        "horario_inicio",
+        "horario_fim",
+        "local",
+        "endereco",
+        "cidade",
+        "link_grupo",
+        "crm_template_id",
+        "grupo_criado"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_fila_grupo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "aluno_id",
+        "turma_id",
+        "nome",
+        "whatsapp",
+        "email",
+        "resposta",
+        "confirmacao_enviada_em",
+        "curso",
+        "nome_comercial",
+        "data_inicio",
+        "link_grupo",
+        "dias_para_inicio"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_frequencia": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "faixa_compras",
+        "ordem",
+        "alunos"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_kpis": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "alunos_unicos",
+        "matriculas_total",
+        "cursos_por_aluno",
+        "alunos_recompra",
+        "taxa_recompra",
+        "alunos_fieis",
+        "max_compras"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_maestros_completo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "cpf",
+        "nome",
+        "email",
+        "telefone",
+        "consultor",
+        "total_cursos",
+        "total_investido",
+        "primeira_compra",
+        "ultima_compra",
+        "dias_sem_comprar",
+        "ativo",
+        "aulas_compareceu",
+        "aulas_faltou",
+        "taxa_presenca",
+        "data_maestria",
+        "vence_em",
+        "dias_para_vencer",
+        "status_maestria",
+        "como_gosta_ser_chamado",
+        "empresa",
+        "faturamento",
+        "cargo_anotado",
+        "observacoes"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_maestros_detalhe": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "cpf",
+        "nome",
+        "email",
+        "telefone",
+        "consultor",
+        "total_cursos",
+        "total_investido",
+        "primeira_compra",
+        "ultima_compra",
+        "dias_sem_comprar",
+        "ativo",
+        "aulas_compareceu",
+        "aulas_faltou",
+        "taxa_presenca",
+        "data_maestria",
+        "vence_em",
+        "dias_para_vencer",
+        "status_maestria"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_maestros_kpis": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "total_maestros",
+        "validos",
+        "vencidos",
+        "perto_vencer"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_mensal": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "matriculas",
+        "alunos_distintos"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_nps": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "curso",
+        "treinador",
+        "turmas_avaliadas",
+        "respondentes",
+        "media_conteudo",
+        "media_clareza",
+        "media_material",
+        "media_aplicacao",
+        "media_dominio",
+        "media_pontualidade",
+        "media_duvidas",
+        "media_nps",
+        "ultima_avaliacao"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_nps_evento": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "evento",
+        "respondentes",
+        "promotores",
+        "neutros",
+        "detratores",
+        "media_indicacao",
+        "nps",
+        "ultimo_evento"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_nps_evento_kpis": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "respondentes",
+        "eventos",
+        "nps_geral"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_nps_kpis": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "turmas_avaliadas",
+        "media_nps_geral",
+        "media_qualidade_geral",
+        "cursos_avaliados",
+        "treinadores_avaliados"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_nps_treinador": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "treinador",
+        "turmas",
+        "media_nps",
+        "media_geral_qualidade"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_painel": {
+      "contagem_declarada": 7,
+      "linhas_exportadas": 7,
+      "colunas": [
+        "turma_id",
+        "curso",
+        "data_inicio",
+        "dias_para_inicio",
+        "matriculados",
+        "confirmacao_enviada",
+        "confirmaram",
+        "recusaram",
+        "receberam_link",
+        "sem_contato",
+        "grupo_criado",
+        "aguardando_link_grupo",
+        "pendencia"
+      ],
+      "pk": [
+        "turma_id"
+      ]
+    },
+    "vw_pedagogico_presenca_curso": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "curso",
+        "matriculas",
+        "compareceram",
+        "faltaram",
+        "taxa_comparecimento"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_presenca_kpis": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "matriculas_com_credenciamento",
+        "compareceram",
+        "ausentes",
+        "taxa_comparecimento_geral",
+        "turmas_cobertas"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_presenca_tempo": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "periodo",
+        "matriculas",
+        "compareceram",
+        "taxa_comparecimento"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_recompra_curso": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "curso",
+        "alunos",
+        "recompraram",
+        "taxa_recompra"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_retencao": {
+      "contagem_declarada": 1,
+      "linhas_exportadas": 1,
+      "colunas": [
+        "total_casos",
+        "retidos",
+        "cancelados",
+        "taxa_retencao"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_retencao_motivos": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "motivo",
+        "casos",
+        "retidos",
+        "cancelados"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_situacao": {
+      "contagem_declarada": 17939,
+      "linhas_exportadas": 17939,
+      "colunas": [
+        "aluno_id",
+        "turma",
+        "cobertura",
+        "matriculados",
+        "curso",
+        "data_inicio",
+        "data_fim",
+        "situacao"
+      ],
+      "pk": []
+    },
+    "vw_pedagogico_turmas": {
+      "contagem_declarada": 0,
+      "linhas_exportadas": 0,
+      "colunas": [
+        "mes",
+        "curso_id",
+        "nome_curso",
+        "turma",
+        "matriculas",
+        "concluintes",
+        "taxa_conclusao",
+        "dias_medios_conclusao"
+      ],
+      "pk": [
+        "curso_id"
+      ]
+    },
+    "vw_presenca_por_curso": {
+      "contagem_declarada": 46,
+      "linhas_exportadas": 46,
+      "colunas": [
+        "curso_id",
+        "matriculas",
+        "compareceram",
+        "taxa_presenca"
+      ],
+      "pk": []
+    },
+    "vw_turmas": {
+      "contagem_declarada": 234,
+      "linhas_exportadas": 234,
+      "colunas": [
+        "turma_id",
+        "curso",
+        "sigla",
+        "cidade",
+        "unidade",
+        "data_inicio",
+        "data_fim",
+        "horario_credenciamento",
+        "horario_inicio",
+        "local",
+        "capacidade",
+        "confirma_pedagogico",
+        "ocupacao",
+        "vagas",
+        "status_efetivo",
+        "pronta_para_confirmacao",
+        "local_definido",
+        "dias_para_inicio"
+      ],
+      "pk": [
+        "turma_id"
+      ]
+    },
+    "vw_venda_faturamento": {
+      "contagem_declarada": 8233,
+      "linhas_exportadas": 8233,
+      "colunas": [
+        "original_id_venda",
+        "consultor_id",
+        "data_pagamento",
+        "tipo_matricula",
+        "categoria_curso",
+        "curso",
+        "curso_curto",
+        "pct_unidade",
+        "valor_bruto",
+        "valor",
+        "data_aprovacao"
+      ],
+      "pk": []
+    }
+  },
+  "erros": {},
+  "usuarios": 6
+}

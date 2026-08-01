@@ -1,0 +1,22 @@
+{
+  "name": "febrahub",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter @febrahub/api build && pnpm --filter @febrahub/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @febrahub/api test",
+    "prisma:generate": "pnpm --filter @febrahub/api prisma:generate",
+    "prisma:migrate": "pnpm --filter @febrahub/api prisma:migrate",
+    "seed": "pnpm --filter @febrahub/api seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
