@@ -18,7 +18,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         tzdata ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/false etl
+    && groupadd -g 10001 etl \
+    && useradd -u 10001 -g 10001 --create-home --shell /bin/false etl
 
 WORKDIR /app
 
@@ -27,6 +28,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY etl/ ./etl/
 
+# UID fixo (10001) porque o JSON da conta de serviço é montado do host: o dono
+# do arquivo lá precisa casar com este usuário, e um UID atribuído pelo sistema
+# mudaria a cada rebuild da imagem.
 USER etl
 # Sem CMD útil: o comando vem de quem chama, e rodar a imagem sem argumento
 # não deve disparar carga nenhuma.
