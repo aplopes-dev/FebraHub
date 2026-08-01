@@ -29,7 +29,6 @@ const TABELAS_INGESTAO: Record<string, string[]> = {
   fato_base_alunos: ['matricula_id'],
   fato_pedidos: ['pedido_id'],
   fato_participantes: ['participante_id'],
-  fato_credenciamento: ['credenciamento_id'],
   dim_eventos: ['evento_id'],
   dim_alunos: ['aluno_id'],
   dim_leads: ['lead_id'],
