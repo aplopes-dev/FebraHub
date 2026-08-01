@@ -36,6 +36,18 @@ export interface MetadadosArquivo {
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly cliente: MinioClient;
+  /**
+   * Cliente usado só para assinar URL de download.
+   *
+   * O cliente normal fala com `minio:9000`, o nome do serviço na rede do
+   * compose — que não existe fora dela. Como a assinatura S3 v4 inclui o host,
+   * não dá para trocar o endereço depois de assinar: a URL precisa nascer
+   * apontando para o domínio público, e é isso que este segundo cliente faz.
+   *
+   * Sem MINIO_PUBLIC_URL configurado ele não existe, e o download continua
+   * disponível pela própria API (/api/arquivos/:id/conteudo).
+   */
+  private readonly clientePublico: MinioClient | null;
   private readonly cfg: Configuracao;
 
   constructor(config: ConfigService) {
@@ -47,9 +59,31 @@ export class StorageService implements OnModuleInit {
       accessKey: this.cfg.minio.accessKey,
       secretKey: this.cfg.minio.secretKey,
       region: this.cfg.minio.region ?? 'us-east-1',
-      // path-style: com bucket no host o MinIO precisaria de DNS curinga.
+      // path-style: com o bucket no host o MinIO precisaria de DNS curinga.
       pathStyle: true,
     });
+
+    this.clientePublico = this.montarClientePublico();
+  }
+
+  private montarClientePublico(): MinioClient | null {
+    const publico = this.cfg.minio.urlPublica;
+    if (!publico) return null;
+    try {
+      const u = new URL(publico);
+      return new MinioClient({
+        endPoint: u.hostname,
+        port: u.port ? Number(u.port) : u.protocol === 'https:' ? 443 : 80,
+        useSSL: u.protocol === 'https:',
+        accessKey: this.cfg.minio.accessKey,
+        secretKey: this.cfg.minio.secretKey,
+        region: this.cfg.minio.region ?? 'us-east-1',
+        pathStyle: true,
+      });
+    } catch (e) {
+      this.logger.error(`MINIO_PUBLIC_URL inválida (${publico}): ${e}`);
+      return null;
+    }
   }
 
   async onModuleInit(): Promise<void> {
@@ -114,12 +148,20 @@ export class StorageService implements OnModuleInit {
       const seguro = nomeDownload.replace(/["\\\r\n]/g, '_');
       params['response-content-disposition'] = `attachment; filename="${seguro}"`;
     }
-    return this.cliente.presignedGetObject(
+    // Assina com o host público quando ele existe; o interno não resolve fora
+    // da rede do compose e geraria um link que só funciona dentro do servidor.
+    const assinador = this.clientePublico ?? this.cliente;
+    return assinador.presignedGetObject(
       this.cfg.minio.bucket,
       chave,
       Math.min(Math.max(segundos, 30), 3600),
       params,
     );
+  }
+
+  /** Se a URL assinada é utilizável fora do servidor. O health check reporta. */
+  get assinaUrlPublica(): boolean {
+    return this.clientePublico !== null;
   }
 
   async excluir(chave: string): Promise<void> {
