@@ -1,0 +1,32 @@
+# Export único do Supabase para a migração ao PostgreSQL próprio.
+#
+# Roda aqui porque é aqui que vivem SUPABASE_URL e SUPABASE_SERVICE_KEY.
+# O dump NÃO vira artifact: o repositório é público e os dados têm CPF,
+# telefone e e-mail de aluno. Sai do runner direto para o destino por HTTPS.
+#
+# Este workflow é descartável — some quando a migração terminar.
+
+name: Export migração (uso único)
+
+on:
+  workflow_dispatch:
+    inputs:
+      destino:
+        description: 'URL de destino do PUT (HTTPS)'
+        required: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exportar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DESTINO_URL: ${{ inputs.destino }}
+        run: python tools/migracao/export_supabase.py
