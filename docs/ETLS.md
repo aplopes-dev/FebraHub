@@ -77,6 +77,10 @@ mesma unidade).
 
 - **Acesso:** header `s_token` com `SYMPLA_TOKEN`. Token estático, não expira.
 - **Sem dependência externa recorrente.**
+- **Demora:** 81 eventos, cada um com pedidos e participantes paginados. Leva de
+  2 a 12 minutos conforme o rate limit da origem no momento — por isso o teto de
+  tempo do `sync.sh` é por fonte (90 min aqui). Um teto único de 30 min já matou
+  uma carga saudável no meio e registrou "erro".
 
 ### 3. CisPay (`cispay_sync.py`)
 
