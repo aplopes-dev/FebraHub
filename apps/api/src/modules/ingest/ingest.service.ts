@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { StatusIntegracaoDto } from './dto/ingest.dto';
+import { RemoverDto, StatusIntegracaoDto } from './dto/ingest.dto';
 
 /**
  * Tabelas que os ETLs podem escrever, e por qual chave cada uma resolve
@@ -43,6 +43,17 @@ const TABELAS_INGESTAO: Record<string, string[]> = {
 
 const LOTE_MAX = 2000;
 
+/**
+ * Teto do recorte de data do `remover`. A trava de 120 dias do
+ * salesforce_email_sync.py continua lá, mas ela roda no cliente: quem tem o
+ * token pode chamar a rota direto. Um ano é folgado para qualquer carga
+ * incremental e ainda assim impede "apaga tudo" por engano.
+ */
+const JANELA_MAX_DIAS = 366;
+
+/** Envolve um identificador vindo de fora — o nome já passou pela lista de permissão. */
+const ident = (s: string) => Prisma.raw(`"${s.replace(/"/g, '""')}"`);
+
 @Injectable()
 export class IngestService {
   private readonly logger = new Logger(IngestService.name);
@@ -75,26 +86,29 @@ export class IngestService {
       });
     }
 
-    // As colunas são a união do que veio, mas só as que existem de verdade na
+    // As colunas são a união do que veio, mas só as graváveis de verdade na
     // tabela — o PostgREST rejeitava coluna desconhecida e o ETL nem percebia.
-    const colunasReais = await this.colunasDe(tabela);
+    const { gravaveis, geradas } = await this.colunasDe(tabela);
     const enviadas = [...new Set(linhas.flatMap((l) => Object.keys(l)))];
-    const colunas = enviadas.filter((c) => colunasReais.has(c));
-    const ignoradas = enviadas.filter((c) => !colunasReais.has(c));
+    const colunas = enviadas.filter((c) => gravaveis.has(c));
+    const ignoradas = enviadas.filter((c) => !gravaveis.has(c));
     if (!colunas.length) {
       throw new BadRequestException({
         codigo: 'SEM_COLUNA_VALIDA',
         message: 'Nenhuma das colunas enviadas existe na tabela',
       });
     }
-    if (!chaves.every((c) => colunas.includes(c))) {
+    // Coluna GENERATED não pode ser escrita — o Postgres recusa qualquer valor
+    // que não seja DEFAULT. É o caso de fato_meta_insights.anuncio_key, que faz
+    // parte da PK mas é derivada: exigir que o ETL a mande quebraria a carga.
+    const faltando = chaves.filter((c) => !colunas.includes(c) && !geradas.has(c));
+    if (faltando.length) {
       throw new BadRequestException({
         codigo: 'CHAVE_AUSENTE',
-        message: `As colunas de conflito precisam vir nos dados: ${chaves.join(',')}`,
+        message: `As colunas de conflito precisam vir nos dados: ${faltando.join(',')}`,
       });
     }
 
-    const ident = (s: string) => Prisma.raw(`"${s.replace(/"/g, '""')}"`);
     const listaCols = Prisma.join(colunas.map(ident), ', ');
     const listaConf = Prisma.join(chaves.map(ident), ', ');
     const atualiza = colunas.filter((c) => !chaves.includes(c));
@@ -121,9 +135,108 @@ export class IngestService {
     });
 
     if (ignoradas.length) {
-      this.logger.warn(`${tabela}: colunas ignoradas (não existem) — ${ignoradas.join(', ')}`);
+      this.logger.warn(
+        `${tabela}: colunas ignoradas (não existem ou são geradas) — ${ignoradas.join(', ')}`,
+      );
     }
     return { gravadas, colunas_ignoradas: ignoradas };
+  }
+
+  /**
+   * Apaga, dentro do recorte de data, tudo cuja chave NÃO veio em `valores`.
+   *
+   * É a segunda metade da carga incremental: primeiro o ETL faz upsert de tudo
+   * que leu na origem, depois chama aqui com as chaves que leu. O que estiver
+   * no banco dentro da janela e não estiver na lista é registro que deixou de
+   * existir na origem. Nessa ordem, uma falha no upsert não apaga nada.
+   */
+  async remover(tabela: string, dto: RemoverDto) {
+    const permitidas = TABELAS_INGESTAO[tabela];
+    if (!permitidas) {
+      throw new BadRequestException({
+        codigo: 'TABELA_NAO_PERMITIDA',
+        message: `Tabela '${tabela}' não está aberta à ingestão`,
+      });
+    }
+    // A chave tem que ser a identidade declarada da tabela. Apagar por uma
+    // coluna qualquer transformaria a rota num DELETE genérico.
+    if (!permitidas.includes(dto.chave)) {
+      throw new BadRequestException({
+        codigo: 'CHAVE_INVALIDA',
+        message: `Chave esperada para ${tabela}: ${permitidas.join(',')}`,
+      });
+    }
+
+    const { colunas } = await this.colunasDe(tabela);
+    if (!colunas.has(dto.janela.coluna)) {
+      throw new BadRequestException({
+        codigo: 'COLUNA_INVALIDA',
+        message: `Coluna '${dto.janela.coluna}' não existe em ${tabela}`,
+      });
+    }
+
+    const de = new Date(dto.janela.de);
+    const ate = new Date(dto.janela.ate);
+    if (Number.isNaN(de.getTime()) || Number.isNaN(ate.getTime()) || de > ate) {
+      throw new BadRequestException({
+        codigo: 'JANELA_INVALIDA',
+        message: 'A janela precisa de "de" <= "ate"',
+      });
+    }
+    const dias = Math.round((ate.getTime() - de.getTime()) / 86_400_000);
+    if (dias > JANELA_MAX_DIAS) {
+      throw new BadRequestException({
+        codigo: 'JANELA_GRANDE',
+        message: `Janela de ${dias} dias passa do limite de ${JANELA_MAX_DIAS}`,
+      });
+    }
+
+    // A lista vai como UM parâmetro jsonb, não como N placeholders: uma carga
+    // de 120 dias tem dezenas de milhares de chaves e estouraria o limite de
+    // parâmetros do protocolo estendido.
+    const valores = JSON.stringify(dto.valores.map((v) => String(v)));
+    const removidas = await this.prisma.$executeRaw`
+      DELETE FROM public.${ident(tabela)}
+       WHERE ${ident(dto.janela.coluna)} >= ${dto.janela.de}::date
+         AND ${ident(dto.janela.coluna)} <= ${dto.janela.ate}::date
+         AND (${ident(dto.chave)})::text NOT IN (
+               SELECT v FROM jsonb_array_elements_text(${valores}::jsonb) AS v
+             )
+    `;
+    this.logger.log(
+      `${tabela}: ${removidas} removidas na janela ${dto.janela.de}..${dto.janela.ate}`,
+    );
+    return { removidas };
+  }
+
+  /**
+   * Devolve o token OAuth guardado de uma integração (hoje só o Conta Azul).
+   *
+   * A API v2 do Conta Azul rotaciona o refresh_token a cada renovação: o ETL
+   * precisa ler o atual, renovar e gravar o novo. Antes ele lia direto no
+   * PostgREST com a service_role; agora lê por aqui, com o token de máquina.
+   */
+  async lerToken(integracao: string) {
+    const linhas = await this.prisma.$queryRaw<
+      {
+        integracao: string;
+        access_token: string | null;
+        refresh_token: string | null;
+        expira_em: Date | null;
+        atualizado_em: Date | null;
+      }[]
+    >`
+      SELECT integracao, access_token, refresh_token, expira_em, atualizado_em
+        FROM public.integracao_tokens
+       WHERE integracao = ${integracao}
+    `;
+    if (!linhas.length) {
+      throw new NotFoundException({
+        codigo: 'TOKEN_NAO_ENCONTRADO',
+        message: `Sem token gravado para '${integracao}'`,
+      });
+    }
+    return linhas[0];
   }
 
   async registrarStatus(dto: StatusIntegracaoDto) {
@@ -145,11 +258,23 @@ export class IngestService {
     return { fonte: dto.fonte, status: dto.status };
   }
 
-  private async colunasDe(tabela: string): Promise<Set<string>> {
-    const linhas = await this.prisma.$queryRaw<{ column_name: string }[]>`
-      SELECT column_name FROM information_schema.columns
+  /**
+   * Colunas reais da tabela, separando as GENERATED: elas existem para leitura
+   * e para a PK, mas o INSERT não pode citá-las.
+   */
+  private async colunasDe(
+    tabela: string,
+  ): Promise<{ colunas: Set<string>; gravaveis: Set<string>; geradas: Set<string> }> {
+    type Coluna = { column_name: string; is_generated: string };
+    const linhas: Coluna[] = await this.prisma.$queryRaw<Coluna[]>`
+      SELECT column_name, is_generated FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = ${tabela}
     `;
-    return new Set(linhas.map((l) => l.column_name));
+    const colunas = new Set<string>(linhas.map((l: Coluna) => l.column_name));
+    const geradas = new Set<string>(
+      linhas.filter((l: Coluna) => l.is_generated === 'ALWAYS').map((l: Coluna) => l.column_name),
+    );
+    const gravaveis = new Set<string>([...colunas].filter((c) => !geradas.has(c)));
+    return { colunas, gravaveis, geradas };
   }
 }

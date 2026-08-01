@@ -1,7 +1,7 @@
 """
 FebraHub · salesforce_email_sync.py
 Substitui o Salesforce manual: lê os relatórios agendados que chegam
-por e-mail (Gmail), trata as duas bases e sobe para o Supabase.
+por e-mail (Gmail), trata as duas bases e sobe para a API do FebraHub.
 
 Como funciona:
   O Salesforce dispara relatórios agendados 3x/dia (6h, 12h, 17h),
@@ -17,29 +17,20 @@ Segurança (fail-loud):
 
 Variáveis de ambiente (secrets):
   GMAIL_ADDRESS, GMAIL_APP_PASSWORD   (senha de app, NÃO a senha real)
-  SUPABASE_URL, SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL, FEBRAHUB_ETL_TOKEN
 Opcionais:
   SF_ASSUNTO_PAGAMENTO  (padrão: 'Pagamentos')  -> texto no assunto do e-mail
   SF_ASSUNTO_ALUNOS     (padrão: 'Alunos')
 """
-import os, sys, csv, re, io, json, imaplib, email, urllib.request
+import os, csv, re, io, imaplib, email
 from email.header import decode_header
-from datetime import datetime, timezone
 
-# ---------- .env ----------
-for _p in ('.env', 'etl/.env', os.path.join(os.path.dirname(__file__), '.env')):
-    if os.path.exists(_p):
-        for _l in open(_p, encoding='utf-8'):
-            _l = _l.strip()
-            if _l and not _l.startswith('#') and '=' in _l:
-                _k, _v = _l.split('=', 1)
-                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
-        break
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 GMAIL_USER = os.environ['GMAIL_ADDRESS']
 GMAIL_PASS = os.environ['GMAIL_APP_PASSWORD']
-SB_URL = os.environ['SUPABASE_URL']
-SB_KEY = os.environ['SUPABASE_SERVICE_KEY']
 # assunto real dos e-mails do Salesforce agendado:
 #   'Relatar resultados (Base pagamentos - dia a dia)'
 #   'Relatar resultados (Base alunos - dia a dia)'
@@ -51,27 +42,20 @@ ASSUNTO_AL = (os.environ.get('SF_ASSUNTO_ALUNOS') or '').strip() or 'Base alunos
 LIMITE_VAZIO = 0.10
 
 # ---------- helpers de tratamento (iguais ao manual) ----------
-def dt(s):
-    m = re.match(r'(\d{1,2})/(\d{1,2})/(\d{4})', (s or '').strip())
-    return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else ''
-
-def val(s):
-    s = (s or '').replace('R$', '').replace('BRL', '').strip()
-    if not s or s == '-': return ''
-    s = s.replace('.', '').replace(',', '.')
-    try: return f"{float(s):.2f}"
-    except: return ''
-
-def txt(s):
-    s = (s or '').strip()
-    return '' if s == '-' else s
+# dt/val/txt vêm do cliente comum. Diferença de contrato: eles devolvem None
+# onde a versão local devolvia '' — dá no mesmo, porque limpa() em
+# carga_incremental converte '' e None para NULL do mesmo jeito. Onde a
+# distinção importa (concatenar em chave, passar para re.sub) há um `or ''`.
+dt = fc.dt_iso
+val = fc.val
+txt = fc.txt
 
 def pint(s):
     try: return str(int(float((s or '0').strip())))
     except: return ''
 
 def trein(s):
-    return re.sub(r'\s*-\s*TREINADOR\s*$', '', txt(s), flags=re.I).strip()
+    return re.sub(r'\s*-\s*TREINADOR\s*$', '', txt(s) or '', flags=re.I).strip()
 
 def fone(s): return re.sub(r'\D', '', (s or ''))
 def email_l(s): return (s or '').strip().lower()
@@ -173,7 +157,9 @@ def tratar_pagamento(texto_csv):
         d = dt(r.get('Data de pagamento', '')) or dt(r.get('Data de Aprovação', ''))
         v = val(r.get('Valor', ''))
         oid = txt(r.get('ID da venda', ''))
-        if not v: faltando['valor'] += 1
+        # `v is None` e não `not v`: pagamento de R$ 0,00 é valor informado,
+        # não valor faltando — contá-lo estouraria o limite de 10% à toa.
+        if v is None: faltando['valor'] += 1
         if not oid: faltando['original_id_venda'] += 1
         if not d: faltando['data_pagamento'] += 1
         saida.append({
@@ -209,7 +195,9 @@ def tratar_alunos(texto_csv):
     saida, faltando = [], {'original_id_venda': 0, 'data_matricula': 0}
     for r in linhas:
         oid = txt(r.get('ID da venda', ''))
-        curso = txt(r.get('Curso(2)', ''))
+        # `or ''`: a chave abaixo concatena curso; None viraria a string
+        # 'None' e mudaria a matricula_id de linhas sem curso.
+        curso = txt(r.get('Curso(2)', '')) or ''
         # matricula_id ESTÁVEL: venda + curso. Determinístico — recarregar o
         # mesmo período gera as mesmas chaves, sem bagunçar (idempotente).
         # (uma venda pode ter mais de uma matrícula: venda+curso as distingue)
@@ -252,7 +240,7 @@ def checar_fail_loud(nome, total, faltando):
                 f"Carga ABORTADA para não gravar base incompleta.")
     print(f"  {nome}: {total} linhas, campos obrigatórios OK")
 
-# ---------- carga incremental no Supabase ----------
+# ---------- carga incremental ----------
 # LIMITE de segurança: se a janela do arquivo for maior que isto, ABORTA.
 # Um relatório agendado normal cobre semanas, não anos. Uma janela gigante
 # significa arquivo errado — melhor não apagar meio banco por engano.
@@ -300,68 +288,30 @@ def carga_incremental(tabela, linhas, coluna_data):
     # e NÃO veio no arquivo (linhas que deixaram de existir no Salesforce).
     # Se o upsert falhar por formato, nada foi apagado — base intacta.
     chave = 'pagamento_id' if tabela == 'fato_pagamento_base' else 'matricula_id'
-    url = f"{SB_URL}/rest/v1/{tabela}?on_conflict={chave}"
 
-    chaves_arquivo = set()
-    for i in range(0, len(linhas), 500):
-        lote = linhas[i:i+500]
-        _req(url, corpo=lote, metodo='POST',
-             extra={'Prefer': 'resolution=merge-duplicates,return=minimal'})
-        for r in lote:
-            if r.get(chave): chaves_arquivo.add(str(r[chave]))
+    fc.upsert(tabela, linhas, chave)
 
-    # apaga da janela só o que NÃO veio no arquivo (registros que sumiram)
-    # busca as chaves atuais na janela
-    resp = _req_get(f"{SB_URL}/rest/v1/{tabela}?select={chave}"
-                    f"&{coluna_data}=gte.{de}&{coluna_data}=lte.{ate}")
-    if resp:
-        no_banco = {str(x[chave]) for x in resp if x.get(chave)}
-        sumiram = no_banco - chaves_arquivo
-        for k in sumiram:
-            _req(f"{SB_URL}/rest/v1/{tabela}?{chave}=eq.{k}", metodo='DELETE')
-        print(f"  {tabela}: {len(linhas)} upsert, {len(sumiram)} removidos ({de} a {ate})")
-    else:
-        print(f"  {tabela}: {len(linhas)} upsert ({de} a {ate})")
-
-def _req_get(url):
-    """GET que devolve a lista JSON (para comparar chaves na janela)."""
-    headers = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}'}
-    req = urllib.request.Request(url, headers=headers, method='GET')
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return json.loads(r.read().decode())
-    except Exception:
-        return None
-
-def _req(url, corpo=None, metodo='GET', extra=None):
-    headers = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-               'Content-Type': 'application/json'}
-    if extra: headers.update(extra)
-    data = json.dumps(corpo, default=str).encode() if corpo is not None else None
-    req = urllib.request.Request(url, data=data, headers=headers, method=metodo)
-    try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        raise SystemExit(f"Supabase {metodo} {e.code}: "
-                         f"{e.read().decode(errors='replace')[:300]}")
+    # A API faz o diff: mandamos as chaves que o ARQUIVO tem e ela apaga, só
+    # dentro de [de, ate], o que estiver no banco fora dessa lista. Antes isso
+    # era um GET no PostgREST + um DELETE por linha sumida.
+    chaves_arquivo = [r[chave] for r in linhas if r.get(chave)]
+    removidos = fc.remover(tabela, chave=chave, valores=chaves_arquivo,
+                           coluna_data=coluna_data, de=de, ate=ate)
+    print(f"  {tabela}: {len(linhas)} upsert, {removidos} removidos ({de} a {ate})")
 
 # ---------- reconciliação ----------
 def validar():
-    q = ("select round(sum(v)) total from ("
-         "select max(valor) v from fato_pagamento_base "
-         "where tipo_matricula in ('Matrícula','COMPRADOR DE VAGAS','MAT. RETROATIVA') "
-         "and data_pagamento >= '{ini}' and data_pagamento < '{fim}' "
-         "group by original_id_venda) x")
+    # Alvos conferidos à mão contra o Salesforce. A API não expõe SQL
+    # arbitrário (de propósito), então aqui só imprimimos o alvo; a conferência
+    # é rodar no banco:
+    #   select round(sum(v)) from (
+    #     select max(valor) v from fato_pagamento_base
+    #      where tipo_matricula in ('Matrícula','COMPRADOR DE VAGAS','MAT. RETROATIVA')
+    #        and data_pagamento >= '<ini>' and data_pagamento < '<fim>'
+    #      group by original_id_venda) x
     esperado = {'2026-05': 1779136, '2026-07': 614766}
     print("\n  reconciliação:")
     for mes, alvo in esperado.items():
-        ini = f"{mes}-01"
-        y, m = mes.split('-'); m = int(m) + 1; y = int(y)
-        if m > 12: m, y = 1, y + 1
-        fim = f"{y}-{m:02d}-01"
-        url = f"{SB_URL}/rest/v1/rpc/exec_sql"  # se não houver RPC, checar manual
-        # sem RPC de SQL arbitrário, apenas informa o alvo para conferência manual
         print(f"    {mes}: conferir manualmente — alvo R$ {alvo:,}")
 
 # ---------- main ----------
@@ -396,12 +346,7 @@ def main():
     validar()
 
     # status
-    _req(f"{SB_URL}/rest/v1/integracao_status?on_conflict=fonte",
-         corpo=[{'fonte': 'salesforce', 'nome_exibicao': 'Salesforce',
-                 'ultima_sync': datetime.now(timezone.utc).isoformat(),
-                 'status': 'ok',
-                 'atualizado_em': datetime.now(timezone.utc).isoformat()}],
-         metodo='POST', extra={'Prefer': 'resolution=merge-duplicates'})
+    fc.registrar_status('salesforce', 'Salesforce', 'ok', registros=len(pg) + len(al))
     print("\nConcluído.")
 
 if __name__ == '__main__':

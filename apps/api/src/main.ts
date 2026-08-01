@@ -1,4 +1,4 @@
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -25,10 +25,11 @@ async function bootstrap(): Promise<void> {
 
   const cfg = app.get(ConfigService).get<Configuracao>('app')!;
 
+  // Sem versionamento no caminho: o Nginx encaminha /api/ para cá e o front
+  // chama /api/<rota>. Ligar versionamento moveria tudo para /api/v1/ e
+  // quebraria o contrato sem ninguém ganhar nada — versão entra quando houver
+  // uma segunda a manter.
   app.setGlobalPrefix('api');
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: VersioningType.URI ? '1' : '1' });
-  // O front chama /api/<rota> sem versão; a v1 fica disponível em paralelo.
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: ['1'] });
 
   await app.register(helmet, {
     contentSecurityPolicy: false, // quem serve HTML é o Next, não a API

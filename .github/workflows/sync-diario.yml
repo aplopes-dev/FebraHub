@@ -1,20 +1,27 @@
 # FebraHub · .github/workflows/sync-diario.yml
 #
-# Roda os ETLs todo dia às 06:00 (Salvador) e registra no Supabase
+# Roda os ETLs todo dia às 06:00 (Salvador) e registra na API do FebraHub
 # quando cada integração sincronizou.
 #
 # Roda nos servidores do GitHub — não depende de nenhuma máquina.
 #   - horário não exato (atrasos de 5 a 30 min são normais)
 #   - 60 dias sem commit desativam o agendamento; um commit reativa
 #
-# Secrets necessários:
-#   SUPABASE_URL, SUPABASE_SERVICE_KEY   (service_role, NÃO a anon)
-#   CISPAY_TOKEN, CISPAY_BASE_URL
+# SECRETS NECESSÁRIOS (Settings > Secrets and variables > Actions):
+#   FEBRAHUB_ETL_TOKEN        token de máquina da API (só abre /ingest)
+#   CISPAY_API_KEY, CISPAY_BASE_URL
 #   SYMPLA_TOKEN, SYMPLA_BASE_URL
 #   CONTAAZUL_CLIENT_ID, CONTAAZUL_CLIENT_SECRET
 #   META_TOKEN, META_ACCOUNT_ID
 #   OMIE_APP_KEY, OMIE_APP_SECRET
-#   GOOGLE_SERVICE_ACCOUNT               (JSON inteiro da conta de serviço)
+#   GOOGLE_SERVICE_ACCOUNT    (JSON inteiro da conta de serviço)
+#
+# VARIABLE (ou secret, se preferir esconder a URL):
+#   FEBRAHUB_API_URL          ex.: https://febracis.aplopes.com/api
+#
+# O QUE SAIU: SUPABASE_URL e SUPABASE_SERVICE_KEY. A service_role ignorava
+# toda a RLS — era o banco inteiro num secret. O token de ETL só abre as
+# rotas /ingest e só as tabelas do catálogo de ingestão.
 #
 # PLANILHAS: todas precisam estar compartilhadas com o client_email da
 # conta de serviço, senão o passo falha com 403. São 5:
@@ -32,6 +39,12 @@ on:
     - cron: '0 9 * * *'      # 09:00 UTC = 06:00 em Salvador
   workflow_dispatch:
 
+# Uma vez só, para todos os passos. Vem do env do runner e não do corpo do
+# `run:` — assim o token não aparece montado na linha de comando.
+env:
+  FEBRAHUB_API_URL: ${{ vars.FEBRAHUB_API_URL || secrets.FEBRAHUB_API_URL }}
+  FEBRAHUB_ETL_TOKEN: ${{ secrets.FEBRAHUB_ETL_TOKEN }}
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -47,53 +60,55 @@ jobs:
           pip install -r etl/requirements.txt
 
       # ---------------- CisPay ----------------
+      # DUAS CORREÇÕES aqui (o passo nunca sincronizou de verdade):
+      #  1. faltava --sync. Sem flag, o script só imprime o help e sai com 0 —
+      #     o passo ficava verde todo dia sem gravar uma linha.
+      #  2. o secret passado era CISPAY_TOKEN, mas o script lê CISPAY_API_KEY.
+      #     Cadastre o valor em CISPAY_API_KEY.
       - name: CisPay
         id: cispay
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          CISPAY_TOKEN: ${{ secrets.CISPAY_TOKEN }}
+          CISPAY_API_KEY: ${{ secrets.CISPAY_API_KEY }}
           CISPAY_BASE_URL: ${{ secrets.CISPAY_BASE_URL }}
-        run: python etl/cispay_sync.py
+        run: python etl/cispay_sync.py --sync
         continue-on-error: true
 
       - name: Status — CisPay
         if: always()
+        env:
+          RESULTADO: ${{ steps.cispay.outcome }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"cispay\",\"nome_exibicao\":\"CisPay\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.cispay.outcome == 'success' && 'ok' || 'erro' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"cispay\",\"nome_exibicao\":\"CisPay\",\"status\":\"$([ "$RESULTADO" = success ] && echo ok || echo erro)\"}"
 
       # ---------------- Sympla ----------------
+      # Mesma correção do CisPay: sem --sync o script só imprimia o help.
       - name: Sympla
         id: sympla
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SYMPLA_TOKEN: ${{ secrets.SYMPLA_TOKEN }}
           SYMPLA_BASE_URL: ${{ secrets.SYMPLA_BASE_URL }}
-        run: python etl/sympla_sync.py
+        run: python etl/sympla_sync.py --sync
         continue-on-error: true
 
       - name: Status — Sympla
         if: always()
+        env:
+          RESULTADO: ${{ steps.sympla.outcome }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"sympla\",\"nome_exibicao\":\"Sympla\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.sympla.outcome == 'success' && 'ok' || 'erro' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"sympla\",\"nome_exibicao\":\"Sympla\",\"status\":\"$([ "$RESULTADO" = success ] && echo ok || echo erro)\"}"
 
       # ---------------- Conta Azul ----------------
+      # O refresh_token não vem de secret: vive na tabela integracao_tokens e
+      # é rotacionado a cada renovação. O script lê e grava pela API.
       - name: Conta Azul — contas a receber
         id: ca_receber
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           CONTAAZUL_CLIENT_ID: ${{ secrets.CONTAAZUL_CLIENT_ID }}
           CONTAAZUL_CLIENT_SECRET: ${{ secrets.CONTAAZUL_CLIENT_SECRET }}
         run: python etl/contaazul_sync.py --sync
@@ -102,8 +117,6 @@ jobs:
       - name: Conta Azul — contas a pagar
         id: ca_pagar
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           CONTAAZUL_CLIENT_ID: ${{ secrets.CONTAAZUL_CLIENT_ID }}
           CONTAAZUL_CLIENT_SECRET: ${{ secrets.CONTAAZUL_CLIENT_SECRET }}
         run: python etl/contaazul_pagar_sync.py --sync
@@ -111,21 +124,19 @@ jobs:
 
       - name: Status — Conta Azul
         if: always()
+        env:
+          RESULTADO: ${{ steps.ca_receber.outcome == 'success' && steps.ca_pagar.outcome == 'success' }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"conta_azul\",\"nome_exibicao\":\"Conta Azul\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.ca_receber.outcome == 'success' && steps.ca_pagar.outcome == 'success' && 'ok' || 'parcial' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"conta_azul\",\"nome_exibicao\":\"Conta Azul\",\"status\":\"$([ "$RESULTADO" = true ] && echo ok || echo parcial)\"}"
 
       # ---------------- Meta Ads ----------------
       # Puxa só os últimos ~2 meses (padrão do script), rápido e sem rate limit.
       - name: Meta Ads
         id: meta
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           META_TOKEN: ${{ secrets.META_TOKEN }}
           META_ACCOUNT_ID: ${{ secrets.META_ACCOUNT_ID }}
         run: python etl/meta_sync.py
@@ -133,13 +144,13 @@ jobs:
 
       - name: Status — Meta Ads
         if: always()
+        env:
+          RESULTADO: ${{ steps.meta.outcome }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"meta_ads\",\"nome_exibicao\":\"Meta Ads\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.meta.outcome == 'success' && 'ok' || 'erro' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"meta_ads\",\"nome_exibicao\":\"Meta Ads\",\"status\":\"$([ "$RESULTADO" = success ] && echo ok || echo erro)\"}"
 
       # ---------------- Loja (Omie) ----------------
       # Só o ano corrente; 2025 é histórico fechado e não muda mais.
@@ -147,8 +158,6 @@ jobs:
       - name: Loja (Omie)
         id: omie
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           OMIE_APP_KEY: ${{ secrets.OMIE_APP_KEY }}
           OMIE_APP_SECRET: ${{ secrets.OMIE_APP_SECRET }}
         run: python etl/omie_sync.py --desde 01/01/2026
@@ -156,13 +165,13 @@ jobs:
 
       - name: Status — Loja (Omie)
         if: always()
+        env:
+          RESULTADO: ${{ steps.omie.outcome }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"omie\",\"nome_exibicao\":\"Loja (Omie)\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.omie.outcome == 'success' && 'ok' || 'erro' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"omie\",\"nome_exibicao\":\"Loja (Omie)\",\"status\":\"$([ "$RESULTADO" = success ] && echo ok || echo erro)\"}"
 
       # ---------------- Planilha da Loja (Google Sheets) ----------------
       # Faturamento por curso + metas mensais. A gestora preenche à mão,
@@ -170,8 +179,6 @@ jobs:
       - name: Planilha da Loja — faturamento por curso
         id: sheets_fat
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         run: python etl/sheets_sync.py
         continue-on-error: true
@@ -179,8 +186,6 @@ jobs:
       - name: Planilha da Loja — metas
         id: sheets_metas
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         run: python etl/sheets_metas_sync.py
         continue-on-error: true
@@ -191,8 +196,6 @@ jobs:
       - name: Planilha da Loja — receitas extras
         id: sheets_extras
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         run: python etl/sheets_extras_sync.py
         continue-on-error: true
@@ -203,18 +206,16 @@ jobs:
       - name: Planilha da Loja — fechamento e metas históricas
         id: sheets_fech
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         run: python etl/sheets_fechamento_sync.py
         continue-on-error: true
 
       - name: Status — Planilha da Loja
         if: always()
+        env:
+          RESULTADO: ${{ steps.sheets_fat.outcome == 'success' && steps.sheets_metas.outcome == 'success' && steps.sheets_extras.outcome == 'success' && steps.sheets_fech.outcome == 'success' }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"sheets\",\"nome_exibicao\":\"Planilha da Loja\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.sheets_fat.outcome == 'success' && steps.sheets_metas.outcome == 'success' && steps.sheets_extras.outcome == 'success' && steps.sheets_fech.outcome == 'success' && 'ok' || 'parcial' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"sheets\",\"nome_exibicao\":\"Planilha da Loja\",\"status\":\"$([ "$RESULTADO" = true ] && echo ok || echo parcial)\"}"

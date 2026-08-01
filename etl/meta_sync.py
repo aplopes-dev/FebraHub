@@ -5,21 +5,29 @@ Puxa gasto/alcance por anúncio da Marketing API e grava em fato_meta_insights.
 Variáveis de ambiente:
   META_TOKEN        token de longa duração (60 dias)
   META_ACCOUNT_ID   act_426283099062813
-  SUPABASE_URL
-  SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL
+  FEBRAHUB_ETL_TOKEN
 
 Uso:
   python meta_sync.py                # últimos 2 meses (rotina diária)
   python meta_sync.py --desde 2024-01-01   # carga histórica
 """
-import os, sys, time, json, argparse, urllib.request, urllib.parse
+import os, time, json, argparse, urllib.request, urllib.parse, urllib.error
 from datetime import date, datetime, timedelta
+
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 TOKEN   = os.environ['META_TOKEN']
 ACCOUNT = os.environ['META_ACCOUNT_ID']
-SB_URL  = os.environ['SUPABASE_URL']
-SB_KEY  = os.environ['SUPABASE_SERVICE_KEY']
 API     = 'https://graph.facebook.com/v25.0'
+
+# anuncio_key é coluna GERADA no banco (faz parte da PK junto com data e
+# campanha_id). O ETL não a envia — o Postgres não aceita valor em coluna
+# GENERATED — e a API sabe disso: ela só exige nos dados as colunas de
+# conflito que dá para escrever.
+CONFLITO = 'data,campanha_id,anuncio_key'
 
 def get(path, params, tentativa=0):
     params['access_token'] = TOKEN
@@ -62,9 +70,8 @@ def insights_mes(desde, ate):
     return linhas
 
 def montar(r):
-    def num(v):
-        try: return float(v)
-        except: return 0
+    # `or 0`: o helper comum devolve None em campo vazio, mas impressão e
+    # gasto que a Meta não mandou são zero, não desconhecido.
     return {
         'data': r.get('date_start'),
         'conta_id': ACCOUNT,
@@ -74,24 +81,11 @@ def montar(r):
         'adset_nome': r.get('adset_name'),
         'anuncio_id': r.get('ad_id'),
         'anuncio_nome': r.get('ad_name'),
-        'impressoes': int(num(r.get('impressions'))),
-        'alcance': int(num(r.get('reach'))),
-        'cliques': int(num(r.get('clicks'))),
-        'gasto': round(num(r.get('spend')), 2),
+        'impressoes': int(fc.num(r.get('impressions')) or 0),
+        'alcance': int(fc.num(r.get('reach')) or 0),
+        'cliques': int(fc.num(r.get('clicks')) or 0),
+        'gasto': round(fc.num(r.get('spend')) or 0, 2),
     }
-
-def gravar(linhas):
-    if not linhas: return 0
-    url = f"{SB_URL}/rest/v1/fato_meta_insights?on_conflict=data,campanha_id,anuncio_key"
-    # anuncio_key é gerada; o upsert usa data+campanha+anuncio_id
-    req = urllib.request.Request(
-        url, data=json.dumps(linhas).encode(),
-        headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json',
-                 'Prefer': 'resolution=merge-duplicates'},
-        method='POST')
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return r.status
 
 def meses(desde, ate):
     d = datetime.strptime(desde, '%Y-%m-%d').date()
@@ -111,7 +105,7 @@ def main():
     for ini, fim in meses(a.desde, a.ate):
         linhas = [montar(r) for r in insights_mes(ini, fim)]
         if linhas:
-            gravar(linhas)
+            fc.upsert('fato_meta_insights', linhas, CONFLITO)
             total += len(linhas)
             print(f"  {ini[:7]}: {len(linhas)} linhas")
         time.sleep(3)
@@ -119,16 +113,7 @@ def main():
 
     # registra status
     try:
-        st = {'fonte':'meta_ads','nome_exibicao':'Meta Ads',
-              'ultima_sync':datetime.utcnow().isoformat()+'Z','status':'ok',
-              'registros':total,'atualizado_em':datetime.utcnow().isoformat()+'Z'}
-        req = urllib.request.Request(
-            f"{SB_URL}/rest/v1/integracao_status?on_conflict=fonte",
-            data=json.dumps(st).encode(),
-            headers={'apikey':SB_KEY,'Authorization':f'Bearer {SB_KEY}',
-                     'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-            method='POST')
-        urllib.request.urlopen(req, timeout=15)
+        fc.registrar_status('meta_ads', 'Meta Ads', 'ok', registros=total)
     except Exception as e:
         print(f"[aviso] status não registrado: {e}")
 

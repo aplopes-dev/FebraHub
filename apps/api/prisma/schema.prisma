@@ -7,7 +7,7 @@
 // Quem este arquivo cria de fato sao as 6 tabelas de aplicacao no topo —
 // as que substituem o Supabase Auth e o Supabase Storage.
 //
-// Duas coisas de proposito NAO estao aqui:
+// Tres coisas de proposito NAO estao aqui:
 //   1. As 109 views (vw_*) dos hubs. Elas somam, cruzam e agregam; virar
 //      model do Client nao ajudaria e amarraria o schema a cada mudanca de
 //      KPI. Leitura por $queryRaw, com o tipo declarado no service.
@@ -15,6 +15,12 @@
 //      nenhuma (o dump so trouxe as PKs), e inventar relacao aqui faria o
 //      Client prometer join que o banco nao garante — nenhuma ponte deste
 //      projeto chega a 100% de cobertura (ver docs/DESCOBERTAS.md §3).
+//   3. Os @@index das tabelas de negocio. Eles vivem em
+//      migrations/00000000000001_indices_negocio/migration.sql, porque dois
+//      deles sao indices de EXPRESSAO — right(telefone, 8), a ponte lead →
+//      aluno — e o Prisma nao sabe declarar isso. Descrever metade dos
+//      indices aqui e a outra metade la seria pior do que descrever todos
+//      em um lugar so. Os models de aplicacao, esses sim, declaram os seus.
 // ====================================================================
 
 generator client {
@@ -691,7 +697,7 @@ model StgCredenciamento {
 }
 
 model FatoAvaliacao {
-  id            BigInt    @id
+  id            BigInt    @id @default(autoincrement())
   fonte         String?
   curso         String?
   treinador     String?
@@ -714,7 +720,7 @@ model FatoAvaliacao {
 }
 
 model FatoRetencao {
-  id                 BigInt    @id
+  id                 BigInt    @id @default(autoincrement())
   nomeCliente        String?   @map("nome_cliente")
   curso              String?
   motivoCancelamento String?   @map("motivo_cancelamento")

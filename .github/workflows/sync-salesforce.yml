@@ -14,12 +14,20 @@
 #
 # TRAVA: se a janela do arquivo passar de 120 dias, o script ABORTA em vez
 # de apagar — protege contra subir um export de base inteira por engano.
+# A API tem a sua própria trava (366 dias) e recusa DELETE sem recorte de
+# data: o token de ETL não é suficiente para apagar histórico.
 #
-# Secrets necessários:
+# SECRETS NECESSÁRIOS:
+#   FEBRAHUB_ETL_TOKEN                  token de máquina da API
 #   GMAIL_ADDRESS, GMAIL_APP_PASSWORD   (senha de APP, não a senha real)
-#   SUPABASE_URL, SUPABASE_SERVICE_KEY
 #   SF_ASSUNTO_PAGAMENTO  (opcional, padrão 'Base pagamentos')
 #   SF_ASSUNTO_ALUNOS     (opcional, padrão 'Base alunos')
+#
+# VARIABLE (ou secret):
+#   FEBRAHUB_API_URL                    ex.: https://febracis.aplopes.com/api
+#
+# O QUE SAIU: SUPABASE_URL / SUPABASE_SERVICE_KEY (a service_role ignorava
+# toda a RLS — era o banco inteiro num secret).
 
 name: Sync Salesforce (e-mail)
 
@@ -29,6 +37,10 @@ on:
     - cron: '15 15 * * *'   # 12:15 Salvador (após disparo das 12h)
     - cron: '15 20 * * *'   # 17:15 Salvador (após disparo das 17h)
   workflow_dispatch:
+
+env:
+  FEBRAHUB_API_URL: ${{ vars.FEBRAHUB_API_URL || secrets.FEBRAHUB_API_URL }}
+  FEBRAHUB_ETL_TOKEN: ${{ secrets.FEBRAHUB_ETL_TOKEN }}
 
 jobs:
   salesforce:
@@ -47,8 +59,6 @@ jobs:
       - name: Salesforce (e-mail)
         id: sf
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           SF_ASSUNTO_PAGAMENTO: ${{ secrets.SF_ASSUNTO_PAGAMENTO }}
@@ -56,12 +66,15 @@ jobs:
         run: python etl/salesforce_email_sync.py
         continue-on-error: true
 
+      # O script já registra 'ok' quando conclui; este passo existe para
+      # marcar o ERRO — sem ele, uma falha deixaria o painel com a data da
+      # última execução boa, dando a impressão de que tudo está em dia.
       - name: Status — Salesforce
         if: always()
+        env:
+          RESULTADO: ${{ steps.sf.outcome }}
         run: |
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/integracao_status?on_conflict=fonte" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sS -X POST "$FEBRAHUB_API_URL/ingest/status/registrar" \
+            -H "X-ETL-Token: $FEBRAHUB_ETL_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"fonte\":\"salesforce\",\"nome_exibicao\":\"Salesforce\",\"ultima_sync\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"${{ steps.sf.outcome == 'success' && 'ok' || 'erro' }}\",\"atualizado_em\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            -d "{\"fonte\":\"salesforce\",\"nome_exibicao\":\"Salesforce\",\"status\":\"$([ "$RESULTADO" = success ] && echo ok || echo erro)\"}"

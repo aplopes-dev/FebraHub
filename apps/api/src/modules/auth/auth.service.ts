@@ -89,15 +89,18 @@ export class AuthService {
 
   /** Gera o par acesso+refresh e guarda só o hash do refresh (ver renovar). */
   async emitirTokens(perfil: UsuarioLogado, ip: string, agente: string) {
+    // expiresIn vai em SEGUNDOS. A forma "15m" existe, mas o tipo dela é um
+    // literal fechado (`StringValue`) e um TTL vindo de env nunca satisfaz —
+    // converter aqui evita o cast que esconderia um TTL inválido.
     const acesso = await this.jwt.signAsync(
       { ...perfil, tipo: 'acesso' },
-      { secret: this.cfg.jwt.acessoSegredo, expiresIn: this.cfg.jwt.acessoTtl },
+      { secret: this.cfg.jwt.acessoSegredo, expiresIn: ttlMs(this.cfg.jwt.acessoTtl) / 1000 },
     );
 
     const jti = randomBytes(24).toString('hex');
     const refresh = await this.jwt.signAsync(
       { id: perfil.id, jti, tipo: 'refresh' },
-      { secret: this.cfg.jwt.refreshSegredo, expiresIn: this.cfg.jwt.refreshTtl },
+      { secret: this.cfg.jwt.refreshSegredo, expiresIn: ttlMs(this.cfg.jwt.refreshTtl) / 1000 },
     );
 
     await this.prisma.sessao.create({

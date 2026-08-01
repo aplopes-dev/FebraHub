@@ -11,27 +11,19 @@ Só Salvador — blocos de RECIFE são ignorados.
 
 Variáveis de ambiente (ou .env):
   GOOGLE_SERVICE_ACCOUNT ou GOOGLE_SERVICE_ACCOUNT_FILE
-  SUPABASE_URL, SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL, FEBRAHUB_ETL_TOKEN
 """
-import os, json, re, urllib.request
-from datetime import datetime, timezone
+import os, json
 
-for _p in ('.env', 'etl/.env', os.path.join(os.path.dirname(__file__), '.env')):
-    if os.path.exists(_p):
-        for _l in open(_p, encoding='utf-8'):
-            _l = _l.strip()
-            if _l and not _l.startswith('#') and '=' in _l:
-                _k, _v = _l.split('=', 1)
-                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
-        break
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 PLANILHA = '10lm_7AQQbrjWlUH65sWr2WcfJ312Rlnv3YGSBgTAOm0'
 ABAS = {2025: 'METAS MENSAIS 2025', 2026: 'METAS MENSAIS 2026'}
-SB_URL = os.environ['SUPABASE_URL']
-SB_KEY = os.environ['SUPABASE_SERVICE_KEY']
 
 MESES = {'JANEIRO':1,'FEVEREIRO':2,'MARCO':3,'MARÇO':3,'ABRIL':4,'MAIO':5,
          'JUNHO':6,'JULHO':7,'AGOSTO':8,'SETEMBRO':9,'OUTUBRO':10,
@@ -45,39 +37,16 @@ def credencial():
     return service_account.Credentials.from_service_account_file(
         os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', 'service_account.json'), scopes=escopo)
 
+# zero_nulo: célula de meta com 0 é meta não preenchida, não meta de zero.
 def val(s):
-    s = str(s or '').replace('R$', '').replace('\xa0', ' ').strip()
-    if not s or s in ('-', '?', '#REF!', '#DIV/0!'): return None
-    s = s.replace('.', '').replace(',', '.')
-    s = re.sub(r'[^0-9.\-]', '', s)
-    try:
-        v = float(s)
-        return round(v, 2) if v != 0 else None
-    except: return None
+    return fc.val(s, zero_nulo=True)
 
-def inteiro(s):
-    s = re.sub(r'[^0-9]', '', str(s or ''))
-    try: return int(s) if s else None
-    except: return None
+inteiro = fc.inteiro
 
 def cel(linhas, i, j):
     if i >= len(linhas): return ''
     linha = linhas[i]
     return linha[j] if j < len(linha) else ''
-
-def upsert(tabela, linhas, conflito):
-    if not linhas: return
-    url = f"{SB_URL}/rest/v1/{tabela}?on_conflict={conflito}"
-    req = urllib.request.Request(url, data=json.dumps(linhas, default=str).encode(),
-        headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json',
-                 'Prefer': 'resolution=merge-duplicates'}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        print(f"  ERRO {tabela}: {e.code} {e.read().decode(errors='replace')[:300]}")
-        raise
 
 def processar_aba(svc, ano, aba):
     r = svc.values().get(spreadsheetId=PLANILHA, range=f"'{aba}'!A1:DZ200").execute()
@@ -167,10 +136,8 @@ def main():
         dc[(r['mes_ref'], r['curso'].upper().strip())] = r
     todas_curso = list(dc.values())
 
-    for i in range(0, len(todas_mes), 200):
-        upsert('fato_loja_meta_mes', todas_mes[i:i+200], 'mes_ref')
-    for i in range(0, len(todas_curso), 200):
-        upsert('fato_loja_meta_curso', todas_curso[i:i+200], 'mes_ref,curso')
+    fc.upsert('fato_loja_meta_mes', todas_mes, 'mes_ref')
+    fc.upsert('fato_loja_meta_curso', todas_curso, 'mes_ref,curso')
 
     print(f"\ntotal: {len(todas_mes)} metas mensais, {len(todas_curso)} metas por curso")
     print("meses:", sorted(r['mes_ref'] for r in todas_mes))

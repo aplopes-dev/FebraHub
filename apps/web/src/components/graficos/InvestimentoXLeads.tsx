@@ -1,0 +1,96 @@
+"use client";
+
+import { C, SANS } from "@/lib/tema";
+import { compacto, mesCurto } from "@/lib/formato";
+
+export interface PontoInvLeads {
+  mes: string;
+  investimento: number;
+  leads: number;
+  gastoCapt: number;
+  leadsCapt: number;
+  parcial: boolean;
+}
+
+/* Investimento (R$, barras) x Leads (volume, linha) mês a mês. Dois eixos —
+   reais e contagem não dividem escala. Responde "gastamos mais e trouxemos
+   mais lead, ou só gastamos mais?". */
+export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] }) {
+  if (!serie.length) return null;
+  const W = 720, H = 200, padL = 42, padR = 42, padT = 18, padB = 22;
+  const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
+  const maxInv = Math.max(...serie.map((s) => s.investimento), 1);
+  const maxLead = Math.max(...serie.map((s) => s.leads), 1);
+  const n = serie.length, slot = plotW / n, bw = Math.min(34, slot * 0.5);
+  const cx = (i: number) => padL + slot * i + slot / 2;
+  const yInv = (v: number) => base - (v / maxInv) * plotH;
+  const yLead = (v: number) => base - (v / maxLead) * plotH;
+  const pts: [number, number][] = serie.map((s, i) => [cx(i), yLead(s.leads)]);
+  const idxParcial = serie.findIndex((s) => s.parcial);
+  const ultSolido = idxParcial > 0 ? idxParcial : n - 1;
+  const solido = pts.slice(0, ultSolido + 1).map((p) => p.join(",")).join(" ");
+  const tracejado = idxParcial > 0
+    ? [pts[idxParcial - 1], pts[idxParcial]].map((p) => p.join(",")).join(" ") : null;
+  const alvo = 12, passo = Math.max(1, Math.ceil(n / alvo));
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4, fontSize: 10.5, color: C.muted, fontWeight: 600 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})` }} /> Investimento
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 13, height: 0, borderTop: `2px solid ${C.up}` }} /> Leads
+        </span>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+        <defs>
+          <linearGradient id="gradInv" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={C.goldTop} /><stop offset="1" stopColor={C.goldBase} />
+          </linearGradient>
+          <pattern id="hachInv" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke={C.gold} strokeWidth="3" opacity="0.4" />
+          </pattern>
+        </defs>
+
+        {/* eixo esquerdo = R$ investido; direito = volume de leads */}
+        {[0, 0.5, 1].map((f, i) => {
+          const yy = base - f * plotH;
+          return (
+            <g key={i}>
+              <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" strokeWidth="1" />
+              <text x={padL - 6} y={yy + 3} fontSize="9" textAnchor="end" fill={C.faint} fontFamily={SANS}>
+                {compacto(maxInv * f)}
+              </text>
+              <text x={W - padR + 6} y={yy + 3} fontSize="9" textAnchor="start" fill={C.up} opacity="0.8" fontFamily={SANS}>
+                {Math.round(maxLead * f)}
+              </text>
+            </g>
+          );
+        })}
+
+        {serie.map((s, i) => (
+          <rect key={s.mes} x={cx(i) - bw / 2} y={yInv(s.investimento)} width={bw}
+            height={Math.max(0, base - yInv(s.investimento))} rx="2"
+            fill={s.parcial ? "url(#hachInv)" : "url(#gradInv)"}
+            stroke={s.parcial ? C.gold : "none"} strokeDasharray={s.parcial ? "3 2" : undefined}
+            strokeWidth={s.parcial ? 1 : 0} />
+        ))}
+
+        <polyline points={solido} fill="none" stroke={C.up} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        {tracejado && <polyline points={tracejado} fill="none" stroke={C.up} strokeWidth="1.8" strokeDasharray="4 3" opacity="0.7" />}
+        {pts.map(([x0, y0], i) => (
+          <circle key={i} cx={x0} cy={y0} r="2.2"
+            fill={serie[i].parcial ? C.void : C.up} stroke={C.up} strokeWidth={serie[i].parcial ? 1.2 : 0} />
+        ))}
+
+        {serie.map((s, i) => (i % passo === 0 || i === n - 1) ? (
+          <text key={s.mes} x={cx(i)} y={H - 7} fontSize="9.5" textAnchor="middle" fill={C.faint} fontFamily={SANS}>
+            {mesCurto(String(s.mes).slice(0, 7))}
+          </text>
+        ) : null)}
+      </svg>
+    </>
+  );
+}

@@ -5,31 +5,23 @@ Puxa vendas da loja (cupons fiscais) e posição de estoque do Omie.
 Variáveis de ambiente:
   OMIE_APP_KEY
   OMIE_APP_SECRET
-  SUPABASE_URL
-  SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL
+  FEBRAHUB_ETL_TOKEN
 
 Uso:
   python omie_sync.py                      # vendas do último ano + estoque hoje
   python omie_sync.py --desde 01/01/2024   # histórico de vendas
 """
-import os, json, time, argparse, urllib.request
-from datetime import date, datetime, timedelta, timezone
+import os, json, time, argparse, urllib.request, urllib.error
+from datetime import date, timedelta
 
-# Carrega .env se existir (formato NOME=valor por linha), sem libs externas.
-for _p in ('.env', 'etl/.env', os.path.join(os.path.dirname(__file__), '.env')):
-    if os.path.exists(_p):
-        for _linha in open(_p, encoding='utf-8'):
-            _linha = _linha.strip()
-            if _linha and not _linha.startswith('#') and '=' in _linha:
-                _k, _v = _linha.split('=', 1)
-                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
-        break
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 
 APP_KEY    = os.environ['OMIE_APP_KEY']
 APP_SECRET = os.environ['OMIE_APP_SECRET']
-SB_URL     = os.environ['SUPABASE_URL']
-SB_KEY     = os.environ['SUPABASE_SERVICE_KEY']
 
 # URLs dos serviços Omie (RPC: POST com app_key/app_secret/call/param)
 URL_CUPOM   = 'https://app.omie.com.br/api/v1/produtos/cupomfiscalconsultar/'
@@ -79,32 +71,14 @@ def sn(v):  # 'S'/'N' -> bool
     return str(v or '').upper() == 'S'
 
 def num(v):
-    try: return float(v)
-    except: return 0
+    """Wrapper do helper comum: aqui vazio é ZERO, não desconhecido —
+       cupom sem valor informado vale 0, e a coluna não aceita NULL."""
+    return fc.num(v) or 0
 
-def dt_iso(s):
-    # Omie usa DD/MM/AAAA
-    try:
-        d, m, a = s.split('/')
-        return f"{a}-{int(m):02d}-{int(d):02d}"
-    except:
-        return None
-
-def upsert(tabela, linhas, conflito):
-    if not linhas: return
-    url = f"{SB_URL}/rest/v1/{tabela}?on_conflict={conflito}"
-    req = urllib.request.Request(url, data=json.dumps(linhas, default=str).encode(),
-        headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json',
-                 'Prefer': 'resolution=merge-duplicates'}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        corpo = e.read().decode(errors='replace')
-        print(f"  ERRO ao gravar {tabela}: {e.code} {corpo[:400]}")
-        print(f"  exemplo de linha: {json.dumps(linhas[0], default=str)[:300]}")
-        raise
+# dt_iso ('DD/MM/AAAA' -> ISO) e upsert moraram aqui até a migração;
+# hoje vêm de febrahub_cliente, iguais para todos os ETLs.
+dt_iso = fc.dt_iso
+upsert = fc.upsert
 
 # ---------------- VENDAS (cupons + itens) ----------------
 def sync_vendas(desde, ate):
@@ -235,17 +209,7 @@ def sync_estoque():
 
 def registrar_status(ok, total):
     try:
-        st = {'fonte':'omie','nome_exibicao':'Loja (Omie)',
-              'ultima_sync':datetime.now(timezone.utc).isoformat(),
-              'status':'ok' if ok else 'erro','registros':total,
-              'atualizado_em':datetime.now(timezone.utc).isoformat()}
-        req = urllib.request.Request(
-            f"{SB_URL}/rest/v1/integracao_status?on_conflict=fonte",
-            data=json.dumps(st).encode(),
-            headers={'apikey':SB_KEY,'Authorization':f'Bearer {SB_KEY}',
-                     'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-            method='POST')
-        urllib.request.urlopen(req, timeout=15)
+        fc.registrar_status('omie', 'Loja (Omie)', 'ok' if ok else 'erro', registros=total)
     except Exception as e:
         print(f"[aviso] status não registrado: {e}")
 

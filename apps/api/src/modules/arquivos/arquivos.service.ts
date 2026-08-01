@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { fileTypeFromBuffer } from 'file-type';
+import { detectarMime, pareceTextoPlano } from './tipo-arquivo';
 import { PrismaService } from '../../database/prisma.service';
 import { StorageService, ArquivoParaSubir } from '../storage/storage.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
@@ -43,13 +43,13 @@ export class ArquivosService {
 
     // O tipo vem dos BYTES, não do que o cliente declarou nem da extensão.
     // Um .png que na verdade é HTML vira XSS quando alguém abre o link.
-    const detectado = await fileTypeFromBuffer(arquivo.conteudo);
+    const detectado = detectarMime(arquivo.conteudo);
     const declarado = (arquivo.mimeDeclarado || '').split(';')[0].trim();
 
     let mime: string;
     if (detectado) {
-      mime = detectado.mime;
-    } else if (SEM_ASSINATURA.has(declarado) && ehTextoPlano(arquivo.conteudo)) {
+      mime = detectado;
+    } else if (SEM_ASSINATURA.has(declarado) && pareceTextoPlano(arquivo.conteudo)) {
       // CSV e TXT não têm magic number; aceitamos só se o conteúdo for mesmo
       // texto, o que descarta binário disfarçado de .csv.
       mime = declarado;
@@ -185,15 +185,4 @@ export class ArquivosService {
       .create({ data: { usuarioId, acao, recurso } })
       .catch(() => undefined);
   }
-}
-
-/** Heurística simples: byte nulo ou excesso de controle não é texto. */
-function ehTextoPlano(b: Buffer): boolean {
-  const amostra = b.subarray(0, 4096);
-  let suspeitos = 0;
-  for (const byte of amostra) {
-    if (byte === 0) return false;
-    if (byte < 9 || (byte > 13 && byte < 32)) suspeitos++;
-  }
-  return suspeitos / Math.max(amostra.length, 1) < 0.05;
 }

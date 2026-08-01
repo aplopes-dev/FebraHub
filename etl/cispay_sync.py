@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FebraHub · CisPay v2
+FebraHub · CisPay v2 -> API FebraHub
 
 POR QUE MUDOU DE ENDPOINT:
 A v1 usava /services/payments, onde `amount` e um numero que ninguem
@@ -35,20 +35,19 @@ Uso:
 import argparse
 import json
 import os
-import re
 import sys
 import time
 from collections import Counter
 from datetime import date
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List
 
 import requests
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+# Cliente comum: HTTP para a API, .env e os helpers de conversão.
+# Antes cada script tinha a sua cópia — e um bug corrigido aqui não chegava lá.
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 
 ENDPOINT = "/services/schedules-ex"
@@ -56,66 +55,9 @@ CHAVE_LISTA = "schedules"
 EXTRATO = "/services/checking-account"
 PAGE_SIZE = 1000
 TIMEOUT = 60
-LIMITE = 0.50
+LIMITE = fc.LIMITE
 
 SUBSELLERS = ["5618b38a-70cb-473c-b77e-6950c1475b4f"]
-
-
-# ============================================================
-# Conversao
-# ============================================================
-
-def achatar(obj: Any, prefixo: str = "") -> Dict[str, Any]:
-    saida: Dict[str, Any] = {}
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            novo = f"{prefixo}.{k}" if prefixo else str(k)
-            if isinstance(v, (dict, list)):
-                saida.update(achatar(v, novo))
-            else:
-                saida[novo] = v
-    elif isinstance(obj, list):
-        for i, item in enumerate(obj):
-            saida.update(achatar(item, f"{prefixo}[{i}]"))
-    else:
-        saida[prefixo] = obj
-    return saida
-
-
-def vazio(v: Any) -> bool:
-    return v is None or (isinstance(v, str) and v.strip() == "")
-
-
-def num(v: Any) -> Optional[float]:
-    """A CisPay mistura formatos: "1290,00", "2.99", "2,99".
-       Converter na fronteira, nunca no banco."""
-    if vazio(v):
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    t = str(v).strip()
-    if "," in t:                      # BR: 1.290,00
-        t = t.replace(".", "").replace(",", ".")
-    try:
-        return float(t)
-    except ValueError:
-        return None
-
-
-def so_digitos(v: Any) -> Optional[str]:
-    if vazio(v):
-        return None
-    d = re.sub(r"\D", "", str(v))
-    return d or None
-
-
-def resolver(linha: Dict[str, Any], cands: List[str]) -> Optional[Any]:
-    baixo = {k.lower(): v for k, v in linha.items()}
-    for c in cands:
-        v = baixo.get(c.lower())
-        if not vazio(v):
-            return v
-    return None
 
 
 # ============================================================
@@ -169,16 +111,16 @@ INTEIROS = ["numero_parcela", "total_parcelas"]
 
 
 def montar(reg: Dict[str, Any]) -> Dict[str, Any]:
-    f = achatar(reg)
-    l = {d: resolver(f, c) for d, c in MAPA.items()}
+    f = fc.achatar(reg)
+    l = {d: fc.resolver(f, c) for d, c in MAPA.items()}
     for c in NUMERICOS:
-        l[c] = num(l.get(c))
+        l[c] = fc.num(l.get(c))
     for c in INTEIROS:
         try:
-            l[c] = int(l[c]) if not vazio(l.get(c)) else None
+            l[c] = int(l[c]) if not fc.vazio(l.get(c)) else None
         except (TypeError, ValueError):
             l[c] = None
-    l["doc_norm"] = so_digitos(l.get("documento"))
+    l["doc_norm"] = fc.so_digitos(l.get("documento"))
     return l
 
 
@@ -260,7 +202,7 @@ def diagnosticar(qtd: int = 2) -> None:
     for m in meses(qtd):
         for s in SUBSELLERS:
             for i, reg in enumerate(buscar(m, s)):
-                amostra.append(achatar(reg))
+                amostra.append(fc.achatar(reg))
                 if i >= 200:
                     break
 
@@ -269,23 +211,10 @@ def diagnosticar(qtd: int = 2) -> None:
         print("Nada retornado.")
         return
 
-    cont: Counter = Counter()
-    for l in amostra:
-        for k, v in l.items():
-            if not vazio(v):
-                cont[k] += 1
+    fc.diagnostico(amostra, MAPA, limite=LIMITE, largura=22)
 
-    print("\n-- CHAVES REAIS (preenchimento) --")
-    for k, n in sorted(cont.items()):
-        print(f"  {n/len(amostra):5.0%}  {k}")
-
-    print("\n-- MAPEAMENTO --")
-    for d, c in MAPA.items():
-        t = sum(1 for l in amostra if not vazio(resolver(l, c))) / len(amostra)
-        print(f"  {'OK ' if t >= LIMITE else '!! '}{d:22} {t:5.0%}")
-
-    sf = sum(1 for l in amostra if not vazio(resolver(l, MAPA["cod_salesforce"])))
-    doc = sum(1 for l in amostra if not vazio(resolver(l, MAPA["documento"])))
+    sf = sum(1 for l in amostra if not fc.vazio(fc.resolver(l, MAPA["cod_salesforce"])))
+    doc = sum(1 for l in amostra if not fc.vazio(fc.resolver(l, MAPA["documento"])))
     print("\n" + "=" * 62)
     print(f"cod_salesforce  {sf}/{len(amostra)} ({sf/len(amostra):.0%})  <- ponte com fato_pagamento_base")
     print(f"doc_cliente     {doc}/{len(amostra)} ({doc/len(amostra):.0%})  <- ponte secundaria (CPF)")
@@ -296,20 +225,20 @@ def diagnosticar(qtd: int = 2) -> None:
     # O extrato: fonte de verdade
     print("\n\nEXTRATO (checking-account)\n" + "=" * 62)
     for s in SUBSELLERS:
-        e = [achatar(x) for x in buscar_extrato(s)]
+        e = [fc.achatar(x) for x in buscar_extrato(s)]
         print(f"{len(e)} lancamentos")
         if not e:
             continue
         ce: Counter = Counter()
         for l in e:
             for k, v in l.items():
-                if not vazio(v):
+                if not fc.vazio(v):
                     ce[k] += 1
         print("\n-- CHAVES --")
         for k, n in sorted(ce.items()):
             print(f"  {n/len(e):5.0%}  {k}")
-        bruto = sum(num(l.get("entry_gross_amount")) or 0 for l in e)
-        liq = sum(num(l.get("entry_net_amount")) or 0 for l in e)
+        bruto = sum(fc.num(l.get("entry_gross_amount")) or 0 for l in e)
+        liq = sum(fc.num(l.get("entry_net_amount")) or 0 for l in e)
         print(f"\nBruto   R$ {bruto:>14,.2f}")
         print(f"Liquido R$ {liq:>14,.2f}")
         print(f"Taxa    R$ {bruto - liq:>14,.2f}  ({(bruto-liq)/max(bruto,1):.2%})")
@@ -318,46 +247,8 @@ def diagnosticar(qtd: int = 2) -> None:
 
 
 # ============================================================
-# Supabase
+# Carga
 # ============================================================
-
-def upsert(tabela: str, linhas: List[Dict], pk: str) -> None:
-    if not linhas:
-        return
-    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_KEY")
-    if not url or not key:
-        sys.exit("Faltam SUPABASE_URL / SUPABASE_SERVICE_KEY no .env")
-    for i in range(0, len(linhas), 500):
-        lote = linhas[i : i + 500]
-        r = requests.post(
-            f"{url}/rest/v1/{tabela}",
-            headers={"apikey": key, "Authorization": f"Bearer {key}",
-                     "Content-Type": "application/json",
-                     "Prefer": "resolution=merge-duplicates,return=minimal"},
-            params={"on_conflict": pk},
-            data=json.dumps(lote, ensure_ascii=False, default=str),
-            timeout=90,
-        )
-        if r.status_code >= 300:
-            raise RuntimeError(f"{tabela}: HTTP {r.status_code}\n{r.text[:500]}")
-        print(f"  {tabela}: {i + len(lote)}/{len(linhas)}")
-
-
-def validar(linhas: List[Dict]) -> None:
-    if not linhas:
-        sys.exit("CARGA ABORTADA — zero registros.")
-    probs = [
-        f"{c}: {sum(1 for l in linhas if not vazio(l.get(c)))/len(linhas):.0%}"
-        for c in OBRIGATORIOS
-        if sum(1 for l in linhas if not vazio(l.get(c))) / len(linhas) < LIMITE
-    ]
-    if probs:
-        print("\nCARGA ABORTADA — obrigatorios vazios:", file=sys.stderr)
-        for p in probs:
-            print(f"  - {p}", file=sys.stderr)
-        sys.exit(1)
-
 
 def sincronizar(qtd: int) -> None:
     linhas: List[Dict] = []
@@ -369,7 +260,7 @@ def sincronizar(qtd: int) -> None:
         print(f"  {m}: {len(linhas) - antes}")
 
     print(f"\n{len(linhas)} parcelas")
-    validar(linhas)
+    fc.validar(linhas, OBRIGATORIOS, limite=LIMITE, dica="Rode --diagnostico e ajuste o MAPA.")
 
     # ATENCAO — diferenca crucial vs. /services/payments:
     # aqui valor_bruto ja e POR PARCELA (105,35 de uma venda de 1.264),
@@ -379,7 +270,7 @@ def sincronizar(qtd: int) -> None:
     bruto = sum(l["valor_bruto"] or 0 for l in linhas)
     liq = sum(l["valor_liquido"] or 0 for l in linhas)
     taxa = sum(l["taxa_cispay"] or 0 for l in linhas)
-    sf = sum(1 for l in linhas if not vazio(l.get("cod_salesforce")))
+    sf = sum(1 for l in linhas if not fc.vazio(l.get("cod_salesforce")))
     doc = sum(1 for l in linhas if l.get("doc_norm"))
 
     print(f"Vendas   {len(vendas):>7}  ({len(linhas)} parcelas)")
@@ -389,7 +280,7 @@ def sincronizar(qtd: int) -> None:
     print(f"Salesforce  {sf}/{len(linhas)} ({sf/max(len(linhas),1):.0%})  <- a ponte")
     print(f"CPF         {doc}/{len(linhas)} ({doc/max(len(linhas),1):.0%})\n")
 
-    upsert("fato_liquidacao_cartao", linhas, "parcela_id")
+    fc.upsert("fato_liquidacao_cartao", linhas, "parcela_id")
     print("\nOK.")
 
 
@@ -397,18 +288,18 @@ def sincronizar_extrato() -> None:
     linhas = []
     for s in SUBSELLERS:
         for e in buscar_extrato(s):
-            f = achatar(e)
+            f = fc.achatar(e)
             linhas.append({
-                "lancamento_id":   resolver(f, ["id", "entry_id"]),
+                "lancamento_id":   fc.resolver(f, ["id", "entry_id"]),
                 "subseller_id":    s,
-                "data_lancamento": resolver(f, ["payment_date", "entry_date", "date"]),
-                "descricao":       resolver(f, ["description", "entry_description", "type"]),
-                "valor_bruto":     num(resolver(f, ["entry_gross_amount"])),
-                "valor_liquido":   num(resolver(f, ["entry_net_amount"])),
+                "data_lancamento": fc.resolver(f, ["payment_date", "entry_date", "date"]),
+                "descricao":       fc.resolver(f, ["description", "entry_description", "type"]),
+                "valor_bruto":     fc.num(fc.resolver(f, ["entry_gross_amount"])),
+                "valor_liquido":   fc.num(fc.resolver(f, ["entry_net_amount"])),
             })
     linhas = [l for l in linhas if l["lancamento_id"]]
     print(f"{len(linhas)} lancamentos de extrato")
-    upsert("fato_extrato_cispay", linhas, "lancamento_id")
+    fc.upsert("fato_extrato_cispay", linhas, "lancamento_id")
     print("OK.")
 
 

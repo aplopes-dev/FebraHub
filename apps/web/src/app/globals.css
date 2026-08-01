@@ -1,0 +1,65 @@
+/* Estilos globais do FebraHub.
+
+   O app é feito de inline styles (paleta em src/lib/tema.ts). O que sobra
+   aqui é o que inline style não alcança: reset, scrollbar, keyframes,
+   pseudo-elementos e os grids responsivos por classe — que no protótipo
+   viviam em <style> injetado dentro do Shell e dos hubs. */
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: #08080A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { background: #08080A; -webkit-font-smoothing: antialiased; }
+
+::selection { background: #E4C06A47; }
+
+input::placeholder { color: #5B5B62; }
+
+button:focus-visible, input:focus-visible { outline: 2px solid #E4C06A; outline-offset: 2px; }
+
+.rolagem::-webkit-scrollbar { width: 9px; }
+.rolagem::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 20px; }
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes subir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.girar { animation: girar 1s linear infinite; }
+.subir { animation: subir .4s ease; }
+
+/* Painéis do Hub Financeiro (design portado): 1 coluna no mobile,
+   proporções do design (5:4:3 e 7:5) em telas largas. */
+.finRow1 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+.finRow2 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+@media (min-width: 1000px) {
+  .finRow1 { grid-template-columns: 5fr 4fr 3fr; }
+  .finRow2 { grid-template-columns: 7fr 5fr; }
+}
+
+/* Hub Comercial: evolução à esquerda, consultoras à direita. Denso
+   pra caber numa TV 16:9 sem rolagem. */
+.gridCom { display: grid; grid-template-columns: 1fr; column-gap: 14px; align-items: start; }
+@media (min-width: 1100px) { .gridCom { grid-template-columns: 7fr 5fr; } }
+
+/* Hub Pedagógico. */
+.pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.pedConfKpis { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+@media (min-width: 720px) {
+  .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); }
+  .pedConfKpis { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1000px) { .pedBot { grid-template-columns: 1fr 1fr; } }  /* fideliza · falta */
+
+/* Hub Loja. Uma tela só, sem rolagem vertical (alvo 1080p). Três faixas. */
+.lojaKpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+@media (min-width: 720px) { .lojaKpis { grid-template-columns: repeat(4, 1fr); } }
+.lojaMid, .lojaBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+@media (min-width: 1000px) {
+  .lojaMid { grid-template-columns: 7fr 5fr; }       /* receita · estoque */
+  .lojaBot { grid-template-columns: 3fr 4fr; }       /* mais vendidos · performance curso */
+}
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }

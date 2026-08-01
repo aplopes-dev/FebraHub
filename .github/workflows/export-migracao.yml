@@ -5,6 +5,10 @@
 # telefone e e-mail de aluno. Sai do runner direto para o destino por HTTPS.
 #
 # Este workflow é descartável — some quando a migração terminar.
+#
+# É O ÚNICO LUGAR que ainda fala com o Supabase, e de propósito: ele é o
+# lado "antes da migração". Os ETLs (etl/*.py) já escrevem só na API própria;
+# se alguma busca por SUPABASE_* cair aqui, é este arquivo, não sobra de ETL.
 
 name: Export migração (uso único)
 
