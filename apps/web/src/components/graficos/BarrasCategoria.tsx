@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 
 export interface LinhaCategoria {
@@ -33,18 +33,21 @@ export function BarrasCategoria({
         <span style={{ fontSize: 12.5, fontWeight: 600, color: r.orfa ? C.faint : C.bright, fontStyle: r.orfa ? "italic" : "normal", display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.categoria}>{r.categoria}</span>
           {r.repasse > 0 && (
-            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".4px", color: C.warn, background: `${C.warn}24`, border: `1px solid ${C.warn}4d`, padding: "1px 6px", borderRadius: 5, flexShrink: 0 }}>50/50</span>
+            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".4px", color: C.warn, background: alfa("warn", 0.14), border: `1px solid ${alfa("warn", 0.3)}`, padding: "1px 6px", borderRadius: 5, flexShrink: 0 }}>50/50</span>
           )}
         </span>
         <span style={{ fontFamily: GROTESK, fontSize: 13, fontWeight: 700, flexShrink: 0, color: r.orfa ? C.faint : (i === 0 ? C.gold : C.text) }}>{moeda(r.unidade)}</span>
       </div>
-      <div style={{ height: 8, borderRadius: 5, background: "rgba(255,255,255,.05)", overflow: "hidden", display: "flex" }}>
+      <div style={{ height: 8, borderRadius: 5, background: alfa("sup", 0.05), overflow: "hidden", display: "flex" }}>
         <div style={{
           width: `${(r.unidade / max) * 100}%`, height: "100%", borderRadius: 5,
-          background: r.orfa ? C.faint : (i === 0 ? `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})` : "linear-gradient(90deg, #d9b866, #7d6634)"),
+          background: r.orfa ? C.faint : (i === 0 ? `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})` : "linear-gradient(90deg, var(--gold-dim-top), var(--gold-dim-base))"),
         }} />
+        {/* A hachura do repasse tem alpha PRÓPRIO por tema (--hachura): o
+            mesmo .22 do escuro some sobre o fundo quase branco do claro, que
+            precisa de .3 pra continuar legível como "metade do coach". */}
         {r.repasse > 0 && (
-          <div style={{ width: `${(r.repasse / max) * 100}%`, height: "100%", background: `repeating-linear-gradient(45deg, ${C.gold}38 0 3px, transparent 3px 6px)` }} />
+          <div style={{ width: `${(r.repasse / max) * 100}%`, height: "100%", background: "repeating-linear-gradient(45deg, var(--hachura) 0 3px, transparent 3px 6px)" }} />
         )}
       </div>
       {r.repasse > 0 && <div style={{ fontSize: 10, color: C.faint, marginTop: 4 }}>bruto {moeda(r.bruto)} · 50% repassado ao coach ({moeda(r.repasse)})</div>}

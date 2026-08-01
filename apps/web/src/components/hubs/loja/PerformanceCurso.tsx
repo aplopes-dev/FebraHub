@@ -1,6 +1,6 @@
 "use client";
 
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { numero } from "@/lib/formato";
 
 export type ModoCurso = "faturamento" | "por_aluno";
@@ -38,7 +38,7 @@ export function PerformanceCurso({
               <span style={{ fontFamily: GROTESK, fontSize: 13.5, fontWeight: 700, color: i === 0 ? C.gold : C.text }}>{formatarValor(l[modo])}</span>
             </span>
           </div>
-          <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+          <div style={{ height: 5, borderRadius: 3, background: alfa("sup", 0.06), overflow: "hidden" }}>
             <div style={{ width: `${(l[modo] / max) * 100}%`, height: "100%", borderRadius: 3, background: i === 0 ? `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})` : `linear-gradient(90deg, ${C.goldBase}, ${C.gold})` }} />
           </div>
         </div>

@@ -22,7 +22,7 @@ import {
 import { useCategoria, usePeriodo } from "@/lib/periodo";
 import { CAT_GERAL, CAT_SYMPLA, noPeriodo, rotuloCat, tituloVazioFluxo } from "@/lib/dados";
 import { moeda, numero } from "@/lib/formato";
-import { AZUL_ANTERIOR, C } from "@/lib/tema";
+import { AZUL_ANTERIOR, C, alfa } from "@/lib/tema";
 
 /* ============ HUB COMERCIAL ============ */
 
@@ -283,7 +283,7 @@ export function HubComercial() {
         <div style={{
           display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
           padding: "7px 12px", marginBottom: 10, borderRadius: 9,
-          background: `${C.gold}0F`, border: `1px solid ${C.gold}33`,
+          background: alfa("gold", 0.06), border: `1px solid ${alfa("gold", 0.2)}`,
         }}>
           <span style={{ fontSize: 11.5, fontWeight: 800, color: C.gold }}>Geral · todas as categorias</span>
           <span style={{ fontSize: 10.5, color: C.faint }}>
@@ -411,7 +411,7 @@ export function HubComercial() {
             <LinhaPlacar key={p.consultor_id ?? p.consultora} p={p}
               onVerdes={() => setVerdesDe(String(p.consultora ?? ""))} />
           ))}
-          <div style={{ display: "flex", gap: 8, padding: "10px 20px", background: "rgba(255,255,255,.02)" }}>
+          <div style={{ display: "flex", gap: 8, padding: "10px 20px", background: alfa("sup", 0.02) }}>
             <AlertTriangle size={12} style={{ color: C.warn, marginTop: 2, flexShrink: 0 }} />
             <span style={{ fontSize: 10.5, color: C.faint, lineHeight: 1.5 }}>
               <b style={{ color: C.up }}>Verde</b> = venda 100% Pix, transferência ou dinheiro.{" "}

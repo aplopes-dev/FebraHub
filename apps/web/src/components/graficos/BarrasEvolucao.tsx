@@ -28,12 +28,14 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
     <>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
+          {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
+              resolve em atributo de apresentação — o elemento sairia sem pintura. */}
           <linearGradient id="gradBarEvol" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={C.goldTop} />
-            <stop offset="1" stopColor={C.goldBase} />
+            <stop offset="0" style={{ stopColor: C.goldTop }} />
+            <stop offset="1" style={{ stopColor: C.goldBase }} />
           </linearGradient>
           <pattern id="hachBarEvol" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" stroke={C.gold} strokeWidth="3" opacity="0.4" />
+            <line x1="0" y1="0" x2="0" y2="6" style={{ stroke: C.gold }} strokeWidth="3" opacity="0.4" />
           </pattern>
         </defs>
 
@@ -41,13 +43,15 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
           <g key={s.mes}>
             <rect
               x={cx(i) - bw / 2} y={y(s.valor)} width={bw} height={Math.max(0, base - y(s.valor))} rx="3"
-              fill={s.parcial ? "url(#hachBarEvol)" : "url(#gradBarEvol)"}
-              stroke={s.parcial ? C.gold : "none"}
+              style={{
+                fill: s.parcial ? "url(#hachBarEvol)" : "url(#gradBarEvol)",
+                stroke: s.parcial ? C.gold : "none",
+              }}
               strokeDasharray={s.parcial ? "4 3" : undefined}
               strokeWidth={s.parcial ? 1 : 0}
             />
             <text x={cx(i)} y={y(s.valor) - 6} fontSize="10" fontWeight="700" textAnchor="middle"
-              fill={s.parcial ? C.faint : C.bright} fontFamily={GROTESK}>
+              style={{ fill: s.parcial ? C.faint : C.bright }} fontFamily={GROTESK}>
               {compacto(s.valor)}
             </text>
           </g>
@@ -55,14 +59,14 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
 
         {temAnterior && (
           <>
-            <polyline points={ptsAnt.map((p) => p.join(",")).join(" ")} fill="none"
-              stroke={AZUL_ANTERIOR} strokeWidth="1.6" strokeDasharray="5 4" strokeLinecap="round" />
-            {ptsAnt.map(([x0, y0], i) => <circle key={i} cx={x0} cy={y0} r="2" fill={AZUL_ANTERIOR} />)}
+            <polyline points={ptsAnt.map((p) => p.join(",")).join(" ")} style={{ fill: "none", stroke: AZUL_ANTERIOR }}
+              strokeWidth="1.6" strokeDasharray="5 4" strokeLinecap="round" />
+            {ptsAnt.map(([x0, y0], i) => <circle key={i} cx={x0} cy={y0} r="2" style={{ fill: AZUL_ANTERIOR }} />)}
           </>
         )}
 
         {serie.map((s, i) => (
-          <text key={s.mes} x={cx(i)} y={H - 9} fontSize="10.5" textAnchor="middle" fill={C.faint} fontFamily={SANS}>
+          <text key={s.mes} x={cx(i)} y={H - 9} fontSize="10.5" textAnchor="middle" style={{ fill: C.faint }} fontFamily={SANS}>
             {mesCurto(s.mes)}
           </text>
         ))}

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Crown } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, SOBRE_OURO, alfa } from "@/lib/tema";
 import { moeda, numero } from "@/lib/formato";
 
 export interface ItemPodio {
@@ -27,8 +27,8 @@ export function CardPodio({ c, pos }: { c: ItemPodio; pos: number }) {
   const ex = c.atual === false; // ex-consultor: sem foto, marcado discreto
   return (
     <div style={{
-      background: primeiro ? `linear-gradient(150deg, ${C.gold}14, rgba(255,255,255,.02))` : C.card,
-      border: `1px solid ${primeiro ? `${C.gold}55` : C.cardLine}`,
+      background: primeiro ? `linear-gradient(150deg, ${alfa("gold", 0.08)}, ${alfa("sup", 0.02)})` : C.card,
+      border: `1px solid ${primeiro ? alfa("gold", 0.33) : C.cardLine}`,
       borderRadius: 12, padding: "12px 8px",
       display: "flex", flexDirection: "column", alignItems: "center", gap: 5, textAlign: "center",
       opacity: ex ? 0.78 : 1,
@@ -40,8 +40,8 @@ export function CardPodio({ c, pos }: { c: ItemPodio; pos: number }) {
           position: "absolute", bottom: -2, right: -2, minWidth: 18, height: 18, padding: "0 4px",
           borderRadius: 9, fontSize: 9.5, fontWeight: 800, fontFamily: GROTESK,
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: primeiro ? `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})` : "#22222a",
-          color: primeiro ? "#100c04" : C.muted,
+          background: primeiro ? `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})` : "var(--badge-fundo)",
+          color: primeiro ? SOBRE_OURO : C.muted,
           border: `1px solid ${primeiro ? C.goldTop : C.cardLine}`,
         }}>
           {pos}º

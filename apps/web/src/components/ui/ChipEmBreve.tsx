@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 /* KPI que ainda não tem fonte. Fica desenhado, esmaecido e com o motivo:
    escondê-lo apagaria a lacuna, e preenchê-lo seria inventar. */
@@ -9,11 +9,11 @@ export function ChipEmBreve({ Icone, label, nota }: { Icone: LucideIcon; label: 
   return (
     <div title={nota} style={{
       display: "flex", alignItems: "center", gap: 9, minHeight: 56,
-      background: "rgba(255,255,255,.015)", border: `1px dashed ${C.cardLine}`,
+      background: alfa("sup", 0.015), border: `1px dashed ${C.cardLine}`,
       borderRadius: 10, padding: "8px 11px",
     }}>
       <span style={{
-        width: 25, height: 25, flexShrink: 0, borderRadius: 7, background: "rgba(255,255,255,.04)",
+        width: 25, height: 25, flexShrink: 0, borderRadius: 7, background: alfa("sup", 0.04),
         color: C.dim, display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Icone size={13} />

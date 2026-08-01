@@ -3,26 +3,235 @@
    O app é feito de inline styles (paleta em src/lib/tema.ts). O que sobra
    aqui é o que inline style não alcança: reset, scrollbar, keyframes,
    pseudo-elementos e os grids responsivos por classe — que no protótipo
-   viviam em <style> injetado dentro do Shell e dos hubs. */
+   viviam em <style> injetado dentro do Shell e dos hubs.
+
+   ============ TEMAS ============
+   A paleta virou CUSTOM PROPERTY. src/lib/tema.ts só aponta para elas
+   (`C.gold === "var(--gold)"`), então trocar de tema é trocar o atributo
+   `data-tema` no <html> — sem re-render de componente nenhum.
+
+   Cada cor sólida publica DUAS variáveis: a cor (`--gold`) e os componentes
+   RGB soltos (`--gold-rgb`), porque `var()` não aceita concatenar os dois
+   dígitos de alpha do hex. Onde antes se colava "1F" no fim do token, agora
+   vai `rgb(var(--gold-rgb) / 0.12)` — é o que o helper `alfa()` monta.
+   Os tokens já translúcidos (--panel, --card, --card-line, --hair) não têm
+   par `-rgb`: são composições prontas, ninguém empilha alpha em cima. */
+
+:root {
+  /* ---- TEMA CLARO ---- */
+  color-scheme: light;
+
+  --void: #FAF8F5;             --void-rgb: 250 248 245;
+  --panel: rgba(255,255,255,.78);
+  --card: rgba(23,20,14,.030);
+  --card-line: rgba(23,20,14,.13);
+  --hair: rgba(23,20,14,.08);
+  --text: #1B1813;             --text-rgb: 27 24 19;
+  --bright: #0E0C09;           --bright-rgb: 14 12 9;
+  --muted: #5C5A60;            --muted-rgb: 92 90 96;
+  --faint: #67656C;            --faint-rgb: 103 101 108;
+  --dim: #6B6970;              --dim-rgb: 107 105 112;
+
+  /* O dourado do produto tem 1.9:1 sobre branco — ilegível como TEXTO no
+     tema claro. Então o token se divide por papel: `--gold` (texto, ícone,
+     borda, linha de gráfico) escurece; `--gold-top`/`--gold-base` NÃO, porque
+     são fundo de botão/barra com texto escuro por cima (8.9:1) e são a
+     identidade visual do painel. Ver `--gold-top` no bloco comum abaixo. */
+  --gold: #8A6A1E;             --gold-rgb: 138 106 30;
+
+  --down: #C0392B;             --down-rgb: 192 57 43;
+  --up: #17784A;               --up-rgb: 23 120 74;
+  --warn: #8A6410;             --warn-rgb: 138 100 16;
+
+  /* Superfície translúcida genérica (as dezenas de rgba(255,255,255,.0x) do
+     protótipo). No claro o véu é escuro, senão some no fundo. */
+  --sup-rgb: 23 20 14;
+
+  --azul: #2A6FB5;             /* linha de meta e do ano anterior */
+  --verde-forte: #128046;      /* meta máster, distinto do verde da básica */
+  --roxo: #7A4FA8;             /* 5ª fatia da quebra por fonte */
+  --icone: #55535A;            /* ícone neutro (sino, chip não-hero) */
+  --sem-status: #9A979F;       /* fatia "Sem status" do donut de pagamento */
+
+  /* Gradiente da 2ª barra em diante (Receita por categoria): é FUNDO de
+     barra, então segue dourado nos dois temas, como --gold-top/--gold-base. */
+  --gold-dim-top: #d9b866;
+  --gold-dim-base: #7d6634;
+
+  /* Avatar de fallback (iniciais em --gold sobre o gradiente). No claro o
+     gradiente clareia junto, senão o dourado escuro fica ilegível nele. */
+  --avatar-top: #EFEBE3;
+  --avatar-base: #DFDAD0;
+
+  --pop-fundo: #FFFFFF;        /* popover e tooltip */
+  --modal-fundo: #FFFFFF;
+  --drawer-fundo: #FFFFFF;
+  --badge-fundo: #E8E5DF;      /* selo de posição fora do 1º lugar */
+
+  --veu-modal: rgba(23,20,14,.38);
+  --veu-drawer: rgba(23,20,14,.32);
+
+  /* Sombras: no claro precisam ser bem mais suaves, senão viram borrão. */
+  --sombra-popover: 0 10px 28px rgba(23,20,14,.13);
+  --sombra-tooltip: 0 12px 32px rgba(23,20,14,.15);
+  --sombra-drawer: -18px 0 48px rgba(23,20,14,.13);
+  --sombra-modal: 0 24px 64px rgba(23,20,14,.18);
+
+  --brilho-fundo: rgb(var(--gold-rgb) / .06);   /* mais fraco: no claro .07 já borra */
+  --selecao: rgba(138,106,30,.20);
+  --scroll-thumb: rgba(23,20,14,.16);
+  /* Hachura de "parcial": no claro precisa de mais corpo pra continuar
+     visível sobre o fundo quase branco (.3 contra os .22 do escuro). */
+  --hachura: rgb(var(--gold-rgb) / .3);
+}
+
+/* Sem escolha salva, o sistema decide. O bloco repete os valores do tema
+   escuro de propósito: media query não entra em lista de seletores.
+   MEXEU AQUI? Mexa também em :root[data-tema="escuro"] logo abaixo. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema]) {
+    color-scheme: dark;
+
+    --void: #08080A;             --void-rgb: 8 8 10;
+    --panel: rgba(14,14,16,.72);
+    --card: rgba(255,255,255,.028);
+    --card-line: rgba(255,255,255,.08);
+    --hair: rgba(255,255,255,.05);
+    --text: #F5F3EE;             --text-rgb: 245 243 238;
+    --bright: #EDEBE4;           --bright-rgb: 237 235 228;
+    --muted: #8B8B90;            --muted-rgb: 139 139 144;
+    --faint: #6A6A70;            --faint-rgb: 106 106 112;
+    --dim: #5B5B62;              --dim-rgb: 91 91 98;
+    --gold: #E4C06A;             --gold-rgb: 228 192 106;
+    --down: #E06C75;             --down-rgb: 224 108 117;
+    --up: #6FCF97;               --up-rgb: 111 207 151;
+    --warn: #E6B04D;             --warn-rgb: 230 176 77;
+
+    --sup-rgb: 255 255 255;
+
+    --azul: #6BA8E5;
+    --verde-forte: #3DBE6B;
+    --roxo: #B98AD9;
+    --icone: #C9C9CE;
+    --sem-status: #55555c;
+
+    --avatar-top: #3a3a40;
+    --avatar-base: #1c1c20;
+
+    --pop-fundo: #15151a;
+    --modal-fundo: #141418;
+    --drawer-fundo: #101014;
+    --badge-fundo: #22222a;
+
+    --veu-modal: rgba(0,0,0,.62);
+    --veu-drawer: rgba(0,0,0,.55);
+
+    --sombra-popover: 0 12px 32px rgba(0,0,0,.5);
+    --sombra-tooltip: 0 12px 32px rgba(0,0,0,.55);
+    --sombra-drawer: -18px 0 48px rgba(0,0,0,.5);
+    --sombra-modal: 0 24px 64px rgba(0,0,0,.6);
+
+    --brilho-fundo: rgb(var(--gold-rgb) / .07);
+    --selecao: #E4C06A47;
+    --scroll-thumb: rgba(255,255,255,.09);
+    --hachura: rgb(var(--gold-rgb) / .22);
+  }
+}
+
+/* ---- TEMA ESCURO (escolha explícita) ----
+   É o painel histórico: todo valor daqui tem que continuar idêntico ao que
+   estava chumbado nos componentes antes do tema claro existir. */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+
+  --void: #08080A;             --void-rgb: 8 8 10;
+  --panel: rgba(14,14,16,.72);
+  --card: rgba(255,255,255,.028);
+  --card-line: rgba(255,255,255,.08);
+  --hair: rgba(255,255,255,.05);
+  --text: #F5F3EE;             --text-rgb: 245 243 238;
+  --bright: #EDEBE4;           --bright-rgb: 237 235 228;
+  --muted: #8B8B90;            --muted-rgb: 139 139 144;
+  --faint: #6A6A70;            --faint-rgb: 106 106 112;
+  --dim: #5B5B62;              --dim-rgb: 91 91 98;
+  --gold: #E4C06A;             --gold-rgb: 228 192 106;
+  --down: #E06C75;             --down-rgb: 224 108 117;
+  --up: #6FCF97;               --up-rgb: 111 207 151;
+  --warn: #E6B04D;             --warn-rgb: 230 176 77;
+
+  --sup-rgb: 255 255 255;
+
+  --azul: #6BA8E5;
+  --verde-forte: #3DBE6B;
+  --roxo: #B98AD9;
+  --icone: #C9C9CE;
+  --sem-status: #55555c;
+
+  --avatar-top: #3a3a40;
+  --avatar-base: #1c1c20;
+
+  --pop-fundo: #15151a;
+  --modal-fundo: #141418;
+  --drawer-fundo: #101014;
+  --badge-fundo: #22222a;
+
+  --veu-modal: rgba(0,0,0,.62);
+  --veu-drawer: rgba(0,0,0,.55);
+
+  --sombra-popover: 0 12px 32px rgba(0,0,0,.5);
+  --sombra-tooltip: 0 12px 32px rgba(0,0,0,.55);
+  --sombra-drawer: -18px 0 48px rgba(0,0,0,.5);
+  --sombra-modal: 0 24px 64px rgba(0,0,0,.6);
+
+  --brilho-fundo: rgb(var(--gold-rgb) / .07);
+  --selecao: #E4C06A47;
+  --scroll-thumb: rgba(255,255,255,.09);
+  --hachura: rgb(var(--gold-rgb) / .22);
+}
+
+/* Tokens que NÃO mudam com o tema. */
+:root {
+  /* Fundo do dourado é sempre dourado claro: o botão/barra dourada é a
+     identidade do produto e o texto por cima é `--sobre-ouro`. */
+  --gold-top: #F2D488;         --gold-top-rgb: 242 212 136;
+  --gold-base: #B8934A;        --gold-base-rgb: 184 147 74;
+  --sobre-ouro: #100c04;       /* texto/ícone sobre fundo dourado */
+  --sobre-ouro-2: #1A1305;     /* variante do BotaoSalvar */
+
+  /* Fundo da página (Shell e Login) — o brilho dourado é que muda de tema. */
+  --fundo-app: radial-gradient(1200px 600px at 78% -10%, var(--brilho-fundo), transparent 60%), var(--void);
+}
 
 html, body {
   margin: 0;
   min-height: 100%;
-  background: #08080A;
+  background: var(--void);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body { background: #08080A; -webkit-font-smoothing: antialiased; }
+body { background: var(--void); -webkit-font-smoothing: antialiased; }
 
-::selection { background: #E4C06A47; }
+::selection { background: var(--selecao); }
 
-input::placeholder { color: #5B5B62; }
+input::placeholder { color: var(--dim); }
 
-button:focus-visible, input:focus-visible { outline: 2px solid #E4C06A; outline-offset: 2px; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .rolagem::-webkit-scrollbar { width: 9px; }
-.rolagem::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 20px; }
+.rolagem::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
+
+/* Ícone do botão de tema: quem manda é o CSS, não o estado do React. Se o
+   ícone dependesse de useState, ele piscaria entre o HTML do servidor
+   (que não sabe o tema) e a hidratação. */
+.so-claro, .so-escuro { display: inline-flex; }
+.so-claro { display: none; }                                   /* escuro é o default */
+:root[data-tema="claro"] .so-claro { display: inline-flex; }
+:root[data-tema="claro"] .so-escuro { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema]) .so-claro { display: inline-flex; }
+  :root:not([data-tema]) .so-escuro { display: none; }
+}
 
 @keyframes girar { to { transform: rotate(360deg); } }
 @keyframes subir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

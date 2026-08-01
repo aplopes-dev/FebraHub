@@ -8,7 +8,7 @@ import { EV_ORDEM, EV_ROTULO, parseCSVEvento } from "./parsers";
 import { salvarAvaliacao } from "@/services/api/pedagogico";
 import { dataCurta } from "@/lib/dados";
 import { nota1 } from "@/lib/formato";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 /* Eventos — anexar CSV do Make Forms. Lido como UTF-8. As respostas são escala
    1-5 em texto ("5 — Definitivamente sim") — pegamos o 1º dígito. Casa colunas
@@ -58,7 +58,7 @@ export function FormAvaliacaoEvento({ onSalvo }: { onSalvo: () => void }) {
         <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
       </div>
       {previa && (
-        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
+        <div style={{ background: alfa("sup", 0.03), border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
           {achou ? (
             <>
               <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>

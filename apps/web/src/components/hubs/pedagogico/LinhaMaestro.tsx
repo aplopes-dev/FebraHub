@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { C, GROTESK, corStatus } from "@/lib/tema";
+import { C, GROTESK, alfaDe, corStatus } from "@/lib/tema";
 import { dataCurta } from "@/lib/dados";
 import { fmtPct, moeda, numero } from "@/lib/formato";
 import type { Maestro } from "@/types/views";
@@ -19,12 +19,12 @@ export function LinhaMaestro({ m, onEditar }: { m: Maestro; onEditar: (m: Maestr
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       padding: "9px 20px", borderBottom: `1px solid ${C.hair}`,
-      background: acao ? `${cor}12` : "transparent",
+      background: acao ? alfaDe(cor, 0.07) : "transparent",
     }}>
       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
         {m.status_maestria && (
           <span title={m.vence_em ? `Maestria vence em ${dataCurta(m.vence_em)}` : m.status_maestria}
-            style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".2px", padding: "2px 8px", borderRadius: 999, color: cor, background: `${cor}1A`, border: `1px solid ${cor}44`, whiteSpace: "nowrap", flexShrink: 0 }}>
+            style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".2px", padding: "2px 8px", borderRadius: 999, color: cor, background: alfaDe(cor, 0.1), border: `1px solid ${alfaDe(cor, 0.27)}`, whiteSpace: "nowrap", flexShrink: 0 }}>
             {m.status_maestria}
           </span>
         )}

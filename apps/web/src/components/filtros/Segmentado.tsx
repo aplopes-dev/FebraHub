@@ -1,6 +1,6 @@
 "use client";
 
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 
 export interface OpcaoSegmento<T> {
   key: T;
@@ -23,14 +23,14 @@ export function Segmentado<T>({
           {label}
         </span>
       )}
-      <div style={{ display: "flex", gap: 2, background: "rgba(255,255,255,.04)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 3 }}>
+      <div style={{ display: "flex", gap: 2, background: alfa("sup", 0.04), border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 3 }}>
         {opcoes.map((o) => {
           const ativo = o.key === valor;
           return (
             <button key={String(o.key)} onClick={() => onChange(o.key)} aria-pressed={ativo} style={{
               fontFamily: SANS, fontSize: 11, fontWeight: 700, padding: "5px 9px",
               borderRadius: 7, border: "none", cursor: "pointer", whiteSpace: "nowrap",
-              background: ativo ? `${C.gold}1F` : "transparent",
+              background: ativo ? alfa("gold", 0.12) : "transparent",
               color: ativo ? C.gold : C.muted,
             }}>
               {o.label}

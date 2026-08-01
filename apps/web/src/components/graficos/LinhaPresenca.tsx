@@ -1,7 +1,7 @@
 "use client";
 
 import { Estado } from "@/components/ui/Estado";
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 
 export interface PontoPresenca {
   rotulo: string;
@@ -40,17 +40,19 @@ export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
         const yy = y(v);
         return (
           <g key={i}>
-            <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" />
-            <text x={padL - 8} y={yy + 3.5} fontSize="10.5" textAnchor="end" fill={C.faint} fontFamily={SANS}>{v}%</text>
+            {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)`
+                não resolve em atributo de apresentação. */}
+            <line x1={padL} y1={yy} x2={W - padR} y2={yy} style={{ stroke: alfa("sup", 0.06) }} />
+            <text x={padL - 8} y={yy + 3.5} fontSize="10.5" textAnchor="end" style={{ fill: C.faint }} fontFamily={SANS}>{v}%</text>
           </g>
         );
       })}
-      {confIdx.length > 1 && <polyline points={linha} fill="none" stroke={C.up} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+      {confIdx.length > 1 && <polyline points={linha} style={{ fill: "none", stroke: C.up }} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
       {serie.map((p, i) => (p.pequena
-        ? <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.6" fill="none" stroke={C.faint} strokeWidth="1.2" />
-        : <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.8" fill={C.up} />))}
+        ? <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.6" style={{ fill: "none", stroke: C.faint }} strokeWidth="1.2" />
+        : <circle key={i} cx={x(i)} cy={y(p.taxa)} r="2.8" style={{ fill: C.up }} />))}
       {xi.map((i) => (
-        <text key={i} x={x(i)} y={H - 9} fontSize="10" textAnchor="middle" fill={C.faint} fontFamily={SANS}>{serie[i].rotulo}</text>
+        <text key={i} x={x(i)} y={H - 9} fontSize="10" textAnchor="middle" style={{ fill: C.faint }} fontFamily={SANS}>{serie[i].rotulo}</text>
       ))}
     </svg>
   );

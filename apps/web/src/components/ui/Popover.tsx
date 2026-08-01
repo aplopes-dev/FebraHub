@@ -19,9 +19,9 @@ export function Popover({
       <div onClick={onFechar} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
       <div className="rolagem" style={{
         position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 41,
-        background: "#15151a", border: `1px solid ${C.cardLine}`, borderRadius: 10,
+        background: "var(--pop-fundo)", border: `1px solid ${C.cardLine}`, borderRadius: 10,
         padding: 4, minWidth: largura, maxHeight: 264, overflowY: "auto",
-        boxShadow: "0 12px 32px rgba(0,0,0,.5)",
+        boxShadow: "var(--sombra-popover)",
       }}>
         {children}
       </div>

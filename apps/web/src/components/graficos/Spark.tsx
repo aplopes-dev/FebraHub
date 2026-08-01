@@ -15,7 +15,9 @@ export function Spark({ serie, cor }: { serie?: readonly PontoSpark[] | null; co
   const pts = serie.map((s, i) => `${i * step},${18 - ((s.valor - min) / r) * 15}`);
   return (
     <svg width="52" height="20" viewBox="0 0 52 20">
-      <polyline points={pts.join(" ")} fill="none" stroke={cor} strokeWidth="2" strokeLinecap="round" />
+      {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
+          resolve em atributo de apresentação — a linha sairia invisível. */}
+      <polyline points={pts.join(" ")} style={{ fill: "none", stroke: cor }} strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 export interface ChipKpiProps {
   Icone: LucideIcon;
@@ -25,14 +25,14 @@ export function ChipKpi({ Icone, label, valor, unidade, delta, up, nota, hero, c
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: compacto ? 9 : 12, minHeight: compacto ? 56 : 78,
-      background: "rgba(255,255,255,.03)",
-      border: `1px solid ${hero ? `${C.gold}38` : C.cardLine}`,
+      background: alfa("sup", 0.03),
+      border: `1px solid ${hero ? alfa("gold", 0.22) : C.cardLine}`,
       borderRadius: compacto ? 10 : 13, padding: compacto ? "8px 11px" : "13px 15px",
     }}>
       <span style={{
         width: compacto ? 25 : 30, height: compacto ? 25 : 30, flexShrink: 0, borderRadius: compacto ? 7 : 8,
-        background: hero ? `${C.gold}24` : "rgba(255,255,255,.05)",
-        color: hero ? C.gold : "#C9C9CE",
+        background: hero ? alfa("gold", 0.14) : alfa("sup", 0.05),
+        color: hero ? C.gold : "var(--icone)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Icone size={compacto ? 13 : 15} />

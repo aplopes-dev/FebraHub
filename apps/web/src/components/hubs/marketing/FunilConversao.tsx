@@ -1,7 +1,7 @@
 "use client";
 
 import { Construction } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, SOBRE_OURO, alfa } from "@/lib/tema";
 import { numero } from "@/lib/formato";
 
 /* Funil desenhado, não medido. Só "Leads gerados" tem número: as etapas
@@ -26,13 +26,13 @@ export function FunilConversao({ leads }: { leads: number }) {
               width: `${e.larg}%`, minWidth: 92, height: 34, borderRadius: 8,
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "0 12px", gap: 10,
-              background: real ? `linear-gradient(90deg, ${C.goldBase}, ${C.gold})` : "rgba(255,255,255,.025)",
+              background: real ? `linear-gradient(90deg, ${C.goldBase}, ${C.gold})` : alfa("sup", 0.025),
               border: real ? "none" : `1px dashed ${C.cardLine}`,
             }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: real ? "#100c04" : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: real ? SOBRE_OURO : C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {e.nome}
               </span>
-              <span style={{ fontFamily: GROTESK, fontSize: real ? 14 : 11.5, fontWeight: 700, color: real ? "#100c04" : C.dim, flexShrink: 0, fontStyle: real ? "normal" : "italic" }}>
+              <span style={{ fontFamily: GROTESK, fontSize: real ? 14 : 11.5, fontWeight: 700, color: real ? SOBRE_OURO : C.dim, flexShrink: 0, fontStyle: real ? "normal" : "italic" }}>
                 {real ? numero(leads) : "sem medição"}
               </span>
             </div>

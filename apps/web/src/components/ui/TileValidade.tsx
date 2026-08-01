@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa, alfaDe } from "@/lib/tema";
 
 // Contador de validade com número colorido — mesma altura do ChipKpi compacto.
 export function TileValidade({
@@ -15,8 +15,8 @@ export function TileValidade({
   nota?: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, minHeight: 56, background: "rgba(255,255,255,.03)", border: `1px solid ${cor}33`, borderRadius: 10, padding: "8px 11px" }}>
-      <span style={{ width: 25, height: 25, borderRadius: 7, background: `${cor}1E`, color: cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 9, minHeight: 56, background: alfa("sup", 0.03), border: `1px solid ${alfaDe(cor, 0.2)}`, borderRadius: 10, padding: "8px 11px" }}>
+      <span style={{ width: 25, height: 25, borderRadius: 7, background: alfaDe(cor, 0.12), color: cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <Icone size={13} />
       </span>
       <div style={{ minWidth: 0 }}>

@@ -21,7 +21,7 @@ import {
 import { usePeriodo } from "@/lib/periodo";
 import { ehSemVinculo, noPeriodo, porHorizonte, serieMensal, somarPor, tituloVazioFluxo } from "@/lib/dados";
 import { moeda } from "@/lib/formato";
-import { ALTURA_PAINEL, C, PALETA_FORMAS } from "@/lib/tema";
+import { ALTURA_PAINEL, C, PALETA_FORMAS, alfa } from "@/lib/tema";
 
 // Miolo do donut de formas: rótulo curto (último token), pra não vazar do
 // centro. O nome completo fica na legenda ao lado. "Cartão/PIX CisPay" → "CisPay".
@@ -138,7 +138,7 @@ export function HubFinanceiro() {
     { rotulo: "Pago", valor: pagTot.pagos, cor: C.up },
     { rotulo: "Em aberto", valor: pagTot.pend, cor: C.warn },
     { rotulo: "Negado", valor: pagTot.perd, cor: C.down },
-    { rotulo: "Sem status", valor: pagTot.sem, cor: "#55555c" },
+    { rotulo: "Sem status", valor: pagTot.sem, cor: "var(--sem-status)" },
   ];
   const pctPagoCentro = pagTot.tot ? Math.round((pagTot.pagos / pagTot.tot) * 100) : 0;
   const ticket = categorias.vendasTot ? categorias.total / categorias.vendasTot : null;
@@ -243,7 +243,7 @@ export function HubFinanceiro() {
             vazioDica={`Nenhuma despesa com data entre ${inicio} e ${fim}. Troque o período no topo.`}
           >
             <Lista linhas={despesas} total={despesaTot} top={6} />
-            <div style={{ display: "flex", gap: 8, padding: "10px 20px", background: "rgba(255,255,255,.02)" }}>
+            <div style={{ display: "flex", gap: 8, padding: "10px 20px", background: alfa("sup", 0.02) }}>
               <AlertTriangle size={12} style={{ color: C.warn, marginTop: 2, flexShrink: 0 }} />
               <span style={{ fontSize: 10.5, color: C.faint, lineHeight: 1.5 }}>
                 Total = despesa lançada. Já pago: <b style={{ color: C.muted }}>{moeda(despesaPaga)}</b>

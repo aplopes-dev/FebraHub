@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfaDe } from "@/lib/tema";
 import { emNDias } from "@/lib/dados";
 import type { TurmaPainel } from "@/types/views";
 
@@ -23,7 +23,7 @@ export function FaixaPendencias({
         return (
           <button key={t.turma_id} onClick={() => onAbrir(t)} style={{
             display: "flex", alignItems: "center", gap: 9, textAlign: "left", cursor: "pointer",
-            background: `${cor}12`, border: `1px solid ${cor}44`, borderRadius: 12, padding: "10px 13px",
+            background: alfaDe(cor, 0.07), border: `1px solid ${alfaDe(cor, 0.27)}`, borderRadius: 12, padding: "10px 13px",
             color: C.text, fontFamily: SANS, minWidth: 220, flex: "1 1 220px", maxWidth: 340,
           }}>
             <AlertTriangle size={16} style={{ color: cor, flexShrink: 0 }} />

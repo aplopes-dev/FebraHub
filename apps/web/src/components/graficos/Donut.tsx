@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 export interface SegmentoDonut {
   rotulo: string;
@@ -28,10 +28,12 @@ export function Donut({
     <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 0 }}>
       <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,.05)" strokeWidth={stroke} />
+          {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
+              resolve em atributo de apresentação — a fatia sairia sem pintura. */}
+          <circle cx={size / 2} cy={size / 2} r={r} style={{ fill: "none", stroke: alfa("sup", 0.05) }} strokeWidth={stroke} />
           {total > 0 && segmentos.map((s, i) => {
             const dash = (s.valor / total) * circ;
-            const c = <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.cor}
+            const c = <circle key={i} cx={size / 2} cy={size / 2} r={r} style={{ fill: "none", stroke: s.cor }}
               strokeWidth={stroke} strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={-acc} />;
             acc += dash;
             return c;
@@ -46,7 +48,7 @@ export function Donut({
         {segmentos.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <span style={{ width: 9, height: 9, borderRadius: 3, background: s.cor, flexShrink: 0 }} />
-            <span style={{ fontSize: 12.5, color: "#C9C9CE", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.rotulo}</span>
+            <span style={{ fontSize: 12.5, color: "var(--icone)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.rotulo}</span>
             <span style={{ fontFamily: GROTESK, fontSize: 13, fontWeight: 700, color: C.text }}>{total > 0 ? Math.round((s.valor / total) * 100) : 0}%</span>
           </div>
         ))}

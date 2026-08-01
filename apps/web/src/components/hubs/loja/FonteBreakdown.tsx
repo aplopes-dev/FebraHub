@@ -1,6 +1,6 @@
 "use client";
 
-import { C, CORES_FONTE } from "@/lib/tema";
+import { C, CORES_FONTE, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 
 export interface FonteReceita {
@@ -17,7 +17,7 @@ export function FonteBreakdown({ fontes }: { fontes: readonly FonteReceita[] }) 
   if (!total) return null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      <div style={{ display: "flex", height: 9, borderRadius: 5, overflow: "hidden", background: "rgba(255,255,255,.05)" }}>
+      <div style={{ display: "flex", height: 9, borderRadius: 5, overflow: "hidden", background: alfa("sup", 0.05) }}>
         {fontes.map((f, i) => (
           <div key={f.fonte} title={`${f.fonte} · ${moeda(f.valor)} · ${f.pct.toFixed(0)}%`}
             style={{ width: `${f.pct}%`, background: CORES_FONTE[i % CORES_FONTE.length] }} />

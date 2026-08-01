@@ -1,7 +1,7 @@
 "use client";
 
 import { Estado } from "@/components/ui/Estado";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { numero } from "@/lib/formato";
 
 export interface LinhaRankingCurso {
@@ -35,7 +35,7 @@ export function RankingCurso({
               <span style={{ fontFamily: GROTESK, fontSize: 13.5, fontWeight: 700, color: cor }}>{l.valor.toFixed(0)}%</span>
             </span>
           </div>
-          <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+          <div style={{ height: 5, borderRadius: 3, background: alfa("sup", 0.06), overflow: "hidden" }}>
             <div style={{ width: `${(l.valor / max) * 100}%`, height: "100%", borderRadius: 3, background: cor }} />
           </div>
         </div>

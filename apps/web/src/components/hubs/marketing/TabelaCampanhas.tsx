@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { moeda, numero, reaisCent } from "@/lib/formato";
 
 export interface CampanhaLinha {
@@ -73,7 +73,7 @@ export function TabelaCampanhas({ grupos }: { grupos: readonly GrupoCampanha[] }
                 style={{
                   display: "grid", gridTemplateColumns: cols, gap: 10, alignItems: "center",
                   padding: "9px 20px", borderBottom: `1px solid ${C.hair}`, cursor: "pointer",
-                  background: aberto ? "rgba(255,255,255,.022)" : "transparent",
+                  background: aberto ? alfa("sup", 0.022) : "transparent",
                 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   {aberto ? <ChevronUp size={13} style={{ color: C.gold, flexShrink: 0 }} /> : <ChevronDown size={13} style={{ color: C.faint, flexShrink: 0 }} />}
@@ -96,7 +96,7 @@ export function TabelaCampanhas({ grupos }: { grupos: readonly GrupoCampanha[] }
                 <div key={c.nome} style={{
                   display: "grid", gridTemplateColumns: cols, gap: 10, alignItems: "center",
                   padding: "7px 20px 7px 40px", borderBottom: `1px solid ${C.hair}`,
-                  background: "rgba(255,255,255,.012)",
+                  background: alfa("sup", 0.012),
                 }}>
                   <span style={{ fontSize: 11.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.nome}>{c.nome}</span>
                   <span style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.categoria}>{c.categoria}</span>

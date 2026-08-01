@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Delta } from "./Delta";
 import { Spark, type PontoSpark } from "@/components/graficos/Spark";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfaDe } from "@/lib/tema";
 
 export interface KpiProps {
   label: ReactNode;
@@ -19,7 +19,7 @@ export interface KpiProps {
 }
 
 export function Kpi({ label, valor, unidade, delta, up, serie, nota, destaque, parcial }: KpiProps) {
-  const borda = destaque ? `1px solid ${destaque}44` : `1px solid ${C.cardLine}`;
+  const borda = destaque ? `1px solid ${alfaDe(destaque, 0.27)}` : `1px solid ${C.cardLine}`;
   return (
     <div style={{ background: C.card, border: borda, borderRadius: 15, padding: 18 }}>
       <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 11 }}>{label}</div>

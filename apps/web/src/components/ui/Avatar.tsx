@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { C } from "@/lib/tema";
+import { C, alfa } from "@/lib/tema";
 
 /* Foto da consultora. O PNG já vem circular e com moldura dourada própria,
    então nada de borda/recorte extra — só dimensiona. Se a imagem falhar ou
@@ -18,8 +18,8 @@ export function Avatar({ url, nome, tam = 64 }: { url?: string | null; nome?: st
     return (
       <div style={{
         width: tam, height: tam, borderRadius: "50%", flexShrink: 0,
-        background: "linear-gradient(150deg,#3a3a40,#1c1c20)",
-        border: `1px solid ${C.gold}66`, color: C.gold,
+        background: "linear-gradient(150deg, var(--avatar-top), var(--avatar-base))",
+        border: `1px solid ${alfa("gold", 0.4)}`, color: C.gold,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontWeight: 700, fontSize: Math.round(tam * 0.34),
       }}>

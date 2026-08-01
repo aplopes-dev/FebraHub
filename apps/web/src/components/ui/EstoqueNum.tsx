@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 /* Número de estoque. `alerta` pinta em vermelho. `compacto` é a faixa
    horizontal do card de estoque: ícone + "Rótulo · Valor · detalhe" numa
@@ -22,12 +22,12 @@ export function EstoqueNum({
     return (
       <div style={{
         display: "flex", alignItems: "center", gap: 11,
-        background: "rgba(255,255,255,.03)",
-        border: `1px solid ${alerta ? `${C.down}44` : C.cardLine}`, borderRadius: 11, padding: "10px 13px",
+        background: alfa("sup", 0.03),
+        border: `1px solid ${alerta ? alfa("down", 0.27) : C.cardLine}`, borderRadius: 11, padding: "10px 13px",
       }}>
         <span style={{
           width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-          background: alerta ? `${C.down}1e` : `${C.gold}18`, color: cor,
+          background: alerta ? alfa("down", 0.12) : alfa("gold", 0.09), color: cor,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <Icone size={15} />
@@ -43,13 +43,13 @@ export function EstoqueNum({
   }
   return (
     <div style={{
-      flex: 1, minWidth: 150, background: "rgba(255,255,255,.03)",
-      border: `1px solid ${alerta ? `${C.down}44` : C.cardLine}`, borderRadius: 13, padding: "16px 18px",
+      flex: 1, minWidth: 150, background: alfa("sup", 0.03),
+      border: `1px solid ${alerta ? alfa("down", 0.27) : C.cardLine}`, borderRadius: 13, padding: "16px 18px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{
           width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-          background: alerta ? `${C.down}1e` : `${C.gold}18`, color: cor,
+          background: alerta ? alfa("down", 0.12) : alfa("gold", 0.09), color: cor,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <Icone size={15} />

@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Lock, Mail, ShieldAlert } from "lucide-react";
 import { CHAVE_SESSAO } from "@/hooks/auth";
 import { entrar } from "@/services/api/auth";
-import { C, GROTESK, SANS } from "@/lib/tema";
+import { C, FUNDO_APP, GROTESK, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
 
 /* ============ LOGIN ============ */
 
@@ -35,14 +35,14 @@ export function Login() {
   const campo: CSSProperties = {
     width: "100%", padding: "11px 13px 11px 38px", fontSize: 13.5,
     borderRadius: 10, border: `1px solid ${C.cardLine}`,
-    background: "rgba(255,255,255,.04)", color: C.text,
+    background: alfa("sup", 0.04), color: C.text,
     outline: "none", fontFamily: SANS, fontWeight: 500,
   };
 
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-      background: `radial-gradient(1200px 600px at 78% -10%, ${C.gold}12, transparent 60%), ${C.void}`,
+      background: FUNDO_APP,
       fontFamily: SANS, color: C.text,
     }}>
       <div style={{ width: "100%", maxWidth: 380, animation: "subir .5s ease" }}>
@@ -53,7 +53,7 @@ export function Login() {
             alt="Febracis"
             width={62}
             height={62}
-            style={{ marginBottom: 16, filter: `drop-shadow(0 6px 22px ${C.gold}30)` }}
+            style={{ marginBottom: 16, filter: `drop-shadow(0 6px 22px ${alfa("gold", 0.19)})` }}
           />
           <div style={{ fontFamily: GROTESK, fontSize: 27, fontWeight: 700, letterSpacing: "-.4px" }}>
             FebraHub
@@ -64,7 +64,7 @@ export function Login() {
         </div>
 
         <div style={{
-          background: "rgba(14,14,16,.72)", border: `1px solid ${C.cardLine}`,
+          background: C.panel, border: `1px solid ${C.cardLine}`,
           borderRadius: 18, padding: 26, backdropFilter: "blur(8px)",
         }}>
           <label style={{ display: "block", fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", marginBottom: 8 }}>
@@ -96,7 +96,7 @@ export function Login() {
           <button onClick={submeter} disabled={indo || !email || !senha}
             style={{
               width: "100%", padding: "12px", fontSize: 13.5, fontWeight: 800, borderRadius: 10,
-              background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})`, color: "#100c04",
+              background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})`, color: SOBRE_OURO,
               border: "none", cursor: indo ? "default" : "pointer",
               opacity: indo || !email || !senha ? 0.45 : 1, fontFamily: SANS,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,

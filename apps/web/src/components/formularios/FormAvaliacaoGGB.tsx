@@ -6,7 +6,7 @@ import { inputAv, labelAv } from "@/components/ui/estilos";
 import { GGB_CAMPOS, GGB_ROTULO, parseGGB } from "./parsers";
 import { salvarAvaliacao } from "@/services/api/pedagogico";
 import { nota1 } from "@/lib/formato";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 
 /* GGB — colar o bloco de respostas. Parser mostra a prévia (8 médias + nota da
    treinadora + respondentes) antes de gravar; só insere no fato_avaliacao ao
@@ -47,7 +47,7 @@ export function FormAvaliacaoGGB({ onSalvo }: { onSalvo: () => void }) {
         <div><label style={labelAv}>Turma (opcional)</label><input style={inputAv} value={turma} onChange={(e) => setTurma(e.target.value)} /></div>
       </div>
       {previa && previa.respondentes > 0 && (
-        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
+        <div style={{ background: alfa("sup", 0.03), border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
           <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
             Prévia · {previa.respondentes} {previa.respondentes === 1 ? "respondente" : "respondentes"}
           </div>

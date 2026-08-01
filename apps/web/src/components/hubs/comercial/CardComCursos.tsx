@@ -37,9 +37,9 @@ export function CardComCursos({ c, pos, cursos }: { c: ItemPodio; pos: number; c
         <div style={{
           position: "fixed", left: ancora.x, top: ancora.y, transform: "translateX(-50%)",
           zIndex: 60, pointerEvents: "none",
-          background: "#15151a", border: `1px solid ${C.cardLine}`, borderRadius: 10,
+          background: "var(--pop-fundo)", border: `1px solid ${C.cardLine}`, borderRadius: 10,
           padding: "9px 11px", minWidth: 220, maxWidth: 300,
-          boxShadow: "0 12px 32px rgba(0,0,0,.55)",
+          boxShadow: "var(--sombra-tooltip)",
         }}>
           <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold, marginBottom: 5 }}>
             Top cursos · {c.consultora}

@@ -2,7 +2,7 @@
 
 import { ArrowUpRight, Smile, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 
 export interface VendaVerde {
@@ -30,11 +30,11 @@ export function PainelVerdes({
 }) {
   return (
     <>
-      <div onClick={onFechar} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,.55)" }} />
+      <div onClick={onFechar} style={{ position: "fixed", inset: 0, zIndex: 70, background: "var(--veu-drawer)" }} />
       <div className="rolagem" style={{
         position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 71, width: "min(560px, 94vw)",
-        background: "#101014", borderLeft: `1px solid ${C.cardLine}`,
-        boxShadow: "-18px 0 48px rgba(0,0,0,.5)", display: "flex", flexDirection: "column",
+        background: "var(--drawer-fundo)", borderLeft: `1px solid ${C.cardLine}`,
+        boxShadow: "var(--sombra-drawer)", display: "flex", flexDirection: "column",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 20px", borderBottom: `1px solid ${C.hair}`, flexShrink: 0 }}>
           <div style={{ minWidth: 0 }}>
@@ -48,7 +48,7 @@ export function PainelVerdes({
           </div>
           <button onClick={onFechar} aria-label="Fechar" style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0, cursor: "pointer",
-            background: "rgba(255,255,255,.05)", border: `1px solid ${C.cardLine}`, color: C.muted,
+            background: alfa("sup", 0.05), border: `1px solid ${C.cardLine}`, color: C.muted,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <X size={16} />
@@ -79,8 +79,8 @@ export function PainelVerdes({
                   {/* `formas` é o que torna a classificação auditável. */}
                   {v.formas && (
                     <span style={{
-                      fontSize: 10, fontWeight: 700, color: C.up, background: `${C.up}18`,
-                      border: `1px solid ${C.up}44`, borderRadius: 5, padding: "1px 7px",
+                      fontSize: 10, fontWeight: 700, color: C.up, background: alfa("up", 0.09),
+                      border: `1px solid ${alfa("up", 0.27)}`, borderRadius: 5, padding: "1px 7px",
                     }}>
                       {v.formas}
                     </span>

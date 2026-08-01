@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
 import { CHAVE_SESSAO } from "@/hooks/auth";
 import { sair } from "@/services/api/auth";
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 
 /** O usuário existe na autenticação mas ninguém definiu setor/papel. Não é
  *  erro de código nem falta de permissão: é cadastro incompleto, e a tela
@@ -34,7 +34,7 @@ export function SemPerfil() {
       </div>
       <button onClick={deslogar} style={{
         fontSize: 12.5, fontWeight: 700, padding: "9px 18px", borderRadius: 9,
-        background: "rgba(255,255,255,.05)", border: `1px solid ${C.cardLine}`,
+        background: alfa("sup", 0.05), border: `1px solid ${C.cardLine}`,
         color: C.muted, cursor: "pointer", fontFamily: SANS,
       }}>
         Sair

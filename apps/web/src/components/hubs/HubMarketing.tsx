@@ -29,7 +29,7 @@ import {
 import { usePeriodo } from "@/lib/periodo";
 import { agrupar, chaveMes, tituloVazioFluxo } from "@/lib/dados";
 import { moeda, numero, reaisCent } from "@/lib/formato";
-import { ALTURA_PAINEL, C, GROTESK } from "@/lib/tema";
+import { ALTURA_PAINEL, C, GROTESK, alfa } from "@/lib/tema";
 import type { MarketingResumoMensal } from "@/types/views";
 
 export function HubMarketing() {
@@ -228,7 +228,7 @@ export function HubMarketing() {
       <div style={{
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         padding: "10px 14px", marginBottom: 16, borderRadius: 12,
-        background: "rgba(255,255,255,.022)", border: `1px solid ${C.cardLine}`,
+        background: alfa("sup", 0.022), border: `1px solid ${C.cardLine}`,
       }}>
         <Filter size={13} style={{ color: C.faint, flexShrink: 0 }} />
         <Segmentado label="Período" valor={geral} onChange={setGeral}
@@ -360,7 +360,7 @@ export function HubMarketing() {
                 <VendasAtribuidas linhas={atribuidas} />
                 <div style={{
                   display: "grid", gridTemplateColumns: "minmax(150px,1fr) 88px 62px 96px", gap: 10,
-                  padding: "11px 20px", background: "rgba(255,255,255,.02)",
+                  padding: "11px 20px", background: alfa("sup", 0.02),
                 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: C.bright }}>Total atribuído</span>
                   <span />

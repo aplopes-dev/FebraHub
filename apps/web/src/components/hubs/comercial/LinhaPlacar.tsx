@@ -3,7 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Frown, Gift, Meh, Smile } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, SOBRE_OURO, alfa } from "@/lib/tema";
 
 export interface LinhaCarinhas {
   consultor_id?: string | null;
@@ -53,7 +53,7 @@ export function LinhaPlacar({ p, onVerdes }: { p: LinhaCarinhas; onVerdes?: () =
               {Array.from({ length: Math.min(p.presentes, MAX_CHIPS) }).map((_, i) => (
                 <span key={i} title="Brinde surpresa" style={{
                   display: "flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 800,
-                  color: "#100c04", background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})`,
+                  color: SOBRE_OURO, background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})`,
                   border: `1px solid ${C.goldTop}`, padding: "1px 5px", borderRadius: 5, flexShrink: 0,
                 }}>
                   <Gift size={11} /> ?
@@ -66,10 +66,10 @@ export function LinhaPlacar({ p, onVerdes }: { p: LinhaCarinhas; onVerdes?: () =
           )}
         </div>
 
-        <div style={{ height: 3, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden", marginTop: 6, maxWidth: 300 }}>
+        <div style={{ height: 3, borderRadius: 3, background: alfa("sup", 0.06), overflow: "hidden", marginTop: 6, maxWidth: 300 }}>
           <div style={{
             width: `${((p.verdes % 10) / 10) * 100}%`, height: "100%", borderRadius: 3,
-            background: `linear-gradient(90deg, ${C.up}99, ${C.up})`,
+            background: `linear-gradient(90deg, ${alfa("up", 0.6)}, ${C.up})`,
           }} />
         </div>
         <div style={{ fontSize: 10, color: C.faint, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>

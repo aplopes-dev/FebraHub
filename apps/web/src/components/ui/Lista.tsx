@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { VerTodas } from "./VerTodas";
-import { C, GROTESK } from "@/lib/tema";
+import { C, GROTESK, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 import type { LinhaRotulada } from "@/lib/dados";
 
@@ -38,7 +38,7 @@ export function Lista({ linhas, formatar = moeda, total, top }: ListaProps) {
             }} title={l.rotulo}>
               {l.rotulo}
             </div>
-            <div style={{ height: 3, borderRadius: 3, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+            <div style={{ height: 3, borderRadius: 3, background: alfa("sup", 0.06), overflow: "hidden" }}>
               <div style={{
                 width: `${(Math.abs(l.valor) / max) * 100}%`, height: "100%", borderRadius: 3,
                 background: l.orfa ? C.faint : `linear-gradient(90deg, ${C.goldBase}, ${C.gold})`,
@@ -59,7 +59,7 @@ export function Lista({ linhas, formatar = moeda, total, top }: ListaProps) {
       {total != null && (
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 120px", gap: 14,
-          padding: "11px 20px", background: "rgba(255,255,255,.02)",
+          padding: "11px 20px", background: alfa("sup", 0.02),
         }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>Total</span>
           <span style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, textAlign: "right", color: C.gold }}>

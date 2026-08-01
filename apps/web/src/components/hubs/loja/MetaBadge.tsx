@@ -2,7 +2,7 @@
 
 import { Target } from "lucide-react";
 import { resumoMeta } from "./calculos";
-import { C, GROTESK, corNivel } from "@/lib/tema";
+import { C, GROTESK, alfa, alfaDe, corNivel } from "@/lib/tema";
 import { MESES } from "@/lib/dados";
 import { moeda } from "@/lib/formato";
 import type { LojaMetaMes } from "@/types/views";
@@ -25,7 +25,7 @@ export function MetaBadge({ meta }: { meta: LojaMetaMes | null }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap",
-      background: "rgba(255,255,255,.03)", border: `1px solid ${cor}44`,
+      background: alfa("sup", 0.03), border: `1px solid ${alfaDe(cor, 0.27)}`,
       borderRadius: 11, padding: "9px 13px",
     }}>
       <Target size={15} style={{ color: cor, flexShrink: 0 }} />
@@ -35,7 +35,7 @@ export function MetaBadge({ meta }: { meta: LojaMetaMes | null }) {
           <b style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: C.bright }}>{moeda(realizado)}</b>
           <span>de {moeda(minima)} · meta mínima</span>
           <span style={{
-            fontSize: 11, fontWeight: 800, color: C.muted, background: "rgba(255,255,255,.06)",
+            fontSize: 11, fontWeight: 800, color: C.muted, background: alfa("sup", 0.06),
             border: `1px solid ${C.cardLine}`, padding: "1px 8px", borderRadius: 6,
           }}>em curso</span>
         </span>

@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { Popover } from "@/components/ui/Popover";
 import { itemPop } from "@/components/ui/estilos";
 import { moeda } from "@/lib/formato";
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 
 export interface ProdutoMkt {
   nome: string;
@@ -30,7 +30,7 @@ export function SeletorProduto({
       <span style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: ".5px" }}>Categoria</span>
       <button onClick={() => setAberto((v) => !v)} style={{
         display: "flex", alignItems: "center", gap: 6, fontFamily: SANS, fontSize: 11.5,
-        fontWeight: 700, color: C.gold, background: "rgba(255,255,255,.04)",
+        fontWeight: 700, color: C.gold, background: alfa("sup", 0.04),
         border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "6px 10px",
         cursor: "pointer", maxWidth: 240,
       }}>

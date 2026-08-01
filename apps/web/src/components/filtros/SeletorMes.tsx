@@ -6,7 +6,7 @@ import { Popover } from "@/components/ui/Popover";
 import { itemPop } from "@/components/ui/estilos";
 import { usePeriodo } from "@/lib/periodo";
 import { MESES, chaveMes } from "@/lib/dados";
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 
 /* Mês: ‹ Julho 2026 › — setas navegam com virada de ano; o rótulo abre a
    lista pra pular direto. Os limites vêm do dado. */
@@ -36,7 +36,7 @@ export function SeletorMes() {
 
   const seta = (ativo: boolean): CSSProperties => ({
     display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 28,
-    borderRadius: 7, border: `1px solid ${C.cardLine}`, background: "rgba(255,255,255,.04)",
+    borderRadius: 7, border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.04),
     color: ativo ? C.muted : C.dim, cursor: ativo ? "pointer" : "default", opacity: ativo ? 1 : 0.45,
   });
 
@@ -47,7 +47,7 @@ export function SeletorMes() {
       </button>
       <button onClick={() => setAberto((v) => !v)} style={{
         display: "flex", alignItems: "center", gap: 6, fontFamily: SANS, fontSize: 12,
-        fontWeight: 700, color: C.gold, background: "rgba(255,255,255,.04)",
+        fontWeight: 700, color: C.gold, background: alfa("sup", 0.04),
         border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "6px 10px",
         cursor: "pointer", minWidth: 118, justifyContent: "center",
       }}>

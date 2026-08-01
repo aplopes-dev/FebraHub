@@ -1,6 +1,6 @@
 "use client";
 
-import { ARRED_META, C, GROTESK, SANS } from "@/lib/tema";
+import { ARRED_META, C, GROTESK, SANS, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 
 export interface PontoEvolucao {
@@ -141,39 +141,42 @@ export function LinhaEvolucao({
     <>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
+          {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
+              resolve em atributo de apresentação — o gradiente sairia vazio. */}
           <linearGradient id={idGrad} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={cor} stopOpacity="0.16" />
-            <stop offset="1" stopColor={cor} stopOpacity="0" />
+            <stop offset="0" style={{ stopColor: cor }} stopOpacity="0.16" />
+            <stop offset="1" style={{ stopColor: cor }} stopOpacity="0" />
           </linearGradient>
         </defs>
         {yticks.map((v, i) => {
           const yy = y(v);
           return (
             <g key={i}>
-              <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" strokeWidth="1" />
-              <text x={padL - 9} y={yy + 3.5} fontSize="11" textAnchor="end" fill={C.faint} fontFamily={SANS}>{formatar(v)}</text>
+              <line x1={padL} y1={yy} x2={W - padR} y2={yy} style={{ stroke: alfa("sup", 0.06) }} strokeWidth="1" />
+              <text x={padL - 9} y={yy + 3.5} fontSize="11" textAnchor="end" style={{ fill: C.faint }} fontFamily={SANS}>{formatar(v)}</text>
             </g>
           );
         })}
-        {area && <path d={area} fill={`url(#${idGrad})`} />}
+        {area && <path d={area} style={{ fill: `url(#${idGrad})` }} />}
         {/* Meta: linha de referência azul tracejada, distinta da receita. */}
         {metaSegs.map((seg, i) => (
-          <polyline key={"meta" + i} points={seg.map((p) => p.join(",")).join(" ")} fill="none"
-            stroke={ARRED_META} strokeWidth="1.4" strokeDasharray="5 4" strokeLinecap="round" opacity="0.85" />
+          <polyline key={"meta" + i} points={seg.map((p) => p.join(",")).join(" ")} style={{ fill: "none", stroke: ARRED_META }}
+            strokeWidth="1.4" strokeDasharray="5 4" strokeLinecap="round" opacity="0.85" />
         ))}
         {/* Linha da receita, em segmentos: sólido = consolidado; tracejado =
             planilha (provisório) ou mês em curso. */}
         {segmentos.map((s, i) => (
-          <polyline key={"seg" + i} points={s.pts.map((p) => p.join(",")).join(" ")} fill="none"
-            stroke={cor} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+          <polyline key={"seg" + i} points={s.pts.map((p) => p.join(",")).join(" ")} style={{ fill: "none", stroke: cor }}
+            strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
             strokeDasharray={s.estilo === "solido" ? undefined : "5 4"}
             opacity={s.estilo === "parcial" ? 0.6 : s.estilo === "prov" ? 0.85 : 1} />
         ))}
-        {/* pontinho nos meses rotulados + o ponto parcial destacado (vazado) */}
+        {/* pontinho nos meses rotulados + o ponto parcial destacado (vazado —
+            o miolo é --void pra acompanhar o fundo da página nos dois temas) */}
         {xticks.map((i) => serie[i].parcial ? null : (
-          <circle key={"d" + i} cx={pts[i][0]} cy={pts[i][1]} r="2.4" fill={cor} />
+          <circle key={"d" + i} cx={pts[i][0]} cy={pts[i][1]} r="2.4" style={{ fill: cor }} />
         ))}
-        {temParcial && <circle cx={pts[parcialIdx][0]} cy={pts[parcialIdx][1]} r="3.5" fill={C.void} stroke={cor} strokeWidth="1.6" />}
+        {temParcial && <circle cx={pts[parcialIdx][0]} cy={pts[parcialIdx][1]} r="3.5" style={{ fill: C.void, stroke: cor }} strokeWidth="1.6" />}
         {/* rótulos de dados. Variação (▲%) só com rotularVar; "parcial" só com
             rotularParcial; o valor sempre. */}
         {rotulados.map((i) => {
@@ -187,19 +190,19 @@ export function LinhaEvolucao({
           return (
             <g key={"lbl" + i}>
               {parc && rotularParcial && (
-                <text x={lx} y={baseY - 13} fontSize="10" fontWeight="700" textAnchor={anchor} fill={C.faint} fontFamily={SANS}>parcial</text>
+                <text x={lx} y={baseY - 13} fontSize="10" fontWeight="700" textAnchor={anchor} style={{ fill: C.faint }} fontFamily={SANS}>parcial</text>
               )}
               {rotularVar && !parc && d != null && (
-                <text x={lx} y={baseY - 13} fontSize="10.5" fontWeight="800" textAnchor={anchor} fill={(inverso ? d <= 0 : d >= 0) ? C.up : C.down} fontFamily={SANS}>
+                <text x={lx} y={baseY - 13} fontSize="10.5" fontWeight="800" textAnchor={anchor} style={{ fill: (inverso ? d <= 0 : d >= 0) ? C.up : C.down }} fontFamily={SANS}>
                   {d >= 0 ? "▲" : "▼"} {Math.abs(d).toFixed(0)}%
                 </text>
               )}
-              <text x={lx} y={baseY} fontSize="11.5" fontWeight="700" textAnchor={anchor} fill={parc ? C.faint : C.bright} fontFamily={GROTESK}>{formatar(val)}</text>
+              <text x={lx} y={baseY} fontSize="11.5" fontWeight="700" textAnchor={anchor} style={{ fill: parc ? C.faint : C.bright }} fontFamily={GROTESK}>{formatar(val)}</text>
             </g>
           );
         })}
         {xticks.map((i) => (
-          <text key={i} x={x(i)} y={H - 8} fontSize="11" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"} fill={C.faint} fontFamily={SANS}>
+          <text key={i} x={x(i)} y={H - 8} fontSize="11" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"} style={{ fill: C.faint }} fontFamily={SANS}>
             {mesAno(serie[i].mes)}
           </text>
         ))}

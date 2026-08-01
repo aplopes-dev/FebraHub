@@ -1,6 +1,6 @@
 "use client";
 
-import { C, SANS } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 import { compacto, mesCurto } from "@/lib/formato";
 
 export interface PontoInvLeads {
@@ -46,11 +46,13 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
 
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
+          {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
+              resolve em atributo de apresentação — o elemento sairia sem pintura. */}
           <linearGradient id="gradInv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={C.goldTop} /><stop offset="1" stopColor={C.goldBase} />
+            <stop offset="0" style={{ stopColor: C.goldTop }} /><stop offset="1" style={{ stopColor: C.goldBase }} />
           </linearGradient>
           <pattern id="hachInv" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" stroke={C.gold} strokeWidth="3" opacity="0.4" />
+            <line x1="0" y1="0" x2="0" y2="6" style={{ stroke: C.gold }} strokeWidth="3" opacity="0.4" />
           </pattern>
         </defs>
 
@@ -59,11 +61,11 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
           const yy = base - f * plotH;
           return (
             <g key={i}>
-              <line x1={padL} y1={yy} x2={W - padR} y2={yy} stroke="rgba(255,255,255,.06)" strokeWidth="1" />
-              <text x={padL - 6} y={yy + 3} fontSize="9" textAnchor="end" fill={C.faint} fontFamily={SANS}>
+              <line x1={padL} y1={yy} x2={W - padR} y2={yy} style={{ stroke: alfa("sup", 0.06) }} strokeWidth="1" />
+              <text x={padL - 6} y={yy + 3} fontSize="9" textAnchor="end" style={{ fill: C.faint }} fontFamily={SANS}>
                 {compacto(maxInv * f)}
               </text>
-              <text x={W - padR + 6} y={yy + 3} fontSize="9" textAnchor="start" fill={C.up} opacity="0.8" fontFamily={SANS}>
+              <text x={W - padR + 6} y={yy + 3} fontSize="9" textAnchor="start" style={{ fill: C.up }} opacity="0.8" fontFamily={SANS}>
                 {Math.round(maxLead * f)}
               </text>
             </g>
@@ -73,20 +75,26 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
         {serie.map((s, i) => (
           <rect key={s.mes} x={cx(i) - bw / 2} y={yInv(s.investimento)} width={bw}
             height={Math.max(0, base - yInv(s.investimento))} rx="2"
-            fill={s.parcial ? "url(#hachInv)" : "url(#gradInv)"}
-            stroke={s.parcial ? C.gold : "none"} strokeDasharray={s.parcial ? "3 2" : undefined}
+            style={{
+              fill: s.parcial ? "url(#hachInv)" : "url(#gradInv)",
+              stroke: s.parcial ? C.gold : "none",
+            }}
+            strokeDasharray={s.parcial ? "3 2" : undefined}
             strokeWidth={s.parcial ? 1 : 0} />
         ))}
 
-        <polyline points={solido} fill="none" stroke={C.up} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        {tracejado && <polyline points={tracejado} fill="none" stroke={C.up} strokeWidth="1.8" strokeDasharray="4 3" opacity="0.7" />}
+        <polyline points={solido} style={{ fill: "none", stroke: C.up }} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        {tracejado && <polyline points={tracejado} style={{ fill: "none", stroke: C.up }} strokeWidth="1.8" strokeDasharray="4 3" opacity="0.7" />}
+        {/* Ponto do mês parcial é VAZADO: o miolo usa --void pra acompanhar o
+            fundo da página nos dois temas. */}
         {pts.map(([x0, y0], i) => (
           <circle key={i} cx={x0} cy={y0} r="2.2"
-            fill={serie[i].parcial ? C.void : C.up} stroke={C.up} strokeWidth={serie[i].parcial ? 1.2 : 0} />
+            style={{ fill: serie[i].parcial ? C.void : C.up, stroke: C.up }}
+            strokeWidth={serie[i].parcial ? 1.2 : 0} />
         ))}
 
         {serie.map((s, i) => (i % passo === 0 || i === n - 1) ? (
-          <text key={s.mes} x={cx(i)} y={H - 7} fontSize="9.5" textAnchor="middle" fill={C.faint} fontFamily={SANS}>
+          <text key={s.mes} x={cx(i)} y={H - 7} fontSize="9.5" textAnchor="middle" style={{ fill: C.faint }} fontFamily={SANS}>
             {mesCurto(String(s.mes).slice(0, 7))}
           </text>
         ) : null)}
