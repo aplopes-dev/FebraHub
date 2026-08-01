@@ -1,3 +1,16 @@
+# ⚠️ AGENDAMENTO DESLIGADO EM 01/08/2026.
+#
+# As integrações passaram a rodar dentro da VPS (cron + infra/scripts/sync.sh).
+# Este workflow fica como plano B MANUAL, acionável por workflow_dispatch.
+#
+# O agendamento não pode voltar enquanto a VPS estiver ativa: o refresh token
+# do Conta Azul é rotativo e de uso único, e dois lugares renovando o mesmo
+# token derrubam um ao outro. Foi exatamente assim que a integração quebrou —
+# o run das 10:24 consumiu o token que a VPS tinha, e o `continue-on-error`
+# marcou o passo como sucesso.
+#
+# Ver docs/ETLS.md.
+
 # FebraHub · .github/workflows/sync-salesforce.yml
 #
 # Lê os relatórios do Salesforce que chegam por e-mail (Gmail) e atualiza
@@ -32,10 +45,10 @@
 name: Sync Salesforce (e-mail)
 
 on:
-  schedule:
-    - cron: '15 9 * * *'    # 06:15 Salvador (após disparo das 06h)
-    - cron: '15 15 * * *'   # 12:15 Salvador (após disparo das 12h)
-    - cron: '15 20 * * *'   # 17:15 Salvador (após disparo das 17h)
+  # schedule:   # desligado: ver nota no topo
+  # - cron: '15 9 * * *'    # 06:15 Salvador (após disparo das 06h)
+  # - cron: '15 15 * * *'   # 12:15 Salvador (após disparo das 12h)
+  # - cron: '15 20 * * *'   # 17:15 Salvador (após disparo das 17h)
   workflow_dispatch:
 
 env:

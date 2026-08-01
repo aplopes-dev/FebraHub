@@ -1,3 +1,16 @@
+# ⚠️ AGENDAMENTO DESLIGADO EM 01/08/2026.
+#
+# As integrações passaram a rodar dentro da VPS (cron + infra/scripts/sync.sh).
+# Este workflow fica como plano B MANUAL, acionável por workflow_dispatch.
+#
+# O agendamento não pode voltar enquanto a VPS estiver ativa: o refresh token
+# do Conta Azul é rotativo e de uso único, e dois lugares renovando o mesmo
+# token derrubam um ao outro. Foi exatamente assim que a integração quebrou —
+# o run das 10:24 consumiu o token que a VPS tinha, e o `continue-on-error`
+# marcou o passo como sucesso.
+#
+# Ver docs/ETLS.md.
+
 # FebraHub · .github/workflows/meta-historico.yml
 #
 # Carga histórica do Meta Ads (2024 em diante). Roda só manualmente,

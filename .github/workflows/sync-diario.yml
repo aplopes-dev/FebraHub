@@ -1,3 +1,16 @@
+# ⚠️ AGENDAMENTO DESLIGADO EM 01/08/2026.
+#
+# As integrações passaram a rodar dentro da VPS (cron + infra/scripts/sync.sh).
+# Este workflow fica como plano B MANUAL, acionável por workflow_dispatch.
+#
+# O agendamento não pode voltar enquanto a VPS estiver ativa: o refresh token
+# do Conta Azul é rotativo e de uso único, e dois lugares renovando o mesmo
+# token derrubam um ao outro. Foi exatamente assim que a integração quebrou —
+# o run das 10:24 consumiu o token que a VPS tinha, e o `continue-on-error`
+# marcou o passo como sucesso.
+#
+# Ver docs/ETLS.md.
+
 # FebraHub · .github/workflows/sync-diario.yml
 #
 # Roda os ETLs todo dia às 06:00 (Salvador) e registra na API do FebraHub
@@ -35,8 +48,8 @@
 name: Sync diário
 
 on:
-  schedule:
-    - cron: '0 9 * * *'      # 09:00 UTC = 06:00 em Salvador
+  # schedule:   # desligado: ver nota no topo
+  # - cron: '0 9 * * *'      # 09:00 UTC = 06:00 em Salvador
   workflow_dispatch:
 
 # Uma vez só, para todos os passos. Vem do env do runner e não do corpo do
