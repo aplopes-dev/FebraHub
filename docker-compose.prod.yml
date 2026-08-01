@@ -177,6 +177,38 @@ services:
       resources:
         limits: { memory: 1G }
 
+  # ---------------- ETLs ----------------
+  # Não fica de pé: sobe, roda um sync e sai (`compose run --rm etl ...`).
+  # Quem agenda é o cron do host, por infra/scripts/sync.sh. Antes isso vivia
+  # no GitHub Actions; agora nada da sincronização depende de fora da VPS.
+  #
+  # `profiles` mantém o serviço fora do `up -d`: sem isso, todo deploy
+  # tentaria subir um container que existe só para executar comando.
+  etl:
+    build:
+      context: .
+      dockerfile: etl/Dockerfile
+    image: febrahub-etl:${TAG:-latest}
+    profiles: [manual]
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      # Pela rede do compose: não sai para a internet nem passa pelo Nginx,
+      # e continua funcionando se o TLS ou o proxy estiverem fora do ar.
+      FEBRAHUB_API_URL: http://api:3261/api
+      FEBRAHUB_ETL_TOKEN: ${ETL_TOKEN}
+      GOOGLE_SERVICE_ACCOUNT_FILE: /run/secrets/google_sa.json
+      TZ: America/Bahia
+    env_file:
+      # Credenciais das APIs de origem. Arquivo à parte do .env da aplicação:
+      # o compose lê este só aqui, e ele não entra no ambiente da API nem do web.
+      - ${FEBRAHUB_DIR:-/opt/febrahub}/etl.env
+    volumes:
+      - ${FEBRAHUB_DIR:-/opt/febrahub}/secrets/google_sa.json:/run/secrets/google_sa.json:ro
+    networks: [interna]
+    restart: 'no'
+    logging: *log
+
 volumes:
   postgres_dados:
     name: febrahub_postgres_dados
