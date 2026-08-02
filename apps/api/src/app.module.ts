@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { carregarConfiguracao } from './config/configuracao';
 import { DatabaseModule } from './database/database.module';
@@ -14,6 +14,7 @@ import { IngestModule } from './modules/ingest/ingest.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { HealthController } from './modules/health/health.controller';
+import { LimiteGuard } from './common/guards/limite.guard';
 import { SessaoGuard } from './common/guards/sessao.guard';
 import { SetorGuard } from './common/guards/setor.guard';
 
@@ -44,7 +45,13 @@ import { SetorGuard } from './common/guards/setor.guard';
         autoLogging: { ignore: (req) => req.url?.startsWith('/api/health') ?? false },
       },
     }),
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    // 300/min por IP era pouco: cada hub carrega de 9 a 16 views de uma vez,
+    // e no escritório todo mundo sai pelo mesmo IP. Duas pessoas trocando de
+    // aba juntas estouravam a cota e o painel voltava 429 pela metade.
+    // Agora a contagem é por sessão (ver LimiteGuard) e a cota cabe num uso
+    // real: ~40 telas por minuto para uma pessoa, o que ninguém alcança
+    // navegando — mas segura um script.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 600 }]),
     // Agenda em processo. Hoje só a renovação diária dos tokens OAuth
     // (modules/integracoes/renovacao.cron.ts) — o resto do agendamento
     // continua no cron do host, que chama os ETLs.
@@ -62,7 +69,7 @@ import { SetorGuard } from './common/guards/setor.guard';
   providers: [
     // Ordem importa: throttle primeiro (barra antes de gastar CPU),
     // depois sessão, depois setor.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: LimiteGuard },
     { provide: APP_GUARD, useClass: SessaoGuard },
     { provide: APP_GUARD, useClass: SetorGuard },
   ],
