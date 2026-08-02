@@ -39,6 +39,7 @@ import {
   usePontosMapa,
 } from "@/hooks/territorial";
 import { exportarEmpresas } from "@/services/api/territorial";
+import { IntroTerritorial } from "./IntroTerritorial";
 import { FiltrosTerritorial } from "./FiltrosTerritorial";
 import { TabelaEmpresas } from "./TabelaEmpresas";
 import { DrawerEmpresa } from "./DrawerEmpresa";
@@ -286,6 +287,10 @@ export function PainelTerritorial() {
 
   return (
     <div className="tio">
+      {/* Abertura cinematográfica (a mesma do hub original): toca uma vez por
+          navegador; o mapa monta ATRÁS e recebe a cena no crossfade. */}
+      <IntroTerritorial />
+
       {/* Ações do recorte: filtros (mobile) + exportação */}
       <div className="tio-topo" style={{ marginBottom: 16 }}>
         <Botao

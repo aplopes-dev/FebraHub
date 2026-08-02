@@ -22,6 +22,28 @@ export function Providers({ children }: { children: ReactNode }) {
     },
   }));
 
+  /* CHUNK VELHO PÓS-DEPLOY: cada deploy troca os hashes de /_next/static —
+     uma aba aberta com o HTML antigo pede um chunk que não existe mais, o
+     Nginx devolve a página HTML (MIME text/html) e o import dinâmico morre
+     ("Failed to load module script…"): foi assim que o mapa "não carregava".
+     Um chunk que falha recarrega a página UMA vez (guarda em sessionStorage
+     contra loop) — o HTML novo chega com os hashes certos. */
+  useEffect(() => {
+    const aoErroRecurso = (e: Event) => {
+      const alvo = e.target as HTMLScriptElement | null;
+      const src = alvo?.src ?? "";
+      if (!src.includes("/_next/")) return;
+      try {
+        if (sessionStorage.getItem("febrahub:recarregou-chunk") === "1") return;
+        sessionStorage.setItem("febrahub:recarregou-chunk", "1");
+      } catch { /* sem storage: recarrega mesmo assim */ }
+      window.location.reload();
+    };
+    // Erro de recurso não borbulha: só chega na fase de CAPTURA.
+    window.addEventListener("error", aoErroRecurso, true);
+    return () => window.removeEventListener("error", aoErroRecurso, true);
+  }, []);
+
   /* Sessão expirada (401 que o refresh não salvou): o client dispara o
      evento, aqui o cache da sessão vira `null` e as views saem do cache.
      Zerar as views é o que impede o próximo login de ver, por um instante,
