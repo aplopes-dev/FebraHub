@@ -101,7 +101,15 @@ export function MapaTerritorial({
       minZoom: 3,
       maxZoom: 15,
       attributionControl: { compact: true },
+      // Sem isto o canvas WebGL sai preto em captura de tela e na futura
+      // exportação de imagem do mapa. Custo de desempenho irrelevante aqui.
+      canvasContextAttributes: { preserveDrawingBuffer: true },
     });
+    // O grid da página assenta DEPOIS da montagem (fontes, sidebar, scrollbar):
+    // sem observar o container, o canvas congela no tamanho do primeiro paint
+    // — foi exatamente o bug do primeiro deploy (canvas 400px num shell de 657).
+    const observador = new ResizeObserver(() => mapa.resize());
+    observador.observe(containerRef.current);
     // CDN fora do ar não pode derrubar o painel: estilo local de emergência.
     const vigia = setTimeout(() => {
       if (!mapa.isStyleLoaded()) mapa.setStyle(FALLBACK_STYLES[tema]);
@@ -118,6 +126,7 @@ export function MapaTerritorial({
     overlayRef.current = overlay;
     return () => {
       clearTimeout(vigia);
+      observador.disconnect();
       overlayRef.current = null;
       mapaRef.current = null;
       mapa.remove();
