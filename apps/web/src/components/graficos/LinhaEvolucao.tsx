@@ -1,5 +1,6 @@
 "use client";
 
+import { useLarguraGrafico } from "./useLargura";
 import { ARRED_META, C, GROTESK, SANS, alfa } from "@/lib/tema";
 import { moeda } from "@/lib/formato";
 
@@ -50,8 +51,11 @@ export function LinhaEvolucao({
   soDestaques?: boolean;
   yRedondo?: boolean;
 }) {
+  // Largura REAL do container no viewBox: 1 unidade = 1 pixel — sem isso o
+  // SVG estica e os 11px dos eixos viram 23px no desktop largo.
+  const { ref: refLargura, largura } = useLarguraGrafico(720);
   if (serie.length < 2) return null;
-  const W = 720, H = 228, padL = 54, padR = 14, padT = 44, padB = 26;
+  const W = largura, H = 228, padL = 54, padR = 14, padT = 44, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB, plotBottom = padT + plotH;
 
   const temMeta = Array.isArray(meta) && meta.some((v) => v != null);
@@ -164,7 +168,7 @@ export function LinhaEvolucao({
 
   return (
     <>
-      <div className="fh-grafico">
+      <div className="fh-grafico" ref={refLargura}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não

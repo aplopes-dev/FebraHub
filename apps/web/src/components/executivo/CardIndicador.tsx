@@ -111,7 +111,7 @@ export function CardExecutivo({
       </div>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8, minWidth: 0 }}>
-        <span style={{ fontFamily: GROTESK, fontSize: 25, fontWeight: 700, letterSpacing: "-.5px", color: C.text, whiteSpace: "nowrap" }}>
+        <span style={{ fontFamily: GROTESK, fontSize: 22, fontWeight: 700, letterSpacing: "-.5px", color: C.text, whiteSpace: "nowrap" }}>
           {valorFmt(card.unidade, card.valor)}
         </span>
         {card.parcial && (

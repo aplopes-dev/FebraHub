@@ -119,7 +119,7 @@ export function TelaIndicador({ codigo }: { codigo: string }) {
                   {card.tipo === "estado" ? `Posição${card.referencia ? ` em ${dataBr(card.referencia)}` : ""}` : mesLabel(card.mes)}
                   {card.parcial ? " · parcial" : ""}
                 </div>
-                <div style={{ fontFamily: GROTESK, fontSize: 30, fontWeight: 700, color: C.text, letterSpacing: "-.6px" }}>
+                <div style={{ fontFamily: GROTESK, fontSize: 24, fontWeight: 700, color: C.text, letterSpacing: "-.6px" }}>
                   {valorFmt(card.unidade, card.valor)}
                 </div>
                 {card.quantidade != null && (
@@ -130,7 +130,7 @@ export function TelaIndicador({ codigo }: { codigo: string }) {
                 <div className="fh-exec-num-rotulo">Meta</div>
                 {card.meta ? (
                   <>
-                    <div style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.text }}>
+                    <div style={{ fontFamily: GROTESK, fontSize: 17, fontWeight: 700, color: C.text }}>
                       {valorFmt(card.unidade, card.meta.valor)}
                       <span style={{ fontSize: 12, color: C.muted }}> · {pctFmt(card.pctMeta, 0)}</span>
                     </div>
@@ -150,7 +150,7 @@ export function TelaIndicador({ codigo }: { codigo: string }) {
                   <div className="fh-exec-num-rotulo">Esperado até hoje</div>
                   {card.esperado != null ? (
                     <>
-                      <div style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.text }}>
+                      <div style={{ fontFamily: GROTESK, fontSize: 17, fontWeight: 700, color: C.text }}>
                         {valorFmt(card.unidade, card.esperado)}
                       </div>
                       <div style={{ fontSize: 11, color: C.faint }}>
@@ -165,7 +165,7 @@ export function TelaIndicador({ codigo }: { codigo: string }) {
               {card.projecao && (
                 <div>
                   <div className="fh-exec-num-rotulo">Projeção de fechamento</div>
-                  <div style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.text }}>
+                  <div style={{ fontFamily: GROTESK, fontSize: 17, fontWeight: 700, color: C.text }}>
                     {valorFmt(card.unidade, card.projecao.central)}
                   </div>
                   <div style={{ fontSize: 11, color: C.faint }}>

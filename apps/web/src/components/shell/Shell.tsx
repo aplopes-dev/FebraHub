@@ -14,7 +14,7 @@ import { useMenu } from "@/hooks/menu";
 import { useSessaoViva } from "@/hooks/sessao-viva";
 import { useTema } from "@/hooks/tema";
 import { sair } from "@/services/api/auth";
-import { GRUPOS_MENU, idItemAtivo, itemPorId, type ItemMenu } from "@/lib/menu";
+import { GRUPOS_MENU, idItemAtivo, itemPorId, tituloDaRota, type ItemMenu } from "@/lib/menu";
 import { ProvedorPeriodo } from "@/lib/periodo";
 import { C, FUNDO_APP, SANS, alfa } from "@/lib/tema";
 import type { Perfil } from "@/types/views";
@@ -52,6 +52,11 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
     .filter((g) => g.itens.length > 0);
   const ativoId = idItemAtivo(caminho ?? "/", grupos.flatMap((g) => g.itens));
   const itemAtivo = itemPorId(ativoId);
+  // Rotas filhas sem item de menu (Conversas/Kanban vivem sob Agentes de IA)
+  // têm título próprio no cabeçalho, com o item do pai aceso na sidebar.
+  const filha = tituloDaRota(caminho ?? "/");
+  const tituloPagina = filha?.titulo ?? itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub";
+  const descPagina = filha?.desc ?? itemAtivo?.desc;
 
   // Navegar fecha a gaveta. Sem isto, tocar num hub troca o painel atrás de um
   // menu que continua aberto por cima dele.
@@ -227,7 +232,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               fontWeight: 800, fontSize: 13.5, letterSpacing: ".2px",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub"}
+              {tituloPagina}
             </span>
           </div>
 
@@ -245,12 +250,10 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                   {hoje}
                 </div>
                 <h1 style={{ fontSize: "var(--h1)", fontWeight: 800, letterSpacing: "-.6px", fontFamily: SANS, lineHeight: 1.15 }}>
-                  {ativoId === "executivo"
-                    ? `${saudacao}, ${primeiroNome}.`
-                    : itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub"}
+                  {ativoId === "executivo" ? `${saudacao}, ${primeiroNome}.` : tituloPagina}
                 </h1>
-                {ativoId !== "executivo" && itemAtivo?.desc && (
-                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>{itemAtivo.desc}</div>
+                {ativoId !== "executivo" && descPagina && (
+                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>{descPagina}</div>
                 )}
               </div>
 

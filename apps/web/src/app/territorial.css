@@ -8,98 +8,41 @@
    resto do app não muda nada aqui além do atributo de tema.
    ============================================================ */
 
-/* ---- Tokens: tema ESCURO (padrão do FebraHub) ---- */
+/* ---- Tokens: derivados da PALETA DO FEBRAHUB ----
+   A pedido do Rafael (02/08), o hub deixou de vestir os azuis do sistema
+   de origem: a ESTRUTURA (chips, seções, glass, medidas) segue a do hub
+   original, mas as cores são as do próprio FebraHub — e viram com o tema
+   sozinhas, porque tudo aqui deriva das variáveis do :root (que já trocam
+   com o data-tema). Cor de NICHO continua exata (vive em nichos.ts). */
 .tio {
-  --bg: #050b18;
-  --surface: #0b1526;
-  --surface-2: #101d33;
-  --surface-3: #16253f;
-  --line: rgba(125, 165, 255, 0.14);
-  --line-strong: rgba(125, 165, 255, 0.28);
-  --ink: #e8effc;
-  --ink-dim: #8fa3c8;
-  --ink-faint: #5c6f95;
-  --accent: #3b82f6;
-  --accent-2: #38bdf8;
-  --pos: #34d399;
-  --warn: #fbbf24;
-  --neg: #f87171;
+  --bg: var(--void);
+  --surface: rgb(var(--void-rgb));
+  --surface-2: rgb(var(--sup-rgb) / 0.05);
+  --surface-3: rgb(var(--sup-rgb) / 0.10);
+  --line: var(--hair);
+  --line-strong: var(--card-line);
+  --ink: var(--text);
+  --ink-dim: var(--muted);
+  --ink-faint: var(--faint);
+  --accent: var(--gold);
+  --accent-2: var(--gold);
+  --pos: var(--up);
+  --neg: var(--down);
+  /* --warn herda do :root do FebraHub (mesmo nome, mesma semântica) */
 
-  --glass-a: rgba(16, 29, 51, 0.72);
-  --glass-b: rgba(8, 18, 38, 0.6);
-  --glass-strong-a: rgba(18, 32, 57, 0.9);
-  --glass-strong-b: rgba(7, 15, 32, 0.86);
-  --glass-shadow: 0 18px 40px -22px rgba(2, 6, 18, 0.9);
-  --glass-inset: rgba(255, 255, 255, 0.04);
-  --edge-a: rgba(56, 189, 248, 0.35);
-  --edge-b: rgba(139, 92, 246, 0.25);
+  --glass-a: var(--panel);
+  --glass-b: rgb(var(--sup-rgb) / 0.03);
+  --glass-strong-a: rgb(var(--void-rgb) / 0.97);
+  --glass-strong-b: rgb(var(--void-rgb) / 0.93);
+  --glass-shadow: var(--sombra-popover);
+  --glass-strong-shadow: var(--sombra-popover);
+  --glass-inset: rgb(var(--sup-rgb) / 0.03);
+  --edge-a: rgb(var(--gold-rgb) / 0.30);
+  --edge-b: rgb(var(--gold-rgb) / 0.10);
 
-  --skeleton-a: rgba(125, 165, 255, 0.06);
-  --skeleton-b: rgba(125, 165, 255, 0.14);
-  --scrim: rgba(2, 4, 12, 0.6);
-}
-
-/* ---- Tokens: tema CLARO (escolha explícita OU preferência do sistema) ---- */
-:root[data-tema="claro"] .tio {
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --surface-2: #f2f5f9;
-  --surface-3: #e6ebf3;
-  --line: rgba(22, 42, 82, 0.12);
-  --line-strong: rgba(22, 42, 82, 0.24);
-  --ink: #17263f;
-  --ink-dim: #4c5d7c;
-  --ink-faint: #7e8da7;
-  --accent: #2563eb;
-  --accent-2: #0284c7;
-  --pos: #047857;
-  --warn: #b45309;
-  --neg: #dc2626;
-
-  --glass-a: rgba(255, 255, 255, 0.86);
-  --glass-b: rgba(246, 249, 253, 0.78);
-  --glass-strong-a: rgba(255, 255, 255, 0.96);
-  --glass-strong-b: rgba(246, 249, 253, 0.92);
-  --glass-shadow: 0 14px 34px -20px rgba(20, 40, 80, 0.28);
-  --glass-inset: rgba(255, 255, 255, 0.6);
-  --edge-a: rgba(37, 99, 235, 0.22);
-  --edge-b: rgba(124, 58, 237, 0.16);
-
-  --skeleton-a: rgba(30, 64, 175, 0.07);
-  --skeleton-b: rgba(30, 64, 175, 0.15);
-  --scrim: rgba(23, 38, 63, 0.35);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-tema]) .tio {
-    --bg: #f4f6fa;
-    --surface: #ffffff;
-    --surface-2: #f2f5f9;
-    --surface-3: #e6ebf3;
-    --line: rgba(22, 42, 82, 0.12);
-    --line-strong: rgba(22, 42, 82, 0.24);
-    --ink: #17263f;
-    --ink-dim: #4c5d7c;
-    --ink-faint: #7e8da7;
-    --accent: #2563eb;
-    --accent-2: #0284c7;
-    --pos: #047857;
-    --warn: #b45309;
-    --neg: #dc2626;
-
-    --glass-a: rgba(255, 255, 255, 0.86);
-    --glass-b: rgba(246, 249, 253, 0.78);
-    --glass-strong-a: rgba(255, 255, 255, 0.96);
-    --glass-strong-b: rgba(246, 249, 253, 0.92);
-    --glass-shadow: 0 14px 34px -20px rgba(20, 40, 80, 0.28);
-    --glass-inset: rgba(255, 255, 255, 0.6);
-    --edge-a: rgba(37, 99, 235, 0.22);
-    --edge-b: rgba(124, 58, 237, 0.16);
-
-    --skeleton-a: rgba(30, 64, 175, 0.07);
-    --skeleton-b: rgba(30, 64, 175, 0.15);
-    --scrim: rgba(23, 38, 63, 0.35);
-  }
+  --skeleton-a: rgb(var(--sup-rgb) / 0.06);
+  --skeleton-b: rgb(var(--sup-rgb) / 0.14);
+  --scrim: rgb(var(--bright-rgb) / 0.45);
 }
 
 /* ============ Base do escopo ============ */
@@ -407,31 +350,15 @@
 
 /* ============ Layout da página ============ */
 
-.tio-leiaute { display: flex; align-items: flex-start; gap: 16px; }
+.tio-leiaute { display: block; min-width: 0; }
 
-.tio-filtros-col {
-  display: none;
-  position: sticky; top: 8px;
-  width: 292px; flex-shrink: 0;
-}
-.tio-painel-filtros {
-  border-radius: 16px; padding: 14px;
-  height: calc(100vh - 180px);
-  display: flex; flex-direction: column; align-items: stretch; min-height: 320px;
-}
-
-.tio-conteudo { flex: 1; min-width: 0; display: grid; gap: 16px; }
+.tio-conteudo { min-width: 0; display: grid; gap: 16px; }
 
 .tio-topo {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; flex-wrap: wrap;
 }
 .tio-topo-acoes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-
-@media (min-width: 1024px) {
-  .tio-filtros-col { display: block; }
-  .tio-botao-filtros { display: none !important; }
-}
 
 /* Corpo do painel de filtros: rodapé fixo, meio rola. */
 .tio-filtros-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
@@ -477,10 +404,11 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 @media (min-width: 1024px) {
-  .tio-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
-}
-@media (min-width: 1500px) {
-  .tio-kpis { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  /* auto-fit: cabem quantas colunas o viewport der — e quebra linha em vez
+     de estourar a página (o min-width:148 fixo × 10 colunas passava de
+     1900px e criava a rolagem horizontal do desktop). */
+  .tio-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); overflow: visible; }
+  .tio-kpi { min-width: 0; }
 }
 
 /* ============ Mapa ============ */
@@ -802,6 +730,19 @@ button.tio-linha-cartao:hover { border-color: var(--line-strong); }
 }
 .tio-sheet-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
 .tio-sheet-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+@media (min-width: 900px) {
+  .tio-sheet {
+    left: 0; right: auto; top: 0; bottom: 0;
+    width: min(340px, 92vw); max-height: none; height: 100dvh;
+    border-radius: 0 16px 16px 0;
+    animation: tio-entrar-esquerda 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes tio-entrar-esquerda {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
 
 /* ============ Movimento reduzido ============ */
 

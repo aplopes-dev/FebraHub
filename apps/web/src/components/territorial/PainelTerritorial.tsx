@@ -11,7 +11,7 @@
    Tema claro/escuro entra pelo escopo .tio (src/app/territorial.css).
    ============================================================ */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Building2,
@@ -216,7 +216,23 @@ export function PainelTerritorial() {
 
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [pedidoCentro, setPedidoCentro] = useState<{ id: string; ts: number } | null>(null);
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  // Os filtros são uma GAVETA lateral (como o drawer de detalhes) em toda
+  // largura — decisão do Rafael: recolhidos, o hub inteiro cabe na tela.
+  // A escolha sobrevive à navegação.
+  const [filtrosAbertos, setFiltrosAbertosBruto] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("febrahub:tio-filtros") === "1") setFiltrosAbertosBruto(true); } catch { /* ok */ }
+  }, []);
+  const setFiltrosAbertos = (v: boolean) => {
+    setFiltrosAbertosBruto(v);
+    try { localStorage.setItem("febrahub:tio-filtros", v ? "1" : "0"); } catch { /* ok */ }
+  };
+  useEffect(() => {
+    if (!filtrosAbertos) return;
+    const aoTecla = (e: KeyboardEvent) => { if (e.key === "Escape") setFiltrosAbertosBruto(false); };
+    window.addEventListener("keydown", aoTecla);
+    return () => window.removeEventListener("keydown", aoTecla);
+  }, [filtrosAbertos]);
   const [exportando, setExportando] = useState<null | "csv" | "xlsx" | "pdf">(null);
   const [avisoExport, setAvisoExport] = useState<string | null>(null);
 
@@ -299,11 +315,6 @@ export function PainelTerritorial() {
       </div>
 
       <div className="tio-leiaute">
-        {/* Filtros — coluna fixa no desktop */}
-        <aside className="tio-filtros-col" aria-label="Painel de filtros">
-          <div className="tio-painel-filtros tio-glass tio-edge-glow">{conteudoFiltros}</div>
-        </aside>
-
         <section className="tio-conteudo">
           <div className="tio-fade-up">
             <KpisTerritorial filtros={estado.filtros} />

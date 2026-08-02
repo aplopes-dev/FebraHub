@@ -1,5 +1,6 @@
 "use client";
 
+import { useLarguraGrafico } from "./useLargura";
 import { Estado } from "@/components/ui/Estado";
 import { C, SANS, alfa } from "@/lib/tema";
 
@@ -18,7 +19,8 @@ export interface PontoPresenca {
    amostra pequena é espalhada. */
 export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
   if (serie.length < 2) return <Estado vazio vazioTitulo="Série insuficiente" vazioDica="Poucos trimestres com presença medida para desenhar a linha." />;
-  const W = 720, H = 196, padL = 40, padR = 14, padT = 20, padB = 30;
+  const { ref: refLargura, largura } = useLarguraGrafico(720);
+  const W = largura, H = 196, padL = 40, padR = 14, padT = 20, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB, plotBottom = padT + plotH;
   const n = serie.length;
   const base = (serie.some((p) => !p.pequena) ? serie.filter((p) => !p.pequena) : serie).map((p) => p.taxa);
@@ -35,7 +37,7 @@ export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
   for (let i = 0; i < n; i += passo) xi.push(i);
   if (xi[xi.length - 1] !== n - 1) xi.push(n - 1);
   return (
-    <div className="fh-grafico">
+    <div className="fh-grafico" ref={refLargura}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
       {yticks.map((v, i) => {
         const yy = y(v);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLarguraGrafico } from "./useLargura";
 import { AZUL_ANTERIOR, C, GROTESK, SANS } from "@/lib/tema";
 import { compacto, mesCurto } from "@/lib/formato";
 
@@ -14,8 +15,9 @@ export interface PontoBarra {
    ano anterior. A linha é comparação histórica, não meta — não existe meta
    no banco, e pintar uma referência como meta seria inventar cobrança. */
 export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBarra[]; anoAnterior: number }) {
+  const { ref: refLargura, largura } = useLarguraGrafico(720);
   if (!serie.length) return null;
-  const W = 720, H = 250, padL = 10, padR = 10, padT = 34, padB = 28;
+  const W = largura, H = 250, padL = 10, padR = 10, padT = 34, padB = 28;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const max = Math.max(...serie.flatMap((s) => [s.valor, s.anterior]), 1);
   const n = serie.length, slot = plotW / n, bw = Math.min(38, slot * 0.58);
@@ -26,7 +28,7 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
 
   return (
     <>
-      <div className="fh-grafico">
+      <div className="fh-grafico" ref={refLargura}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não

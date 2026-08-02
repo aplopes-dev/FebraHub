@@ -1,5 +1,5 @@
 import {
-  Bot, KanbanSquare, LayoutDashboard, MapPinned, MessageCircle, MessagesSquare,
+  Bot, LayoutDashboard, MapPinned, MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -67,17 +67,25 @@ export const GRUPOS_MENU: readonly GrupoMenu[] = [
         desc: PAGINA_INTEGRACOES.desc, visivel: soAdmin },
       { id: "whatsapp", label: "WhatsApp", href: "/integracoes/whatsapp", Icone: MessageCircle,
         desc: "Conexão do número e sessão do WhatsApp", visivel: soAdmin },
+      // Conversas e Kanban NÃO têm item próprio (decisão do Rafael, 02/08):
+      // o acesso é pelos cards da tela de Agentes de IA. Como as rotas são
+      // filhas de /integracoes/agentes, o matcher por prefixo mantém o item
+      // "Agentes de IA" aceso nelas — e o cabeçalho usa o título delas.
       { id: "agentes", label: "Agentes de IA", href: "/integracoes/agentes", Icone: Bot,
-        desc: "Pareamento com a plataforma Aplopes AI", visivel: soAdmin },
-      // Conversas e Kanban são rotas FILHAS de /integracoes/agentes: o matcher
-      // por href mais longo garante que cada uma acende só no seu caminho.
-      { id: "conversas", label: "Conversas", href: "/integracoes/agentes/conversas", Icone: MessagesSquare,
-        desc: "Atendimento com os agentes de IA", visivel: adminOuSetor("crm") },
-      { id: "kanban", label: "Kanban", href: "/integracoes/agentes/conversas/kanban", Icone: KanbanSquare,
-        titulo: "Kanban de conversas", desc: "Conversas dos agentes por etapa", visivel: adminOuSetor("crm") },
+        desc: "Pareamento com a plataforma Aplopes AI", visivel: (ctx) => ctx.admin || ctx.setores.includes("crm") },
     ],
   },
 ];
+
+/** Títulos das rotas filhas sem item de menu (cabeçalho e topbar mobile). */
+const TITULOS_FILHAS: { prefixo: string; titulo: string; desc: string }[] = [
+  { prefixo: "/integracoes/agentes/conversas/kanban", titulo: "Kanban de conversas", desc: "Conversas dos agentes por etapa — o movimento espelha a plataforma" },
+  { prefixo: "/integracoes/agentes/conversas", titulo: "Conversas", desc: "Atendimento com os agentes de IA" },
+];
+
+export function tituloDaRota(caminho: string): { titulo: string; desc: string } | undefined {
+  return TITULOS_FILHAS.find((t) => caminho === t.prefixo || caminho.startsWith(`${t.prefixo}/`));
+}
 
 /** Itens visíveis para o perfil, achatados na ordem dos grupos. */
 export function itensVisiveis(ctx: ContextoMenu): ItemMenu[] {

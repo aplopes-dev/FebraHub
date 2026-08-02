@@ -280,8 +280,14 @@ export class AgentesService {
   }
 
   async listarAgentes() {
-    const conexao = await this.conexaoPareada();
-    return this.puxarAgentes(conexao.baseUrl, conexao.token);
+    // Sem pareamento a lista é VAZIA, não erro: o widget e a página de
+    // conversas consultam sempre, e 400 aqui virava ruído no console de
+    // todo mundo (o estado "não pareado" já aparece na tela de conexão).
+    const conexao = await this.conexao();
+    if (!conexao || conexao.status !== 'pareado' || !conexao.tokenCifrado || !conexao.baseUrl) {
+      return [];
+    }
+    return this.puxarAgentes(conexao.baseUrl, decifrar(this.config, conexao.tokenCifrado));
   }
 
   async desparear(usuario: UsuarioLogado, ip?: string) {

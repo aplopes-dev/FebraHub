@@ -1,5 +1,6 @@
 "use client";
 
+import { useLarguraGrafico } from "./useLargura";
 import { C, SANS, alfa } from "@/lib/tema";
 import { compacto, mesCurto } from "@/lib/formato";
 
@@ -14,8 +15,9 @@ export interface PontoMatFat {
    contagem e reais não dividem escala. Cruzar as duas séries responde "o
    crescimento veio de vender mais ou de vender mais caro?". */
 export function MatriculasVsFaturamento({ serie }: { serie: readonly PontoMatFat[] }) {
+  const { ref: refLargura, largura } = useLarguraGrafico(720);
   if (!serie.length) return null;
-  const W = 720, H = 200, padL = 34, padR = 44, padT = 18, padB = 22;
+  const W = largura, H = 200, padL = 34, padR = 44, padT = 18, padB = 22;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const maxMat = Math.max(...serie.map((s) => s.matriculas), 1);
   const maxFat = Math.max(...serie.map((s) => s.faturamento), 1);
@@ -41,7 +43,7 @@ export function MatriculasVsFaturamento({ serie }: { serie: readonly PontoMatFat
         </span>
       </div>
 
-      <div className="fh-grafico">
+      <div className="fh-grafico" ref={refLargura}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não

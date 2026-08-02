@@ -1,5 +1,6 @@
 "use client";
 
+import { useLarguraGrafico } from "./useLargura";
 import { C, SANS, alfa } from "@/lib/tema";
 import { compacto, mesCurto } from "@/lib/formato";
 
@@ -16,8 +17,9 @@ export interface PontoInvLeads {
    reais e contagem não dividem escala. Responde "gastamos mais e trouxemos
    mais lead, ou só gastamos mais?". */
 export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] }) {
+  const { ref: refLargura, largura } = useLarguraGrafico(720);
   if (!serie.length) return null;
-  const W = 720, H = 200, padL = 42, padR = 42, padT = 18, padB = 22;
+  const W = largura, H = 200, padL = 42, padR = 42, padT = 18, padB = 22;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const maxInv = Math.max(...serie.map((s) => s.investimento), 1);
   const maxLead = Math.max(...serie.map((s) => s.leads), 1);
@@ -44,7 +46,7 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
         </span>
       </div>
 
-      <div className="fh-grafico">
+      <div className="fh-grafico" ref={refLargura}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
