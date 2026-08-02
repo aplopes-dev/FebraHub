@@ -1,27 +1,64 @@
 "use client";
 
-/* Detalhe da empresa em drawer lateral — sócios com participação, contatos
-   com copiar, conexões navegáveis. Documento sempre mascarado. */
+/* ============================================================
+   Drawer de detalhes da empresa — porte fiel do CompanyDrawer do
+   aplopes-dev/hub: 430px à direita, Esc fecha, fatos em <dl> de duas
+   colunas, sócios com barra de participação, contatos com copiar,
+   conexões navegáveis (bolinha na cor do nicho da OUTRA empresa) e
+   ações Centralizar / Ver conexões / Ficha (JSON com documento
+   mascarado). Dado ausente vira "Não informado" — nunca célula vazia.
+   ============================================================ */
 
-import { useEffect } from "react";
-import { Copy, X } from "lucide-react";
-import { Estado } from "@/components/ui/Estado";
-import { C, GROTESK, alfaDe } from "@/lib/tema";
-import { isNicheId, NICHE_MAP } from "@/lib/territorial/nichos";
-import { CONNECTION_TYPE_LABELS, STATUS_LABELS } from "@/lib/territorial/tipos";
+import { useEffect, useRef, useState } from "react";
+import { Check, Copy, Crosshair, Download, ExternalLink, Network, X } from "lucide-react";
+import { NICHE_MAP, isNicheId } from "@/lib/territorial/nichos";
+import {
+  CONNECTION_TYPE_LABELS,
+  REVENUE_RANGE_MAP,
+  STATUS_LABELS,
+} from "@/lib/territorial/tipos";
+import {
+  downloadTextFile,
+  formatBRLCompact,
+  formatBRLFull,
+  formatDate,
+  formatInt,
+} from "@/lib/territorial/formato";
 import { useDetalheEmpresa } from "@/hooks/territorial";
 import { mascararDocumento } from "./exportar";
+import { Botao, Skeleton, StatusPill } from "./ui";
+
+function Fato({ rotulo, valor, title }: { rotulo: string; valor: React.ReactNode; title?: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <dt className="tio-fato-dt">{rotulo}</dt>
+      <dd className="tio-fato-dd" title={title}>
+        {valor}
+      </dd>
+    </div>
+  );
+}
 
 export function DrawerEmpresa({
   id,
   aoFechar,
   aoNavegar,
+  aoCentralizar,
+  aoVerConexoes,
 }: {
   id: string | null;
   aoFechar: () => void;
   aoNavegar: (id: string) => void;
+  aoCentralizar: (id: string) => void;
+  aoVerConexoes: (id: string) => void;
 }) {
   const detalhe = useDetalheEmpresa(id);
+  const fecharRef = useRef<HTMLButtonElement | null>(null);
+  const [copiadoId, setCopiadoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (id) fecharRef.current?.focus();
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -31,126 +68,311 @@ export function DrawerEmpresa({
   }, [id, aoFechar]);
 
   if (!id) return null;
-  const d = detalhe.data;
-  const nicho = d && isNicheId(d.company.nicheId) ? NICHE_MAP[d.company.nicheId] : null;
+
+  const carregando = detalhe.isPending;
+  const empresa = detalhe.data?.company;
+  const conexoes = detalhe.data?.connections ?? [];
+  const nicho = empresa && isNicheId(empresa.nicheId) ? NICHE_MAP[empresa.nicheId] : null;
+  const IconeNicho = nicho?.icon;
+
+  const copiar = async (valor: string, chave: string) => {
+    try {
+      await navigator.clipboard.writeText(valor);
+      setCopiadoId(chave);
+      setTimeout(() => setCopiadoId(null), 1400);
+    } catch {
+      /* clipboard indisponível */
+    }
+  };
+
+  const naoInformado = <span style={{ color: "var(--ink-faint)" }}>Não informado</span>;
 
   return (
-    <>
-      <button type="button" className="fh-terr-veu" onClick={aoFechar} aria-label="Fechar detalhe" />
-      <aside className="fh-terr-drawer" role="dialog" aria-label="Detalhe da empresa">
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.bright, lineHeight: 1.25 }}>
-              {d ? d.company.tradeName || d.company.legalName : "…"}
-            </h2>
-            {d && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" }}>
-                {nicho && (
-                  <span className="fh-exec-badge" style={{ color: nicho.color, background: alfaDe(nicho.color, 0.12), borderColor: alfaDe(nicho.color, 0.3) }}>
-                    {nicho.name}
-                  </span>
-                )}
-                <span style={{ fontSize: 11.5, color: C.muted }}>
-                  {d.company.city} · {d.company.state} · {STATUS_LABELS[d.company.status]}
-                </span>
+    <div className="tio">
+      <button type="button" className="tio-veu" onClick={aoFechar} aria-label="Fechar detalhes" tabIndex={-1} />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={empresa ? `Detalhes de ${empresa.legalName}` : "Detalhes da empresa"}
+        className="tio-drawer tio-glass-strong"
+      >
+        <div className="tio-drawer-cab">
+          {carregando || !empresa ? (
+            <div style={{ flex: 1, display: "grid", gap: 8 }}>
+              <Skeleton style={{ height: 20, width: "75%" }} />
+              <Skeleton style={{ height: 14, width: "50%" }} />
+            </div>
+          ) : (
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <h2
+                  className="tio-display tio-truncar"
+                  style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--ink)", maxWidth: "100%" }}
+                >
+                  {empresa.legalName}
+                </h2>
+                <StatusPill status={empresa.status} label={STATUS_LABELS[empresa.status] ?? empresa.status} />
               </div>
-            )}
-          </div>
-          <button type="button" onClick={aoFechar} className="fh-toque" aria-label="Fechar"
-            style={{ border: `1px solid ${C.cardLine}`, background: "transparent", color: C.muted, borderRadius: 9, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-            <X size={15} />
+              <p className="tio-truncar" style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--ink-dim)" }}>
+                {[empresa.tradeName, empresa.city, empresa.state].filter(Boolean).join(" · ")}
+              </p>
+              {nicho ? (
+                <span
+                  className="tio-pill-nicho"
+                  style={{ marginTop: 8, borderColor: nicho.color, padding: "4px 10px" }}
+                >
+                  {IconeNicho ? <IconeNicho size={12} aria-hidden /> : null}
+                  {nicho.name}
+                </span>
+              ) : null}
+            </div>
+          )}
+          <button
+            ref={fecharRef}
+            type="button"
+            className="tio-copiar"
+            style={{ padding: 6 }}
+            onClick={aoFechar}
+            aria-label="Fechar detalhes"
+          >
+            <X size={17} />
           </button>
         </div>
 
-        <Estado carregando={detalhe.isLoading} erro={detalhe.error} vazio={!d}>
-          {d && (
-            <div style={{ display: "grid", gap: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 8, fontSize: 12 }}>
-                <div>
-                  <div className="fh-exec-num-rotulo">Documento</div>
-                  <div style={{ color: C.text }}>{mascararDocumento(d.company.document, d.company.documentType)}</div>
-                </div>
-                <div>
-                  <div className="fh-exec-num-rotulo">Relevância</div>
-                  <div style={{ fontFamily: GROTESK, fontWeight: 700, color: C.text }}>{d.company.score}/100</div>
-                </div>
-                {d.company.groupName && (
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <div className="fh-exec-num-rotulo">Grupo econômico</div>
-                    <div style={{ color: C.text }}>{d.company.groupName}</div>
-                  </div>
+        <div className="tio-drawer-corpo tio-scroll">
+          {carregando || !empresa ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} style={{ height: 48, width: "100%" }} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 20 }}>
+              <dl className="tio-fatos">
+                <Fato
+                  rotulo={
+                    empresa.documentType === "cpf"
+                      ? "CPF"
+                      : empresa.documentType === "cnpj"
+                        ? "CNPJ"
+                        : "Documento"
+                  }
+                  valor={mascararDocumento(empresa.document, empresa.documentType)}
+                />
+                <Fato
+                  rotulo="CNAE"
+                  valor={empresa.cnae || naoInformado}
+                  title={empresa.cnaeDescription || undefined}
+                />
+                <Fato
+                  rotulo="Faturamento"
+                  valor={formatBRLCompact(empresa.revenue)}
+                  title={formatBRLFull(empresa.revenue)}
+                />
+                <Fato
+                  rotulo="Faixa"
+                  valor={REVENUE_RANGE_MAP[empresa.revenueRangeId]?.label ?? naoInformado}
+                />
+                <Fato rotulo="Funcionários" valor={formatInt(empresa.employeeCount)} />
+                {typeof empresa.score === "number" ? (
+                  <Fato rotulo="Score" valor={`${empresa.score}/100`} />
+                ) : null}
+                <Fato rotulo="Abertura" valor={empresa.openedAt ? formatDate(empresa.openedAt) : naoInformado} />
+                <Fato rotulo="Atualizado em" valor={formatDate(empresa.updatedAt)} />
+                {empresa.groupName ? <Fato rotulo="Grupo econômico" valor={empresa.groupName} /> : null}
+              </dl>
+
+              <section aria-label="Sócios">
+                <h3 className="tio-sub-titulo" style={{ margin: "0 0 6px" }}>
+                  Sócios ({empresa.partners.length})
+                </h3>
+                {empresa.partners.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+                    Sem sócios registrados.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+                    {empresa.partners.map((p) => (
+                      <li key={p.id} className="tio-linha-cartao">
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="tio-truncar" style={{ fontSize: 12.5, color: "var(--ink)" }}>
+                            {p.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
+                            {p.role || "Não informado"}
+                          </div>
+                        </div>
+                        <div className="tio-part-barra">
+                          <div className="tio-part-trilho">
+                            <div
+                              className="tio-part-cheio"
+                              style={{ width: `${Math.min(100, Math.max(0, p.ownershipPercentage))}%` }}
+                            />
+                          </div>
+                          <div
+                            className="tio-tabular"
+                            style={{ marginTop: 2, textAlign: "right", fontSize: 10.5, color: "var(--ink-dim)" }}
+                          >
+                            {p.ownershipPercentage}%
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
+              </section>
 
-              <section>
-                <div className="fh-exec-num-rotulo">Sócios ({d.company.partners.length})</div>
-                <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
-                  {d.company.partners.map((p) => (
-                    <div key={p.id}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12 }}>
-                        <span style={{ color: C.text, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {p.name}
+              <section aria-label="Contatos">
+                <h3 className="tio-sub-titulo" style={{ margin: "0 0 6px" }}>
+                  Contatos
+                </h3>
+                {empresa.contacts.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+                    Sem contatos registrados.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
+                    {empresa.contacts.map((c) => (
+                      <li key={c.id} className="tio-linha-cartao">
+                        <span
+                          style={{
+                            width: 62,
+                            flexShrink: 0,
+                            fontSize: 10.5,
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            color: "var(--ink-faint)",
+                          }}
+                        >
+                          {c.type}
+                          {c.verified ? " ✓" : ""}
                         </span>
-                        <span style={{ color: C.faint, whiteSpace: "nowrap" }}>{p.role} · {p.ownershipPercentage}%</span>
-                      </div>
-                      <div style={{ height: 3, borderRadius: 3, background: alfaDe(C.faint, 0.15), marginTop: 3 }}>
-                        <div style={{ width: `${p.ownershipPercentage}%`, height: "100%", borderRadius: 3, background: C.gold }} />
-                      </div>
-                    </div>
-                  ))}
-                  {!d.company.partners.length && <span style={{ fontSize: 12, color: C.faint }}>Sem sócios registrados.</span>}
-                </div>
+                        <span className="tio-truncar" style={{ minWidth: 0, flex: 1, color: "var(--ink)" }}>
+                          {c.value}
+                        </span>
+                        <button
+                          type="button"
+                          className="tio-copiar"
+                          onClick={() => void copiar(c.value, c.id)}
+                          aria-label={`Copiar ${c.type} ${c.value}`}
+                          title="Copiar"
+                        >
+                          {copiadoId === c.id ? (
+                            <Check size={12.5} style={{ color: "var(--pos)" }} />
+                          ) : (
+                            <Copy size={12.5} />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {empresa.website ? (
+                  <a
+                    href={empresa.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tio-link"
+                    style={{ marginTop: 6, fontSize: 12.5, display: "inline-flex" }}
+                  >
+                    <ExternalLink size={12} aria-hidden />
+                    {empresa.website}
+                  </a>
+                ) : null}
               </section>
 
-              <section>
-                <div className="fh-exec-num-rotulo">Contatos ({d.company.contacts.length})</div>
-                <div style={{ display: "grid", gap: 5, marginTop: 6 }}>
-                  {d.company.contacts.map((k) => (
-                    <div key={k.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12 }}>
-                      <span style={{ color: C.text, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        <span style={{ color: C.faint }}>{k.type === "telefone" ? "tel" : k.type}</span> {k.value}
-                      </span>
-                      <button type="button" onClick={() => void navigator.clipboard?.writeText(k.value)}
-                        title="Copiar" aria-label={`Copiar ${k.value}`}
-                        style={{ border: "none", background: "transparent", color: C.faint, cursor: "pointer", padding: 2 }}>
-                        <Copy size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  {d.company.website && (
-                    <span style={{ fontSize: 12, color: C.text }}>
-                      <span style={{ color: C.faint }}>site</span> {d.company.website}
-                    </span>
-                  )}
-                  {!d.company.contacts.length && !d.company.website && (
-                    <span style={{ fontSize: 12, color: C.faint }}>Sem contatos registrados.</span>
-                  )}
-                </div>
+              <section aria-label="Conexões">
+                <h3 className="tio-sub-titulo" style={{ margin: "0 0 6px" }}>
+                  Conexões ({conexoes.length})
+                </h3>
+                {conexoes.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+                    Nenhuma conexão registrada.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
+                    {conexoes.map(({ connection, other }) => {
+                      const corOutra = isNicheId(other.nicheId)
+                        ? NICHE_MAP[other.nicheId].color
+                        : "#94a3b8";
+                      return (
+                        <li key={connection.id}>
+                          <button
+                            type="button"
+                            className="tio-linha-cartao"
+                            onClick={() => aoNavegar(other.id)}
+                            title={`Abrir ${other.name}`}
+                          >
+                            <span
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 999,
+                                background: corOutra,
+                                flexShrink: 0,
+                              }}
+                              aria-hidden
+                            />
+                            <span style={{ minWidth: 0, flex: 1 }}>
+                              <span className="tio-truncar" style={{ display: "block", fontSize: 12.5, color: "var(--ink)" }}>
+                                {other.name}
+                              </span>
+                              <span className="tio-truncar" style={{ display: "block", fontSize: 10.5, color: "var(--ink-faint)" }}>
+                                {CONNECTION_TYPE_LABELS[connection.type] ?? connection.type}
+                                {connection.metadata.label ? ` · ${connection.metadata.label}` : ""}
+                              </span>
+                            </span>
+                            <span className="tio-tabular" style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
+                              {(connection.strength * 100).toFixed(0)}%
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
 
-              <section>
-                <div className="fh-exec-num-rotulo">Conexões ({d.connections.length})</div>
-                <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
-                  {d.connections.map(({ connection, other }) => (
-                    <button key={connection.id} type="button" onClick={() => aoNavegar(other.id)}
-                      style={{
-                        all: "unset", cursor: "pointer", padding: "7px 9px", borderRadius: 9,
-                        border: `1px solid ${C.cardLine}`, display: "block",
-                      }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.bright }}>{other.name}</div>
-                      <div style={{ fontSize: 11, color: C.faint }}>
-                        {CONNECTION_TYPE_LABELS[connection.type]}
-                        {connection.metadata.label ? ` · ${connection.metadata.label}` : ""} · força {(connection.strength * 100).toFixed(0)}%
-                      </div>
-                    </button>
-                  ))}
-                  {!d.connections.length && <span style={{ fontSize: 12, color: C.faint }}>Sem conexões mapeadas.</span>}
-                </div>
-              </section>
+              <p className="tio-drawer-nota" style={{ margin: 0 }}>
+                Última atualização em {formatDate(empresa.updatedAt)} · Documento e contatos exibidos
+                conforme as permissões de acesso.
+              </p>
             </div>
           )}
-        </Estado>
+        </div>
+
+        {empresa ? (
+          <div className="tio-drawer-rodape">
+            <Botao
+              variante="primario"
+              onClick={() => aoCentralizar(empresa.id)}
+              disabled={empresa.latitude === null}
+              title={empresa.latitude === null ? "Empresa sem coordenadas" : undefined}
+            >
+              <Crosshair size={13} aria-hidden /> Centralizar
+            </Botao>
+            <Botao onClick={() => aoVerConexoes(empresa.id)}>
+              <Network size={13} aria-hidden /> Ver conexões
+            </Botao>
+            <Botao
+              variante="fantasma"
+              onClick={() =>
+                downloadTextFile(
+                  `empresa-${empresa.id}.json`,
+                  JSON.stringify(
+                    { ...empresa, document: mascararDocumento(empresa.document, empresa.documentType) },
+                    null,
+                    2,
+                  ),
+                  "application/json",
+                )
+              }
+            >
+              <Download size={13} aria-hidden /> Ficha
+            </Botao>
+          </div>
+        ) : null}
       </aside>
-    </>
+    </div>
   );
 }

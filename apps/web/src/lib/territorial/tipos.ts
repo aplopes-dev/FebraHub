@@ -35,6 +35,31 @@ export const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
   comercial: "Relação comercial",
 };
 
+export const CONNECTION_TYPES: ConnectionType[] = ["grupo", "socio", "comercial"];
+
+/** Métrica que dá o raio do ponto no mapa (porte de data/types.ts do hub). */
+export type SizeMode = "revenue" | "employees" | "score" | "uniform";
+
+export interface RevenueRange {
+  id: string;
+  label: string;
+  min: number;
+  max: number | null;
+}
+
+/** Faixas de faturamento — mesmas do hub original (r1..r5). */
+export const REVENUE_RANGES: RevenueRange[] = [
+  { id: "r1", label: "Até R$ 360 mil", min: 0, max: 360_000 },
+  { id: "r2", label: "R$ 360 mil – 4,8 mi", min: 360_000, max: 4_800_000 },
+  { id: "r3", label: "R$ 4,8 mi – 30 mi", min: 4_800_000, max: 30_000_000 },
+  { id: "r4", label: "R$ 30 mi – 100 mi", min: 30_000_000, max: 100_000_000 },
+  { id: "r5", label: "Acima de R$ 100 mi", min: 100_000_000, max: null },
+];
+
+export const REVENUE_RANGE_MAP: Record<string, RevenueRange> = Object.fromEntries(
+  REVENUE_RANGES.map((r) => [r.id, r]),
+);
+
 export interface CompanyPartner {
   id: string;
   name: string;
@@ -143,19 +168,31 @@ export interface CitySummary {
   count: number;
 }
 
-/** Filtros aceitos por /api/territorial/* (espelho do CompanyFiltersDto). */
+/** Filtros aceitos por /api/territorial/* (espelho do CompanyFiltersDto),
+ *  mais o estado de conexões que só a interface consome (showConnections /
+ *  connectionTypes não vão para os endpoints de dados; os tipos vão apenas
+ *  como `types` no endpoint de conexões). */
 export interface FiltrosTerritorial {
   search?: string;
   nicheIds?: string[];
   states?: string[];
   cities?: string[];
+  revenueRanges?: string[];
+  employeesMin?: number;
+  employeesMax?: number;
   status?: string[];
   documentTypes?: string[];
   partnersMin?: number;
+  openedFrom?: number;
+  openedTo?: number;
   hasContact?: boolean;
   hasPhone?: boolean;
   hasEmail?: boolean;
   hasWebsite?: boolean;
+  /** Estado da camada de conexões (padrão: true). Não é filtro de dados. */
+  showConnections: boolean;
+  /** Tipos de conexão exibidos (padrão: todos). Vazio = nenhuma conexão. */
+  connectionTypes: ConnectionType[];
 }
 
 export interface ListaEmpresas {
