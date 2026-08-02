@@ -111,3 +111,96 @@ repo) — o motor continua sendo a plataforma externa.
    portados.
 6. Validação total → desativação dos sistemas antigos (com autorização) —
    os dois sistemas de origem continuam em produção, intocados.
+
+## Fase 3 — correção de auth + conversas completas + fidelidade ao hub (02/08/2026)
+
+Branch `fix/auth-hub-conversations-ui`.
+
+### Refresh token — causa real e correção
+
+A "sessão que expirava sozinha" tinha causa raiz na **detecção de reuso
+tratando corrida legítima como vazamento**: o refresh era rotativo, e duas
+renovações concorrentes com o mesmo cookie (duas abas com polling, retry em
+voo, resposta perdida na rede) faziam a segunda cair em `revogarTodas` —
+TODAS as sessões do usuário morriam. O front tinha single-flight na aba,
+mas nada entre abas. Correção no padrão do Veicular (referência auditada):
+
+- **Rotação via CAS** (`updateMany where revogadaEm: null`): quem perde a
+  corrida reemite mesmo assim; só token revogado NA LEITURA é reuso — e aí
+  derruba tudo, audita (`refresh_reuso`) e exige novo login.
+- **Deslizamento com teto**: o refresh re-expira a cada uso
+  (+`JWT_REFRESH_EXPIRES_IN`, 30d) mas a família nunca passa do teto
+  absoluto (`AUTH_SESSION_MAX_AGE`, 90d) herdado do login (colunas
+  `substituida_por` e `absoluta_expira_em`, migration 10).
+- **Unidades por construção**: `ttlMs` único alimenta o `expiresIn` do JWT,
+  o `expira_em` do banco e o `maxAge` do cookie (que antes era 15 min
+  chumbado, ignorando o env).
+- **Front**: trava entre abas via Web Locks + guarda "renovou há <15s";
+  renovação proativa (intervalo 60s + `visibilitychange` — aba suspensa não
+  depende de timer); logout propaga às outras abas por `storage`.
+- **Envs**: `JWT_ACCESS_EXPIRES_IN` (prod: 1h) / `JWT_REFRESH_EXPIRES_IN`
+  (30d) / `AUTH_SESSION_MAX_AGE` (90d) / `AUTH_COOKIE_SAME_SITE`, com
+  fallback nos nomes legados.
+- **Higiene de segredos**: cookie jars do e2e saíram do repo (um refresh
+  token REAL de admin chegou a ser commitado — as 49 sessões do usuário
+  foram revogadas na produção em 02/08); senhas do e2e só por env. O
+  histórico do git ainda contém o token revogado e a senha antiga — purgar
+  exige push forçado, que a política da spec proíbe; fica registrado como
+  pendência autorizável (recomendada a rotação da senha do admin).
+- Testes: 11 unitários com relógio controlado (rotação, corrida, reuso,
+  teto, unidades) + e2e com corrida SIMULTÂNEA real e reuso recusado.
+
+### Conversas de agentes completas + kanban + widget
+
+- `Integrações → Conversas` (`/integracoes/agentes/conversas`, admin ou
+  setor crm): lista com contadores por etapa, não-lidas, filtros e busca;
+  thread com separadores de dia, anexos (upload multipart repassado à
+  plataforma, campo `file`; download por proxy autenticado com fallback de
+  thumbnail), áudio gravado no navegador (MediaRecorder) com player e
+  waveform; ações concluir/reabrir/cancelar com a semântica da origem;
+  painel de contexto com prioridade/etiquetas/responsável (campos LOCAIS —
+  a plataforma remota não os tem; verificado no código da origem) e vínculo
+  com cliente do CRM.
+- `…/conversas/kanban`: as 8 etapas da origem, arrastar-e-soltar otimista
+  com rollback; mover espelha o status na plataforma via
+  `PATCH /issues/:id` best-effort (mesmo contrato da origem); toque/teclado
+  movem pelo menu do card.
+- **Widget flutuante** no Shell (porte do teams-widget do crm-aplopes, sem
+  MUI/iframe): FAB arrastável, badge de não-lidas, lista/chat/nova,
+  posição e última conversa persistidas; a conversa nasce com o contexto da
+  tela (rota + filtros da URL — nada além do que o usuário já vê).
+- **Tempo real**: SSE in-process com heartbeat 25s (mesmo desenho e mesmos
+  limites da origem: não sobrevive a restart nem escala horizontal; o
+  cliente cai para polling) + location dedicado no nginx sem buffering.
+
+### Menu de Integrações
+
+"Fontes de dados" acendia em toda rota `/integracoes/*` (comparação pelo 1º
+segmento). O menu agora nasce de `lib/menu.ts` (estrutura tipada única) com
+UM matcher: casa por segmento inteiro e o href mais específico vence — um
+ativo por vez, sempre o certo.
+
+### Fidelidade ao hub original (reconstrução do territorial)
+
+O módulo foi reescrito com o hub.aplopes.com como régua, a partir de
+auditoria do código-fonte da origem (não de screenshot). Tokens do tema do
+hub num escopo próprio (`.tio` em `territorial.css`, claro E escuro,
+seguindo o `data-tema` do FebraHub), sem tocar no design system do resto do
+painel. Matriz de equivalência (original → migrado):
+
+| Original | Migrado | Diferença que havia | Correção |
+|---|---|---|---|
+| `FilterPanel` (9 seções) | `FiltrosTerritorial` | só 5 grupos, sem colapso, sem faturamento/funcionários/abertura/conexões/views | 9 seções colapsáveis com os títulos literais, tri-state Todos→Sim→Não, faixas com debounce 400ms, visualizações salvas (localStorage, máx 8), rodapé Limpar+Compartilhar |
+| `Chip` do hub | `territorial/ui.tsx` | chip tinha fundo e texto na cor do nicho | **cor SÓ na borda** (`${cor}99`; selecionado = 2px sólida com padding compensado), check accent, contador tabular — a regra de ouro do original |
+| `CompanyMap` | `MapaTerritorial` | sem legenda interativa, sem painel de camadas, sem modos de raio | legenda com Focus/ocultar por nicho, camadas (pontos/conexões/cluster/fronteiras), raio por faturamento/funcionários/relevância/uniforme, foco de conexões, tema claro/escuro com fallback silencioso por tema |
+| `CompanyTable` | `TabelaEmpresas` | tabela manual de 8 colunas | @tanstack/react-table com as 17 colunas do original (ordem/larguras), sticky, menu Colunas, resize, paginação 10/25/50/100, cards no mobile |
+| `CompanyDrawer` | `DrawerEmpresa` | faltavam fatos e ações | drawer 430px completo: fatos em 2 colunas, sócios com barra de participação, contatos com copiar, conexões clicáveis, Centralizar/Ver conexões/Ficha (JSON mascarado), "Não informado" em dado ausente |
+| `KpiBar` (10 cards) | KPIs do `PainelTerritorial` | 8 KPIs sem ícone | os 10 cards do hub com ícone, hint e skeleton |
+| `lib/url.ts` | `hooks/territorial.ts` | faltavam chaves rr/emin/emax/ps/of/ot/hw/cx/ct | todas adicionadas; as legadas seguem lidas (links antigos não quebram) |
+
+Diferenças conscientes (documentadas): sem framer-motion (animações de
+saída viram CSS), sem toasts (feedback por troca de ícone), sem números
+animados nos KPIs, busca global mora no painel de filtros (o hub tinha
+Header próprio; aqui o cabeçalho é do FebraHub). Os filtros de
+faturamento/funcionários/abertura existem e funcionam MAS a carga real vem
+zerada nesses campos (limitação do dado da origem, não da UI).
