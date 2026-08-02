@@ -7,16 +7,21 @@
 # só troca o container depois que a imagem nova constrói.
 set -euo pipefail
 
-DIR="${FEBRAHUB_DIR:-/opt/febrahub}"
-COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env"
+# O compose de produção roda DO CHECKOUT (/opt/febrahub/app): os contexts de
+# build são relativos ao arquivo (`context: .` = raiz do repo). Rodar da pasta
+# de cima quebra com "lstat /opt/febrahub/apps: no such file". O -p fixa o nome
+# do projeto: sem ele, o basename do diretório ("app") criaria rede e volumes
+# novos em vez de reaproveitar os do projeto `febrahub` que já está no ar.
+DIR="${FEBRAHUB_DIR:-/opt/febrahub/app}"
+COMPOSE="docker compose -p febrahub -f docker-compose.prod.yml --env-file .env"
 
 cd "$DIR"
 
 echo "==> commit implantado"
-git -C app rev-parse --short HEAD 2>/dev/null || echo "(sem repositório em ./app)"
+git rev-parse --short HEAD 2>/dev/null || echo "(sem repositório em $DIR)"
 
 echo "==> backup antes de mexer"
-./scripts/backup.sh || { echo "backup falhou — abortando o deploy"; exit 1; }
+../scripts/backup.sh || ./infra/scripts/backup.sh || { echo "backup falhou — abortando o deploy"; exit 1; }
 
 echo "==> construindo imagens"
 $COMPOSE build --pull api web
