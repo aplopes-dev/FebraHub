@@ -76,17 +76,38 @@ repo) — o motor continua sendo a plataforma externa.
    organização DENTRO da API. Recomendação do inventário: extrair para
    worker dedicado antes do porte, com eventos via Redis.
 
-### Ordem proposta (cada etapa validável de ponta a ponta)
+### Estado das etapas (02/08/2026)
 
-1. Decisão de modelo (tenant único Febracis? papéis→permissions?).
-2. Schema do núcleo CRM (Customer/Contact/Pipeline/Stage/Deal/Task/
-   Activity) + migração dos dados (pequenos) + telas de leads/pipeline
-   kanban no design FebraHub → `Setores → CRM`.
-3. Redis + worker WhatsApp (Baileys extraído) + conversas/inbox + vínculo
-   conversa↔cliente → `Integrações → WhatsApp`.
-4. Ponte Aplopes AI (teams/tech-knowledge) → `Integrações → Agentes de IA`.
-5. Propostas, comissões, pós-venda, campanhas — módulos completos, um a um.
-6. Validação total → desativação dos sistemas antigos (com autorização).
-
-Nada do CRM foi copiado, migrado ou desativado até aqui — os dois sistemas
-de origem continuam em produção, intocados.
+1. **Decisão de modelo — FEITA**: tenant único (decisão do Rafael); papéis
+   granulares da origem viraram a regra da casa (setor usa, admin/gestor
+   configura). Carga inicial VAZIA — as carteiras da origem (Aplopes + um
+   cliente de advocacia) não entram no painel da Febracis.
+2. **Núcleo do CRM — ENTREGUE** (`Setores → CRM`, migration 07): clientes
+   com ciclo de vida (lead É cliente por estágio), funil kanban semeado,
+   negócios em centavos com trilha de estágio (perder exige motivo; ganhar
+   promove o cliente), tarefas, atividades, auditoria em toda escrita.
+3. **WhatsApp — ENTREGUE** (`Integrações → WhatsApp` + aba Conversas do
+   CRM, migration 08): baileys rc13 com o MESMO patch de produção da origem
+   (pnpm patchedDependencies) e o workaround WEB→MACOS; manager
+   single-tenant no processo da API (débito assumido, como a origem roda),
+   sessão no volume `febrahub_wa_sessoes`; pipeline de entrada com dedupe,
+   conversa por telefone, vínculo automático ao cliente pelos últimos 8
+   dígitos, mídia re-hospedada no MinIO, escada de status e erro 463
+   acionável. **QR real gerado contra os servidores do WhatsApp em
+   produção** — conectar o número = escanear (ação humana). SEM Redis por
+   decisão de escopo: transmissões em massa (broadcasts/campanhas) da
+   origem ficam para uma etapa futura, que trará BullMQ.
+4. **Agentes de IA — ENTREGUE** (`Integrações → Agentes de IA`, migration
+   09): token de conexão `fhk_live_` (só hash), manifesto
+   `/.well-known/aplopes-integration` (roteado no nginx) e pair
+   autenticados por ele, tokens remotos cifrados AES-256-GCM
+   (`AGENTES_CHAVE_CIFRA` no env da VPS), webhook HMAC
+   `sha256(timestamp.rawBody)` com outbox e anti-replay, criação de issue
+   com Idempotency-Key, chat espelhado e **reconciliação de 60s** que
+   fecha o loop mesmo sem webhook registrado na plataforma. Para ativar:
+   gerar o token na tela e colar no Aplopes em "Conectar um sistema".
+5. Propostas, comissões, pós-venda, campanhas/segmentos/transmissões,
+   grupos de WhatsApp, notificações — módulos da origem AINDA NÃO
+   portados.
+6. Validação total → desativação dos sistemas antigos (com autorização) —
+   os dois sistemas de origem continuam em produção, intocados.
