@@ -213,3 +213,34 @@ Os workflows do GitHub continuam no repositório com o **agendamento desligado**
 (`workflow_dispatch` apenas). Ficam como plano B manual, não como dependência.
 Dois lugares renovando o mesmo refresh token rotativo derrubam um ao outro — foi
 exatamente o que quebrou o Conta Azul.
+
+---
+
+## O rodapé "atualização das fontes" mentia
+
+Até 02/08/2026 o painel dizia "Salesforce: falha na última sincronização"
+enquanto a tabela real dizia `ok` havia horas. A causa não era o ETL: a
+`vw_integracao_status` era uma das views congeladas, espelho de um snapshot
+tirado em 01/08 07:24 — o dia da migração. Ela mostrava o estado daquele
+instante, para sempre.
+
+Era o pior caso possível de view congelada, porque o propósito dela é
+justamente dizer QUANDO cada fonte atualizou. Agora é view viva sobre
+`integracao_status`.
+
+Ela também resolve dois nomes em duplicidade que a troca de agendamento
+deixou: os workflows do GitHub gravavam `conta_azul` e `meta_ads`, os scripts
+da VPS passaram a gravar `contaazul` e `meta`, e o front lê os primeiros. A
+view normaliza os dois grafos e consolida os DOIS scripts do Conta Azul (a
+receber e a pagar) numa linha só — é a mesma integração, e mostrar duas
+confunde quem lê o rodapé. Basta um dos dois falhar para a linha ficar em
+erro: arredondar para `ok` esconderia o que o rodapé existe para mostrar.
+
+### O que cada estado quer dizer hoje
+
+| fonte | estado | por quê |
+|---|---|---|
+| Salesforce, CisPay, Sympla, Omie, as 4 planilhas | ok | sincronizando pelo cron da VPS |
+| Conta Azul | erro | precisa de reautorização OAuth (ver acima) |
+| Meta Ads | erro | idem, e falta o `META_APP_ID` |
+| Clint | nunca sincronizado | **nunca teve script de carga** — `dim_leads` e `fato_negocio_lead` vieram inteiras na migração. O rodapé passa a dizer isso em vez de omitir a fonte |
