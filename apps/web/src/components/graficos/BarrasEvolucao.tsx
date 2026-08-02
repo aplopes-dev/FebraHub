@@ -26,6 +26,7 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
 
   return (
     <>
+      <div className="fh-grafico">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
@@ -71,6 +72,7 @@ export function BarrasEvolucao({ serie, anoAnterior }: { serie: readonly PontoBa
           </text>
         ))}
       </svg>
+      </div>
 
       <div style={{ fontSize: 10.5, color: C.faint, marginTop: 6, lineHeight: 1.5 }}>
         Último mês tracejado = <b style={{ color: C.muted }}>parcial</b> (em andamento).

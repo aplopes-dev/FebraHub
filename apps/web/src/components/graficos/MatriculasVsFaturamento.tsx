@@ -41,6 +41,7 @@ export function MatriculasVsFaturamento({ serie }: { serie: readonly PontoMatFat
         </span>
       </div>
 
+      <div className="fh-grafico">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
@@ -96,6 +97,7 @@ export function MatriculasVsFaturamento({ serie }: { serie: readonly PontoMatFat
           </text>
         ))}
       </svg>
+      </div>
 
       <div style={{ fontSize: 10, color: C.faint, marginTop: 5, lineHeight: 1.45 }}>
         Sobem juntas = crescimento por <b style={{ color: C.muted }}>volume</b> (mais vendas). Faturamento

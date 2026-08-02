@@ -44,6 +44,7 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
         </span>
       </div>
 
+      <div className="fh-grafico">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
@@ -99,6 +100,7 @@ export function InvestimentoXLeads({ serie }: { serie: readonly PontoInvLeads[] 
           </text>
         ) : null)}
       </svg>
+      </div>
     </>
   );
 }

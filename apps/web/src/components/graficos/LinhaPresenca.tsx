@@ -35,7 +35,8 @@ export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
   for (let i = 0; i < n; i += passo) xi.push(i);
   if (xi[xi.length - 1] !== n - 1) xi.push(n - 1);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+    <div className="fh-grafico">
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
       {yticks.map((v, i) => {
         const yy = y(v);
         return (
@@ -55,5 +56,6 @@ export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
         <text key={i} x={x(i)} y={H - 9} fontSize="10" textAnchor="middle" style={{ fill: C.faint }} fontFamily={SANS}>{serie[i].rotulo}</text>
       ))}
     </svg>
+      </div>
   );
 }

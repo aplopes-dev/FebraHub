@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "febrahub-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@febrahub/web",
+        "dev",
+        "--",
+        "--port",
+        "3310"
+      ],
+      "port": 3310,
+      "env": {
+        "API_INTERNAL_URL": "http://127.0.0.1:3299/api"
+      }
+    }
+  ]
+}

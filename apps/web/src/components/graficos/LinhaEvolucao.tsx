@@ -139,6 +139,7 @@ export function LinhaEvolucao({
 
   return (
     <>
+      <div className="fh-grafico">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
         <defs>
           {/* Cor de SVG sempre por `style`, nunca por atributo: `var(--x)` não
@@ -207,6 +208,7 @@ export function LinhaEvolucao({
           </text>
         ))}
       </svg>
+      </div>
       {temMeta && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: C.faint, marginTop: 4 }}>
           <span style={{ width: 16, height: 0, borderTop: `1.4px dashed ${ARRED_META}`, flexShrink: 0 }} /> {metaLabel}

@@ -202,15 +202,66 @@
   --fundo-app: radial-gradient(1200px 600px at 78% -10%, var(--brilho-fundo), transparent 60%), var(--void);
 }
 
+/* ============ ESCALA RESPONSIVA ============
+   Um painel de BI desenhado para TV precisa caber num celular sem virar outro
+   produto. O que muda com a largura é ESPAÇO e DENSIDADE — não o conteúdo:
+   nenhum número, alerta ou aviso de cobertura some no mobile, porque é
+   justamente no celular que a Dulce olha o painel fora do escritório.
+
+   Os tamanhos abaixo entram por variável para o ajuste ficar num lugar só, em
+   vez de espalhado por 100 arquivos de inline style.
+
+   Breakpoints (mobile primeiro, batendo com os que o design já usava):
+     base    celular em pé      (< 600px)
+     600px   celular deitado / tablet pequeno
+     900px   tablet
+     1100px  desktop            — a partir daqui a sidebar é fixa
+*/
+:root {
+  --pad-pagina: 14px;        /* respiro lateral do conteúdo */
+  --pad-pagina-baixo: 40px;
+  --gap-secao: 12px;
+  --h1: 21px;                /* título do hub */
+  --data-topo: 10.5px;
+  --alvo-toque: 40px;        /* piso de área tocável (WCAG 2.5.8 pede 24; 40 é confortável) */
+  --sidebar: 250px;
+  --topbar: 0px;             /* altura da barra fixa do mobile; 0 no desktop */
+}
+
+@media (min-width: 600px) {
+  :root { --pad-pagina: 20px; --gap-secao: 14px; --h1: 24px; --data-topo: 11px; }
+}
+
+@media (min-width: 900px) {
+  :root { --pad-pagina: 26px; --h1: 26px; }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --pad-pagina: 34px; --pad-pagina-baixo: 60px;
+    --gap-secao: 16px; --h1: 29px; --data-topo: 12px;
+  }
+}
+
 html, body {
   margin: 0;
   min-height: 100%;
   background: var(--void);
+  /* Sem isto, um SVG ou uma tabela que estoure a largura arrasta a página
+     inteira para o lado no celular — o sintoma clássico de "quebrou no
+     mobile". Quem precisa rolar na horizontal é o container, não o body. */
+  overflow-x: hidden;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body { background: var(--void); -webkit-font-smoothing: antialiased; }
+body {
+  background: var(--void);
+  -webkit-font-smoothing: antialiased;
+  /* iOS aumenta a fonte sozinho ao girar o aparelho; o painel tem tamanhos
+     fracionários calibrados e isso os desalinha. */
+  -webkit-text-size-adjust: 100%;
+}
 
 ::selection { background: var(--selecao); }
 
@@ -238,37 +289,209 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .girar { animation: girar 1s linear infinite; }
 .subir { animation: subir .4s ease; }
 
+/* ============ SIDEBAR: fixa no desktop, gaveta no celular ============
+   Abaixo de 1100px a sidebar sai do fluxo e vira gaveta sobre o conteúdo. Em
+   250px numa tela de 375px sobrariam 125px para o painel — não é estreito, é
+   inutilizável.
+
+   A gaveta é controlada por `data-menu="aberto"` no <html>, não por classe no
+   componente, para o backdrop e o travamento do scroll do body virem junto
+   sem prop drilling. */
+.fh-sidebar {
+  width: var(--sidebar);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.fh-topbar { display: none; }
+.fh-backdrop { display: none; }
+/* Fechar-a-gaveta só faz sentido onde existe gaveta. */
+.fh-so-gaveta { display: none; }
+/* Enfeite que some quando o espaço fica caro (o sino, hoje sem notificação). */
+.fh-sem-celular { display: flex; }
+
+@media (max-width: 1099px) {
+  .fh-sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    height: 100dvh;              /* dvh e não vh: a barra do navegador móvel some e volta */
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: 8px 0 32px var(--sombra-drawer-cor, rgba(0,0,0,.4));
+    /* A gaveta cobre o conteúdo, então precisa de fundo opaco — o
+       `--panel` translúcido do desktop deixaria o painel aparecer atrás. */
+    background: var(--void);
+  }
+  :root[data-menu="aberto"] .fh-sidebar { transform: translateX(0); }
+
+  .fh-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0,0,0,.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease;
+    border: none;
+  }
+  :root[data-menu="aberto"] .fh-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* Trava o fundo enquanto a gaveta está aberta: sem isso o painel rola por
+     baixo quando o dedo passa do menu. */
+  :root[data-menu="aberto"] body { overflow: hidden; }
+
+  .fh-topbar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    padding: 8px var(--pad-pagina);
+    min-height: 52px;
+    background: var(--panel);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--card-line);
+  }
+  :root { --topbar: 52px; }
+
+  .fh-so-gaveta { display: flex; }
+}
+
+@media (max-width: 599px) {
+  .fh-sem-celular { display: none; }
+}
+
+/* Área tocável mínima sem inflar o desenho: o botão continua pequeno, mas o
+   alvo do dedo cresce por pseudo-elemento. */
+.fh-toque { position: relative; }
+.fh-toque::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--alvo-toque);
+  height: var(--alvo-toque);
+}
+
+/* ============ DEDO E LEGIBILIDADE NO CELULAR ============
+   O painel foi desenhado para mouse e TV: botão de filtro com 27px de altura
+   e rótulo de 9px funcionam com cursor a 60cm, não com o polegar a 30cm.
+
+   O `!important` aqui não é preguiça: os tamanhos vêm de inline style (a UI
+   inteira é assim, portada do protótipo), e inline vence folha de estilo. Sem
+   ele o CSS não alcança. O escopo é o mínimo — só abaixo de 900px, e só nos
+   elementos que o dedo realmente toca. */
+@media (max-width: 899px) {
+  /* Botões e links de comando: 40px de altura, o piso confortável.
+     Ficam de fora os que vivem dentro de tabela ou de linha densa de lista,
+     onde inflar a altura empurraria o conteúdo para fora da tela. */
+  button:not(.fh-sem-alvo),
+  a[href]:not(.fh-sem-alvo),
+  [role="button"]:not(.fh-sem-alvo) {
+    min-height: 40px;
+    /* Largura também: o botão de ícone (editar maestro, filtro de produto)
+       tinha 27px de lado — alto o bastante depois do min-height, mas ainda
+       estreito demais para acertar com o polegar. */
+    min-width: 40px;
+  }
+  /* Alvo grande não pode virar botão gordo: o padding lateral segue o desenho
+     e quem cresce é só a altura, com o conteúdo centralizado. */
+  button:not(.fh-sem-alvo) { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Piso de fonte. 9px é ilegível num celular; 10.5 mantém a hierarquia
+     (continua menor que os 11-13 do corpo) e passa a ser lido.
+     O seletor casa a serialização do React, que sai com espaço depois dos
+     dois-pontos ("font-size: 9.5px") — conferido no DOM, não suposto. */
+  [style*="font-size: 9"] { font-size: 10.5px !important; }
+}
+
+/* Conteúdo que pode estourar a largura (tabela, gráfico largo) rola dentro do
+   próprio card, nunca arrastando a página. */
+.fh-rolagem-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.fh-rolagem-x::-webkit-scrollbar { height: 8px; }
+.fh-rolagem-x::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
+
 /* Painéis do Hub Financeiro (design portado): 1 coluna no mobile,
    proporções do design (5:4:3 e 7:5) em telas largas. */
-.finRow1 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
-.finRow2 { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+.finRow1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-secao); align-items: start; }
+.finRow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-secao); align-items: start; }
 @media (min-width: 1000px) {
-  .finRow1 { grid-template-columns: 5fr 4fr 3fr; }
-  .finRow2 { grid-template-columns: 7fr 5fr; }
+  .finRow1 { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); }
+  .finRow2 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
 }
 
 /* Hub Comercial: evolução à esquerda, consultoras à direita. Denso
    pra caber numa TV 16:9 sem rolagem. */
-.gridCom { display: grid; grid-template-columns: 1fr; column-gap: 14px; align-items: start; }
-@media (min-width: 1100px) { .gridCom { grid-template-columns: 7fr 5fr; } }
+.gridCom { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; align-items: start; }
+@media (min-width: 1100px) { .gridCom { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
 
 /* Hub Pedagógico. */
-.pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
-.pedConfKpis { display: grid; grid-template-columns: 1fr; gap: 9px; }
-.pedBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+.pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.pedConfKpis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+.pedBot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 @media (min-width: 720px) {
-  .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, 1fr); }
-  .pedConfKpis { grid-template-columns: repeat(3, 1fr); }
+  .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pedConfKpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (min-width: 1000px) { .pedBot { grid-template-columns: 1fr 1fr; } }  /* fideliza · falta */
+@media (min-width: 1000px) { .pedBot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }  /* fideliza · falta */
 
 /* Hub Loja. Uma tela só, sem rolagem vertical (alvo 1080p). Três faixas. */
-.lojaKpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
-@media (min-width: 720px) { .lojaKpis { grid-template-columns: repeat(4, 1fr); } }
-.lojaMid, .lojaBot { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+.lojaKpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+@media (min-width: 720px) { .lojaKpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.lojaMid, .lojaBot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 @media (min-width: 1000px) {
-  .lojaMid { grid-template-columns: 7fr 5fr; }       /* receita · estoque */
-  .lojaBot { grid-template-columns: 3fr 4fr; }       /* mais vendidos · performance curso */
+  .lojaMid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }       /* receita · estoque */
+  .lojaBot { grid-template-columns: minmax(0, 3fr) minmax(0, 4fr); }       /* mais vendidos · performance curso */
+}
+
+/* ============ AJUSTES DE CELULAR ============
+   Regras que valem para o painel inteiro e que seria pior repetir em cada
+   componente. Tudo aqui é espaço/densidade — nenhuma informação sai da tela. */
+@media (max-width: 599px) {
+  /* Painel com altura fixa (ALTURA_PAINEL = 260) existe para a TV: rolagem
+     dentro do card. No celular isso vira uma janelinha rolando dentro de outra
+     — o card cresce e quem rola é a página. */
+    .fh-painel-alto { max-height: none !important; overflow-y: visible !important; }
+
+  /* Grade de KPI: no desenho original o auto-fit já colapsa, mas com pisos de
+     190-220px sobra folga demais em 360px. Duas colunas mantêm a leitura de
+     relance, que é o ponto do KPI. */
+  .fh-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fh-kpis-1 { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* Título de seção e canto explicativo empilham em vez de disputar a linha. */
+  .fh-secao-titulo { flex-direction: column; align-items: flex-start !important; gap: 4px; }
+}
+
+/* O gráfico SVG escala por viewBox, então o texto dentro dele encolhe junto e
+   fica ilegível bem antes do desenho. Abaixo de 900px damos ao SVG uma
+   largura mínima e deixamos o container rolar: melhor arrastar o dedo do que
+   ler rótulo de 5px. */
+@media (max-width: 899px) {
+  .fh-grafico {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Sem estes dois o wrapper CRESCE até o tamanho do conteúdo em vez de
+       rolar — dentro de flex/grid a base é `auto`, não zero. O sintoma é o
+       gráfico ficar cortado pelo overflow do body, com o pedaço de fora
+       inalcançável: pior que rolar. */
+    max-width: 100%;
+    min-width: 0;
+  }
+  .fh-grafico > svg { min-width: 560px; }
+  .fh-grafico::-webkit-scrollbar { height: 8px; }
+  .fh-grafico::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
