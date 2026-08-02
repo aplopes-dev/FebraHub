@@ -104,8 +104,15 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
-      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+      # Tempos da sessão (nomes novos; os legados JWT_*_TTL seguem aceitos
+      # como fallback pela API). Acesso 1h: curto o bastante para revogação
+      # valer, longo o bastante para o refresh não ser marretado — e a
+      # renovação proativa do front age antes de expirar. Refresh desliza
+      # 30d por uso; a família nunca passa de 90d (teto absoluto).
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-1h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      AUTH_SESSION_MAX_AGE: ${AUTH_SESSION_MAX_AGE:-90d}
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-lax}
       COOKIE_SECRET: ${COOKIE_SECRET}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       MINIO_ENDPOINT: minio
