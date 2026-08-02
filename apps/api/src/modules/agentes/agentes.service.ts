@@ -35,9 +35,57 @@ import {
 } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
+import { AgentesEventos } from './agentes.eventos';
 
 const JANELA_WEBHOOK_MS = 5 * 60 * 1000;
 const ESTADOS_FINAIS = new Set(['CONCLUIDA', 'CANCELADA', 'ERRO']);
+
+/** As colunas do kanban, na ordem da origem (crm-aplopes). */
+export const STATUS_KANBAN = [
+  'BACKLOG',
+  'EM_PROGRESSO',
+  'BLOQUEADA',
+  'AGUARDANDO_USUARIO',
+  'EM_VALIDACAO',
+  'CONCLUIDA',
+  'CANCELADA',
+  'ERRO',
+] as const;
+
+export const PRIORIDADES = ['baixa', 'normal', 'alta', 'urgente'] as const;
+
+/** Espelho best-effort no Aplopes: status local → status da issue remota.
+ *  AGUARDANDO_USUARIO é um estado que só existe deste lado (deriva do
+ *  inbox.unread da origem) — não é empurrado. */
+const STATUS_REMOTO: Record<string, string> = {
+  BACKLOG: 'todo',
+  EM_PROGRESSO: 'in_progress',
+  BLOQUEADA: 'blocked',
+  EM_VALIDACAO: 'review',
+  CONCLUIDA: 'done',
+  CANCELADA: 'canceled',
+  ERRO: 'failed',
+};
+
+const ANEXOS_MAX = 5;
+const ANEXO_MAX_BYTES = 10 * 1024 * 1024;
+
+export interface AnexoMeta {
+  artifactId: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+export interface FiltrosConversas {
+  status?: string;
+  agenteId?: string;
+  responsavelId?: string;
+  prioridade?: string;
+  etiqueta?: string;
+  busca?: string;
+  naoLidas?: boolean;
+}
 
 /* ------------------------- cifra AES-256-GCM ------------------------- */
 
@@ -113,6 +161,7 @@ export class AgentesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly eventos: AgentesEventos,
   ) {}
 
   private conexao() {
@@ -257,14 +306,96 @@ export class AgentesService {
 
   /* ---------------------------- conversas ---------------------------- */
 
-  listarConversas() {
-    return this.prisma.agentesConversa.findMany({
+  /**
+   * Lista rica, no desenho do kanban service da origem: três consultas — as
+   * conversas filtradas, as não-lidas agrupadas (só mensagem de AGENTE conta;
+   * a própria mensagem do usuário nunca vira badge) e a última mensagem por
+   * conversa (distinct) para o preview. É a fonte ÚNICA de lista, kanban e
+   * widget — um endpoint só, sem contadores divergindo entre telas.
+   */
+  async listarConversas(filtros: FiltrosConversas = {}) {
+    const where: Record<string, unknown> = {};
+    if (filtros.status && (STATUS_KANBAN as readonly string[]).includes(filtros.status)) {
+      where.status = filtros.status;
+    }
+    if (filtros.agenteId) where.agenteId = filtros.agenteId;
+    if (filtros.responsavelId) where.responsavelId = filtros.responsavelId;
+    if (filtros.prioridade && (PRIORIDADES as readonly string[]).includes(filtros.prioridade)) {
+      where.prioridade = filtros.prioridade;
+    }
+    if (filtros.etiqueta) where.etiquetas = { has: filtros.etiqueta };
+    if (filtros.busca?.trim()) {
+      const termo = filtros.busca.trim();
+      where.OR = [
+        { titulo: { contains: termo, mode: 'insensitive' } },
+        { agenteNome: { contains: termo, mode: 'insensitive' } },
+        { solicitanteNome: { contains: termo, mode: 'insensitive' } },
+        { responsavelNome: { contains: termo, mode: 'insensitive' } },
+      ];
+    }
+
+    const conversas = await this.prisma.agentesConversa.findMany({
+      where,
       orderBy: { atualizadoEm: 'desc' },
-      take: 100,
+      take: 200,
+    });
+    const ids = conversas.map((c) => c.id);
+    const [naoLidas, ultimas] = await Promise.all([
+      this.prisma.agentesMensagem.groupBy({
+        by: ['conversaId'],
+        where: { conversaId: { in: ids }, autor: 'agente', lida: false },
+        _count: { _all: true },
+      }),
+      this.prisma.agentesMensagem.findMany({
+        where: { conversaId: { in: ids } },
+        orderBy: [{ conversaId: 'asc' }, { criadoEm: 'desc' }],
+        distinct: ['conversaId'],
+        select: { conversaId: true, autor: true, conteudo: true, criadoEm: true, anexosJson: true },
+      }),
+    ]);
+    const porConversa = new Map(naoLidas.map((n) => [n.conversaId, n._count._all]));
+    const ultimaPor = new Map(ultimas.map((m) => [m.conversaId, m]));
+
+    const lista = conversas.map((c) => {
+      const ultima = ultimaPor.get(c.id);
+      return {
+        ...c,
+        naoLidas: porConversa.get(c.id) ?? 0,
+        ultimaMensagem: ultima
+          ? {
+              autor: ultima.autor,
+              conteudo: ultima.conteudo.slice(0, 160),
+              criadoEm: ultima.criadoEm,
+              temAnexo: !!ultima.anexosJson,
+            }
+          : null,
+      };
+    });
+    return filtros.naoLidas ? lista.filter((c) => c.naoLidas > 0) : lista;
+  }
+
+  /** Contadores por status + total de não-lidas (chips, kanban e badge do widget). */
+  async resumoConversas() {
+    const [porStatus, naoLidas] = await Promise.all([
+      this.prisma.agentesConversa.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.agentesMensagem.count({ where: { autor: 'agente', lida: false } }),
+    ]);
+    const contagens: Record<string, number> = {};
+    for (const s of STATUS_KANBAN) contagens[s] = 0;
+    for (const linha of porStatus) contagens[linha.status] = linha._count._all;
+    return { porStatus: contagens, naoLidas };
+  }
+
+  /** Usuários ativos para o seletor de responsável. */
+  usuariosAtribuiveis() {
+    return this.prisma.usuario.findMany({
+      where: { ativo: true },
+      select: { id: true, nome: true, setor: true },
+      orderBy: { nome: 'asc' },
     });
   }
 
-  async mensagens(conversaId: string) {
+  async mensagens(conversaId: string, marcarLidas = true) {
     const conversa = await this.prisma.agentesConversa.findUnique({ where: { id: conversaId } });
     if (!conversa) throw new NotFoundException({ codigo: 'CONVERSA_DESCONHECIDA', message: 'Conversa não encontrada' });
     const mensagens = await this.prisma.agentesMensagem.findMany({
@@ -272,11 +403,31 @@ export class AgentesService {
       orderBy: { criadoEm: 'asc' },
       take: 300,
     });
-    await this.prisma.agentesMensagem.updateMany({ where: { conversaId, lida: false }, data: { lida: true } });
-    return { conversa, mensagens };
+    if (marcarLidas) {
+      await this.prisma.agentesMensagem.updateMany({ where: { conversaId, lida: false }, data: { lida: true } });
+    }
+    return {
+      conversa,
+      mensagens: mensagens.map((m) => ({ ...m, anexos: lerAnexos(m.anexosJson) })),
+    };
   }
 
-  async criarConversa(usuario: UsuarioLogado, mensagem: string, agenteId?: string) {
+  async marcarLida(conversaId: string) {
+    await this.prisma.agentesMensagem.updateMany({
+      where: { conversaId, lida: false },
+      data: { lida: true },
+    });
+    this.eventos.emitir({ tipo: 'conversa', conversaId });
+    return { ok: true };
+  }
+
+  async criarConversa(
+    usuario: UsuarioLogado,
+    mensagem: string,
+    agenteId?: string,
+    agenteNome?: string,
+    contexto?: string,
+  ) {
     const conexao = await this.conexaoPareada();
     const agenteEfetivo = agenteId ?? conexao.agentePadraoId;
     if (!agenteEfetivo) {
@@ -309,6 +460,8 @@ export class AgentesService {
         solicitanteId: usuario.id,
         solicitanteNome: usuario.nome,
         agenteId: agenteEfetivo,
+        agenteNome: agenteNome ?? (agenteEfetivo === conexao.agentePadraoId ? conexao.agentePadraoNome : null),
+        origemContexto: contexto?.slice(0, 300) ?? null,
         mensagens: { create: { autor: 'usuario', conteudo: mensagem } },
       },
       update: {
@@ -320,13 +473,13 @@ export class AgentesService {
         atualizadoEm: new Date(),
       },
     });
+    this.eventos.emitir({ tipo: 'conversa', conversaId: conversa.id });
     return conversa;
   }
 
   async enviarMensagem(conversaId: string, conteudo: string) {
     const conexao = await this.conexaoPareada();
-    const conversa = await this.prisma.agentesConversa.findUnique({ where: { id: conversaId } });
-    if (!conversa) throw new NotFoundException({ codigo: 'CONVERSA_DESCONHECIDA', message: 'Conversa não encontrada' });
+    const conversa = await this.exigirConversa(conversaId);
     if (!conversa.conversaRemotaId) {
       throw new BadRequestException({ codigo: 'SEM_THREAD', message: 'A conversa remota ainda não foi criada — aguarde a sincronização' });
     }
@@ -344,7 +497,313 @@ export class AgentesService {
       where: { id: conversaId },
       data: { atualizadoEm: new Date(), temPendente: true },
     });
+    this.eventos.emitir({ tipo: 'mensagem', conversaId });
     return mensagem;
+  }
+
+  private async exigirConversa(conversaId: string) {
+    const conversa = await this.prisma.agentesConversa.findUnique({ where: { id: conversaId } });
+    if (!conversa) throw new NotFoundException({ codigo: 'CONVERSA_DESCONHECIDA', message: 'Conversa não encontrada' });
+    return conversa;
+  }
+
+  /* ------------------- organização local do atendimento ------------------- */
+
+  /** Prioridade, etiquetas, responsável e vínculo com o CRM — metadados que
+   *  só existem deste lado (a plataforma remota não os tem). */
+  async atualizarConversa(
+    usuario: UsuarioLogado,
+    conversaId: string,
+    dados: {
+      prioridade?: string;
+      etiquetas?: string[];
+      responsavelId?: string | null;
+      crmClienteId?: string | null;
+    },
+    ip?: string,
+  ) {
+    await this.exigirConversa(conversaId);
+    const mudancas: Record<string, unknown> = {};
+
+    if (dados.prioridade !== undefined) {
+      if (!(PRIORIDADES as readonly string[]).includes(dados.prioridade)) {
+        throw new BadRequestException({ codigo: 'PRIORIDADE_INVALIDA', message: 'Prioridade desconhecida' });
+      }
+      mudancas.prioridade = dados.prioridade;
+    }
+    if (dados.etiquetas !== undefined) {
+      mudancas.etiquetas = [...new Set(dados.etiquetas.map((e) => e.trim()).filter(Boolean))].slice(0, 12);
+    }
+    if (dados.responsavelId !== undefined) {
+      if (dados.responsavelId === null) {
+        mudancas.responsavelId = null;
+        mudancas.responsavelNome = null;
+      } else {
+        const responsavel = await this.prisma.usuario.findUnique({
+          where: { id: dados.responsavelId },
+          select: { id: true, nome: true, ativo: true },
+        });
+        if (!responsavel?.ativo) {
+          throw new BadRequestException({ codigo: 'RESPONSAVEL_INVALIDO', message: 'Usuário indisponível' });
+        }
+        mudancas.responsavelId = responsavel.id;
+        mudancas.responsavelNome = responsavel.nome;
+      }
+    }
+    if (dados.crmClienteId !== undefined) {
+      if (dados.crmClienteId === null) {
+        mudancas.crmClienteId = null;
+      } else {
+        const cliente = await this.prisma.crmCliente.findUnique({
+          where: { id: dados.crmClienteId },
+          select: { id: true },
+        });
+        if (!cliente) {
+          throw new BadRequestException({ codigo: 'CLIENTE_DESCONHECIDO', message: 'Cliente não encontrado' });
+        }
+        mudancas.crmClienteId = cliente.id;
+      }
+    }
+    if (!Object.keys(mudancas).length) return this.exigirConversa(conversaId);
+
+    const atualizada = await this.prisma.agentesConversa.update({
+      where: { id: conversaId },
+      data: { ...mudancas, atualizadoEm: new Date() },
+    });
+    await this.trilha(usuario, 'agentes_conversa_editada', conversaId, ip);
+    this.eventos.emitir({ tipo: 'conversa', conversaId });
+    return atualizada;
+  }
+
+  /**
+   * Movimentação do kanban. O estado local muda primeiro (a UI é otimista e
+   * o backend confirma); o espelho remoto (PATCH issues → status) é
+   * best-effort, como a origem: se o Aplopes estiver fora, o kanban local
+   * não trava — o webhook/reconciliação realinham depois.
+   */
+  async moverConversa(usuario: UsuarioLogado, conversaId: string, novoStatus: string, ip?: string) {
+    if (!(STATUS_KANBAN as readonly string[]).includes(novoStatus)) {
+      throw new BadRequestException({ codigo: 'STATUS_INVALIDO', message: 'Etapa desconhecida' });
+    }
+    const conversa = await this.exigirConversa(conversaId);
+    if (conversa.status === novoStatus) return conversa;
+
+    const atualizada = await this.prisma.agentesConversa.update({
+      where: { id: conversaId },
+      data: {
+        status: novoStatus,
+        temPendente: novoStatus === 'AGUARDANDO_USUARIO' ? conversa.temPendente : false,
+        atualizadoEm: new Date(),
+      },
+    });
+    await this.trilha(usuario, `agentes_kanban_${conversa.status}->${novoStatus}`, conversaId, ip);
+    this.eventos.emitir({ tipo: 'conversa', conversaId });
+    await this.espelharStatusRemoto(conversa.issueRemotaId, novoStatus);
+    return atualizada;
+  }
+
+  /** Concluir/reabrir/cancelar — semântica idêntica à origem. Cancelar é
+   *  local-only (existe para issue órfã); concluir/reabrir espelham. */
+  async concluirConversa(usuario: UsuarioLogado, conversaId: string, ip?: string) {
+    const conversa = await this.exigirConversa(conversaId);
+    if (conversa.status === 'CONCLUIDA') {
+      throw new BadRequestException({ codigo: 'JA_CONCLUIDA', message: 'Conversa já está concluída' });
+    }
+    return this.definirResolucao(usuario, conversa.id, 'CONCLUIDA', conversa.issueRemotaId, ip);
+  }
+
+  async reabrirConversa(usuario: UsuarioLogado, conversaId: string, ip?: string) {
+    const conversa = await this.exigirConversa(conversaId);
+    if (!ESTADOS_FINAIS.has(conversa.status)) {
+      throw new BadRequestException({ codigo: 'NAO_FINALIZADA', message: 'Só é possível reabrir uma conversa finalizada' });
+    }
+    return this.definirResolucao(usuario, conversa.id, 'EM_PROGRESSO', conversa.issueRemotaId, ip);
+  }
+
+  async cancelarConversa(usuario: UsuarioLogado, conversaId: string, ip?: string) {
+    const conversa = await this.exigirConversa(conversaId);
+    if (ESTADOS_FINAIS.has(conversa.status)) {
+      throw new BadRequestException({ codigo: 'JA_FINALIZADA', message: 'Conversa já está finalizada' });
+    }
+    const atualizada = await this.prisma.agentesConversa.update({
+      where: { id: conversaId },
+      data: { status: 'CANCELADA', temPendente: false, atualizadoEm: new Date() },
+    });
+    await this.trilha(usuario, 'agentes_conversa_cancelada', conversaId, ip);
+    this.eventos.emitir({ tipo: 'conversa', conversaId });
+    return atualizada;
+  }
+
+  private async definirResolucao(
+    usuario: UsuarioLogado,
+    conversaId: string,
+    novoStatus: 'CONCLUIDA' | 'EM_PROGRESSO',
+    issueRemotaId: string | null,
+    ip?: string,
+  ) {
+    const atualizada = await this.prisma.agentesConversa.update({
+      where: { id: conversaId },
+      data: { status: novoStatus, temPendente: false, atualizadoEm: new Date() },
+    });
+    await this.trilha(
+      usuario,
+      novoStatus === 'CONCLUIDA' ? 'agentes_conversa_concluida' : 'agentes_conversa_reaberta',
+      conversaId,
+      ip,
+    );
+    this.eventos.emitir({ tipo: 'conversa', conversaId });
+    await this.espelharStatusRemoto(issueRemotaId, novoStatus);
+    return atualizada;
+  }
+
+  private async espelharStatusRemoto(issueRemotaId: string | null, statusLocal: string): Promise<void> {
+    const remoto = STATUS_REMOTO[statusLocal];
+    if (!issueRemotaId || !remoto) return;
+    try {
+      const conexao = await this.conexaoPareada();
+      await fetch(
+        `${conexao.baseUrl.replace(/\/$/, '')}/api/issues/${encodeURIComponent(issueRemotaId)}?workspace_id=${encodeURIComponent(conexao.workspaceId)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${conexao.token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ status: remoto }),
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+    } catch (erro) {
+      // Best-effort: o estado local já mudou; webhook/reconciliação alinham.
+      this.logger.warn(`Espelho remoto do status falhou (${statusLocal}): ${String(erro)}`);
+    }
+  }
+
+  private async trilha(usuario: UsuarioLogado, acao: string, conversaId: string, ip?: string) {
+    await this.prisma.auditoriaAcesso
+      .create({
+        data: {
+          usuarioId: usuario.id,
+          acao: acao.slice(0, 80),
+          recurso: `agentes/conversas/${conversaId}`,
+          ip: ip?.slice(0, 60),
+        },
+      })
+      .catch(() => undefined);
+  }
+
+  /* ------------------------------ anexos ------------------------------ */
+
+  /**
+   * Repassa multipart para a conversa remota — o contrato é o da origem: o
+   * endpoint exige `content` mesmo com anexo (placeholder curto se vazio) e
+   * lê os arquivos no campo `file` (singular). O binário fica no Aplopes;
+   * localmente só os metadados (anexos_json).
+   */
+  async enviarAnexos(
+    usuario: UsuarioLogado,
+    conversaId: string,
+    arquivos: { nome: string; tipo: string; dados: Buffer }[],
+    mensagem?: string,
+  ) {
+    if (!arquivos.length) {
+      throw new BadRequestException({ codigo: 'SEM_ARQUIVO', message: 'Nenhum arquivo enviado' });
+    }
+    if (arquivos.length > ANEXOS_MAX) {
+      throw new BadRequestException({ codigo: 'ANEXOS_DEMAIS', message: `Máximo de ${ANEXOS_MAX} arquivos por envio` });
+    }
+    for (const a of arquivos) {
+      if (a.dados.length > ANEXO_MAX_BYTES) {
+        throw new BadRequestException({ codigo: 'ANEXO_GRANDE', message: `${a.nome} passa de 10 MB` });
+      }
+    }
+    const conexao = await this.conexaoPareada();
+    const conversa = await this.exigirConversa(conversaId);
+    if (!conversa.conversaRemotaId) {
+      throw new BadRequestException({ codigo: 'SEM_THREAD', message: 'A conversa remota ainda não foi criada — aguarde a sincronização' });
+    }
+    if (conversa.status === 'CONCLUIDA' || conversa.status === 'CANCELADA') {
+      throw new BadRequestException({ codigo: 'FINALIZADA', message: 'Conversa finalizada não aceita novos anexos' });
+    }
+
+    const conteudo = (mensagem ?? '').trim() || `📎 ${arquivos.length} arquivo(s)`;
+    const form = new FormData();
+    form.append('content', conteudo);
+    for (const a of arquivos) {
+      form.append(
+        'file',
+        new Blob([new Uint8Array(a.dados)], { type: a.tipo || 'application/octet-stream' }),
+        a.nome,
+      );
+    }
+    const resposta = await fetch(
+      `${conexao.baseUrl.replace(/\/$/, '')}/api/conversations/${encodeURIComponent(conversa.conversaRemotaId)}/messages?workspace_id=${encodeURIComponent(conexao.workspaceId)}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${conexao.token}`, Accept: 'application/json' },
+        body: form,
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    if (!resposta.ok) {
+      const texto = await resposta.text().catch(() => '');
+      throw new BadRequestException({
+        codigo: 'APLOPES_ERRO',
+        message: `Envio de anexo recusado (${resposta.status}): ${texto.slice(0, 160)}`,
+      });
+    }
+    const criado = (await resposta.json().catch(() => ({}))) as {
+      attachment_ids?: string[] | null;
+      message?: { attachment_ids?: string[] | null } | null;
+    };
+    const idsRemotos = criado.message?.attachment_ids ?? criado.attachment_ids ?? [];
+    const anexos: AnexoMeta[] = arquivos.map((a, i) => ({
+      artifactId: idsRemotos[i] ?? `pendente-${i}`,
+      filename: a.nome,
+      contentType: a.tipo || 'application/octet-stream',
+      size: a.dados.length,
+    }));
+
+    const persistida = await this.prisma.agentesMensagem.create({
+      data: { conversaId, autor: 'usuario', conteudo, anexosJson: JSON.stringify(anexos) },
+    });
+    await this.prisma.agentesConversa.update({
+      where: { id: conversaId },
+      data: { atualizadoEm: new Date(), temPendente: true },
+    });
+    await this.trilha(usuario, 'agentes_anexo_enviado', conversaId);
+    this.eventos.emitir({ tipo: 'mensagem', conversaId });
+    return { ...persistida, anexos };
+  }
+
+  /** Proxy do download de artifact (thumb com fallback para o conteúdo) —
+   *  o token de integração nunca chega ao browser. */
+  async baixarAnexo(conversaId: string, artifactId: string, thumb: boolean) {
+    const conexao = await this.conexaoPareada();
+    await this.exigirConversa(conversaId);
+    const query = `?workspace_id=${encodeURIComponent(conexao.workspaceId)}`;
+    const buscar = (caminho: string) =>
+      fetch(`${conexao.baseUrl.replace(/\/$/, '')}/api${caminho}${query}`, {
+        headers: { Authorization: `Bearer ${conexao.token}` },
+        signal: AbortSignal.timeout(60_000),
+      });
+
+    let resposta: Response | null = null;
+    if (thumb) {
+      resposta = await buscar(`/artifacts/${encodeURIComponent(artifactId)}/thumbnail`).catch(() => null);
+      if (resposta && !resposta.ok) resposta = null;
+    }
+    if (!resposta) {
+      resposta = await buscar(`/artifacts/${encodeURIComponent(artifactId)}/content`);
+    }
+    if (!resposta.ok) {
+      throw new NotFoundException({ codigo: 'ANEXO_INDISPONIVEL', message: 'Anexo indisponível na plataforma' });
+    }
+    return {
+      dados: Buffer.from(await resposta.arrayBuffer()),
+      contentType: resposta.headers.get('content-type') ?? 'application/octet-stream',
+    };
   }
 
   /* ----------------------------- webhook ----------------------------- */
@@ -424,6 +883,7 @@ export class AgentesService {
         where: { id: conversa.id },
         data: { atualizadoEm: new Date(), temPendente: false },
       });
+      this.eventos.emitir({ tipo: 'mensagem', conversaId: conversa.id });
       return;
     }
 
@@ -433,6 +893,7 @@ export class AgentesService {
         where: { id: conversa.id },
         data: { status: status.toUpperCase(), atualizadoEm: new Date() },
       });
+      this.eventos.emitir({ tipo: 'conversa', conversaId: conversa.id });
     }
   }
 
@@ -483,12 +944,13 @@ export class AgentesService {
                 remotoId,
               },
             })
-            .then(() =>
-              this.prisma.agentesConversa.update({
+            .then(async () => {
+              await this.prisma.agentesConversa.update({
                 where: { id: conversa.id },
                 data: { atualizadoEm: new Date(), temPendente: false },
-              }),
-            )
+              });
+              this.eventos.emitir({ tipo: 'mensagem', conversaId: conversa.id });
+            })
             .catch(() => undefined); // já espelhada
         }
         // Status da issue (BACKLOG → EM_PROGRESSO → CONCLUIDA…).
@@ -505,6 +967,7 @@ export class AgentesService {
               where: { id: conversa.id },
               data: { status: status.toUpperCase() },
             });
+            this.eventos.emitir({ tipo: 'conversa', conversaId: conversa.id });
           }
         }
         await this.prisma.agentesConversa.update({
@@ -519,5 +982,15 @@ export class AgentesService {
       where: { id: 1 },
       data: { sincronizadoEm: new Date() },
     });
+  }
+}
+
+function lerAnexos(json: string | null): AnexoMeta[] {
+  if (!json) return [];
+  try {
+    const lista = JSON.parse(json) as AnexoMeta[];
+    return Array.isArray(lista) ? lista : [];
+  } catch {
+    return [];
   }
 }
