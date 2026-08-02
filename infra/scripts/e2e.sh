@@ -179,6 +179,9 @@ t "usuarios atribuiveis respondem"          ok "$(js -b "$C_ADMIN" $B/api/agente
 t "comercial NAO acessa conversas"          403 "$(cod -b "$C_COM" $B/api/agentes/conversas)"
 t "mover exige status valido"               400 "$(cod -b "$C_ADMIN" -X POST $B/api/agentes/conversas/00000000-0000-4000-8000-000000000000/mover -H 'Content-Type: application/json' -d '{"status":"INVENTADO"}')"
 t "stream de eventos abre (SSE)"            200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 -b "$C_ADMIN" -H 'Accept: text/event-stream' $B/api/agentes/eventos || true)"
+t "inbox filtra por escopo"                 ok "$(js -b "$C_ADMIN" "$B/api/whatsapp/conversas?escopo=minhas" | python3 -c 'import sys,json;print("ok" if isinstance(json.load(sys.stdin), list) else "nao e lista")')"
+t "situacao invalida no inbox = 400"        400 "$(cod -b "$C_ADMIN" -X PATCH $B/api/whatsapp/conversas/00000000-0000-4000-8000-000000000000 -H 'Content-Type: application/json' -d '{"status":"inventada"}')"
+t "stream do whatsapp abre (SSE)"           200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 -b "$C_ADMIN" -H 'Accept: text/event-stream' $B/api/whatsapp/eventos || true)"
 
 echo "── rotacao do refresh (a correcao desta entrega) ──"
 # Renovação SEQUENCIAL rotaciona sem derrubar: três seguidas devem passar.
