@@ -160,6 +160,41 @@ model Arquivo {
 }
 
 /// Trilha de login, logout, upload e exclusao.
+/// Meta real de um indicador do Hub Executivo. docs/DIVIDAS.md §9 pedia
+/// exatamente isto: meta que existe de verdade, com trilha de quem mudou o
+/// quê (a trilha vive em AuditoriaAcesso, acao 'meta_definida'). Sem linha
+/// aqui o painel mostra "Sem meta definida" — nunca um número inventado.
+model MetaIndicador {
+  id           String   @id @default(uuid()) @db.Uuid
+  /// Código do catálogo de indicadores (modules/executivo). Sem FK: o
+  /// catálogo é código; a API valida o código antes de gravar.
+  indicador    String
+  /// 'mes' = meta do mês da competência; 'ano' = meta anual (competência 01/01).
+  escopo       String   @default("mes")
+  competencia  DateTime @db.Date
+  valor        Decimal  @db.Decimal
+  observacao   String?
+  /// Solto, sem FK, como em AuditoriaAcesso: a meta sobrevive ao usuário.
+  criadoPor    String?  @map("criado_por") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@unique([indicador, escopo, competencia], map: "ux_meta_indicador_periodo")
+  @@map("meta_indicador")
+}
+
+/// Personalização do Hub Executivo. id é o uuid do usuário como texto, ou o
+/// literal 'empresa' — a visão padrão administrável que vale para quem nunca
+/// personalizou. jsonb porque o conjunto de preferências evolui com o painel
+/// e cada chave nova não pode exigir migration.
+model HubPreferencia {
+  id           String   @id
+  config       Json     @default("{}") @db.JsonB
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("hub_preferencia")
+}
+
 model AuditoriaAcesso {
   id        BigInt   @id @default(autoincrement())
   /// Solto, SEM foreign key: a trilha tem que sobreviver ao usuario, e uma FK

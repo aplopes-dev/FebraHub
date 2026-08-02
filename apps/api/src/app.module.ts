@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DadosModule } from './modules/dados/dados.module';
 import { ArquivosModule } from './modules/arquivos/arquivos.module';
 import { PedagogicoModule } from './modules/pedagogico/pedagogico.module';
+import { ExecutivoModule } from './modules/executivo/executivo.module';
 import { IngestModule } from './modules/ingest/ingest.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -60,6 +61,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     StorageModule,
     AuthModule,
     DadosModule,
+    ExecutivoModule,
     ArquivosModule,
     PedagogicoModule,
     IngestModule,
