@@ -10,6 +10,7 @@ RUN corepack enable
 # O argon2 tem parte nativa; sem estas ferramentas o node-gyp falha na Alpine.
 RUN apk add --no-cache python3 make g++ openssl
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches ./patches
 COPY apps/api/package.json apps/api/
 RUN pnpm install --filter @febrahub/api... --frozen-lockfile
 
@@ -20,6 +21,7 @@ RUN corepack enable && apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches ./patches
 COPY apps/api ./apps/api
 WORKDIR /app/apps/api
 # O client do Prisma é gerado antes do tsc: o build importa os tipos dele.
@@ -31,6 +33,7 @@ FROM node:22.14-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable && apk add --no-cache python3 make g++ openssl
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches ./patches
 COPY apps/api/package.json apps/api/
 RUN pnpm install --filter @febrahub/api... --prod --frozen-lockfile
 # O client é gerado de novo aqui em vez de copiado do estágio de build: com
