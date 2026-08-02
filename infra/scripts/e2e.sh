@@ -88,6 +88,46 @@ echo "── ingest (ETLs) ──"
 t "ingest sem token = 401"                 401 "$(cod -X POST $B/api/ingest/dim_cursos -H 'Content-Type: application/json' -d '{"conflito":"curso_id","linhas":[]}')"
 t "ingest com token errado = 401"          401 "$(cod -X POST $B/api/ingest/dim_cursos -H 'X-ETL-Token: errado' -H 'Content-Type: application/json' -d '{"conflito":"curso_id","linhas":[]}')"
 
+echo "── hub executivo ──"
+# Julho/2026 como mês de referência: fechado (comparações cheias, sem projeção)
+# e com meta REAL da loja na planilha — nada aqui depende do dia de execução.
+RESUMO=$(js -b c_admin.txt "$B/api/executivo/resumo?mes=2026-07")
+t "resumo executivo responde"              ok "$(echo "$RESUMO" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if "cards" in d and "alertas" in d and "destaques" in d else "faltando chaves")')"
+t "resumo com todos os setores (>= 15 cards)" ok "$(echo "$RESUMO" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["cards"])>=15 else len(d["cards"]))')"
+t "todo card tem status com rotulo"        ok "$(echo "$RESUMO" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if all(c["status"].get("rotulo") for c in d["cards"]) else "card sem rotulo")')"
+t "mes fechado nao e parcial nem projeta"  ok "$(echo "$RESUMO" | python3 -c '
+import sys,json;d=json.load(sys.stdin)
+c=[x for x in d["cards"] if x["codigo"]=="receita_cursos"][0]
+print("ok" if not c["parcial"] and c["projecao"] is None and c["comparacoes"]["mesAnterior"] else "errado")')"
+t "receita de cursos jul/26 (piso 1,2M)"   ok "$(echo "$RESUMO" | python3 -c '
+import sys,json;d=json.load(sys.stdin)
+c=[x for x in d["cards"] if x["codigo"]=="receita_cursos"][0]
+print("ok" if (c["valor"] or 0) >= 1200000 else c["valor"])')"
+t "meta real da loja veio da planilha"     loja "$(echo "$RESUMO" | python3 -c '
+import sys,json;d=json.load(sys.stdin)
+c=[x for x in d["cards"] if x["codigo"]=="receita_loja"][0]
+print(c["meta"]["origem"] if c["meta"] else "sem meta")')"
+t "indicador sem meta diz isso no status"  "Sem meta definida" "$(echo "$RESUMO" | python3 -c '
+import sys,json;d=json.load(sys.stdin)
+c=[x for x in d["cards"] if x["codigo"]=="receita_cursos"][0]
+print(c["status"]["rotulo"])')"
+t "fontes de dados no resumo (>= 8)"       ok "$(echo "$RESUMO" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["fontes"])>=8 else len(d["fontes"]))')"
+t "tela analitica com formula do catalogo" ok "$(js -b c_admin.txt "$B/api/executivo/indicadores/receita_cursos?mes=2026-07" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if "fato_pagamento_base" in d["formula"] and d["quebras"] else "sem formula/quebras")')"
+t "ritmo de julho tem os 31 dias"          31 "$(js -b c_admin.txt "$B/api/executivo/ritmo/receita_cursos?mes=2026-07" | python3 -c 'import sys,json;print(len(json.load(sys.stdin)["pontos"]))')"
+t "tabela paginada respeita o tamanho"     ok "$(js -b c_admin.txt "$B/api/executivo/indicadores/receita_cursos/tabela?de=2026-07&ate=2026-07&pagina=1&por_pagina=25" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["linhas"])<=25 and d["total"]>=300 else "paginacao errada")')"
+t "consolidado anual com 5+ anos"          ok "$(js -b c_admin.txt "$B/api/executivo/anual/receita_cursos" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["linhas"])>=5 else len(d["linhas"]))')"
+t "comercial NAO abre indicador financeiro" 403 "$(cod -b c_com.txt "$B/api/executivo/indicadores/despesas")"
+t "resumo do comercial so tem o setor dele" ok "$(js -b c_com.txt "$B/api/executivo/resumo?mes=2026-07" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["cards"] and all(c["setor"]=="comercial" for c in d["cards"]) else "vazou setor")')"
+t "membro nao define meta"                 403 "$(cod -b c_com.txt -X PUT $B/api/executivo/metas -H 'Content-Type: application/json' -d '{"indicador":"vendas_cursos","escopo":"mes","competencia":"2030-01-01","valor":1}')"
+t "admin define meta (auditado)"           204 "$(cod -b c_admin.txt -X PUT $B/api/executivo/metas -H 'Content-Type: application/json' -d '{"indicador":"vendas_cursos","escopo":"mes","competencia":"2030-01-01","valor":123456}')"
+t "meta definida aparece na listagem"      123456 "$(js -b c_admin.txt "$B/api/executivo/metas?mes=2030-01" | python3 -c '
+import sys,json
+l=[m for m in json.load(sys.stdin) if m["indicador"]=="vendas_cursos" and m["escopo"]=="mes"][0]
+print(int(l["valor"]))')"
+t "admin remove a meta de teste"           204 "$(cod -b c_admin.txt -X PUT $B/api/executivo/metas -H 'Content-Type: application/json' -d '{"indicador":"vendas_cursos","escopo":"mes","competencia":"2030-01-01","valor":null}')"
+t "export CSV do resumo"                   "text/csv; charset=utf-8" "$(curl -s -o /dev/null -w '%{content_type}' --max-time 30 -b c_admin.txt "$B/api/executivo/exportar?mes=2026-07")"
+t "export exige sessao"                    401 "$(cod "$B/api/executivo/exportar")"
+
 echo
 echo "════ RESULTADO: $OK passaram, $FALHA falharam ════"
 [ "$FALHA" -eq 0 ]
