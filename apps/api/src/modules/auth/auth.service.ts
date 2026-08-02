@@ -207,16 +207,17 @@ export class AuthService {
     return { perfil, ...(await this.emitirTokens(perfil, ip, agente, { jti, teto })) };
   }
 
-  async sair(refresh?: string): Promise<void> {
+  async sair(refresh?: string, ip = ''): Promise<void> {
     if (!refresh) return;
     try {
-      const carga = await this.jwt.verifyAsync<{ jti: string }>(refresh, {
+      const carga = await this.jwt.verifyAsync<{ id?: string; jti: string }>(refresh, {
         secret: this.cfg.jwt.refreshSegredo,
       });
       await this.prisma.sessao.updateMany({
         where: { id: carga.jti, revogadaEm: null },
         data: { revogadaEm: new Date() },
       });
+      if (carga.id) await this.auditar(carga.id, 'logout', ip);
     } catch {
       // Sair com token podre não é erro: o cliente já está indo embora.
     }

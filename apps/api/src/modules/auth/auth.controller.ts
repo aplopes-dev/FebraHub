@@ -48,6 +48,7 @@ export class AuthController {
     const atual = req.cookies?.[COOKIE_REFRESH] ?? '';
     const r = await this.auth.renovar(atual, ipDe(req), agenteDe(req));
     this.gravarCookies(res, r.acesso, r.refresh);
+    await this.auditar(r.perfil.id, 'refresh', 'auth', ipDe(req));
     return { perfil: r.perfil, sessao: this.infoSessao() };
   }
 
@@ -56,7 +57,7 @@ export class AuthController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Encerra a sessão e limpa os cookies' })
   async sair(@Req() req: Req, @Res({ passthrough: true }) res: FastifyReply) {
-    await this.auth.sair(req.cookies?.[COOKIE_REFRESH]);
+    await this.auth.sair(req.cookies?.[COOKIE_REFRESH], ipDe(req));
     // Limpar o cookie exige as MESMAS opções com que ele foi gravado; sem
     // path e domain iguais o browser mantém o antigo e a sessão "não sai".
     const base = this.opcoesCookie(0);
