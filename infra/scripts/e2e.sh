@@ -128,6 +128,17 @@ t "admin remove a meta de teste"           204 "$(cod -b c_admin.txt -X PUT $B/a
 t "export CSV do resumo"                   "text/csv; charset=utf-8" "$(curl -s -o /dev/null -w '%{content_type}' --max-time 30 -b c_admin.txt "$B/api/executivo/exportar?mes=2026-07")"
 t "export exige sessao"                    401 "$(cod "$B/api/executivo/exportar")"
 
+echo "── inteligência territorial ──"
+t "territorial exige sessao"                401 "$(cod $B/api/territorial/companies)"
+t "comercial NAO abre o territorio"         403 "$(cod -b c_com.txt $B/api/territorial/companies)"
+TERR=$(js -b c_admin.txt "$B/api/territorial/companies?limit=5")
+t "lista paginada (piso 13 mil empresas)"   ok "$(echo "$TERR" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["data"])==5 and d["pagination"]["total"]>=13000 else d["pagination"]["total"])')"
+t "pontos do mapa (piso 11 mil)"            ok "$(js -b c_admin.txt "$B/api/territorial/companies/map" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d["points"])>=11000 else len(d["points"]))')"
+t "metricas do recorte"                     ok "$(js -b c_admin.txt "$B/api/territorial/companies/metrics" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["total"]>=13000 and d["partnersTotal"]>=13000 else "abaixo do piso")')"
+t "nichos com contagem (>= 10)"             ok "$(js -b c_admin.txt "$B/api/territorial/niches" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if len(d)>=10 else len(d))')"
+t "detalhe traz socios e conexoes"          ok "$(echo "$TERR" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"][0]["id"])' | xargs -I{} curl -s --max-time 30 -b c_admin.txt "$B/api/territorial/companies/{}" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if "company" in d and "connections" in d else "faltando")')"
+t "filtro de UF respeitado"                 ok "$(js -b c_admin.txt "$B/api/territorial/companies?states=PE&limit=3" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["data"] and all(e["state"]=="PE" for e in d["data"]) else "vazou UF")')"
+
 echo
 echo "════ RESULTADO: $OK passaram, $FALHA falharam ════"
 [ "$FALHA" -eq 0 ]
