@@ -60,6 +60,11 @@ COPY --from=build --chown=febra:febra /app/apps/api/package.json ./package.json
 # As migrations vão junto: o deploy roda `prisma migrate deploy` deste container.
 COPY --from=build --chown=febra:febra /app/apps/api/prisma ./prisma
 
+# O diretório da sessão do WhatsApp já nasce do usuário certo: um volume
+# novo herda a posse do que existe na imagem — sem isto, o primeiro mkdir
+# do Baileys morre com EACCES (o container não roda como root).
+RUN mkdir -p /dados/whatsapp-sessoes && chown -R febra:febra /dados/whatsapp-sessoes
+
 USER febra
 EXPOSE 3261
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
