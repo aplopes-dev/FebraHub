@@ -1008,6 +1008,174 @@ model IntegracaoEstadoOauth {
 }
 
 // --------------------------------------------------------------------
+// CRM — nucleo (Fase 2/Etapa 1; docs/INTEGRACAO_HUB_CRM.md)
+// Porte funcional do crm-aplopes achatado para tenant unico: sem
+// organizationId/memberships — o recorte e o setor 'crm'. Nasceu VAZIO
+// (decisao de 02/08/2026: as carteiras da origem sao de outras empresas),
+// por isso segue a convencao pt-BR da casa. Referencias de usuario sao
+// uuid soltos, como nas demais tabelas de negocio. Dinheiro em centavos.
+// --------------------------------------------------------------------
+
+model CrmCliente {
+  id            String    @id @default(uuid()) @db.Uuid
+  nome          String
+  /// 'pj' | 'pf'
+  tipoPessoa    String    @default("pj") @map("tipo_pessoa") @db.VarChar(2)
+  /// lead | oportunidade | cliente_ativo | inativo | perdido — "Leads" e
+  /// este cadastro filtrado por estagio, como na origem.
+  estagio       String    @default("lead")
+  documento     String?
+  segmento      String?
+  origem        String?
+  telefone      String?
+  email         String?
+  site          String?
+  instagram     String?
+  cidade        String?
+  observacao    String?
+  responsavelId String?   @map("responsavel_id") @db.Uuid
+  criadoPor     String?   @map("criado_por") @db.Uuid
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  contatos   CrmClienteContato[]
+  atividades CrmClienteAtividade[]
+  negocios   CrmNegocio[]
+  tarefas    CrmTarefa[]
+
+  @@index([estagio])
+  @@index([nome])
+  @@index([responsavelId])
+  @@map("crm_clientes")
+}
+
+model CrmClienteContato {
+  id        String   @id @default(uuid()) @db.Uuid
+  clienteId String   @map("cliente_id") @db.Uuid
+  cliente   CrmCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  nome      String
+  cargo     String?
+  email     String?
+  telefone  String?
+  principal Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  negocios CrmNegocio[]
+
+  @@index([clienteId])
+  @@map("crm_cliente_contatos")
+}
+
+model CrmClienteAtividade {
+  id        String   @id @default(uuid()) @db.Uuid
+  clienteId String   @map("cliente_id") @db.Uuid
+  cliente   CrmCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  texto     String
+  autorId   String?  @map("autor_id") @db.Uuid
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([clienteId, criadoEm])
+  @@map("crm_cliente_atividades")
+}
+
+model CrmFunil {
+  id       String   @id @default(uuid()) @db.Uuid
+  nome     String
+  cor      String?
+  status   String   @default("ativo")
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  etapas   CrmEtapa[]
+  negocios CrmNegocio[]
+
+  @@map("crm_funis")
+}
+
+model CrmEtapa {
+  id            String   @id @default(uuid()) @db.Uuid
+  funilId       String   @map("funil_id") @db.Uuid
+  funil         CrmFunil @relation(fields: [funilId], references: [id], onDelete: Cascade)
+  nome          String
+  cor           String?
+  probabilidade Int      @default(0)
+  /// aberta | ganha | perdida — mover para ganha/perdida fecha o negocio.
+  tipo          String   @default("aberta")
+  ordem         Int      @default(0)
+  sistema       Boolean  @default(false)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  negocios CrmNegocio[]
+
+  @@index([funilId, ordem])
+  @@map("crm_etapas")
+}
+
+model CrmNegocio {
+  id                String    @id @default(uuid()) @db.Uuid
+  funilId           String    @map("funil_id") @db.Uuid
+  funil             CrmFunil  @relation(fields: [funilId], references: [id])
+  etapaId           String    @map("etapa_id") @db.Uuid
+  etapa             CrmEtapa  @relation(fields: [etapaId], references: [id])
+  clienteId         String    @map("cliente_id") @db.Uuid
+  cliente           CrmCliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  contatoId         String?   @map("contato_id") @db.Uuid
+  contato           CrmClienteContato? @relation(fields: [contatoId], references: [id], onDelete: SetNull)
+  titulo            String
+  valorCentavos     BigInt    @default(0) @map("valor_centavos")
+  responsavelId     String?   @map("responsavel_id") @db.Uuid
+  motivoPerda       String?   @map("motivo_perda")
+  ultimaAtividadeEm DateTime? @map("ultima_atividade_em") @db.Timestamptz(6)
+  fechadoEm         DateTime? @map("fechado_em") @db.Timestamptz(6)
+  criadoPor         String?   @map("criado_por") @db.Uuid
+  criadoEm          DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  atividades CrmNegocioAtividade[]
+  tarefas    CrmTarefa[]
+
+  @@index([funilId, etapaId])
+  @@index([clienteId])
+  @@index([responsavelId])
+  @@map("crm_negocios")
+}
+
+model CrmNegocioAtividade {
+  id        String     @id @default(uuid()) @db.Uuid
+  negocioId String     @map("negocio_id") @db.Uuid
+  negocio   CrmNegocio @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  tipo      String     @default("nota")
+  texto     String
+  autorId   String?    @map("autor_id") @db.Uuid
+  criadoEm  DateTime   @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([negocioId, criadoEm])
+  @@map("crm_negocio_atividades")
+}
+
+model CrmTarefa {
+  id            String      @id @default(uuid()) @db.Uuid
+  /// Vinculo opcional dos dois lados — melhoria sobre a origem (la, so negocio).
+  negocioId     String?     @map("negocio_id") @db.Uuid
+  negocio       CrmNegocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  clienteId     String?     @map("cliente_id") @db.Uuid
+  cliente       CrmCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  titulo        String
+  tipo          String      @default("follow_up")
+  prioridade    String      @default("media")
+  venceEm       DateTime?   @map("vence_em") @db.Timestamptz(6)
+  concluidaEm   DateTime?   @map("concluida_em") @db.Timestamptz(6)
+  resultado     String?
+  responsavelId String?     @map("responsavel_id") @db.Uuid
+  criadoPor     String?     @map("criado_por") @db.Uuid
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([concluidaEm, venceEm])
+  @@index([negocioId])
+  @@index([clienteId])
+  @@map("crm_tarefas")
+}
+
+// --------------------------------------------------------------------
 // INTELIGENCIA TERRITORIAL
 // Empresas georreferenciadas, portadas do hub.aplopes.com (repo
 // aplopes-dev/hub). Nomes de tabela/coluna PRESERVADOS do sistema de

@@ -753,6 +753,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   .fh-terr-mapa { height: 420px; order: 1; }
 }
 
+/* ============================================================
+   CRM (Setores → CRM)
+   ============================================================ */
+
+.fh-crm-kanban {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 260px;
+  gap: 12px; align-items: start; padding-bottom: 6px;
+  min-width: min-content;
+}
+.fh-crm-col { min-width: 0; }
+.fh-crm-card {
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--card-line);
+}
+.fh-crm-card:hover { box-shadow: var(--sombra-popover); }
+
+@media (max-width: 599px) {
+  .fh-crm-kanban { grid-auto-columns: 230px; }
+}
+
 /* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
    O botão PDF do painel chama window.print(). */
 @media print {

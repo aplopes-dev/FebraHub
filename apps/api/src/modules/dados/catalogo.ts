@@ -21,7 +21,8 @@ export type Setor =
   | 'pedagogico'
   | 'loja'
   | 'eventos'
-  | 'estoque';
+  | 'estoque'
+  | 'crm';
 
 export interface ViewCatalogada {
   /** Setor exigido. 'geral' = só admin ou perfil geral. */

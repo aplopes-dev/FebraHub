@@ -139,6 +139,24 @@ t "nichos com contagem (>= 10)"             ok "$(js -b c_admin.txt "$B/api/terr
 t "detalhe traz socios e conexoes"          ok "$(echo "$TERR" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"][0]["id"])' | xargs -I{} curl -s --max-time 30 -b c_admin.txt "$B/api/territorial/companies/{}" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if "company" in d and "connections" in d else "faltando")')"
 t "filtro de UF respeitado"                 ok "$(js -b c_admin.txt "$B/api/territorial/companies?states=PE&limit=3" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["data"] and all(e["state"]=="PE" for e in d["data"]) else "vazou UF")')"
 
+echo "── crm ──"
+t "crm exige sessao"                        401 "$(cod $B/api/crm/resumo)"
+t "comercial NAO abre o crm"                403 "$(cod -b c_com.txt $B/api/crm/resumo)"
+t "resumo com funil padrao semeado"         ok "$(js -b c_admin.txt $B/api/crm/resumo | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["funis"] and len(d["funis"][0]["etapas"])==6 else "funil errado")')"
+CID=$(js -b c_admin.txt -X POST $B/api/crm/clientes -H 'Content-Type: application/json' -d '{"nome":"E2E automatizado CRM"}' | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))')
+t "cria lead"                               True "$([ -n "$CID" ] && echo True || echo False)"
+t "lead nasce no estagio lead"              lead "$(js -b c_admin.txt $B/api/crm/clientes/$CID | python3 -c 'import sys,json;print(json.load(sys.stdin)["estagio"])')"
+NID=$(js -b c_admin.txt -X POST $B/api/crm/negocios -H 'Content-Type: application/json' -d '{"titulo":"Negocio E2E","clienteId":"'"$CID"'","valorCentavos":123400}' | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))')
+t "cria negocio no funil padrao"            True "$([ -n "$NID" ] && echo True || echo False)"
+t "negocio promove lead a oportunidade"     oportunidade "$(js -b c_admin.txt $B/api/crm/clientes/$CID | python3 -c 'import sys,json;print(json.load(sys.stdin)["estagio"])')"
+# Etapas do seed têm uuid fixo: ...0012 = Qualificação, ...0016 = Perdido.
+t "move etapa e registra atividade"         ok "$(js -b c_admin.txt -X POST $B/api/crm/negocios/$NID/mover -H 'Content-Type: application/json' -d '{"etapaId":"c0000000-0000-4000-8000-000000000012"}' >/dev/null; js -b c_admin.txt $B/api/crm/negocios/$NID | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["etapa"]["nome"]=="Qualificação" and any(a["tipo"]=="estagio" for a in d["atividades"]) else "sem trilha")')"
+t "perder sem motivo e recusado"            400 "$(cod -b c_admin.txt -X POST $B/api/crm/negocios/$NID/mover -H 'Content-Type: application/json' -d '{"etapaId":"c0000000-0000-4000-8000-000000000016"}')"
+TID=$(js -b c_admin.txt -X POST $B/api/crm/tarefas -H 'Content-Type: application/json' -d '{"titulo":"Tarefa E2E","negocioId":"'"$NID"'"}' | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))')
+t "cria e conclui tarefa com resultado"     ok "$(js -b c_admin.txt -X POST $B/api/crm/tarefas/$TID/concluir -H 'Content-Type: application/json' -d '{"resultado":"feito"}' | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d["concluidaEm"] and d["resultado"]=="feito" else "nao concluiu")')"
+t "remove negocio de teste"                 204 "$(cod -b c_admin.txt -X DELETE $B/api/crm/negocios/$NID)"
+t "remove lead de teste"                    204 "$(cod -b c_admin.txt -X DELETE $B/api/crm/clientes/$CID)"
+
 echo
 echo "════ RESULTADO: $OK passaram, $FALHA falharam ════"
 [ "$FALHA" -eq 0 ]

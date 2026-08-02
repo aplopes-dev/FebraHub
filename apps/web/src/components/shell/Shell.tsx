@@ -268,10 +268,10 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                {/* Executivo e Territorial têm filtro próprio, refletido na URL;
+                {/* Executivo, Territorial e CRM têm estado próprio na URL;
                     o seletor global de período não age sobre eles e só
                     confundiria — dois controles de período na mesma tela. */}
-                {tela !== "executivo" && tela !== "territorial" && <SeletorPeriodo />}
+                {!["executivo", "territorial", "crm"].includes(tela) && <SeletorPeriodo />}
                 {tela === "comercial" && <SeletorCategoria />}
                 {/* O sino é decorativo (sem notificação ainda) e some no
                     celular: ocupar 40px de uma barra apertada por um enfeite

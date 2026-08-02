@@ -1,5 +1,5 @@
 import {
-  CalendarDays, GraduationCap, Megaphone, Package, Plug, ShoppingBag, TrendingUp, Wallet,
+  CalendarDays, GraduationCap, Handshake, Megaphone, Package, Plug, ShoppingBag, TrendingUp, Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +18,10 @@ export const HUBS: readonly DefinicaoHub[] = [
   { key: "eventos",    nome: "Eventos",    Icone: CalendarDays,  desc: "Ingressos e receita líquida" },
   { key: "loja",       nome: "Loja",       Icone: ShoppingBag,   desc: "Vendas, formas de pagamento e recebimento" },
   { key: "estoque",    nome: "Estoque",    Icone: Package,       desc: "Sem fonte conectada" },
+  // Fase 2/Etapa 1 da integração (docs/INTEGRACAO_HUB_CRM.md): rota estática
+  // própria (aba/cliente/negócio na query), mas entra em HUBS para o menu
+  // Setores e para o gating por setor funcionarem como nos demais.
+  { key: "crm",        nome: "CRM",        Icone: Handshake,     desc: "Clientes, funil de vendas e tarefas" },
 ];
 
 /* Página do grupo (app) que NÃO é hub de BI: entra na sidebar por conta
