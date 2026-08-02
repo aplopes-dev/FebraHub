@@ -146,6 +146,49 @@ inclusive os buracos, que continuam aparecendo na tela como cobertura.
 
 ---
 
+## Celular
+
+O painel foi desenhado para TV e mouse. A adaptação para celular (02/08/2026)
+mexeu em **espaço e densidade, nunca em conteúdo**: nenhum número, alerta ou
+aviso de cobertura some no mobile — é justamente no celular que o painel é
+olhado fora do escritório.
+
+- **Sidebar vira gaveta** abaixo de 1100px, com barra superior e hambúrguer.
+  250px fixos numa tela de 375px deixariam 125px para o painel. A gaveta fecha
+  por backdrop, Esc e ao navegar, trava o scroll de fundo e sai da ordem de
+  leitura (`aria-hidden`) quando fechada.
+- **Escala por variável CSS** em 4 faixas (base / 600 / 900 / 1100), num lugar
+  só em vez de espalhada por 100 arquivos de inline style.
+- **Alvo de toque de 40px e piso de fonte de 10.5px**, só abaixo de 900px. No
+  desktop o ponteiro é preciso e 27px é o desenho original.
+
+Duas correções que só apareceram medindo:
+
+1. `grid-template-columns: 1fr` resolve para `minmax(auto, 1fr)`, e o mínimo
+   `auto` é o tamanho do **conteúdo**: um gráfico largo esticava a coluna e
+   levava o card inteiro para fora da tela. Todos os grids passaram a
+   `minmax(0, 1fr)`.
+2. O gráfico escala por `viewBox`, então o texto de dentro encolhe junto — um
+   rótulo de 10px virava **4,4px** em 390px de tela. Agora o SVG mantém 560px
+   dentro de um wrapper que rola: 7,8px, legível.
+
+E uma terceira, que a auditoria em produção revelou e não era de layout:
+**o rate limit contava por IP**. Cada hub pede de 9 a 16 views de uma vez, e no
+escritório todos saem pelo mesmo IP com NAT — seis pessoas dividiam uma cota de
+300/min, e duas trocando de aba juntas já recebiam 429 com a tela meio
+carregada. A contagem passou a ser por sessão (`LimiteGuard`); quem não tem
+sessão segue contado por IP, que é onde mora a força bruta de login.
+
+### Como conferir
+
+```bash
+# 8 hubs × 5 tamanhos de tela, medindo estouro de largura, alvo de toque e
+# tamanho de fonte. Roda contra o ambiente publicado.
+node infra/scripts/audita-responsivo.js https://febracis.aplopes.com
+```
+
+---
+
 ## Operação
 
 ```bash
