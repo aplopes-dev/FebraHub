@@ -135,7 +135,12 @@ export function PainelTerritorial() {
       <div className="fh-terr-corpo">
         <FiltrosTerritorial estado={estado} />
         <div style={{ minWidth: 0 }}>
-          <Estado carregando={pontos.isLoading} erro={pontos.error} vazio={false}>
+          {/* O mapa NÃO entra no <Estado>: desmontar um canvas WebGL a cada
+              refetch custa caro e derruba a câmera. Ele monta uma vez e
+              recebe zero pontos enquanto carrega; só erro tem tela própria. */}
+          {pontos.error ? (
+            <Estado erro={pontos.error} vazio={false} />
+          ) : (
             <MapaTerritorial
               pontos={pontos.data?.points ?? []}
               conexoes={conexoes.data?.connections ?? []}
@@ -144,7 +149,7 @@ export function PainelTerritorial() {
               semCoordenadas={pontos.data?.withoutCoordinates ?? 0}
               conexoesTruncadas={conexoes.data?.truncated ?? false}
             />
-          </Estado>
+          )}
         </div>
       </div>
 
