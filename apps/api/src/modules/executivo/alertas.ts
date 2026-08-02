@@ -151,16 +151,20 @@ export function gerarAlertas({ cards, fatoresPorIndicador, diaAtual }: Regras): 
     if (c.tendencia === 'caindo' && c.direcao === 'maior_melhor' && c.tipo === 'fluxo') {
       // No mês fechado a média 3m compara com o próprio valor do mês; no
       // parcial ela compararia com o MTD e mentiria — aí vale só a tendência.
-      const quedaForte = !c.parcial
-        ? c.comparacoes?.media3?.pct != null && c.comparacoes.media3.pct <= -15
-        : true;
-      if (quedaForte) {
+      const pctMedia3 = c.comparacoes?.media3?.pct ?? null;
+      if (c.parcial) {
         alerta(c, {
           nivel: 'amarelo',
           titulo: `${c.curto} em queda há 3 meses`,
-          situacao: !c.parcial
-            ? `A média dos últimos 3 meses está ${fmtPct(c.comparacoes!.media3!.pct)} acima do valor atual — tendência de queda contínua.`
-            : `Os três últimos meses fechados caíram em sequência.`,
+          situacao: `Os três últimos meses fechados caíram em sequência.`,
+          impacto: null,
+          acaoSugerida: null,
+        });
+      } else if (pctMedia3 != null && pctMedia3 <= -15) {
+        alerta(c, {
+          nivel: 'amarelo',
+          titulo: `${c.curto} em queda há 3 meses`,
+          situacao: `A média dos últimos 3 meses está ${fmtPct(pctMedia3)} acima do valor atual — tendência de queda contínua.`,
           impacto: null,
           acaoSugerida: null,
         });
