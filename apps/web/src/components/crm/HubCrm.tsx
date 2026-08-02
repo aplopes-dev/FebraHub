@@ -16,12 +16,14 @@ import { ListaClientes } from "./ListaClientes";
 import { TarefasCrm } from "./TarefasCrm";
 import { DrawerCliente } from "./DrawerCliente";
 import { DrawerNegocio } from "./DrawerNegocio";
+import { ConversasWhatsApp } from "@/components/canais/ConversasWhatsApp";
 import { centavos } from "./formatos";
 
 const ABAS: { id: AbaCrm; rotulo: string }[] = [
   { id: "funil", rotulo: "Funil" },
   { id: "clientes", rotulo: "Clientes" },
   { id: "tarefas", rotulo: "Tarefas" },
+  { id: "conversas", rotulo: "Conversas" },
 ];
 
 function Cartao({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: string }) {
@@ -80,6 +82,7 @@ function CorpoCrm() {
       {estado.aba === "tarefas" && (
         <TarefasCrm aoAbrirNegocio={estado.abrirNegocio} aoAbrirCliente={estado.abrirCliente} />
       )}
+      {estado.aba === "conversas" && <ConversasWhatsApp aoAbrirCliente={estado.abrirCliente} />}
 
       <DrawerCliente id={estado.cliente} aoFechar={() => estado.abrirCliente(null)} aoAbrirNegocio={estado.abrirNegocio} />
       <DrawerNegocio id={estado.negocio} aoFechar={() => estado.abrirNegocio(null)} aoAbrirCliente={estado.abrirCliente} />

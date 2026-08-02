@@ -1042,6 +1042,7 @@ model CrmCliente {
   atividades CrmClienteAtividade[]
   negocios   CrmNegocio[]
   tarefas    CrmTarefa[]
+  conversasWa WaConversa[]
 
   @@index([estagio])
   @@index([nome])
@@ -1173,6 +1174,149 @@ model CrmTarefa {
   @@index([negocioId])
   @@index([clienteId])
   @@map("crm_tarefas")
+}
+
+// --------------------------------------------------------------------
+// WHATSAPP (Fase 2/Etapa 2) — conexao unica (Baileys no processo da API,
+// como a origem roda em producao; sessao em volume), conversas por telefone
+// e mensagens com midia no MinIO.
+// --------------------------------------------------------------------
+
+model WaConexao {
+  id             Int       @id @default(1)
+  status         String    @default("desconectado")
+  telefone       String?
+  nomeExibicao   String?   @map("nome_exibicao")
+  qrCode         String?   @map("qr_code")
+  qrGeradoEm     DateTime? @map("qr_gerado_em") @db.Timestamptz(6)
+  conectadoEm    DateTime? @map("conectado_em") @db.Timestamptz(6)
+  desconectadoEm DateTime? @map("desconectado_em") @db.Timestamptz(6)
+  ultimoErro     String?   @map("ultimo_erro")
+  atualizadoEm   DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("wa_conexao")
+}
+
+model WaConversa {
+  id           String    @id @default(uuid()) @db.Uuid
+  tipo         String    @default("direta")
+  /// Telefone normalizado (so digitos) — a chave natural da conversa direta.
+  telefone     String    @unique
+  jid          String?
+  nomeContato  String?   @map("nome_contato")
+  crmClienteId String?   @map("crm_cliente_id") @db.Uuid
+  crmCliente   CrmCliente? @relation(fields: [crmClienteId], references: [id], onDelete: SetNull)
+  atribuidaA   String?   @map("atribuida_a") @db.Uuid
+  status       String    @default("aberta")
+  naoLidas     Int       @default(0) @map("nao_lidas")
+  ultimaMsg    String?   @map("ultima_msg")
+  ultimaMsgEm  DateTime? @map("ultima_msg_em") @db.Timestamptz(6)
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  excluidaEm   DateTime? @map("excluida_em") @db.Timestamptz(6)
+
+  mensagens WaMensagem[]
+
+  @@index([ultimaMsgEm(sort: Desc)])
+  @@index([crmClienteId])
+  @@map("wa_conversas")
+}
+
+model WaMensagem {
+  id                String     @id @default(uuid()) @db.Uuid
+  conversaId        String     @map("conversa_id") @db.Uuid
+  conversa          WaConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  direcao           String
+  tipoRemetente     String     @default("contato") @map("tipo_remetente")
+  operadorId        String?    @map("operador_id") @db.Uuid
+  tipoConteudo      String     @default("texto") @map("tipo_conteudo")
+  texto             String?
+  midiaChave        String?    @map("midia_chave")
+  midiaNome         String?    @map("midia_nome")
+  midiaMime         String?    @map("midia_mime")
+  midiaTamanho      Int?       @map("midia_tamanho")
+  midiaNotaVoz      Boolean    @default(false) @map("midia_nota_voz")
+  /// key.id do Baileys — chave da deduplicacao (unique parcial na migration).
+  providerMessageId String?    @map("provider_message_id")
+  remoteJid         String?    @map("remote_jid")
+  deMim             Boolean    @default(false) @map("de_mim")
+  status            String     @default("enviada")
+  erro              String?
+  criadoEm          DateTime   @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([conversaId, criadoEm])
+  @@map("wa_mensagens")
+}
+
+// --------------------------------------------------------------------
+// AGENTES DE IA (Fase 2/Etapa 3) — ponte com a plataforma Aplopes AI.
+// O motor e EXTERNO; tokens cifrados AES-256-GCM (chave em env).
+// --------------------------------------------------------------------
+
+model AgentesConexao {
+  id                   Int       @id @default(1)
+  workspaceId          String?   @map("workspace_id")
+  workspaceNome        String?   @map("workspace_nome")
+  baseUrl              String?   @map("base_url")
+  tokenCifrado         String?   @map("token_cifrado")
+  webhookSecretCifrado String?   @map("webhook_secret_cifrado")
+  agentePadraoId       String?   @map("agente_padrao_id")
+  agentePadraoNome     String?   @map("agente_padrao_nome")
+  status               String    @default("desconectado")
+  /// sha256 do token fhk_live_ que o admin cola no Aplopes; o claro nao fica.
+  tokenConexaoHash     String?   @map("token_conexao_hash")
+  tokenGeradoEm        DateTime? @map("token_gerado_em") @db.Timestamptz(6)
+  pareadoEm            DateTime? @map("pareado_em") @db.Timestamptz(6)
+  sincronizadoEm       DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+  atualizadoEm         DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("agentes_conexao")
+}
+
+model AgentesConversa {
+  id               String    @id @default(uuid()) @db.Uuid
+  refExterna       String    @unique @map("ref_externa")
+  issueRemotaId    String?   @map("issue_remota_id")
+  conversaRemotaId String?   @map("conversa_remota_id")
+  titulo           String
+  status           String    @default("BACKLOG")
+  agenteId         String?   @map("agente_id")
+  agenteNome       String?   @map("agente_nome")
+  solicitanteId    String?   @map("solicitante_id") @db.Uuid
+  solicitanteNome  String?   @map("solicitante_nome")
+  temPendente      Boolean   @default(false) @map("tem_pendente")
+  criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+  sincronizadoEm   DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+
+  mensagens AgentesMensagem[]
+
+  @@index([atualizadoEm(sort: Desc)])
+  @@map("agentes_conversas")
+}
+
+model AgentesMensagem {
+  id         String          @id @default(uuid()) @db.Uuid
+  conversaId String          @map("conversa_id") @db.Uuid
+  conversa   AgentesConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  autor      String
+  conteudo   String
+  agenteId   String?         @map("agente_id")
+  agenteNome String?         @map("agente_nome")
+  remotoId   String?         @map("remoto_id")
+  lida       Boolean         @default(false)
+  criadoEm   DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([conversaId, criadoEm])
+  @@map("agentes_mensagens")
+}
+
+model AgentesEvento {
+  id             String   @id @default(uuid()) @db.Uuid
+  eventoRemotoId String   @unique @map("evento_remoto_id")
+  tipo           String
+  processadoEm   DateTime @default(now()) @map("processado_em") @db.Timestamptz(6)
+
+  @@map("agentes_eventos")
 }
 
 // --------------------------------------------------------------------

@@ -773,6 +773,38 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   .fh-crm-kanban { grid-auto-columns: 230px; }
 }
 
+/* Chat (WhatsApp no CRM e conversas com agentes) */
+.fh-chat {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr);
+  height: 560px; border: 1px solid var(--card-line); border-radius: 14px;
+  overflow: hidden; background: var(--card);
+}
+.fh-chat-lista { min-width: 0; border-right: 1px solid var(--hair); overflow-y: auto; }
+.fh-chat-item {
+  all: unset; display: block; box-sizing: border-box; width: 100%; cursor: pointer;
+  padding: 10px 12px; border-bottom: 1px solid var(--hair);
+}
+.fh-chat-item:hover { background: rgb(var(--sup-rgb) / 0.05); }
+.fh-chat-thread { min-width: 0; display: flex; flex-direction: column; }
+.fh-chat-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--hair); flex-shrink: 0;
+}
+.fh-chat-mensagens { flex: 1; overflow-y: auto; padding: 14px; display: grid; gap: 8px; align-content: start; }
+.fh-chat-bolha {
+  max-width: min(420px, 85%); padding: 8px 11px; border-radius: 12px;
+  border: 1px solid;
+}
+.fh-chat-composer {
+  display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--hair); flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  /* No celular a lista vira faixa superior rolável e o thread ocupa o resto. */
+  .fh-chat { grid-template-columns: minmax(0, 1fr); grid-template-rows: 150px minmax(0, 1fr); height: 70dvh; }
+  .fh-chat-lista { border-right: none; border-bottom: 1px solid var(--hair); }
+}
+
 /* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
    O botão PDF do painel chama window.print(). */
 @media print {

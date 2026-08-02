@@ -157,6 +157,17 @@ t "cria e conclui tarefa com resultado"     ok "$(js -b c_admin.txt -X POST $B/a
 t "remove negocio de teste"                 204 "$(cod -b c_admin.txt -X DELETE $B/api/crm/negocios/$NID)"
 t "remove lead de teste"                    204 "$(cod -b c_admin.txt -X DELETE $B/api/crm/clientes/$CID)"
 
+echo "── whatsapp + agentes ──"
+t "whatsapp status exige sessao"            401 "$(cod $B/api/whatsapp/status)"
+t "comercial NAO administra o whatsapp"     403 "$(cod -b c_com.txt $B/api/whatsapp/status)"
+t "status inicial da conexao"               ok "$(js -b c_admin.txt $B/api/whatsapp/status | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d and d.get("status") in ("desconectado","conectando","qr_pendente","conectado","erro") else "shape errado")')"
+t "inbox de conversas responde"             ok "$(js -b c_admin.txt $B/api/whatsapp/conversas | python3 -c 'import sys,json;print("ok" if isinstance(json.load(sys.stdin), list) else "nao e lista")')"
+t "agentes conexao exige sessao"            401 "$(cod $B/api/agentes/conexao)"
+t "estado inicial dos agentes"              ok "$(js -b c_admin.txt $B/api/agentes/conexao | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d and d.get("status") in ("desconectado","pareado","erro") else "shape errado")')"
+t "conversas de agentes respondem"          ok "$(js -b c_admin.txt $B/api/agentes/conversas | python3 -c 'import sys,json;print("ok" if isinstance(json.load(sys.stdin), list) else "nao e lista")')"
+t "webhook sem assinatura e recusado"       401 "$(cod -X POST $B/api/agentes/webhook -H 'Content-Type: application/json' -d '{}')"
+t "manifesto sem token e recusado"          401 "$(cod https://febracis.aplopes.com/.well-known/aplopes-integration)"
+
 echo
 echo "════ RESULTADO: $OK passaram, $FALHA falharam ════"
 [ "$FALHA" -eq 0 ]

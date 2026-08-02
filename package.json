@@ -27,6 +27,9 @@
       "argon2",
       "sharp",
       "unrs-resolver"
-    ]
+    ],
+    "patchedDependencies": {
+      "baileys@7.0.0-rc13": "patches/baileys@7.0.0-rc13.patch"
+    }
   }
 }

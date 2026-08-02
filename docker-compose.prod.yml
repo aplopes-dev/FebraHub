@@ -122,6 +122,11 @@ services:
       APP_URL: ${APP_URL}
       ETL_TOKEN: ${ETL_TOKEN}
       APP_VERSION: ${TAG:-1.0.0}
+      # Sessão do WhatsApp (Baileys) em volume: sem ela, cada deploy exigiria
+      # escanear o QR de novo. A chave dos agentes cifra os tokens da
+      # plataforma Aplopes em repouso (AES-256-GCM, 32 bytes em base64).
+      WHATSAPP_SESSIONS_DIR: /dados/whatsapp-sessoes
+      AGENTES_CHAVE_CIFRA: ${AGENTES_CHAVE_CIFRA}
       TZ: America/Bahia
     env_file:
       # As credenciais OAuth (CONTAAZUL_CLIENT_ID/SECRET/SCOPE, META_APP_ID/
@@ -139,6 +144,9 @@ services:
       # está em `environment` vence o `env_file`.
       - path: ${FEBRAHUB_DIR:-/opt/febrahub}/etl.env
         required: false
+    volumes:
+      # Credenciais da sessão Baileys — sobrevivem a deploy e restart.
+      - wa_sessoes:/dados/whatsapp-sessoes
     ports:
       - '127.0.0.1:3261:3261'
     networks: [interna]
@@ -230,6 +238,8 @@ volumes:
     name: febrahub_postgres_dados
   minio_dados:
     name: febrahub_minio_dados
+  wa_sessoes:
+    name: febrahub_wa_sessoes
 
 networks:
   interna:

@@ -20,7 +20,9 @@ async function bootstrap(): Promise<void> {
       trustProxy: true,
       bodyLimit: 2 * 1024 * 1024,
     }),
-    { bufferLogs: true },
+    // rawBody: o webhook dos agentes verifica HMAC sobre o corpo CRU —
+    // reserializar o JSON parseado mudaria bytes e invalidaria a assinatura.
+    { bufferLogs: true, rawBody: true },
   );
 
   const cfg = app.get(ConfigService).get<Configuracao>('app')!;
@@ -29,7 +31,9 @@ async function bootstrap(): Promise<void> {
   // chama /api/<rota>. Ligar versionamento moveria tudo para /api/v1/ e
   // quebraria o contrato sem ninguém ganhar nada — versão entra quando houver
   // uma segunda a manter.
-  app.setGlobalPrefix('api');
+  // O manifesto dos agentes fica FORA do /api de propósito: o Aplopes lê
+  // /.well-known/aplopes-integration na raiz do domínio (padrão well-known).
+  app.setGlobalPrefix('api', { exclude: ['.well-known/aplopes-integration'] });
 
   await app.register(helmet, {
     contentSecurityPolicy: false, // quem serve HTML é o Next, não a API

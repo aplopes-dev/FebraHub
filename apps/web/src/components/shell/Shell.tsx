@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, LayoutDashboard, MapPinned, Menu, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
+import { Bell, Bot, LayoutDashboard, MapPinned, Menu, MessageCircle, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
 import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
@@ -71,6 +71,25 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         border: "none", cursor: "pointer", fontFamily: SANS, textAlign: "left",
         textDecoration: "none",
       }}>
+        <Icone size={16} />
+        <span className="fh-so-expandido">{label}</span>
+      </Link>
+    );
+  };
+
+  const ItemCaminho = ({ caminho: destino, label, Icone }: { caminho: string; label: string; Icone: LucideIcon }) => {
+    const ativo = caminho === destino;
+    return (
+      <Link href={destino} aria-current={ativo ? "page" : undefined} className="fh-item-menu"
+        title={recolhido ? label : undefined}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 11,
+          padding: "11px 12px", borderRadius: 9, fontSize: 13.5, fontWeight: 600,
+          background: ativo ? alfa("gold", 0.12) : "transparent",
+          color: ativo ? C.gold : C.muted,
+          border: "none", cursor: "pointer", fontFamily: SANS, textAlign: "left",
+          textDecoration: "none",
+        }}>
         <Icone size={16} />
         <span className="fh-so-expandido">{label}</span>
       </Link>
@@ -173,9 +192,14 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             {admin && (
               <>
                 <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
-                  Sistema
+                  Integrações
                 </div>
-                <Item chave={PAGINA_INTEGRACOES.key} label={PAGINA_INTEGRACOES.nome} Icone={PAGINA_INTEGRACOES.Icone} />
+                <Item chave={PAGINA_INTEGRACOES.key} label="Fontes de dados" Icone={PAGINA_INTEGRACOES.Icone} />
+                {/* Fase 2 da integração: canais dentro do FebraHub. As rotas
+                    são filhas de /integracoes; o item ativo compara o caminho
+                    completo, não só o 1º segmento. */}
+                <ItemCaminho caminho="/integracoes/whatsapp" label="WhatsApp" Icone={MessageCircle} />
+                <ItemCaminho caminho="/integracoes/agentes" label="Agentes de IA" Icone={Bot} />
               </>
             )}
           </div>
