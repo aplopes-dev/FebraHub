@@ -325,11 +325,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 /* O rótulo do grupo ("Painéis", "Setores") vira um traço: sem ele os blocos
    se fundem num bloco só de ícones. */
 :root[data-menu-recolhido] .fh-grupo-menu {
-  font-size: 0;
+  /* !important porque o tamanho vem de inline style: sem ele o rótulo não
+     zera e aparece cortado pela coluna estreita ("PAINÉI", "SETOR"). */
+  font-size: 0 !important;
   padding: 12px 18px 8px;
   border-top: 1px solid var(--hair);
   margin-top: 6px;
 }
+/* Recolhido, o topo mostra só o botão de expandir: a logo de 32px mais o
+   botão não cabem nos 64px da coluna, e a logo saía cortada. */
+:root[data-menu-recolhido] .fh-topo-menu img { display: none; }
 :root[data-menu-recolhido] .fh-rodape-perfil {
   flex-direction: column;
   gap: 8px;
@@ -351,7 +356,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-topbar { display: none; }
 .fh-backdrop { display: none; }
 /* Fechar-a-gaveta só faz sentido onde existe gaveta. */
-.fh-so-gaveta { display: none; }
+.fh-so-gaveta { display: none !important; }   /* o botão traz display inline */
 /* Recolher a coluna só faz sentido onde ela é coluna. */
 .fh-so-desktop { display: flex; }
 /* Enfeite que some quando o espaço fica caro (o sino, hoje sem notificação). */
@@ -404,8 +409,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   }
   :root { --topbar: 52px; }
 
-  .fh-so-gaveta { display: flex; }
-  .fh-so-desktop { display: none; }
+  .fh-so-gaveta { display: flex !important; }
+  .fh-so-desktop { display: none !important; }
 
   /* Com o menu recolhido, o topo vira só a logo centralizada. */
   :root[data-menu-recolhido] .fh-topo-menu { justify-content: center; padding: 22px 8px 18px; }
