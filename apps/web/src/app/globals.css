@@ -226,6 +226,27 @@
   --alvo-toque: 40px;        /* piso de área tocável (WCAG 2.5.8 pede 24; 40 é confortável) */
   --sidebar: 250px;
   --topbar: 0px;             /* altura da barra fixa do mobile; 0 no desktop */
+
+  /* ---- ESCALA TIPOGRÁFICA COMPACTA (fonte única da verdade) ----
+     Chips, campos e gráficos leem DAQUI — componente nenhum inventa
+     tamanho próprio. A escala segue o hub original (chip 12px/28px) e o
+     piso de acessibilidade: nada de texto funcional abaixo de 10px. */
+  --chip-fs: 12px;           /* fonte do chip/tag/badge */
+  --chip-h: 28px;            /* altura do chip */
+  --chip-px: 10px;           /* padding horizontal do chip */
+  --chip-icone: 13px;        /* ícone dentro do chip */
+  --chip-contador-fs: 10.5px;
+
+  --campo-label-fs: 11.5px;  /* label de select/combobox/input */
+  --campo-fs: 12.5px;        /* valor, placeholder e opções */
+  --campo-aux-fs: 11px;      /* texto auxiliar / vazio */
+  --campo-h: 36px;           /* altura do campo */
+
+  --grafico-titulo-fs: 14px;
+  --grafico-sub-fs: 11.5px;
+  --grafico-eixo-fs: 10.5px;
+  --grafico-legenda-fs: 11px;
+  --grafico-tooltip-fs: 11.5px;
 }
 
 @media (min-width: 600px) {
@@ -566,9 +587,37 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-exec-select {
   background: var(--card); color: var(--text);
   border: 1px solid var(--card-line); border-radius: 8px;
-  font: 700 11.5px var(--font-manrope, inherit); padding: 6px 8px;
-  max-width: 240px; min-height: 30px;
+  font: 700 var(--campo-fs) var(--font-manrope, inherit); padding: 6px 8px;
+  max-width: 240px; min-height: 34px;
 }
+
+/* Chip genérico da escala compacta — os módulos novos (territorial,
+   conversas, kanban) montam em cima disto; a cor entra por style inline. */
+.fh-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: var(--chip-h); padding: 0 var(--chip-px);
+  border-radius: 999px; font-size: var(--chip-fs); font-weight: 500;
+  line-height: 1; white-space: nowrap; border: 1px solid var(--card-line);
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-family: inherit; transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.fh-chip:hover { color: var(--text); }
+.fh-chip[aria-pressed="true"], .fh-chip[data-ativo="1"] {
+  border-width: 2px; padding: 0 calc(var(--chip-px) - 1px);
+  color: var(--text); font-weight: 600;
+}
+.fh-chip:disabled { opacity: .4; pointer-events: none; }
+.fh-chip svg { width: var(--chip-icone); height: var(--chip-icone); flex-shrink: 0; }
+
+/* Campo compacto (select/input) para os módulos novos. */
+.fh-campo {
+  height: var(--campo-h); font-size: var(--campo-fs);
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--card-line); border-radius: 8px;
+  padding: 0 10px; font-family: inherit; min-width: 0;
+}
+.fh-campo::placeholder { color: var(--faint); }
+.fh-campo:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
 .fh-exec-contexto {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -803,6 +852,70 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   /* No celular a lista vira faixa superior rolável e o thread ocupa o resto. */
   .fh-chat { grid-template-columns: minmax(0, 1fr); grid-template-rows: 150px minmax(0, 1fr); height: 70dvh; }
   .fh-chat-lista { border-right: none; border-bottom: 1px solid var(--hair); }
+}
+
+/* ---- Conversas de agentes: 3 colunas (lista · thread · contexto) ---- */
+.fh-chat-3 {
+  grid-template-columns: 320px minmax(0, 1fr) 300px;
+  height: calc(100dvh - 250px); min-height: 520px;
+}
+.fh-chat-contexto { min-width: 0; border-left: 1px solid var(--hair); overflow-y: auto; }
+@media (max-width: 1279px) {
+  .fh-chat-3 { grid-template-columns: 300px minmax(0, 1fr); }
+  /* O painel de contexto vira gaveta flutuante aberta pelo cabeçalho. */
+  .fh-chat-contexto { display: none; }
+  .fh-chat-contexto[data-flutuante="1"] {
+    display: block; position: fixed; right: 0; top: 0; bottom: 0;
+    width: min(340px, 92vw); z-index: 85; background: var(--card);
+    border-left: 1px solid var(--card-line); box-shadow: var(--sombra-popover);
+  }
+}
+@media (max-width: 899px) {
+  /* Lista ↔ thread alternam em tela cheia; quem decide é data-oculta. */
+  .fh-chat-3 { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: calc(100dvh - 210px); }
+  .fh-chat-3 .fh-chat-lista[data-oculta="1"], .fh-chat-3 .fh-chat-thread[data-oculta="1"] { display: none; }
+  .fh-chat-3 .fh-chat-lista { border-bottom: none; }
+}
+
+@keyframes fh-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ---- Kanban de conversas ---- */
+.fh-kb {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 262px; gap: 10px;
+  overflow-x: auto; padding-bottom: 12px; align-items: start;
+}
+.fh-kb-col {
+  background: rgb(var(--sup-rgb) / 0.03); border: 1px solid var(--card-line);
+  border-radius: 12px; padding: 8px; display: grid; gap: 8px;
+  align-content: start; min-height: 140px;
+}
+.fh-kb-col[data-sobre="1"] { outline: 2px solid var(--gold); outline-offset: -2px; }
+.fh-kb-card {
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 10px;
+  padding: 10px 11px; cursor: grab; min-width: 0;
+}
+.fh-kb-card:active { cursor: grabbing; }
+.fh-kb-card[data-arrastando="1"] { opacity: .45; }
+
+/* ---- Widget flutuante dos agentes ---- */
+.fh-widget-fab {
+  position: fixed; z-index: 95; width: 52px; height: 52px; border-radius: 50%;
+  border: 1px solid var(--card-line); background: var(--card); color: var(--gold);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: var(--sombra-popover); touch-action: none;
+}
+.fh-widget-painel {
+  position: fixed; z-index: 95;
+  width: min(392px, calc(100vw - 20px)); height: min(560px, calc(100dvh - 90px));
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 16px;
+  box-shadow: var(--sombra-popover); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.fh-widget-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 19px; height: 19px;
+  border-radius: 999px; background: var(--down); color: #fff;
+  font-size: 10.5px; font-weight: 800; display: flex; align-items: center;
+  justify-content: center; padding: 0 5px;
 }
 
 /* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
