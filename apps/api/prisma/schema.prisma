@@ -1008,6 +1008,150 @@ model IntegracaoEstadoOauth {
 }
 
 // --------------------------------------------------------------------
+// INTELIGENCIA TERRITORIAL
+// Empresas georreferenciadas, portadas do hub.aplopes.com (repo
+// aplopes-dev/hub). Nomes de tabela/coluna PRESERVADOS do sistema de
+// origem de proposito: a migracao de dados e um dump/restore direto e o
+// ETL (derivado de dim_alunos — a mesma tabela que ja vive neste banco)
+// porta 1:1. Ingles no meio de um schema pt-BR e o preco documentado de
+// nao reescrever uma carga de 13,7 mil registros ja validada.
+// --------------------------------------------------------------------
+
+enum CompanyStatus {
+  ativa
+  suspensa
+  inapta
+  baixada
+}
+
+enum ContactType {
+  telefone
+  email
+  site
+}
+
+enum ConnectionType {
+  grupo
+  socio
+  comercial
+}
+
+model Niche {
+  id        String    @id @default(uuid())
+  slug      String    @unique
+  name      String
+  color     String
+  icon      String
+  companies Company[]
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("niches")
+}
+
+/// Empresa (ou registro-pessoa) derivada de dim_alunos pelo ETL territorial.
+/// revenue/employeeCount/cnae vem zerados da carga real — o GDE nao fornece.
+model Company {
+  id              String        @id @default(uuid())
+  legalName       String
+  tradeName       String
+  /// CNPJ, CPF ou placeholder SEM-DOC-#####
+  document        String        @unique
+  /// "cnpj" | "cpf" | "nd"
+  documentType    String        @default("nd") @db.VarChar(4)
+  nicheId         String
+  niche           Niche         @relation(fields: [nicheId], references: [id])
+  cnae            String
+  cnaeDescription String
+  state           String        @db.VarChar(2)
+  city            String
+  latitude        Decimal?      @db.Decimal(9, 6)
+  longitude       Decimal?      @db.Decimal(9, 6)
+  revenue         Decimal       @db.Decimal(14, 2)
+  revenueRange    String        @db.VarChar(4)
+  employeeCount   Int
+  score           Int
+  groupId         String?
+  groupName       String?
+  website         String?
+  status          CompanyStatus
+  openedAt        DateTime      @db.Date
+  /// Minusculo sem acento, pipe-separated — base da busca global.
+  searchText      String        @default("")
+  partners        CompanyPartner[]
+  contacts        CompanyContact[]
+  sourceConnections CompanyConnection[] @relation("connSource")
+  targetConnections CompanyConnection[] @relation("connTarget")
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@index([state])
+  @@index([city])
+  @@index([nicheId])
+  @@index([revenue])
+  @@index([employeeCount])
+  @@index([status])
+  @@index([latitude, longitude])
+  @@index([state, city])
+  @@index([revenueRange])
+  @@index([documentType])
+  @@map("companies")
+}
+
+model CompanyPartner {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
+  role                String
+  ownershipPercentage Int
+  /// aluno_id de dim_alunos — a chave de idempotencia do sync incremental.
+  sourceId            String?  @unique
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([companyId])
+  @@index([name])
+  @@map("company_partners")
+}
+
+model CompanyContact {
+  id        String      @id @default(uuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type      ContactType
+  value     String
+  isPrimary Boolean     @default(false)
+  verified  Boolean     @default(false)
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@index([companyId])
+  @@index([type])
+  @@map("company_contacts")
+}
+
+model CompanyConnection {
+  id              String         @id @default(uuid())
+  sourceCompanyId String
+  source          Company        @relation("connSource", fields: [sourceCompanyId], references: [id], onDelete: Cascade)
+  targetCompanyId String
+  target          Company        @relation("connTarget", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+  type            ConnectionType
+  strength        Decimal        @db.Decimal(4, 2)
+  nicheId         String
+  metadata        Json           @default("{}")
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([sourceCompanyId])
+  @@index([targetCompanyId])
+  @@index([type])
+  @@index([strength])
+  @@map("company_connections")
+}
+
+// --------------------------------------------------------------------
 // LEGADO
 // Legado do Supabase — nao usar em codigo novo.
 // --------------------------------------------------------------------

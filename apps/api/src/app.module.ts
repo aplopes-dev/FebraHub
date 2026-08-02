@@ -14,6 +14,7 @@ import { ExecutivoModule } from './modules/executivo/executivo.module';
 import { IngestModule } from './modules/ingest/ingest.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { TerritorialModule } from './modules/territorial/territorial.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
 import { SessaoGuard } from './common/guards/sessao.guard';
@@ -66,6 +67,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     PedagogicoModule,
     IngestModule,
     IntegracoesModule,
+    TerritorialModule,
   ],
   controllers: [HealthController],
   providers: [

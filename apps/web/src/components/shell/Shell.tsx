@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, LayoutDashboard, Menu, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
+import { Bell, LayoutDashboard, MapPinned, Menu, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
 import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
@@ -157,6 +157,9 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                   Painéis
                 </div>
                 <Item chave="executivo" label="Hub Executivo" Icone={LayoutDashboard} />
+                {/* Porte do hub.aplopes.com — exclusivo da diretoria, como o
+                    Executivo. O nome vem do sistema de origem. */}
+                <Item chave="territorial" label="Inteligência Territorial" Icone={MapPinned} />
               </>
             )}
 
@@ -231,7 +234,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               fontWeight: 800, fontSize: 13.5, letterSpacing: ".2px",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {tela === "executivo" ? "Hub Executivo" : hub?.nome ?? "FebraHub"}
+              {tela === "executivo" ? "Hub Executivo" : tela === "territorial" ? "Inteligência Territorial" : hub?.nome ?? "FebraHub"}
             </span>
           </div>
 
@@ -251,18 +254,24 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                 <h1 style={{ fontSize: "var(--h1)", fontWeight: 800, letterSpacing: "-.6px", fontFamily: SANS, lineHeight: 1.15 }}>
                   {tela === "executivo"
                     ? `${saudacao}, ${primeiroNome}.`
-                    : hub?.nome}
+                    : tela === "territorial"
+                      ? "Inteligência Territorial"
+                      : hub?.nome}
                 </h1>
-                {tela !== "executivo" && (
+                {tela === "territorial" ? (
+                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>
+                    Mapa de empresas e conexões do território
+                  </div>
+                ) : tela !== "executivo" && (
                   <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>{hub?.desc}</div>
                 )}
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                {/* O Executivo tem filtro próprio, refletido na URL (mês +
-                    comparação); o seletor global não age sobre ele e só
+                {/* Executivo e Territorial têm filtro próprio, refletido na URL;
+                    o seletor global de período não age sobre eles e só
                     confundiria — dois controles de período na mesma tela. */}
-                {tela !== "executivo" && <SeletorPeriodo />}
+                {tela !== "executivo" && tela !== "territorial" && <SeletorPeriodo />}
                 {tela === "comercial" && <SeletorCategoria />}
                 {/* O sino é decorativo (sem notificação ainda) e some no
                     celular: ocupar 40px de uma barra apertada por um enfeite
