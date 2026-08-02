@@ -4,7 +4,6 @@ import { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { HubComercial } from "@/components/hubs/HubComercial";
 import { HubEventos } from "@/components/hubs/HubEventos";
-import { HubExecutivo } from "@/components/hubs/HubExecutivo";
 import { HubFinanceiro } from "@/components/hubs/HubFinanceiro";
 import { HubLoja } from "@/components/hubs/HubLoja";
 import { HubMarketing } from "@/components/hubs/HubMarketing";
@@ -15,10 +14,11 @@ import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
 import { ROTAS_HUB, acharHub, hubInicial } from "@/lib/hubs";
 
 /* Um hub por rota. O `tela` do protótipo virou o parâmetro da URL, e o
-   switch continua sendo o mesmo — só que agora F5 e link direto funcionam. */
+   switch continua sendo o mesmo — só que agora F5 e link direto funcionam.
+   O Executivo saiu daqui: virou rota ESTÁTICA (app/(app)/executivo), que
+   ganha da dinâmica — precisava de subrotas (indicadores/[codigo], metas). */
 function conteudoDe(hub: string) {
   switch (hub) {
-    case "executivo":  return <HubExecutivo />;
     case "comercial":  return <HubComercial />;
     case "financeiro": return <HubFinanceiro />;
     case "marketing":  return <HubMarketing />;
@@ -45,8 +45,7 @@ export default function PaginaHub({ params }: { params: Promise<{ hub: string }>
     ? true
     : ehAdmin(dados) || setoresDo(dados).includes(hub);
   const conhecido = ROTAS_HUB.includes(hub);
-  // Só a diretoria abre o Executivo.
-  const liberado = conhecido && permitido && (hub !== "executivo" || (!!dados && ehAdmin(dados)));
+  const liberado = conhecido && permitido;
 
   useEffect(() => {
     if (!dados) return;

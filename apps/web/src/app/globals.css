@@ -547,3 +547,153 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ============================================================
+   HUB EXECUTIVO
+   As cores vêm das variáveis de tema (claro e escuro já cobertos);
+   aqui mora só estrutura: grades, cartões, chips e impressão.
+   ============================================================ */
+
+.fh-exec { min-width: 0; }
+
+.fh-exec-topo {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.fh-exec-filtros { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.fh-exec-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.fh-exec-select {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--card-line); border-radius: 8px;
+  font: 700 11.5px var(--font-manrope, inherit); padding: 6px 8px;
+  max-width: 240px; min-height: 30px;
+}
+
+.fh-exec-contexto {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; font-size: 12px; color: var(--faint);
+  padding: 9px 14px; border: 1px solid var(--hair); border-radius: 12px;
+  background: rgb(var(--sup-rgb) / 0.03); margin-bottom: 16px;
+}
+
+/* Cards da visão geral: compactos, densos e SEMPRE minmax(0, …) —
+   1fr puro deixaria o conteúdo mínimo estourar a coluna. */
+.fh-exec-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px; margin-bottom: 22px;
+}
+.fh-exec-card {
+  display: block; min-width: 0; padding: 14px 16px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--card-line);
+  text-decoration: none; transition: transform .12s ease, box-shadow .12s ease;
+}
+.fh-exec-card:hover { transform: translateY(-1px); box-shadow: var(--sombra-popover); }
+
+.fh-exec-badge {
+  display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .3px;
+  text-transform: uppercase; padding: 3px 7px; border-radius: 999px;
+  border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+
+.fh-exec-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--card-line); background: transparent; color: var(--muted);
+  font: 800 11px var(--font-manrope, inherit); border-radius: 999px;
+  padding: 4px 10px; cursor: pointer; white-space: nowrap;
+}
+.fh-exec-chip:disabled { opacity: .45; cursor: default; }
+
+.fh-exec-duplo {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+  margin-bottom: 6px;
+}
+.fh-exec-alerta {
+  display: block; min-width: 0; padding: 10px 12px 12px; border-radius: 11px;
+  background: var(--card); border: 1px solid var(--card-line);
+  border-left-width: 3px; text-decoration: none;
+}
+.fh-exec-alerta:hover { box-shadow: var(--sombra-popover); }
+.fh-exec-vazio {
+  font-size: 12px; color: var(--faint); padding: 14px;
+  border: 1px dashed var(--card-line); border-radius: 11px;
+}
+
+.fh-exec-setores {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.fh-exec-setor {
+  min-width: 0; padding: 13px 15px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--card-line);
+}
+.fh-exec-mini {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 7px; margin: 0 -7px; border-radius: 8px; text-decoration: none;
+}
+.fh-exec-mini:hover { background: rgb(var(--sup-rgb) / 0.05); }
+
+.fh-exec-tabela { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text); }
+.fh-exec-tabela th {
+  text-align: left; font-size: 10px; font-weight: 800; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--faint); padding: 9px 14px;
+  border-bottom: 1px solid var(--hair); white-space: nowrap;
+}
+.fh-exec-tabela td { padding: 8px 14px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+.fh-exec-tabela tr:last-child td { border-bottom: none; }
+
+.fh-exec-quebras {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 0 16px;
+}
+
+.fh-exec-numeros {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, max-content));
+  gap: 12px 34px; margin-top: 16px; padding: 14px 18px;
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 14px;
+}
+.fh-exec-num-rotulo {
+  font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 4px;
+}
+
+.fh-exec-fontes {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 26px;
+  padding-top: 14px; border-top: 1px solid var(--hair);
+  font-size: 10.5px; color: var(--faint);
+}
+
+.fh-exec-personalizar {
+  padding: 14px 16px; border: 1px solid var(--card-line); border-radius: 14px;
+  background: var(--card); margin-bottom: 16px; max-width: 460px;
+}
+
+.fh-exec-meta-linha {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; border-bottom: 1px solid var(--hair);
+}
+.fh-exec-meta-linha > div:first-child { flex: 1; }
+.fh-exec-meta-linha:last-child { border-bottom: none; }
+
+@media (max-width: 899px) {
+  .fh-exec-duplo { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* No celular a tabela anual rola dentro do próprio wrapper. */
+  .fh-exec-tabela { min-width: 560px; }
+}
+@media (max-width: 599px) {
+  .fh-exec-grid { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-setores { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-quebras { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-numeros { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-meta-linha { flex-wrap: wrap; padding: 9px 14px; }
+}
+
+/* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
+   O botão PDF do painel chama window.print(). */
+@media print {
+  .fh-sidebar, .fh-topbar, .fh-backdrop, .fh-exec-acoes, .fh-exec-personalizar { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  .fh-exec-card, .fh-exec-setor, .fh-exec-alerta { break-inside: avoid; }
+  .fh-exec-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -259,7 +259,10 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <SeletorPeriodo />
+                {/* O Executivo tem filtro próprio, refletido na URL (mês +
+                    comparação); o seletor global não age sobre ele e só
+                    confundiria — dois controles de período na mesma tela. */}
+                {tela !== "executivo" && <SeletorPeriodo />}
                 {tela === "comercial" && <SeletorCategoria />}
                 {/* O sino é decorativo (sem notificação ainda) e some no
                     celular: ocupar 40px de uma barra apertada por um enfeite
