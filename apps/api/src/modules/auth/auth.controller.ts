@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 import { EntrarDto, TrocarSenhaDto } from './dto/auth.dto';
 import { Publica, Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { COOKIE_ACESSO, COOKIE_REFRESH } from '../../common/guards/sessao.guard';
-import { Configuracao } from '../../config/configuracao';
+import { Configuracao, ttlMs } from '../../config/configuracao';
 import { PrismaService } from '../../database/prisma.service';
 
 type Req = FastifyRequest & { cookies?: Record<string, string> };
@@ -36,7 +36,7 @@ export class AuthController {
     const r = await this.auth.entrar(dto.email, dto.senha, ipDe(req), agenteDe(req));
     this.gravarCookies(res, r.acesso, r.refresh);
     await this.auditar(r.perfil.id, 'login', 'auth', ipDe(req));
-    return { perfil: r.perfil, precisaTrocarSenha: r.precisaTrocarSenha };
+    return { perfil: r.perfil, precisaTrocarSenha: r.precisaTrocarSenha, sessao: this.infoSessao() };
   }
 
   @Publica()
@@ -48,7 +48,7 @@ export class AuthController {
     const atual = req.cookies?.[COOKIE_REFRESH] ?? '';
     const r = await this.auth.renovar(atual, ipDe(req), agenteDe(req));
     this.gravarCookies(res, r.acesso, r.refresh);
-    return { perfil: r.perfil };
+    return { perfil: r.perfil, sessao: this.infoSessao() };
   }
 
   @Publica()
@@ -70,7 +70,7 @@ export class AuthController {
     // Relê do banco: setor e papel podem ter mudado depois do token emitido,
     // e o menu do front é montado a partir daqui.
     const fresco = await this.auth.perfilDe(usuario.id);
-    return { perfil: fresco ?? usuario };
+    return { perfil: fresco ?? usuario, sessao: this.infoSessao() };
   }
 
   @Post('senha')
@@ -91,12 +91,20 @@ export class AuthController {
     this.gravarCookies(res, r.acesso, r.refresh);
   }
 
+  /** O front usa isto para agendar a renovação proativa antes de expirar. */
+  private infoSessao() {
+    return { acessoTtlSegundos: Math.floor(ttlMs(this.cfg.jwt.acessoTtl) / 1000) };
+  }
+
   private gravarCookies(res: FastifyReply, acesso: string, refresh: string): void {
-    void res.setCookie(COOKIE_ACESSO, acesso, this.opcoesCookie(15 * 60));
+    // maxAge derivado do MESMO TTL que assina o token (via ttlMs): cookie e
+    // JWT expiram juntos por construção. O bug clássico era o cookie fixo em
+    // 15 min ignorando o TTL configurado — mudar o env não mudava nada.
+    void res.setCookie(COOKIE_ACESSO, acesso, this.opcoesCookie(ttlMs(this.cfg.jwt.acessoTtl) / 1000));
     // O refresh só é enviado para /api/auth: não há motivo para ele passear
     // junto de toda requisição de dados.
     void res.setCookie(COOKIE_REFRESH, refresh, {
-      ...this.opcoesCookie(30 * 24 * 3600),
+      ...this.opcoesCookie(ttlMs(this.cfg.jwt.refreshTtl) / 1000),
       path: '/api/auth',
     });
   }
@@ -104,10 +112,10 @@ export class AuthController {
   private opcoesCookie(maxAge: number) {
     return {
       httpOnly: true,
-      secure: this.cfg.cookie.seguro, // só em produção; em dev o host é http
-      sameSite: 'lax' as const, // front e API no mesmo domínio
+      secure: this.cfg.cookie.seguro, // produção por padrão; AUTH_COOKIE_SECURE sobrepõe
+      sameSite: this.cfg.cookie.sameSite, // front e API no mesmo domínio → lax
       path: '/',
-      maxAge,
+      maxAge: Math.floor(maxAge),
       ...(this.cfg.cookie.dominio ? { domain: this.cfg.cookie.dominio } : {}),
     };
   }

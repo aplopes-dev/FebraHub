@@ -25,3 +25,9 @@ venv/
 # SO
 .DS_Store
 Thumbs.db
+
+# Jars de cookie do e2e (sessão viva de produção — jamais versionar)
+c_admin.txt
+c_com.txt
+e2e.csv
+e2e.bin

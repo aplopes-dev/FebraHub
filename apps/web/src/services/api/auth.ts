@@ -1,5 +1,13 @@
-import { api, ErroApi } from "./client";
+import { api, CHAVE_DESLOGADO, ErroApi, guardarTtlAcesso, marcarSessaoRenovada } from "./client";
 import type { Sessao } from "@/types/views";
+
+/** O backend anexa `sessao.acessoTtlSegundos` às respostas de auth; o front
+ *  guarda para a renovação proativa saber quando agir. */
+type ComInfoSessao = { sessao?: { acessoTtlSegundos?: number } } | null;
+
+function absorverInfoSessao(r: ComInfoSessao): void {
+  guardarTtlAcesso(r?.sessao?.acessoTtlSegundos);
+}
 
 /* ============================================================
    AUTENTICAÇÃO
@@ -12,7 +20,10 @@ import type { Sessao } from "@/types/views";
 
 export async function entrar(email: string, senha: string): Promise<Sessao> {
   try {
-    return await api.post<Sessao>("/auth/entrar", { email, senha });
+    const r = await api.post<Sessao & ComInfoSessao>("/auth/entrar", { email, senha });
+    absorverInfoSessao(r);
+    marcarSessaoRenovada();
+    return r;
   } catch (e) {
     // Mensagem do usuário, não do sistema.
     if (e instanceof ErroApi && (e.status === 400 || e.status === 401)) {
@@ -28,6 +39,11 @@ export async function sair(): Promise<void> {
   } catch {
     // Logout é idempotente: se o servidor já derrubou a sessão, o front
     // segue limpando o cache do mesmo jeito.
+  } finally {
+    // Avisa as OUTRAS abas pelo evento storage: sem isto, uma aba deslogada
+    // continuaria "logada" até o próximo 401 — e o refresh dela, agora com a
+    // sessão revogada, contaria como reuso.
+    try { localStorage.setItem(CHAVE_DESLOGADO, String(Date.now())); } catch { /* modo privado */ }
   }
 }
 
@@ -35,7 +51,9 @@ export async function sair(): Promise<void> {
  *  erro) — por isso não passa pelo fluxo de refresh/logout do client. */
 export async function sessaoAtual(): Promise<Sessao | null> {
   try {
-    return await api.get<Sessao | null>("/auth/eu", { semRefresh: true });
+    const r = await api.get<(Sessao & ComInfoSessao) | null>("/auth/eu", { semRefresh: true });
+    absorverInfoSessao(r);
+    return r;
   } catch (e) {
     if (e instanceof ErroApi && e.status === 401) return null;
     throw e;

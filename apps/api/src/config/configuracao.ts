@@ -89,14 +89,47 @@ const paraBool = (v: string | undefined, padrao = false) => {
   return ['1', 'true', 'yes', 'on'].includes(v.toLowerCase());
 };
 
+/** Formato de TTL aceito em toda a autenticação: `30s`, `15m`, `24h`, `30d`. */
+export const ttlValido = (v: string): boolean => /^\d+[smhd]$/.test(v);
+
+const lerTtl = (v: string | undefined, padrao: string): string => {
+  const bruto = (v ?? '').trim();
+  return bruto && ttlValido(bruto) ? bruto : padrao;
+};
+
+/**
+ * TTL → milissegundos. A MESMA função alimenta o `expiresIn` do JWT, o
+ * `expiraEm` do banco e o `maxAge` do cookie — é o que garante que os três
+ * relógios nunca disponham de unidades diferentes (o bug clássico de segundos
+ * lidos como milissegundos vira impossível por construção).
+ */
+export function ttlMs(ttl: string): number {
+  const m = /^(\d+)([smhd])$/.exec(ttl.trim());
+  if (!m) return 30 * 24 * 3600_000;
+  const n = Number(m[1]);
+  return n * { s: 1000, m: 60_000, h: 3600_000, d: 86_400_000 }[m[2] as 's' | 'm' | 'h' | 'd'];
+}
+
+const lerSameSite = (v: string | undefined): 'lax' | 'strict' | 'none' => {
+  const s = (v ?? '').trim().toLowerCase();
+  return s === 'strict' || s === 'none' ? s : 'lax';
+};
+
 export interface Configuracao {
   ambiente: string;
   producao: boolean;
   porta: number;
   databaseUrl: string;
   versao: string;
-  jwt: { acessoSegredo: string; refreshSegredo: string; acessoTtl: string; refreshTtl: string };
-  cookie: { segredo: string; dominio?: string; seguro: boolean };
+  jwt: {
+    acessoSegredo: string;
+    refreshSegredo: string;
+    acessoTtl: string;
+    refreshTtl: string;
+    /** Teto absoluto da sessão: desliza a cada refresh, mas nunca passa disto. */
+    sessaoTetoTtl: string;
+  };
+  cookie: { segredo: string; dominio?: string; seguro: boolean; sameSite: 'lax' | 'strict' | 'none' };
   minio: {
     endPoint: string;
     port: number;
@@ -160,13 +193,22 @@ export function carregarConfiguracao(): Configuracao {
     jwt: {
       acessoSegredo: bruto.JWT_ACCESS_SECRET,
       refreshSegredo: bruto.JWT_REFRESH_SECRET,
-      acessoTtl: process.env.JWT_ACCESS_TTL ?? '15m',
-      refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
+      // Nomes novos (padrão do Veicular) com fallback nos legados: a VPS pode
+      // trocar de nome sem janela em que nenhum dos dois vale. TTL inválido
+      // não passa em silêncio — vira o default, e o formato aceito é NUMcado
+      // (30s / 15m / 24h / 30d), sempre validado por `ttlValido`.
+      acessoTtl: lerTtl(process.env.JWT_ACCESS_EXPIRES_IN ?? process.env.JWT_ACCESS_TTL, '15m'),
+      refreshTtl: lerTtl(process.env.JWT_REFRESH_EXPIRES_IN ?? process.env.JWT_REFRESH_TTL, '30d'),
+      sessaoTetoTtl: lerTtl(
+        process.env.AUTH_SESSION_MAX_AGE ?? process.env.JWT_REFRESH_ABSOLUTE_EXPIRES_IN,
+        '90d',
+      ),
     },
     cookie: {
       segredo: bruto.COOKIE_SECRET,
-      dominio: bruto.COOKIE_DOMAIN,
-      seguro: producao,
+      dominio: process.env.AUTH_COOKIE_DOMAIN ?? bruto.COOKIE_DOMAIN,
+      seguro: paraBool(process.env.AUTH_COOKIE_SECURE, producao),
+      sameSite: lerSameSite(process.env.AUTH_COOKIE_SAME_SITE),
     },
     minio: {
       endPoint: bruto.MINIO_ENDPOINT,

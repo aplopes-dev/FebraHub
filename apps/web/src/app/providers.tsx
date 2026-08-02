@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CHAVE_SESSAO } from "@/hooks/auth";
 import { useAplicarTema } from "@/hooks/tema";
-import { EVENTO_LOGOUT } from "@/services/api/client";
+import { CHAVE_DESLOGADO, EVENTO_LOGOUT } from "@/services/api/client";
 
 /* QueryClient com as mesmas opções do protótipo: uma tentativa extra (as
    views pesadas estouram o timeout na primeira execução fria e passam na
@@ -31,8 +31,18 @@ export function Providers({ children }: { children: ReactNode }) {
       qc.setQueryData(CHAVE_SESSAO, null);
       qc.removeQueries({ predicate: (q) => q.queryKey[0] === "view" });
     };
+    // Logout em OUTRA aba chega pelo evento storage: esta aba limpa o cache
+    // na hora, em vez de descobrir no próximo 401 (e de disparar um refresh
+    // que, com a sessão revogada, contaria como reuso).
+    const aoStorage = (e: StorageEvent) => {
+      if (e.key === CHAVE_DESLOGADO) aoDeslogar();
+    };
     window.addEventListener(EVENTO_LOGOUT, aoDeslogar);
-    return () => window.removeEventListener(EVENTO_LOGOUT, aoDeslogar);
+    window.addEventListener("storage", aoStorage);
+    return () => {
+      window.removeEventListener(EVENTO_LOGOUT, aoDeslogar);
+      window.removeEventListener("storage", aoStorage);
+    };
   }, [qc]);
 
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;

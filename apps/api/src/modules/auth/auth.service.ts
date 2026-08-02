@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
-import { Configuracao } from '../../config/configuracao';
+import { Configuracao, ttlMs } from '../../config/configuracao';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
 
 /** Argon2id com custo alinhado ao OWASP: 19 MiB, 2 passes. */
@@ -87,8 +87,20 @@ export class AuthService {
     };
   }
 
-  /** Gera o par acesso+refresh e guarda só o hash do refresh (ver renovar). */
-  async emitirTokens(perfil: UsuarioLogado, ip: string, agente: string) {
+  /**
+   * Gera o par acesso+refresh e guarda só o hash do refresh (ver renovar).
+   *
+   * `teto` é o limite absoluto da família de sessões (padrão do Veicular): o
+   * vencimento do refresh DESLIZA a cada rotação (+refreshTtl), mas nunca
+   * ultrapassa o teto que nasceu no login. Sem ele, uma sessão renovada em
+   * dia útil viveria para sempre.
+   */
+  async emitirTokens(
+    perfil: UsuarioLogado,
+    ip: string,
+    agente: string,
+    opts?: { jti?: string; teto?: Date },
+  ) {
     // expiresIn vai em SEGUNDOS. A forma "15m" existe, mas o tipo dela é um
     // literal fechado (`StringValue`) e um TTL vindo de env nunca satisfaz —
     // converter aqui evita o cast que esconderia um TTL inválido.
@@ -97,10 +109,17 @@ export class AuthService {
       { secret: this.cfg.jwt.acessoSegredo, expiresIn: ttlMs(this.cfg.jwt.acessoTtl) / 1000 },
     );
 
-    const jti = randomBytes(24).toString('hex');
+    const teto = opts?.teto ?? new Date(Date.now() + ttlMs(this.cfg.jwt.sessaoTetoTtl));
+    const desliza = new Date(Date.now() + ttlMs(this.cfg.jwt.refreshTtl));
+    const expiraEm = desliza < teto ? desliza : teto;
+
+    const jti = opts?.jti ?? novoJti();
     const refresh = await this.jwt.signAsync(
       { id: perfil.id, jti, tipo: 'refresh' },
-      { secret: this.cfg.jwt.refreshSegredo, expiresIn: ttlMs(this.cfg.jwt.refreshTtl) / 1000 },
+      {
+        secret: this.cfg.jwt.refreshSegredo,
+        expiresIn: Math.max(1, Math.ceil((expiraEm.getTime() - Date.now()) / 1000)),
+      },
     );
 
     await this.prisma.sessao.create({
@@ -110,13 +129,27 @@ export class AuthService {
         tokenHash: sha256(refresh),
         ip: ip.slice(0, 60),
         agente: agente.slice(0, 250),
-        expiraEm: new Date(Date.now() + ttlMs(this.cfg.jwt.refreshTtl)),
+        expiraEm,
+        absolutaExpiraEm: teto,
       },
     });
 
     return { acesso, refresh };
   }
 
+  /**
+   * Renova a sessão com rotação obrigatória e corrida benigna (padrão do
+   * Veicular). Duas requisições que competem pelo MESMO refresh (multi-aba,
+   * retry em voo, resposta perdida na rede) são resolvidas pelo CAS
+   * `updateMany({ where: { id, revogadaEm: null } })`: quem perde a corrida
+   * (count = 0) reemite uma sessão nova mesmo assim — ninguém é derrubado por
+   * uma corrida legítima. Já um token que chega REVOGADO NA LEITURA é sempre
+   * reuso (vazamento) ou revogação explícita (logout/troca de senha), e aí a
+   * resposta é derrubar todas as sessões do usuário e exigir novo login.
+   * Era exatamente essa distinção que faltava: a versão anterior tratava a
+   * corrida benigna como vazamento e revogava tudo — a "sessão que expira
+   * sozinha" nascia aqui.
+   */
   async renovar(refresh: string, ip: string, agente: string) {
     let carga: { id: string; jti: string; tipo?: string };
     try {
@@ -129,13 +162,23 @@ export class AuthService {
     }
 
     const sessao = await this.prisma.sessao.findUnique({ where: { id: carga.jti } });
-    // Refresh já usado, revogado ou desconhecido derruba a sessão inteira: é o
-    // sinal de que o token vazou e alguém está reusando.
-    if (!sessao || sessao.revogadaEm || sessao.tokenHash !== sha256(refresh)) {
-      if (sessao) await this.revogarTodas(sessao.usuarioId);
+    if (!sessao || sessao.tokenHash !== sha256(refresh)) {
+      // Assinatura válida mas registro desconhecido (ou hash divergente):
+      // token de um banco que não é este. Não há o que revogar com segurança.
+      throw new UnauthorizedException({ codigo: 'REFRESH_INVALIDO', message: 'Sessão expirada' });
+    }
+    if (sessao.revogadaEm) {
+      // Revogado ANTES desta chamada — sem corrida em curso aqui. Reuso de um
+      // token já trocado (substituidaPor aponta o sucessor) ou já deslogado.
+      await this.revogarTodas(sessao.usuarioId);
+      await this.auditar(sessao.usuarioId, 'refresh_reuso', ip);
+      this.logger.warn(
+        `refresh reusado (sessão ${sessao.id.slice(0, 8)}…, usuário ${sessao.usuarioId}) — todas as sessões revogadas`,
+      );
       throw new UnauthorizedException({ codigo: 'REFRESH_REUSO', message: 'Sessão encerrada' });
     }
-    if (sessao.expiraEm < new Date()) {
+    const agora = new Date();
+    if (sessao.expiraEm < agora || (sessao.absolutaExpiraEm && sessao.absolutaExpiraEm < agora)) {
       throw new UnauthorizedException({ codigo: 'REFRESH_EXPIRADO', message: 'Sessão expirada' });
     }
 
@@ -147,14 +190,21 @@ export class AuthService {
       throw new UnauthorizedException({ codigo: 'USUARIO_INATIVO', message: 'Usuário inativo' });
     }
 
-    // Rotação: o refresh antigo morre na emissão do novo.
-    await this.prisma.sessao.update({
-      where: { id: sessao.id },
-      data: { revogadaEm: new Date() },
+    // Rotação via CAS: o id do sucessor é gerado ANTES para ficar gravado no
+    // antecessor — é a trilha de auditoria da cadeia de rotações.
+    const jti = novoJti();
+    await this.prisma.sessao.updateMany({
+      where: { id: sessao.id, revogadaEm: null },
+      data: { revogadaEm: agora, substituidaPor: jti },
     });
+    // count 0 = outra renovação venceu a corrida NESTE instante. Reemitimos
+    // do mesmo jeito (o browser fica com o último Set-Cookie); derrubar aqui
+    // é o que deslogava quem só tinha duas abas abertas.
 
     const perfil = this.montarPerfil(usuario);
-    return { perfil, ...(await this.emitirTokens(perfil, ip, agente)) };
+    // Sessões de antes da migração não têm teto: começa a contar agora.
+    const teto = sessao.absolutaExpiraEm ?? new Date(Date.now() + ttlMs(this.cfg.jwt.sessaoTetoTtl));
+    return { perfil, ...(await this.emitirTokens(perfil, ip, agente, { jti, teto })) };
   }
 
   async sair(refresh?: string): Promise<void> {
@@ -242,6 +292,13 @@ export class AuthService {
     return porIp >= MAX_TENTATIVAS * 4;
   }
 
+  /** Trilha de segurança (reuso de refresh, revogações em massa). */
+  private async auditar(usuarioId: string, acao: string, ip: string): Promise<void> {
+    await this.prisma.auditoriaAcesso
+      .create({ data: { usuarioId, acao, recurso: 'auth', ip: ip.slice(0, 60) } })
+      .catch(() => undefined);
+  }
+
   private async registrarTentativa(
     email: string,
     ip: string,
@@ -266,9 +323,4 @@ const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 const HASH_FALSO =
   '$argon2id$v=19$m=19456,t=2,p=1$c2FsZ2FkbzEyMzQ1Njc4$JmZKq4kK0kV5cJHhkoSdN0mS1sSMWRp4cYs5FTNQnpY';
 
-function ttlMs(ttl: string): number {
-  const m = /^(\d+)([smhd])$/.exec(ttl);
-  if (!m) return 30 * 24 * 3600_000;
-  const n = Number(m[1]);
-  return n * { s: 1000, m: 60_000, h: 3600_000, d: 86_400_000 }[m[2] as 's' | 'm' | 'h' | 'd'];
-}
+const novoJti = () => randomBytes(24).toString('hex');

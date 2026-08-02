@@ -32,11 +32,47 @@ export class ErroApi extends Error {
 }
 
 export const EVENTO_LOGOUT = "febrahub:sessao-expirada";
+/** Chave de localStorage que sincroniza o logout entre abas (evento storage). */
+export const CHAVE_DESLOGADO = "febrahub:deslogado-em";
+const CHAVE_ULTIMO_REFRESH = "febrahub:ultimo-refresh-em";
+const CHAVE_TTL_ACESSO = "febrahub:acesso-ttl-s";
+const TRAVA_REFRESH = "febrahub:refresh";
 
 /** Dispara o logout global. O provider ouve, limpa o cache e o app volta ao
  *  login — sem `window.location.href`, que perderia o estado do React. */
 function avisarLogout(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EVENTO_LOGOUT));
+}
+
+/* ---- relógio compartilhado da sessão (localStorage = visível a toda aba) ---- */
+
+export function marcarSessaoRenovada(): void {
+  try { localStorage.setItem(CHAVE_ULTIMO_REFRESH, String(Date.now())); } catch { /* modo privado */ }
+}
+
+function ultimaRenovacao(): number {
+  try { return Number(localStorage.getItem(CHAVE_ULTIMO_REFRESH)) || 0; } catch { return 0; }
+}
+
+/** O backend informa o TTL do acesso no login/eu/refresh; fica guardado para
+ *  a renovação proativa saber a hora certa sem chutar. */
+export function guardarTtlAcesso(segundos: number | undefined): void {
+  if (!segundos || !Number.isFinite(segundos)) return;
+  try { localStorage.setItem(CHAVE_TTL_ACESSO, String(Math.floor(segundos))); } catch { /* idem */ }
+}
+
+function ttlAcessoSegundos(): number {
+  try {
+    const s = Number(localStorage.getItem(CHAVE_TTL_ACESSO));
+    return Number.isFinite(s) && s > 60 ? s : 900;
+  } catch { return 900; }
+}
+
+/** O acesso está perto de expirar? (margem de 20% do TTL, piso de 2 min) */
+export function sessaoPertoDeExpirar(): boolean {
+  const ttlMs = ttlAcessoSegundos() * 1000;
+  const margem = Math.max(120_000, ttlMs * 0.2);
+  return Date.now() - ultimaRenovacao() >= ttlMs - margem;
 }
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "");
@@ -128,29 +164,55 @@ async function executar(caminho: string, opcoes: OpcoesRequisicao): Promise<Resp
 
 const espera = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/* Uma renovação por vez. Sem esta promise compartilhada, dez views expirando
-   juntas disparariam dez POST /auth/refresh — e o rodízio de refresh token
-   invalidaria os nove seguintes, derrubando a sessão de quem só ficou com a
-   aba aberta. `refrescando` também impede o loop: enquanto ela existe,
-   ninguém abre outra. */
+/* Uma renovação por vez — NA ABA e ENTRE ABAS.
+
+   Na aba: a promise compartilhada (`refrescando`) faz dez views expirando
+   juntas dispararem UM único POST /auth/refresh.
+
+   Entre abas: o Web Locks API (`navigator.locks`) serializa as renovações de
+   todas as abas do mesmo perfil. Sem isso, duas abas com polling disparavam
+   refresh simultâneo com o MESMO cookie — a segunda caía na detecção de
+   reuso do backend e a sessão inteira morria "do nada". O backend agora
+   tolera a corrida (CAS), mas não provocá-la continua sendo o correto.
+
+   Dentro da trava ainda há a guarda "acabou de renovar": quem esperou a vez
+   e descobre que outra aba renovou há segundos só reaproveita o cookie novo,
+   que o browser compartilha sozinho. */
 let refrescando: Promise<boolean> | null = null;
 
+async function comTravaEntreAbas<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && "locks" in navigator && navigator.locks) {
+    return navigator.locks.request(TRAVA_REFRESH, fn);
+  }
+  return fn();
+}
+
 async function renovarSessao(): Promise<boolean> {
-  refrescando ??= (async () => {
+  refrescando ??= comTravaEntreAbas(async () => {
+    if (Date.now() - ultimaRenovacao() < 15_000) return true;
     try {
       const res = await executar("/auth/refresh", { metodo: "POST", semRefresh: true, timeout: 10_000 });
+      if (res.ok) marcarSessaoRenovada();
       return res.ok;
     } catch {
       return false;
-    } finally {
-      // Solta a trava no próximo tick: quem chegou durante a renovação já
-      // pegou ESTA promise; quem chegar depois começa uma nova, se precisar.
-      setTimeout(() => {
-        refrescando = null;
-      }, 0);
     }
-  })();
+  }).finally(() => {
+    // Solta a trava no próximo tick: quem chegou durante a renovação já
+    // pegou ESTA promise; quem chegar depois começa uma nova, se precisar.
+    setTimeout(() => {
+      refrescando = null;
+    }, 0);
+  });
   return refrescando;
+}
+
+/** Renovação proativa (hooks/sessao-viva): passa pelo MESMO caminho único de
+ *  renovação — trava, guarda e marcação — para nunca competir com o fluxo
+ *  reativo de 401. */
+export async function renovarSessaoProativa(): Promise<boolean> {
+  if (!sessaoPertoDeExpirar()) return true;
+  return renovarSessao();
 }
 
 /** Requisição crua. Devolve a Response — só o `api.*` decodifica. */

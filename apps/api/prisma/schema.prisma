@@ -97,6 +97,12 @@ model Sessao {
   expiraEm   DateTime  @map("expira_em") @db.Timestamptz(6)
   /// Preenchido no logout e na troca de senha (que derruba todas as sessoes).
   revogadaEm DateTime? @map("revogada_em") @db.Timestamptz(6)
+  /// Id (jti) da sessao que sucedeu esta numa rotacao legitima. Ausente em
+  /// revogacao explicita — e o que separa "rodou" de "foi derrubada".
+  substituidaPor String? @map("substituida_por")
+  /// Teto absoluto da familia: o vencimento desliza a cada refresh, mas
+  /// nunca ultrapassa esta data (nasce no login).
+  absolutaExpiraEm DateTime? @map("absoluta_expira_em") @db.Timestamptz(6)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
@@ -1284,6 +1290,16 @@ model AgentesConversa {
   solicitanteId    String?   @map("solicitante_id") @db.Uuid
   solicitanteNome  String?   @map("solicitante_nome")
   temPendente      Boolean   @default(false) @map("tem_pendente")
+  /// Organizacao LOCAL do atendimento (a plataforma remota nao tem esses
+  /// campos): prioridade baixa|normal|alta|urgente, etiquetas livres e o
+  /// usuario do FebraHub responsavel pelo acompanhamento.
+  prioridade       String    @default("normal")
+  etiquetas        String[]  @default([])
+  responsavelId    String?   @map("responsavel_id") @db.Uuid
+  responsavelNome  String?   @map("responsavel_nome")
+  crmClienteId     String?   @map("crm_cliente_id") @db.Uuid
+  /// Rota do FebraHub de onde a conversa nasceu (contexto do widget).
+  origemContexto   String?   @map("origem_contexto")
   criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm     DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
   sincronizadoEm   DateTime? @map("sincronizado_em") @db.Timestamptz(6)
@@ -1291,6 +1307,8 @@ model AgentesConversa {
   mensagens AgentesMensagem[]
 
   @@index([atualizadoEm(sort: Desc)])
+  @@index([status])
+  @@index([responsavelId])
   @@map("agentes_conversas")
 }
 
@@ -1303,6 +1321,9 @@ model AgentesMensagem {
   agenteId   String?         @map("agente_id")
   agenteNome String?         @map("agente_nome")
   remotoId   String?         @map("remoto_id")
+  /// Metadados dos anexos [{artifactId, filename, contentType, size}] — o
+  /// binario vive no Aplopes; o download e proxy autenticado pela API.
+  anexosJson String?         @map("anexos_json")
   lida       Boolean         @default(false)
   criadoEm   DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
 
