@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, LayoutDashboard, Menu, Moon, Power, Sun, X, type LucideIcon } from "lucide-react";
+import { Bell, LayoutDashboard, Menu, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
 import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
@@ -31,7 +31,8 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const qc = useQueryClient();
   const caminho = usePathname();
   const { alternar: alternarTema } = useTema();
-  const { aberto: menuAberto, alternar: alternarMenu, fechar: fecharMenu } = useMenu();
+  const { aberto: menuAberto, alternar: alternarMenu, fechar: fecharMenu,
+          recolhido, alternarRecolhido } = useMenu();
   // União de setores: o setor do perfil + os de perfil_setores. Admin/geral
   // seguem vendo tudo, agora também se "geral" estiver entre os múltiplos setores.
   const setores = setoresDo(perfil);
@@ -55,7 +56,12 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const Item = ({ chave, label, Icone }: { chave: string; label: string; Icone: LucideIcon }) => {
     const ativo = tela === chave;
     return (
-      <Link href={`/${chave}`} aria-current={ativo ? "page" : undefined} style={{
+      <Link href={`/${chave}`} aria-current={ativo ? "page" : undefined}
+        className="fh-item-menu"
+        // Com o menu recolhido o rótulo some, então o nome vai para o title —
+        // senão sobra um ícone sem nada que diga o que ele abre.
+        title={recolhido ? label : undefined}
+        style={{
         width: "100%", display: "flex", alignItems: "center", gap: 11,
         // 11px de padding vertical dá 40px de alvo com o ícone de 16 — o piso
         // confortável para o dedo, sem mudar o desenho no desktop.
@@ -65,7 +71,8 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         border: "none", cursor: "pointer", fontFamily: SANS, textAlign: "left",
         textDecoration: "none",
       }}>
-        <Icone size={16} /> {label}
+        <Icone size={16} />
+        <span className="fh-so-expandido">{label}</span>
       </Link>
     );
   };
@@ -111,14 +118,26 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             background: C.panel, backdropFilter: "blur(8px)",
           }}
         >
-          <div style={{ padding: "22px 20px 18px", display: "flex", alignItems: "center", gap: 11 }}>
+          <div className="fh-topo-menu" style={{ padding: "22px 20px 18px", display: "flex", alignItems: "center", gap: 11 }}>
             <img src="/logo-febracis.webp" alt="" width={32} height={32} />
-            <div style={{ lineHeight: 1.15, flex: 1, minWidth: 0 }}>
+            <div className="fh-so-expandido" style={{ lineHeight: 1.15, flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: ".2px" }}>FebraHub</div>
               <div style={{ fontSize: 10.5, color: C.faint, fontWeight: 600, letterSpacing: ".5px", textTransform: "uppercase" }}>
                 Central de Inteligência
               </div>
             </div>
+            {/* Recolher/expandir — só no desktop, onde a coluna é fixa. No
+                celular quem abre e fecha é o hambúrguer da barra superior. */}
+            <button
+              onClick={alternarRecolhido}
+              className="fh-so-desktop fh-toque"
+              aria-label={recolhido ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!recolhido}
+              title={recolhido ? "Expandir menu" : "Recolher menu"}
+              style={{ ...botaoIcone, color: C.muted }}
+            >
+              <PanelLeft size={16} style={{ transform: recolhido ? "rotate(180deg)" : "none", transition: "transform .18s ease" }} />
+            </button>
             {/* Fechar dentro da gaveta: no celular o backdrop pode ficar
                 escondido atrás do teclado ou de uma barra do navegador. */}
             <button
@@ -134,14 +153,14 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
           <div style={{ padding: "6px 12px", flex: 1, overflowY: "auto" }}>
             {admin && (
               <>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "12px 12px 8px" }}>
+                <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "12px 12px 8px" }}>
                   Painéis
                 </div>
                 <Item chave="executivo" label="Hub Executivo" Icone={LayoutDashboard} />
               </>
             )}
 
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
+            <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
               {admin ? "Setores" : "Seu hub"}
             </div>
             {visiveis.map((h) => <Item key={h.key} chave={h.key} label={h.nome} Icone={h.Icone} />)}
@@ -150,7 +169,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                 sistema, e a API exige o setor 'geral' de qualquer forma. */}
             {admin && (
               <>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
+                <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
                   Sistema
                 </div>
                 <Item chave={PAGINA_INTEGRACOES.key} label={PAGINA_INTEGRACOES.nome} Icone={PAGINA_INTEGRACOES.Icone} />
@@ -159,7 +178,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
           </div>
 
           <div style={{ padding: 12, borderTop: `1px solid ${alfa("sup", 0.07)}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: 8, borderRadius: 10 }}>
+            <div className="fh-rodape-perfil" style={{ display: "flex", alignItems: "center", gap: 11, padding: 8, borderRadius: 10 }}>
               <div style={{
                 width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
                 background: "linear-gradient(150deg, var(--avatar-top), var(--avatar-base))",
@@ -169,7 +188,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               }}>
                 {iniciais}
               </div>
-              <div style={{ lineHeight: 1.25, flex: 1, minWidth: 0 }}>
+              <div className="fh-so-expandido" style={{ lineHeight: 1.25, flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {perfil.nome}
                 </div>

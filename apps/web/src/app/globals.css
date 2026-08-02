@@ -305,12 +305,55 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   position: sticky;
   top: 0;
   height: 100vh;
+  transition: width .18s ease;
+}
+
+/* ---- Recolhido no desktop: coluna de ícones ----
+   O menu vira uma faixa de 64px com só os ícones. Serve a quem usa o painel
+   numa tela de 13" e quer o gráfico inteiro — e é a mesma ação do hambúrguer
+   do celular, por isso o botão é o mesmo. A preferência fica no localStorage:
+   recolher o menu a cada visita seria pior que não ter o botão. */
+:root[data-menu-recolhido] .fh-sidebar { --sidebar: 64px; }
+
+/* Some tudo que é texto; ficam os ícones, centralizados. */
+:root[data-menu-recolhido] .fh-so-expandido { display: none; }
+:root[data-menu-recolhido] .fh-item-menu {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* O rótulo do grupo ("Painéis", "Setores") vira um traço: sem ele os blocos
+   se fundem num bloco só de ícones. */
+:root[data-menu-recolhido] .fh-grupo-menu {
+  font-size: 0;
+  padding: 12px 18px 8px;
+  border-top: 1px solid var(--hair);
+  margin-top: 6px;
+}
+:root[data-menu-recolhido] .fh-rodape-perfil {
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+:root[data-menu-recolhido] .fh-topo-menu { justify-content: center; padding: 22px 8px 18px; }
+
+/* No celular a gaveta é sempre a versão inteira: recolher um menu que já está
+   escondido não faria sentido, e a faixa de ícones sobre o conteúdo seria pior
+   que a gaveta. */
+@media (max-width: 1099px) {
+  :root[data-menu-recolhido] .fh-sidebar { --sidebar: 250px; }
+  :root[data-menu-recolhido] .fh-so-expandido { display: revert; }
+  :root[data-menu-recolhido] .fh-item-menu { justify-content: flex-start; padding-left: 12px; padding-right: 12px; }
+  :root[data-menu-recolhido] .fh-grupo-menu { font-size: 10px; border-top: none; }
+  :root[data-menu-recolhido] .fh-rodape-perfil { flex-direction: row; }
 }
 
 .fh-topbar { display: none; }
 .fh-backdrop { display: none; }
 /* Fechar-a-gaveta só faz sentido onde existe gaveta. */
 .fh-so-gaveta { display: none; }
+/* Recolher a coluna só faz sentido onde ela é coluna. */
+.fh-so-desktop { display: flex; }
 /* Enfeite que some quando o espaço fica caro (o sino, hoje sem notificação). */
 .fh-sem-celular { display: flex; }
 
@@ -362,6 +405,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   :root { --topbar: 52px; }
 
   .fh-so-gaveta { display: flex; }
+  .fh-so-desktop { display: none; }
+
+  /* Com o menu recolhido, o topo vira só a logo centralizada. */
+  :root[data-menu-recolhido] .fh-topo-menu { justify-content: center; padding: 22px 8px 18px; }
 }
 
 @media (max-width: 599px) {

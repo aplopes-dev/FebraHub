@@ -119,21 +119,46 @@ export function LinhaEvolucao({
   }
 
   const yticks = [vMin, (vMin + vMax) / 2, vMax];
-  const alvo = 7, passo = Math.max(1, Math.round((n - 1) / (alvo - 1)));
+
+  /* Rótulos do eixo X.
+
+     "jan/25" em 11px ocupa ~38px no viewBox; abaixo disso dois rótulos se
+     encavalam. O passo antigo mirava 7 rótulos fixos e depois FORÇAVA o
+     último ponto — que caía a 23px do penúltimo numa série longa e saía como
+     "maiju/l2/6". Agora o alvo sai da largura disponível e o último substitui
+     o penúltimo quando não couberem os dois. */
+  const LARGURA_ROTULO = 44;                       // 38 do texto + respiro
+  const util = W - padL - padR;
+  const alvo = Math.max(2, Math.min(7, Math.floor(util / LARGURA_ROTULO)));
+  const passo = Math.max(1, Math.round((n - 1) / (alvo - 1)));
   const xticks: number[] = [];
   for (let i = 0; i < n; i += passo) xticks.push(i);
-  if (xticks[xticks.length - 1] !== n - 1) xticks.push(n - 1);
+  if (xticks[xticks.length - 1] !== n - 1) {
+    const ultimo = xticks[xticks.length - 1];
+    // Distância em px entre o penúltimo tick e o fim da série.
+    const espaco = ((n - 1 - ultimo) / Math.max(n - 1, 1)) * util;
+    if (espaco < LARGURA_ROTULO && xticks.length > 1) xticks.pop();
+    xticks.push(n - 1);
+  }
   const mesAno = (valor: string) => {
     const d = new Date(String(valor).slice(0, 10) + "T00:00:00");
     return d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "") + "/" + String(d.getFullYear()).slice(2);
   };
 
-  // Quais pontos ganham rótulo de valor. `soDestaques`: só máximo, mínimo
-  // (entre meses fechados) e o mês atual — em vez de um rótulo em cada tick.
+  /* Quais pontos ganham rótulo de VALOR.
+
+     `soDestaques`: só máximo, mínimo (entre meses fechados) e o mês atual.
+
+     Fora dele, o padrão era rotular todos os xticks — e numa série longa isso
+     empilhava "R$ 964,7 mil" ao lado de "R$ 955,1 mil" com a variação em cima,
+     três linhas de texto por ponto. Acima de 12 meses o gráfico passa a se
+     comportar como `soDestaques` sozinho: a leitura de uma série longa é a
+     FORMA da curva, e o número exato de cada mês está no eixo Y e no tooltip. */
   const fechadosI = serie.map((_, i) => i).filter((i) => !serie[i].parcial);
   const iMax = fechadosI.reduce((b, i) => serie[i].valor > serie[b].valor ? i : b, fechadosI[0] ?? 0);
   const iMin = fechadosI.reduce((b, i) => serie[i].valor < serie[b].valor ? i : b, fechadosI[0] ?? 0);
-  const rotulados = soDestaques
+  const serieLonga = n > 12;
+  const rotulados = (soDestaques || serieLonga)
     ? [...new Set([iMax, iMin, ...(temParcial ? [parcialIdx] : [])])]
     : xticks;
 

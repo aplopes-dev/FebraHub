@@ -221,3 +221,79 @@ SELECT
   sum(e.valor_liquido)   -- o Sympla retém ~11,5%; o caixa recebe o líquido
 FROM public.fato_pedidos e
 GROUP BY 1, 2, 3, 4, 5;
+
+
+-- ============================================================
+-- vw_integracao_status — o rodapé "atualização das fontes"
+--
+-- Era espelho de snapshot.*, ou seja, mostrava o retrato de 01/08 07:24 (o dia
+-- da migração). Numa view qualquer isso aguenta até alguém reescrever; nesta
+-- era o pior caso possível, porque o propósito dela é dizer QUANDO cada fonte
+-- atualizou. O painel afirmava "Salesforce: falha na última sincronização"
+-- enquanto a tabela real dizia `ok` havia horas.
+--
+-- Também resolve dois nomes em duplicidade, herança da troca de agendamento:
+-- os workflows do GitHub gravavam `conta_azul`/`meta_ads`, os scripts da VPS
+-- passaram a gravar `contaazul`/`meta`, e o front lê os primeiros.
+-- ============================================================
+
+DROP VIEW IF EXISTS public.vw_integracao_status CASCADE;
+CREATE VIEW public.vw_integracao_status AS
+ WITH normalizado AS (
+         SELECT
+                CASE
+                    WHEN (integracao_status.fonte = ANY (ARRAY['contaazul'::text, 'contaazul_pagar'::text, 'conta_azul'::text])) THEN 'conta_azul'::text
+                    WHEN (integracao_status.fonte = ANY (ARRAY['meta'::text, 'meta_ads'::text])) THEN 'meta_ads'::text
+                    ELSE integracao_status.fonte
+                END AS fonte,
+            integracao_status.ultima_sync,
+            integracao_status.registros,
+            integracao_status.status,
+            integracao_status.mensagem
+           FROM public.integracao_status
+        ), consolidado AS (
+         SELECT normalizado.fonte,
+            max(normalizado.ultima_sync) AS ultima_sync,
+            sum(normalizado.registros) AS registros,
+                CASE
+                    WHEN bool_or((normalizado.status = 'erro'::text)) THEN 'erro'::text
+                    WHEN bool_or((normalizado.status = 'parcial'::text)) THEN 'parcial'::text
+                    ELSE 'ok'::text
+                END AS status,
+            (array_agg(normalizado.mensagem ORDER BY normalizado.ultima_sync DESC NULLS LAST) FILTER (WHERE (normalizado.mensagem IS NOT NULL)))[1] AS mensagem
+           FROM normalizado
+          GROUP BY normalizado.fonte
+        )
+ SELECT fonte,
+        CASE fonte
+            WHEN 'salesforce'::text THEN 'Salesforce'::text
+            WHEN 'conta_azul'::text THEN 'Conta Azul'::text
+            WHEN 'meta_ads'::text THEN 'Meta Ads'::text
+            WHEN 'cispay'::text THEN 'CisPay'::text
+            WHEN 'sympla'::text THEN 'Sympla'::text
+            WHEN 'omie'::text THEN 'Loja (Omie)'::text
+            WHEN 'sheets'::text THEN 'Planilha da Loja'::text
+            WHEN 'sheets_metas'::text THEN 'Planilha — metas'::text
+            WHEN 'sheets_extras'::text THEN 'Planilha — receitas extras'::text
+            WHEN 'sheets_fechamento'::text THEN 'Planilha — fechamento'::text
+            WHEN 'clint'::text THEN 'Clint'::text
+            ELSE initcap(replace(fonte, '_'::text, ' '::text))
+        END AS nome_exibicao,
+    ultima_sync,
+    registros,
+    status,
+    mensagem,
+    round((EXTRACT(epoch FROM (now() - ultima_sync)) / 3600.0), 2) AS horas_atras,
+        CASE
+            WHEN (ultima_sync IS NULL) THEN 'nunca'::text
+            WHEN (((ultima_sync AT TIME ZONE 'America/Bahia'::text))::date = ((now() AT TIME ZONE 'America/Bahia'::text))::date) THEN 'hoje'::text
+            WHEN (((ultima_sync AT TIME ZONE 'America/Bahia'::text))::date = (((now() AT TIME ZONE 'America/Bahia'::text))::date - 1)) THEN 'ontem'::text
+            ELSE 'ha_dias'::text
+        END AS frescor,
+        CASE
+            WHEN (ultima_sync IS NULL) THEN 'Nunca sincronizado'::text
+            WHEN (((ultima_sync AT TIME ZONE 'America/Bahia'::text))::date = ((now() AT TIME ZONE 'America/Bahia'::text))::date) THEN 'Atualizado hoje'::text
+            WHEN (((ultima_sync AT TIME ZONE 'America/Bahia'::text))::date = (((now() AT TIME ZONE 'America/Bahia'::text))::date - 1)) THEN 'Atualizado ontem'::text
+            ELSE (('Atualizado há '::text || ((((now() AT TIME ZONE 'America/Bahia'::text))::date - ((ultima_sync AT TIME ZONE 'America/Bahia'::text))::date))::text) || ' dias'::text)
+        END AS rotulo
+   FROM consolidado;

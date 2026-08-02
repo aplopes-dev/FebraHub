@@ -2,19 +2,51 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+const CHAVE_RECOLHIDO = "febrahub:menu-recolhido";
+
 /**
- * Estado da gaveta de navegação (só existe abaixo de 1100px).
+ * Estado do menu lateral, que tem DOIS comportamentos conforme a largura:
  *
- * O estado real mora em `data-menu` no <html>, não aqui: o backdrop, a
- * transição da gaveta e o travamento do scroll do body são CSS, e todos os
- * três precisam reagir juntos. Passar isso por prop até cada um seria três
+ *   celular/tablet (< 1100px)  gaveta sobre o conteúdo, fechada por padrão
+ *   desktop        (>= 1100px) coluna fixa, que pode ser recolhida a ícones
+ *
+ * São coisas diferentes e por isso são dois estados. Um só ("aberto") faria o
+ * desktop nascer sem menu depois de alguém fechar a gaveta no celular — e o
+ * contrário, a gaveta abrir sozinha ao girar o aparelho.
+ *
+ * O estado real mora em atributos no <html> (`data-menu`, `data-menu-recolhido`)
+ * porque quem reage a ele é CSS: o backdrop, a transição, o travamento do
+ * scroll e a largura da coluna. Passar isso por prop até cada um seria quatro
  * lugares para dessincronizar.
  */
 export function useMenu() {
   const [aberto, setAberto] = useState(false);
+  // Recolhido no desktop é preferência da pessoa e sobrevive ao F5.
+  const [recolhido, setRecolhido] = useState(false);
 
   const fechar = useCallback(() => setAberto(false), []);
   const alternar = useCallback(() => setAberto((v) => !v), []);
+  const alternarRecolhido = useCallback(() => {
+    setRecolhido((v) => {
+      const novo = !v;
+      try {
+        localStorage.setItem(CHAVE_RECOLHIDO, novo ? "1" : "0");
+      } catch {
+        // Modo privativo do Safari recusa escrita: a preferência dura a sessão.
+      }
+      return novo;
+    });
+  }, []);
+
+  // Lê a preferência só depois de montar. Ler durante o render faria o HTML do
+  // servidor (que não conhece o localStorage) divergir do cliente.
+  useEffect(() => {
+    try {
+      setRecolhido(localStorage.getItem(CHAVE_RECOLHIDO) === "1");
+    } catch {
+      /* sem localStorage: segue expandido */
+    }
+  }, []);
 
   useEffect(() => {
     const raiz = document.documentElement;
@@ -23,8 +55,14 @@ export function useMenu() {
     return () => raiz.removeAttribute("data-menu");
   }, [aberto]);
 
-  // Esc fecha — a gaveta é modal enquanto está aberta, e sair dela não pode
-  // depender de acertar o backdrop com o dedo.
+  useEffect(() => {
+    const raiz = document.documentElement;
+    if (recolhido) raiz.setAttribute("data-menu-recolhido", "1");
+    else raiz.removeAttribute("data-menu-recolhido");
+  }, [recolhido]);
+
+  // Esc fecha a gaveta — ela é modal enquanto aberta, e sair não pode depender
+  // de acertar o backdrop com o dedo.
   useEffect(() => {
     if (!aberto) return;
     const aoTeclar = (e: KeyboardEvent) => {
@@ -34,8 +72,8 @@ export function useMenu() {
     return () => window.removeEventListener("keydown", aoTeclar);
   }, [aberto]);
 
-  // Voltar ao desktop com a gaveta aberta deixaria o backdrop preso por cima
-  // do painel, e o CSS que o esconde não desfaz o overflow travado do body.
+  // Voltar ao desktop com a gaveta aberta deixaria o backdrop preso sobre o
+  // painel, e o CSS que o esconde não desfaz o overflow travado do body.
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1100px)");
     const aoMudar = (e: MediaQueryListEvent | MediaQueryList) => {
@@ -46,5 +84,5 @@ export function useMenu() {
     return () => mq.removeEventListener("change", aoMudar);
   }, []);
 
-  return { aberto, fechar, alternar };
+  return { aberto, fechar, alternar, recolhido, alternarRecolhido };
 }
