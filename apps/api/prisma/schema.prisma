@@ -1213,6 +1213,8 @@ model WaConversa {
   crmClienteId String?   @map("crm_cliente_id") @db.Uuid
   crmCliente   CrmCliente? @relation(fields: [crmClienteId], references: [id], onDelete: SetNull)
   atribuidaA   String?   @map("atribuida_a") @db.Uuid
+  /// Nome denormalizado do responsavel — a lista mostra sem join.
+  atribuidaNome String?  @map("atribuida_nome")
   status       String    @default("aberta")
   naoLidas     Int       @default(0) @map("nao_lidas")
   ultimaMsg    String?   @map("ultima_msg")
@@ -1243,6 +1245,11 @@ model WaMensagem {
   midiaNotaVoz      Boolean    @default(false) @map("midia_nota_voz")
   /// key.id do Baileys — chave da deduplicacao (unique parcial na migration).
   providerMessageId String?    @map("provider_message_id")
+  /// Citacao (responder mensagem): id remoto + trecho + de quem era a
+  /// original — o suficiente para renderizar e rolar ate ela se existir.
+  citacaoProviderId String?    @map("citacao_provider_id")
+  citacaoTexto      String?    @map("citacao_texto")
+  citacaoDeMim      Boolean?   @map("citacao_de_mim")
   remoteJid         String?    @map("remote_jid")
   deMim             Boolean    @default(false) @map("de_mim")
   status            String     @default("enviada")

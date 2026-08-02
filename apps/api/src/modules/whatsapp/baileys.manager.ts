@@ -290,6 +290,34 @@ export class BaileysManager implements OnModuleInit, OnModuleDestroy {
     return enviado?.key?.id ?? null;
   }
 
+  /**
+   * Envia mídia (imagem/vídeo/áudio/documento). Nota de voz vai com
+   * `ptt: true` — o WhatsApp mostra o player de voz, não o de música.
+   * O tipo segue o MIME; o que não é imagem/vídeo/áudio vira documento.
+   */
+  async enviarMidia(
+    jid: string,
+    dados: Buffer,
+    mime: string,
+    nome: string,
+    opts?: { legenda?: string; notaVoz?: boolean },
+  ): Promise<string | null> {
+    const sock = this.exigirSocket();
+    const legenda = opts?.legenda?.trim() || undefined;
+    let conteudo: Record<string, unknown>;
+    if (mime.startsWith('image/') && mime !== 'image/webp') {
+      conteudo = { image: dados, mimetype: mime, caption: legenda };
+    } else if (mime.startsWith('video/')) {
+      conteudo = { video: dados, mimetype: mime, caption: legenda };
+    } else if (mime.startsWith('audio/')) {
+      conteudo = { audio: dados, mimetype: mime, ptt: !!opts?.notaVoz };
+    } else {
+      conteudo = { document: dados, mimetype: mime, fileName: nome, caption: legenda };
+    }
+    const enviado = await sock.sendMessage(jid, conteudo as never);
+    return enviado?.key?.id ?? null;
+  }
+
   /** Baixa a mídia de uma mensagem recebida (Buffer) — o service re-hospeda no MinIO. */
   async baixarMidia(mensagem: WAMessage): Promise<Buffer | null> {
     const { downloadMediaMessage } = await carregarBaileys();
