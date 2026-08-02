@@ -35,16 +35,25 @@ interface Regras {
   cards: CardIndicador[];
   /** Decomposições calculadas pelo service para alertas disparados. */
   fatoresPorIndicador: Map<string, string[]>;
+  /** Dia do mês corrente — variação dos 2 primeiros dias é ruído, não sinal. */
+  diaAtual: number;
 }
 
-export function gerarAlertas({ cards, fatoresPorIndicador }: Regras): {
+export function gerarAlertas({ cards, fatoresPorIndicador, diaAtual }: Regras): {
   alertas: Alerta[];
   destaques: Destaque[];
 } {
   const alertas: Alerta[] = [];
   const destaques: Destaque[] = [];
+  // No máximo UM alerta por indicador: as regras abaixo rodam em ordem de
+  // prioridade e a primeira que dispara cala as demais. Sem isto o painel
+  // listava "queda de 22%" e "em queda há 3 meses" do MESMO número — duas
+  // frases, um fato. 21 alertas não orientam ninguém; 7 orientam.
+  const jaAlertado = new Set<string>();
 
-  const alerta = (c: CardIndicador, a: Omit<Alerta, 'id' | 'indicador' | 'setor' | 'setorNome' | 'fatores'>) =>
+  const alerta = (c: CardIndicador, a: Omit<Alerta, 'id' | 'indicador' | 'setor' | 'setorNome' | 'fatores'>) => {
+    if (jaAlertado.has(c.codigo)) return;
+    jaAlertado.add(c.codigo);
     alertas.push({
       id: `${c.codigo}:${a.titulo}`,
       indicador: c.codigo,
@@ -53,29 +62,44 @@ export function gerarAlertas({ cards, fatoresPorIndicador }: Regras): {
       fatores: fatoresPorIndicador.get(c.codigo) ?? [],
       ...a,
     });
+  };
 
   const destaque = (c: CardIndicador, titulo: string, frase: string) =>
     destaques.push({ indicador: c.codigo, setor: c.setor, setorNome: c.setorNome, titulo, frase });
 
+  /* ---------- fonte doente: UM alerta por fonte, não por indicador ---------- */
+  const porFonteCritica = new Map<string, CardIndicador[]>();
+  for (const c of cards) {
+    if (c.qualidade.nivel !== 'critico') continue;
+    porFonteCritica.set(c.qualidade.fonte, [...(porFonteCritica.get(c.qualidade.fonte) ?? []), c]);
+  }
+  for (const doFonte of porFonteCritica.values()) {
+    const c = doFonte[0];
+    const nomes = doFonte.map((x) => x.curto).join(', ');
+    alerta(c, {
+      nivel: 'amarelo',
+      titulo: `${c.qualidade.fonteRotulo}: dados desatualizados`,
+      situacao:
+        `${c.qualidade.rotulo}. ${doFonte.length === 1 ? 'Afeta o indicador' : 'Afeta os indicadores'}: ${nomes}.`,
+      impacto: null,
+      acaoSugerida:
+        c.qualidade.fonte === 'clint'
+          ? 'Conectar a fonte Clint (nunca teve carga automática).'
+          : 'Reautorizar a integração na tela de Integrações.',
+    });
+  }
+  // Fonte congelada gera número congelado: alertar "queda" de um dado parado
+  // seria alertar o próprio congelamento duas vezes. As regras de variação
+  // abaixo pulam esses indicadores; a inadimplência é a exceção consciente
+  // (o valor vencido continua vencido — só a foto está velha).
+  const fonteCongelada = (c: CardIndicador) =>
+    c.qualidade.nivel === 'critico' && c.codigo !== 'inadimplencia';
+
   for (const c of cards) {
     const f = (v: number) => fmtValor(c.unidade, v);
 
-    /* ---------- fonte doente vale por todos os números dela ---------- */
-    if (c.qualidade.nivel === 'critico') {
-      alerta(c, {
-        nivel: 'amarelo',
-        titulo: `${c.curto}: dados desatualizados`,
-        situacao:
-          `${c.qualidade.rotulo}. O número exibido pode não refletir o momento atual.`,
-        impacto: null,
-        acaoSugerida:
-          c.qualidade.fonte === 'clint'
-            ? 'Conectar a fonte Clint (nunca teve carga automática).'
-            : 'Reautorizar a integração na tela de Integrações.',
-      });
-    }
-
     /* ---------- meta e esperado ---------- */
+    if (fonteCongelada(c)) continue;
     if (c.status.nivel === 'vermelho' && c.esperado != null && c.valor != null) {
       const desvio = c.valor - c.esperado;
       alerta(c, {
@@ -103,8 +127,11 @@ export function gerarAlertas({ cards, fatoresPorIndicador }: Regras): {
     }
 
     /* ---------- variações fortes sem meta ---------- */
+    // Nos 2 primeiros dias do mês a comparação parcial é ruído (uma manhã de
+    // dado contra um mês de referência) — mesmo critério da projeção.
+    const variacaoConfiavel = !c.parcial || diaAtual >= 3;
     const cmp = c.comparacoes?.mesAnterior;
-    if (c.meta == null && cmp?.pct != null && c.valor != null && c.tipo === 'fluxo') {
+    if (variacaoConfiavel && c.meta == null && cmp?.pct != null && c.valor != null && c.tipo === 'fluxo') {
       const caiu = cmp.pct <= -20;
       const subiu = cmp.pct >= 20;
       const ruim = c.direcao === 'menor_melhor' ? subiu : caiu;
@@ -120,20 +147,24 @@ export function gerarAlertas({ cards, fatoresPorIndicador }: Regras): {
       }
     }
 
-    /* ---------- queda consecutiva ---------- */
-    if (
-      c.tendencia === 'caindo' &&
-      c.direcao === 'maior_melhor' &&
-      c.comparacoes?.media3?.pct != null &&
-      c.comparacoes.media3.pct <= -15
-    ) {
-      alerta(c, {
-        nivel: 'amarelo',
-        titulo: `${c.curto} em queda há 3 meses`,
-        situacao: `A média dos últimos 3 meses está ${fmtPct(c.comparacoes.media3.pct)} acima do valor atual — tendência de queda contínua.`,
-        impacto: null,
-        acaoSugerida: null,
-      });
+    /* ---------- queda consecutiva (sobre meses FECHADOS) ---------- */
+    if (c.tendencia === 'caindo' && c.direcao === 'maior_melhor' && c.tipo === 'fluxo') {
+      // No mês fechado a média 3m compara com o próprio valor do mês; no
+      // parcial ela compararia com o MTD e mentiria — aí vale só a tendência.
+      const quedaForte = !c.parcial
+        ? c.comparacoes?.media3?.pct != null && c.comparacoes.media3.pct <= -15
+        : true;
+      if (quedaForte) {
+        alerta(c, {
+          nivel: 'amarelo',
+          titulo: `${c.curto} em queda há 3 meses`,
+          situacao: !c.parcial
+            ? `A média dos últimos 3 meses está ${fmtPct(c.comparacoes!.media3!.pct)} acima do valor atual — tendência de queda contínua.`
+            : `Os três últimos meses fechados caíram em sequência.`,
+          impacto: null,
+          acaoSugerida: null,
+        });
+      }
     }
 
     /* ---------- inadimplência é ponto de atenção permanente ---------- */
@@ -171,7 +202,7 @@ export function gerarAlertas({ cards, fatoresPorIndicador }: Regras): {
         `${f(c.valor)} — o melhor mês de toda a série histórica.`,
       );
     }
-    if (c.meta == null && cmp?.pct != null && c.valor != null && c.tipo === 'fluxo') {
+    if (variacaoConfiavel && c.meta == null && cmp?.pct != null && c.valor != null && c.tipo === 'fluxo') {
       const bom = c.direcao === 'menor_melhor' ? cmp.pct <= -15 : cmp.pct >= 15;
       if (bom) {
         destaque(

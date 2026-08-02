@@ -391,7 +391,11 @@ export class ExecutivoService {
     cards.sort((a, b) => a.ordem - b.ordem);
 
     const fatores = await this.fatoresDeAlertas(cards, mesRef, hoje);
-    const { alertas, destaques } = gerarAlertas({ cards, fatoresPorIndicador: fatores });
+    const { alertas, destaques } = gerarAlertas({
+      cards,
+      fatoresPorIndicador: fatores,
+      diaAtual: Number(hoje.slice(8, 10)),
+    });
 
     const setores: BlocoSetor[] = [];
     for (const c of cards) {
