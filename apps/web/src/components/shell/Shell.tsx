@@ -5,14 +5,16 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Bot, LayoutDashboard, MapPinned, Menu, MessageCircle, Moon, PanelLeft, Power, Sun, X, type LucideIcon } from "lucide-react";
+import { Bell, Menu, Moon, PanelLeft, Power, Sun, X } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
+import { WidgetAgentes } from "@/components/canais/WidgetAgentes";
 import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
 import { useMenu } from "@/hooks/menu";
+import { useSessaoViva } from "@/hooks/sessao-viva";
 import { useTema } from "@/hooks/tema";
 import { sair } from "@/services/api/auth";
-import { HUBS, PAGINA_INTEGRACOES, acharHub } from "@/lib/hubs";
+import { GRUPOS_MENU, idItemAtivo, itemPorId, type ItemMenu } from "@/lib/menu";
 import { ProvedorPeriodo } from "@/lib/periodo";
 import { C, FUNDO_APP, SANS, alfa } from "@/lib/tema";
 import type { Perfil } from "@/types/views";
@@ -33,14 +35,23 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const { alternar: alternarTema } = useTema();
   const { aberto: menuAberto, alternar: alternarMenu, fechar: fecharMenu,
           recolhido, alternarRecolhido } = useMenu();
+  // Renova o acesso antes de expirar (só monta aqui: quem chegou ao Shell
+  // está logado — na tela de login não há o que renovar).
+  useSessaoViva();
   // União de setores: o setor do perfil + os de perfil_setores. Admin/geral
   // seguem vendo tudo, agora também se "geral" estiver entre os múltiplos setores.
   const setores = setoresDo(perfil);
   const admin = ehAdmin(perfil);
-  const tela = (caminho ?? "/").split("/").filter(Boolean)[0] ?? "";
+  const ctxMenu = { admin, setores };
 
-  const visiveis = admin ? HUBS : HUBS.filter((h) => setores.includes(h.key));
-  const hub = acharHub(tela);
+  // O item ativo vem da config central (lib/menu): casa por segmento inteiro
+  // e a rota mais específica vence. Era aqui que "Fontes de dados" acendia em
+  // toda rota de /integracoes — a comparação olhava só o 1º segmento.
+  const grupos = GRUPOS_MENU
+    .map((g) => ({ ...g, itens: g.itens.filter((i) => i.visivel(ctxMenu)) }))
+    .filter((g) => g.itens.length > 0);
+  const ativoId = idItemAtivo(caminho ?? "/", grupos.flatMap((g) => g.itens));
+  const itemAtivo = itemPorId(ativoId);
 
   // Navegar fecha a gaveta. Sem isto, tocar num hub troca o painel atrás de um
   // menu que continua aberto por cima dele.
@@ -53,14 +64,15 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
     router.replace("/login");
   };
 
-  const Item = ({ chave, label, Icone }: { chave: string; label: string; Icone: LucideIcon }) => {
-    const ativo = tela === chave;
+  const ItemNav = ({ item }: { item: ItemMenu }) => {
+    const ativo = ativoId === item.id;
+    const { Icone } = item;
     return (
-      <Link href={`/${chave}`} aria-current={ativo ? "page" : undefined}
+      <Link href={item.href} aria-current={ativo ? "page" : undefined}
         className="fh-item-menu"
         // Com o menu recolhido o rótulo some, então o nome vai para o title —
         // senão sobra um ícone sem nada que diga o que ele abre.
-        title={recolhido ? label : undefined}
+        title={recolhido ? item.label : undefined}
         style={{
         width: "100%", display: "flex", alignItems: "center", gap: 11,
         // 11px de padding vertical dá 40px de alvo com o ícone de 16 — o piso
@@ -72,26 +84,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         textDecoration: "none",
       }}>
         <Icone size={16} />
-        <span className="fh-so-expandido">{label}</span>
-      </Link>
-    );
-  };
-
-  const ItemCaminho = ({ caminho: destino, label, Icone }: { caminho: string; label: string; Icone: LucideIcon }) => {
-    const ativo = caminho === destino;
-    return (
-      <Link href={destino} aria-current={ativo ? "page" : undefined} className="fh-item-menu"
-        title={recolhido ? label : undefined}
-        style={{
-          width: "100%", display: "flex", alignItems: "center", gap: 11,
-          padding: "11px 12px", borderRadius: 9, fontSize: 13.5, fontWeight: 600,
-          background: ativo ? alfa("gold", 0.12) : "transparent",
-          color: ativo ? C.gold : C.muted,
-          border: "none", cursor: "pointer", fontFamily: SANS, textAlign: "left",
-          textDecoration: "none",
-        }}>
-        <Icone size={16} />
-        <span className="fh-so-expandido">{label}</span>
+        <span className="fh-so-expandido">{item.label}</span>
       </Link>
     );
   };
@@ -170,38 +163,14 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
           </div>
 
           <div style={{ padding: "6px 12px", flex: 1, overflowY: "auto" }}>
-            {admin && (
-              <>
-                <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "12px 12px 8px" }}>
-                  Painéis
+            {grupos.map((g, i) => (
+              <div key={g.id}>
+                <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: `${i === 0 ? 12 : 20}px 12px 8px` }}>
+                  {g.titulo(ctxMenu)}
                 </div>
-                <Item chave="executivo" label="Hub Executivo" Icone={LayoutDashboard} />
-                {/* Porte do hub.aplopes.com — exclusivo da diretoria, como o
-                    Executivo. O nome vem do sistema de origem. */}
-                <Item chave="territorial" label="Inteligência Territorial" Icone={MapPinned} />
-              </>
-            )}
-
-            <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
-              {admin ? "Setores" : "Seu hub"}
-            </div>
-            {visiveis.map((h) => <Item key={h.key} chave={h.key} label={h.nome} Icone={h.Icone} />)}
-
-            {/* Só para admin: reconectar fonte é operação de quem administra o
-                sistema, e a API exige o setor 'geral' de qualquer forma. */}
-            {admin && (
-              <>
-                <div className="fh-grupo-menu" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", color: C.dim, textTransform: "uppercase", padding: "20px 12px 8px" }}>
-                  Integrações
-                </div>
-                <Item chave={PAGINA_INTEGRACOES.key} label="Fontes de dados" Icone={PAGINA_INTEGRACOES.Icone} />
-                {/* Fase 2 da integração: canais dentro do FebraHub. As rotas
-                    são filhas de /integracoes; o item ativo compara o caminho
-                    completo, não só o 1º segmento. */}
-                <ItemCaminho caminho="/integracoes/whatsapp" label="WhatsApp" Icone={MessageCircle} />
-                <ItemCaminho caminho="/integracoes/agentes" label="Agentes de IA" Icone={Bot} />
-              </>
-            )}
+                {g.itens.map((item) => <ItemNav key={item.id} item={item} />)}
+              </div>
+            ))}
           </div>
 
           <div style={{ padding: 12, borderTop: `1px solid ${alfa("sup", 0.07)}` }}>
@@ -258,7 +227,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               fontWeight: 800, fontSize: 13.5, letterSpacing: ".2px",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {tela === "executivo" ? "Hub Executivo" : tela === "territorial" ? "Inteligência Territorial" : hub?.nome ?? "FebraHub"}
+              {itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub"}
             </span>
           </div>
 
@@ -276,27 +245,22 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                   {hoje}
                 </div>
                 <h1 style={{ fontSize: "var(--h1)", fontWeight: 800, letterSpacing: "-.6px", fontFamily: SANS, lineHeight: 1.15 }}>
-                  {tela === "executivo"
+                  {ativoId === "executivo"
                     ? `${saudacao}, ${primeiroNome}.`
-                    : tela === "territorial"
-                      ? "Inteligência Territorial"
-                      : hub?.nome}
+                    : itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub"}
                 </h1>
-                {tela === "territorial" ? (
-                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>
-                    Mapa de empresas e conexões do território
-                  </div>
-                ) : tela !== "executivo" && (
-                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>{hub?.desc}</div>
+                {ativoId !== "executivo" && itemAtivo?.desc && (
+                  <div style={{ fontSize: 13, color: C.faint, marginTop: 5 }}>{itemAtivo.desc}</div>
                 )}
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                {/* Executivo, Territorial e CRM têm estado próprio na URL;
-                    o seletor global de período não age sobre eles e só
-                    confundiria — dois controles de período na mesma tela. */}
-                {!["executivo", "territorial", "crm"].includes(tela) && <SeletorPeriodo />}
-                {tela === "comercial" && <SeletorCategoria />}
+                {/* Executivo, Territorial, CRM e as telas de Integrações têm
+                    estado próprio na URL; o seletor global de período não age
+                    sobre elas e só confundiria — dois controles de período na
+                    mesma tela. */}
+                {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban"].includes(ativoId ?? "") && <SeletorPeriodo />}
+                {ativoId === "comercial" && <SeletorCategoria />}
                 {/* O sino é decorativo (sem notificação ainda) e some no
                     celular: ocupar 40px de uma barra apertada por um enfeite
                     é o tipo de coisa que empurra o filtro para outra linha. */}
@@ -313,6 +277,12 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             {children}
           </div>
         </main>
+
+        {/* Widget flutuante dos agentes (porte do crm-aplopes): montado no
+            Shell — e não numa página — para a conversa aberta, as não-lidas e
+            a posição sobreviverem à navegação entre os hubs. Aparece para
+            quem pode falar com os agentes (admin ou setor crm). */}
+        {(admin || setores.includes("crm")) && <WidgetAgentes />}
       </div>
     </ProvedorPeriodo>
   );
