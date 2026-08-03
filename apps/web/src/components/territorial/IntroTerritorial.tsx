@@ -1,15 +1,17 @@
 "use client";
 
 /* Abertura cinematográfica do hub (Higgsfield/Seedance — o MESMO vídeo do
-   hub.aplopes.com, copiado para /public/intro). Porte do IntroOverlay da
-   origem com as regras intactas:
-   - prefers-reduced-motion → não toca; entra direto no mapa;
+   hub.aplopes.com, copiado para /public/intro), EMBUTIDA na moldura do mapa:
+   toca sobre a área do mapa enquanto os dados carregam por trás (mascara a
+   primeira carga), em vez de cobrir o app inteiro. Regras do porte intactas:
+   - prefers-reduced-motion → não toca sozinha; entra direto no mapa;
    - visita repetida (localStorage) → pula sozinha;
    - vídeo indisponível/erro → registra e libera a interface;
    - "Pular animação" sempre à mão (Esc também);
    - no fim, crossfade para o mapa que JÁ está montado atrás.
-   Diferenças do porte: sem zustand (estado local) e sem Tailwind (estilos
-   inline + classes .tio do escopo territorial). */
+   `pedidoReplay` (carimbo incremental vindo do botão nos controles do mapa)
+   reabre a qualquer momento — replay é gesto explícito, então toca mesmo
+   com reduced-motion e mesmo já tendo sido vista. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SkipForward } from "lucide-react";
@@ -20,7 +22,7 @@ const POSTER_SRC = "/intro/poster.jpg";
 
 type Fase = "pendente" | "tocando" | "feita";
 
-export function IntroTerritorial() {
+export function IntroTerritorial({ pedidoReplay = 0 }: { pedidoReplay?: number }) {
   const [fase, setFase] = useState<Fase>("pendente");
   const [esmaecendo, setEsmaecendo] = useState(false);
   const [mostrarPular, setMostrarPular] = useState(false);
@@ -59,6 +61,16 @@ export function IntroTerritorial() {
     setFase("tocando");
   }, [fase, encerrar]);
 
+  // Replay pelo botão do mapa: reabre do zero, ignorando "já vista".
+  useEffect(() => {
+    if (pedidoReplay <= 0) return;
+    terminouRef.current = false;
+    setPrecisaGesto(false);
+    setMostrarPular(false);
+    setEsmaecendo(false);
+    setFase("tocando");
+  }, [pedidoReplay]);
+
   useEffect(() => {
     if (fase !== "tocando") return;
     terminouRef.current = false;
@@ -86,7 +98,11 @@ export function IntroTerritorial() {
       role="presentation"
       aria-label="Animação de abertura"
       style={{
-        position: "fixed", inset: 0, zIndex: 100, background: "#050b18",
+        // Absoluto DENTRO da moldura do mapa (relative, overflow hidden):
+        // cobre só a área do mapa; z-index 40 fica acima do véu de
+        // carregamento (30) e dos controles (20).
+        position: "absolute", inset: 0, zIndex: 40, background: "#050b18",
+        borderRadius: "inherit", overflow: "hidden",
         transition: "opacity .7s ease-out",
         opacity: esmaecendo ? 0 : 1,
         pointerEvents: esmaecendo ? "none" : "auto",

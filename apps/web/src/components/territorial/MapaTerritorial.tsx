@@ -25,9 +25,10 @@ import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ArcLayer, GeoJsonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer, PickingInfo } from "@deck.gl/core";
 import { scaleSqrt } from "d3-scale";
-import { Expand, Layers, Loader2, Maximize2, Minus, Plus, Shrink } from "lucide-react";
+import { Clapperboard, Expand, Layers, Loader2, Maximize2, Minus, Plus, Shrink } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import estadosBr from "@/data/br-states.json";
+import { IntroTerritorial } from "./IntroTerritorial";
 import { buildClusterIndex, boundsOfPoints, type ClusterFeature } from "@/lib/territorial/geo";
 import { isNicheId, nicheColorRgb } from "@/lib/territorial/nichos";
 import {
@@ -134,6 +135,9 @@ export function MapaTerritorial({
   const [tamanho, setTamanho] = useState({ w: 800, h: 520 });
   const [cheia, setCheia] = useState(false);
   const [camadasAbertas, setCamadasAbertas] = useState(false);
+  // Carimbo do botão "Assistir abertura": cada clique incrementa e a
+  // IntroTerritorial embutida reabre por cima do mapa.
+  const [pedidoIntro, setPedidoIntro] = useState(0);
 
   /* Estado das camadas: pontos/ocultos são voláteis; métrica, cluster e
      fronteiras sobrevivem ao F5 (localStorage, como o "ti-prefs" do hub). */
@@ -730,6 +734,15 @@ export function MapaTerritorial({
         >
           <Layers size={15} />
         </button>
+        <button
+          type="button"
+          className="tio-mapa-btn tio-glass"
+          onClick={() => setPedidoIntro((n) => n + 1)}
+          aria-label="Assistir abertura"
+          title="Assistir abertura"
+        >
+          <Clapperboard size={15} />
+        </button>
       </div>
 
       {/* Painel de camadas */}
@@ -826,6 +839,11 @@ export function MapaTerritorial({
           </div>
         </div>
       ) : null}
+
+      {/* Abertura cinematográfica: cobre só a moldura do mapa — automática na
+          primeira visita (mascara a carga dos dados) e sob demanda pelo botão
+          de claquete nos controles. */}
+      <IntroTerritorial pedidoReplay={pedidoIntro} />
     </div>
   );
 }
