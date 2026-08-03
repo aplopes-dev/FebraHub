@@ -220,6 +220,11 @@ async function requisitar(caminho: string, opcoes: OpcoesRequisicao = {}): Promi
   const metodo = opcoes.metodo ?? "GET";
   const podeRepetir = metodo === "GET";
 
+  // Acesso perto de expirar? Renova ANTES de chamar: o 401 "esperado" era
+  // tratado, mas o navegador loga toda resposta 4xx no console — parecia
+  // erro. A trava única de renovarSessao segura a concorrência.
+  if (!opcoes.semRefresh && sessaoPertoDeExpirar()) await renovarSessao();
+
   let tentativa = 0;
   for (;;) {
     let res: Response;

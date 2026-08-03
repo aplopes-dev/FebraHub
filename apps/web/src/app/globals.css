@@ -587,7 +587,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-exec-select {
   background: var(--card); color: var(--text);
   border: 1px solid var(--card-line); border-radius: 8px;
-  font: 700 var(--campo-fs) var(--font-manrope, inherit); padding: 6px 8px;
+  /* NÃO usar o shorthand `font:` com var() de família: se a var não existe
+     (era o caso — o layout publica --fonte-sans, não --font-manrope), o
+     shorthand INTEIRO é invalidado no computed-value e o tamanho volta aos
+     16px herdados. Foi assim que "os botões ficaram grandes" em produção. */
+  font-weight: 700; font-size: var(--campo-fs); font-family: inherit; padding: 6px 8px;
   max-width: 240px; min-height: 34px;
 }
 
@@ -648,7 +652,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-exec-chip {
   display: inline-flex; align-items: center; gap: 4px;
   border: 1px solid var(--card-line); background: transparent; color: var(--muted);
-  font: 800 11px var(--font-manrope, inherit); border-radius: 999px;
+  /* Sem shorthand `font:` aqui — ver a nota no .fh-exec-select. */
+  font-weight: 800; font-size: 11px; font-family: inherit; border-radius: 999px;
   padding: 4px 10px; cursor: pointer; white-space: nowrap;
 }
 .fh-exec-chip:disabled { opacity: .45; cursor: default; }

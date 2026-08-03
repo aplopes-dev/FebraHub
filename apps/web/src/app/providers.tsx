@@ -34,9 +34,12 @@ export function Providers({ children }: { children: ReactNode }) {
       const alvo = e.target as HTMLScriptElement | null;
       const src = alvo?.src ?? "";
       if (!src.includes("/_next/")) return;
+      // Janela de 60s em vez de flag eterna: dois deploys na mesma sessão
+      // esgotavam a guarda e o segundo chunk órfão ficava sem recuperação.
       try {
-        if (sessionStorage.getItem("febrahub:recarregou-chunk") === "1") return;
-        sessionStorage.setItem("febrahub:recarregou-chunk", "1");
+        const ultimo = Number(sessionStorage.getItem("febrahub:recarregou-chunk") ?? 0);
+        if (Date.now() - ultimo < 60_000) return;
+        sessionStorage.setItem("febrahub:recarregou-chunk", String(Date.now()));
       } catch { /* sem storage: recarrega mesmo assim */ }
       window.location.reload();
     };

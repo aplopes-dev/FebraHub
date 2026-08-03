@@ -52,7 +52,17 @@ const CLUSTER_MAX_ZOOM = 4.0;
 
 /** Tema efetivo do app: o FebraHub grava `data-tema` no <html>. */
 function useTemaMapa(): MapTheme {
-  const [tema, setTema] = useState<MapTheme>("dark");
+  // Lê o tema JÁ NO PRIMEIRO render (lazy initializer): começar em "dark" e
+  // corrigir depois disparava um setStyle extra logo no boot — o mapa nascia
+  // baixando dark-matter para trocar por positron milissegundos depois.
+  const [tema, setTema] = useState<MapTheme>(() => {
+    if (typeof window === "undefined") return "dark";
+    const atributo = document.documentElement.getAttribute("data-tema");
+    const escuro =
+      atributo === "escuro" ||
+      (atributo == null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return escuro ? "dark" : "light";
+  });
   useEffect(() => {
     const raiz = document.documentElement;
     const ler = () => {
@@ -163,13 +173,22 @@ export function MapaTerritorial({
     observador.observe(containerRef.current);
     // CDN fora do ar não pode derrubar o painel: estilo local de emergência,
     // aplicado em silêncio (sem mensagem técnica, pontos e conexões ficam).
+    // diff:false em TODA troca de estilo: o diff incremental sobre um estilo
+    // que ainda estava carregando deixava o style manager preso num estado
+    // que nunca vira "loaded" — sem tiles, sem 'load', sem 'idle'.
     const vigia = window.setTimeout(() => {
-      if (!mapa.isStyleLoaded()) mapa.setStyle(FALLBACK_STYLES[temaRef.current]);
+      if (!mapa.isStyleLoaded()) {
+        mapa.setStyle(FALLBACK_STYLES[temaRef.current], { diff: false });
+      }
     }, 8000);
+    // Cinto do veil: aconteça o que acontecer com o basemap, a interface
+    // destrava — pontos e fronteiras são deck.gl e não dependem do 'load'.
+    const cintoVeu = window.setTimeout(() => setPronto(true), 12000);
     mapa.on("error", (e: unknown) => {
-      const status = (e as { error?: { status?: number } }).error?.status;
-      if (status && status >= 400 && !mapa.isStyleLoaded()) {
-        mapa.setStyle(FALLBACK_STYLES[temaRef.current]);
+      const erro = (e as { error?: { status?: number; message?: string } }).error;
+      console.warn("[mapa] erro do basemap:", erro?.status, erro?.message);
+      if (erro?.status && erro.status >= 400 && !mapa.isStyleLoaded()) {
+        mapa.setStyle(FALLBACK_STYLES[temaRef.current], { diff: false });
       }
     });
     const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
@@ -188,6 +207,7 @@ export function MapaTerritorial({
     overlayRef.current = overlay;
     return () => {
       clearTimeout(vigia);
+      clearTimeout(cintoVeu);
       observador.disconnect();
       overlayRef.current = null;
       mapaRef.current = null;
@@ -205,11 +225,11 @@ export function MapaTerritorial({
     temaRef.current = tema;
     const mapa = mapaRef.current;
     if (!mapa || anterior === tema) return;
-    mapa.setStyle(BASEMAP_STYLE_URLS[tema]);
+    mapa.setStyle(BASEMAP_STYLE_URLS[tema], { diff: false });
     if (vigiaTemaRef.current) window.clearTimeout(vigiaTemaRef.current);
     vigiaTemaRef.current = window.setTimeout(() => {
       if (mapaRef.current === mapa && !mapa.isStyleLoaded()) {
-        mapa.setStyle(FALLBACK_STYLES[tema]);
+        mapa.setStyle(FALLBACK_STYLES[tema], { diff: false });
       }
     }, 8000);
     return () => {
