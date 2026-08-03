@@ -1,22 +1,28 @@
 "use client";
 
-/* Integrações → Conversas: a página completa de atendimento com os agentes.
-   Acesso: admin ou setor crm — o mesmo recorte da API (@ExigeSetor('crm')). */
+/* Integrações → Conversas: a central de atendimento com os agentes — o
+   MESMO componente do crm-aplopes (teams-conversations-center), tema à
+   parte. Deep-link ?c=<conversaId> abre a conversa direto (contrato da
+   origem). Acesso: admin ou setor crm — o recorte da API (@ExigeSetor). */
 
 import { Suspense, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ConversasAgentes } from "@/components/canais/ConversasAgentes";
+import { useRouter, useSearchParams } from "next/navigation";
+import { TeamsConversationsCenter } from "@/components/teams-widget/teams-conversations-center";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
+
+function Central() {
+  const params = useSearchParams();
+  return <TeamsConversationsCenter initialConversationId={params.get("c")} />;
+}
 
 export default function PaginaConversasAgentes() {
   const sessao = useSessao();
   const perfil = usePerfil(sessao);
   const router = useRouter();
   const dados = perfil.data;
-  const admin = !!dados && ehAdmin(dados);
-  const liberado = !!dados && (admin || setoresDo(dados).includes("crm"));
+  const liberado = !!dados && (ehAdmin(dados) || setoresDo(dados).includes("crm"));
 
   useEffect(() => {
     if (!dados || liberado) return;
@@ -27,7 +33,7 @@ export default function PaginaConversasAgentes() {
   if (!liberado) return <TelaCarregando />;
   return (
     <Suspense fallback={<TelaCarregando />}>
-      <ConversasAgentes admin={admin} />
+      <Central />
     </Suspense>
   );
 }

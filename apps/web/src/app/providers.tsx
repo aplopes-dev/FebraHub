@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ProvedorMui } from "@/components/mui/ProvedorMui";
 import { CHAVE_SESSAO } from "@/hooks/auth";
 import { useAplicarTema } from "@/hooks/tema";
 import { CHAVE_DESLOGADO, EVENTO_LOGOUT } from "@/services/api/client";
@@ -67,5 +68,11 @@ export function Providers({ children }: { children: ReactNode }) {
     };
   }, [qc]);
 
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  // ProvedorMui: tema (claro/escuro) só para os componentes MUI copiados do
+  // crm-aplopes — sem CssBaseline, o resto do app não muda.
+  return (
+    <QueryClientProvider client={qc}>
+      <ProvedorMui>{children}</ProvedorMui>
+    </QueryClientProvider>
+  );
 }

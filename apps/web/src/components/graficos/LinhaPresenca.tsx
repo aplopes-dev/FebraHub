@@ -18,8 +18,9 @@ export interface PontoPresenca {
    Não reusa LinhaEvolucao: ali a série é mensal e a área liga buracos; aqui a
    amostra pequena é espalhada. */
 export function LinhaPresenca({ serie }: { serie: readonly PontoPresenca[] }) {
-  if (serie.length < 2) return <Estado vazio vazioTitulo="Série insuficiente" vazioDica="Poucos trimestres com presença medida para desenhar a linha." />;
+  // Hook antes de qualquer return condicional (Rules of Hooks).
   const { ref: refLargura, largura } = useLarguraGrafico(720);
+  if (serie.length < 2) return <Estado vazio vazioTitulo="Série insuficiente" vazioDica="Poucos trimestres com presença medida para desenhar a linha." />;
   const W = largura, H = 196, padL = 40, padR = 14, padT = 20, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB, plotBottom = padT + plotH;
   const n = serie.length;

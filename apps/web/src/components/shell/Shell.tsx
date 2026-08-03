@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Menu, Moon, PanelLeft, Power, Sun, X } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
-import { WidgetAgentes } from "@/components/canais/WidgetAgentes";
+import { TeamsWidget } from "@/components/teams-widget/teams-widget";
 import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
 import { useMenu } from "@/hooks/menu";
 import { useSessaoViva } from "@/hooks/sessao-viva";
@@ -285,7 +285,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             Shell — e não numa página — para a conversa aberta, as não-lidas e
             a posição sobreviverem à navegação entre os hubs. Aparece para
             quem pode falar com os agentes (admin ou setor crm). */}
-        {(admin || setores.includes("crm")) && <WidgetAgentes />}
+        {(admin || setores.includes("crm")) && <TeamsWidget />}
       </div>
     </ProvedorPeriodo>
   );

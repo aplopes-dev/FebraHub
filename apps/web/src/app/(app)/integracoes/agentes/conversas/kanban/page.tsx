@@ -1,11 +1,12 @@
 "use client";
 
-/* Integrações → Kanban: conversas dos agentes por etapa, com arrastar-e-
-   soltar. Acesso: admin ou setor crm (mesmo recorte da API). */
+/* Integrações → Kanban: conversas dos agentes por status — o MESMO board do
+   crm-aplopes (teams-kanban-board), tema à parte. Acesso: admin ou setor
+   crm (mesmo recorte da API). */
 
 import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { KanbanConversas } from "@/components/canais/KanbanConversas";
+import { TeamsKanbanBoard } from "@/components/teams-widget/teams-kanban-board";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
@@ -26,7 +27,7 @@ export default function PaginaKanbanConversas() {
   if (!liberado) return <TelaCarregando />;
   return (
     <Suspense fallback={<TelaCarregando />}>
-      <KanbanConversas />
+      <TeamsKanbanBoard />
     </Suspense>
   );
 }

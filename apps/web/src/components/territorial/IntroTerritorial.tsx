@@ -92,7 +92,6 @@ export function IntroTerritorial() {
         pointerEvents: esmaecendo ? "none" : "auto",
       }}
     >
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- abertura sem fala */}
       <video
         ref={videoRef}
         src={VIDEO_SRC}

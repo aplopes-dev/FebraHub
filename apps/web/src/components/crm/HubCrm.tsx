@@ -16,7 +16,7 @@ import { ListaClientes } from "./ListaClientes";
 import { TarefasCrm } from "./TarefasCrm";
 import { DrawerCliente } from "./DrawerCliente";
 import { DrawerNegocio } from "./DrawerNegocio";
-import { ConversasWhatsApp } from "@/components/canais/ConversasWhatsApp";
+import ConversationsView from "@/components/conversations/conversations-view";
 import { centavos } from "./formatos";
 
 const ABAS: { id: AbaCrm; rotulo: string }[] = [
@@ -82,7 +82,7 @@ function CorpoCrm() {
       {estado.aba === "tarefas" && (
         <TarefasCrm aoAbrirNegocio={estado.abrirNegocio} aoAbrirCliente={estado.abrirCliente} />
       )}
-      {estado.aba === "conversas" && <ConversasWhatsApp aoAbrirCliente={estado.abrirCliente} />}
+      {estado.aba === "conversas" && <ConversationsView />}
 
       <DrawerCliente id={estado.cliente} aoFechar={() => estado.abrirCliente(null)} aoAbrirNegocio={estado.abrirNegocio} />
       <DrawerNegocio id={estado.negocio} aoFechar={() => estado.abrirNegocio(null)} aoAbrirCliente={estado.abrirCliente} />

@@ -14,41 +14,119 @@ export interface WaConexao {
   ultimoErro: string | null;
 }
 
+export const waStatus = (): Promise<WaConexao | null> => api.get("/whatsapp/status");
+export const waConectar = (): Promise<WaConexao | null> => api.post("/whatsapp/conectar");
+export const waDesconectar = (): Promise<WaConexao | null> => api.post("/whatsapp/desconectar");
+
+/* ---- Inbox (setor crm) ---- */
+
+export const WA_SITUACOES = ["aberta", "pendente", "fechada"] as const;
+export type WaSituacao = (typeof WA_SITUACOES)[number];
+
+export const WA_SITUACAO_ROTULO: Record<WaSituacao, string> = {
+  aberta: "Aberta",
+  pendente: "Pendente",
+  fechada: "Fechada",
+};
+
+export type WaTipoConteudo = "texto" | "imagem" | "video" | "audio" | "documento" | "figurinha";
+export type WaStatusMensagem = "enviando" | "enviada" | "entregue" | "lida" | "falhou";
+
+/** Limite do WhatsApp para mídia — o mesmo que a API recusa com MIDIA_GRANDE. */
+export const WA_MIDIA_MAX_BYTES = 16 * 1024 * 1024;
+
 export interface WaConversa {
   id: string;
   telefone: string;
+  jid: string | null;
   nomeContato: string | null;
   crmClienteId: string | null;
   crmCliente: { id: string; nome: string; estagio: string } | null;
-  status: string;
+  atribuidaA: string | null;
+  atribuidaNome: string | null;
+  status: WaSituacao;
   naoLidas: number;
   ultimaMsg: string | null;
   ultimaMsgEm: string | null;
+  criadoEm: string;
 }
 
 export interface WaMensagem {
   id: string;
   direcao: "entrada" | "saida";
-  tipoConteudo: string;
+  tipoConteudo: WaTipoConteudo;
   texto: string | null;
   midiaChave: string | null;
   midiaNome: string | null;
+  midiaMime: string | null;
+  midiaTamanho: number | null;
   midiaNotaVoz: boolean;
-  status: string;
+  citacaoProviderId: string | null;
+  citacaoTexto: string | null;
+  citacaoDeMim: boolean | null;
+  providerMessageId: string | null;
+  deMim: boolean;
+  status: WaStatusMensagem;
   erro: string | null;
   criadoEm: string;
 }
 
-export const waStatus = (): Promise<WaConexao | null> => api.get("/whatsapp/status");
-export const waConectar = (): Promise<WaConexao | null> => api.post("/whatsapp/conectar");
-export const waDesconectar = (): Promise<WaConexao | null> => api.post("/whatsapp/desconectar");
-export const waConversas = (): Promise<WaConversa[]> => api.get("/whatsapp/conversas");
+export interface FiltrosConversasWa {
+  busca?: string;
+  status?: WaSituacao;
+  escopo?: "minhas" | "nao_atribuidas";
+  naoLidas?: boolean;
+  responsavel?: string;
+}
+
+export const waConversas = (f: FiltrosConversasWa = {}): Promise<WaConversa[]> =>
+  api.get("/whatsapp/conversas", {
+    parametros: {
+      busca: f.busca,
+      status: f.status,
+      escopo: f.escopo,
+      naoLidas: f.naoLidas ? "1" : undefined,
+      responsavel: f.responsavel,
+    },
+  });
+
+export const waNaoLidas = (): Promise<{ total: number }> => api.get("/whatsapp/conversas/nao-lidas");
+
 export const waMensagens = (id: string): Promise<{ conversa: WaConversa; mensagens: WaMensagem[] }> =>
   api.get(`/whatsapp/conversas/${id}/mensagens`, { parametros: { ler: "1" } });
-export const waEnviar = (id: string, texto: string): Promise<WaMensagem> =>
-  api.post(`/whatsapp/conversas/${id}/mensagens`, { texto });
-export const waVincular = (id: string, clienteId: string | null, criarNovo: boolean): Promise<WaConversa> =>
-  api.post(`/whatsapp/conversas/${id}/cliente`, { clienteId: clienteId ?? undefined, criarNovo });
+
+/** `citacaoId` é o providerMessageId da mensagem respondida (citação local). */
+export const waEnviar = (id: string, texto: string, citacaoId?: string): Promise<WaMensagem> =>
+  api.post(`/whatsapp/conversas/${id}/mensagens`, { texto, citacaoId });
+
+/** Mídia via multipart: um arquivo, legenda opcional e notaVoz=1 para voz. */
+export const waEnviarMidia = (
+  id: string,
+  arquivo: File,
+  legenda?: string,
+  notaVoz?: boolean,
+): Promise<WaMensagem> => {
+  const form = new FormData();
+  form.append("arquivo", arquivo, arquivo.name);
+  if (legenda?.trim()) form.append("legenda", legenda.trim());
+  if (notaVoz) form.append("notaVoz", "1");
+  return api.enviarArquivo(`/whatsapp/conversas/${id}/midia`, form);
+};
+
+/** Situação e/ou responsável (`responsavelId: null` tira o responsável). */
+export const waEditarConversa = (
+  id: string,
+  dados: { status?: WaSituacao; responsavelId?: string | null },
+): Promise<WaConversa> => api.patch(`/whatsapp/conversas/${id}`, dados);
+
+/** Vínculo com o CRM: `clienteId` liga, `clienteId: null` desliga e
+ *  `criarNovo: true` cria um lead PF com o nome/telefone da conversa. */
+export const waVincularCliente = (
+  id: string,
+  dados: { clienteId?: string | null; criarNovo?: boolean },
+): Promise<WaConversa> => api.post(`/whatsapp/conversas/${id}/cliente`, dados);
+
+/** URL assinada (10 min) da mídia — buscar na hora de renderizar, lazy. */
 export const waMidiaUrl = (mensagemId: string): Promise<{ url: string }> =>
   api.get(`/whatsapp/mensagens/${mensagemId}/midia`);
 
