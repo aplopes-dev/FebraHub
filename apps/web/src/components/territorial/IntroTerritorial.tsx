@@ -15,8 +15,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SkipForward } from "lucide-react";
+import { INTRO_VISTA_CHAVE } from "@/lib/territorial/introChave";
 
-export const INTRO_VISTA_CHAVE = "febrahub:intro-territorial-vista";
 const VIDEO_SRC = "/intro/opening-1080.mp4";
 const POSTER_SRC = "/intro/poster.jpg";
 

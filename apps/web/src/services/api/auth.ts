@@ -1,4 +1,5 @@
 import { api, CHAVE_DESLOGADO, ErroApi, guardarTtlAcesso, marcarSessaoRenovada } from "./client";
+import { INTRO_VISTA_CHAVE } from "@/lib/territorial/introChave";
 import type { Sessao } from "@/types/views";
 
 /** O backend anexa `sessao.acessoTtlSegundos` às respostas de auth; o front
@@ -23,6 +24,10 @@ export async function entrar(email: string, senha: string): Promise<Sessao> {
     const r = await api.post<Sessao & ComInfoSessao>("/auth/entrar", { email, senha });
     absorverInfoSessao(r);
     marcarSessaoRenovada();
+    // Nova sessão começando: a abertura do territorial volta a valer, não
+    // importa como a sessão ANTERIOR terminou (botão Sair, expiração, cookie
+    // que só sumiu) — limpar no login cobre todos os casos de uma vez.
+    try { localStorage.removeItem(INTRO_VISTA_CHAVE); } catch { /* modo privado */ }
     return r;
   } catch (e) {
     // Mensagem do usuário, não do sistema.
