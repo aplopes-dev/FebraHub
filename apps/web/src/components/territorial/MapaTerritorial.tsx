@@ -175,6 +175,10 @@ export function MapaTerritorial({
     const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
     mapa.addControl(overlay);
     mapa.on("load", () => setPronto(true));
+    // Cinto de segurança do 'load': com o container ainda sem altura no
+    // primeiro paint (o bug do CSS do MapLibre vencendo o nosso), o load
+    // podia nunca disparar — 'idle' dispara assim que o render assenta.
+    mapa.once("idle", () => setPronto(true));
     mapa.on("zoom", () => setZoom(mapa.getZoom()));
     const carimbar = () => setCarimboVista((v) => v + 1);
     mapa.on("moveend", carimbar);

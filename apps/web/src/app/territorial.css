@@ -421,7 +421,14 @@
   position: fixed; inset: 0; z-index: 85; height: auto; min-height: 0; border-radius: 0;
 }
 
-.tio-mapa-canvas { position: absolute; inset: 0; }
+/* O CSS do MapLibre chega DEPOIS desta folha e traz `.maplibregl-map
+   { position: relative }` — com especificidade igual, quem carrega por
+   último vence, o container perdia o absolute e ficava com ALTURA 0 (o
+   "mapa não carrega" da produção). O seletor pai>filho (0,2,0) ganha da
+   classe única do MapLibre em qualquer ordem de carga. */
+.tio-mapa-moldura > .tio-mapa-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+}
 
 /* Controles (coluna vertical, canto superior direito) */
 .tio-mapa-controles {
