@@ -128,7 +128,9 @@ export function MapaTerritorial({
 
   const [pronto, setPronto] = useState(false);
   const [zoom, setZoom] = useState(5.4);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; dados: DadosTooltip } | null>(null);
+  const [tooltip, setTooltip] = useState<
+    { x: number; y: number; larguraContainer: number; alturaContainer: number; dados: DadosTooltip } | null
+  >(null);
   const [arcoHover, setArcoHover] = useState<string | null>(null);
   const [tamanho, setTamanho] = useState({ w: 800, h: 520 });
   const [cheia, setCheia] = useState(false);
@@ -339,9 +341,16 @@ export function MapaTerritorial({
         aoPassarMouse(null);
         return;
       }
+      // Medido AGORA, não a partir do estado `tamanho` (atualizado de forma
+      // assíncrona pelo ResizeObserver): o clamp de posição precisa da
+      // largura REAL no instante do hover, senão o cartão pode calcular a
+      // posição com um valor velho e vazar por baixo do véu de overflow da
+      // moldura — sem erro nenhum no console, só o card cortado.
+      const larguraContainer = containerRef.current?.clientWidth ?? tamanho.w;
+      const alturaContainer = containerRef.current?.clientHeight ?? tamanho.h;
       if (idCamada === "empresas") {
         const p = info.object as MapPoint;
-        setTooltip({ x: info.x, y: info.y, dados: { kind: "ponto", point: p } });
+        setTooltip({ x: info.x, y: info.y, larguraContainer, alturaContainer, dados: { kind: "ponto", point: p } });
         setArcoHover(null);
         aoPassarMouse(p.id);
       } else if (idCamada === "conexoes") {
@@ -350,6 +359,8 @@ export function MapaTerritorial({
         setTooltip({
           x: info.x,
           y: info.y,
+          larguraContainer,
+          alturaContainer,
           dados: {
             kind: "arco",
             connection: k,
@@ -359,7 +370,7 @@ export function MapaTerritorial({
         });
       }
     },
-    [porId, aoPassarMouse],
+    [porId, aoPassarMouse, tamanho.w, tamanho.h],
   );
 
   const aoClicar = useCallback(
@@ -541,25 +552,17 @@ export function MapaTerritorial({
     });
   }, [camadas, aoPairar, aoClicar]);
 
-  /* ---------------- tela cheia ---------------- */
-  const alternarCheia = useCallback(() => {
-    const caixa = caixaRef.current;
-    if (!caixa) return;
-    if (!document.fullscreenElement && !cheia) {
-      (caixa.requestFullscreen?.() ?? Promise.reject()).catch(() => setCheia(true));
-    } else if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      setCheia(false);
-    }
-  }, [cheia]);
+  /* ---------------- tela cheia (CSS puro) ----------------
+     A Fullscreen API real (element.requestFullscreen()) ISOLA o elemento:
+     o navegador só pinta os DESCENDENTES dele na tela — qualquer coisa FORA
+     (o DrawerEmpresa é montado como IRMÃO da moldura, em PainelTerritorial)
+     simplesmente desaparece, e nenhum z-index resolve isso (foi o que
+     quebrava "abrir detalhes em tela cheia"). O CSS de
+     .tio-mapa-moldura[data-cheia="1"] já cobre a tela inteira sozinho
+     (position:fixed; inset:0) — não há necessidade da API real. */
+  const alternarCheia = useCallback(() => setCheia((v) => !v), []);
   useEffect(() => {
-    const aoMudar = () => setCheia(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", aoMudar);
-    return () => document.removeEventListener("fullscreenchange", aoMudar);
-  }, []);
-  useEffect(() => {
-    if (!cheia || document.fullscreenElement) return;
+    if (!cheia) return;
     const aoTeclar = (e: KeyboardEvent) => e.key === "Escape" && setCheia(false);
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
@@ -591,8 +594,8 @@ export function MapaTerritorial({
         <TooltipMapa
           x={tooltip.x}
           y={tooltip.y}
-          larguraContainer={tamanho.w}
-          alturaContainer={tamanho.h}
+          larguraContainer={tooltip.larguraContainer}
+          alturaContainer={tooltip.alturaContainer}
           dados={tooltip.dados}
         />
       ) : null}
