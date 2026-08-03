@@ -22,7 +22,7 @@ Opcionais:
   SF_ASSUNTO_PAGAMENTO  (padrão: 'Pagamentos')  -> texto no assunto do e-mail
   SF_ASSUNTO_ALUNOS     (padrão: 'Alunos')
 """
-import os, sys, csv, re, io, json, imaplib, email, urllib.request
+import os, sys, csv, re, io, json, imaplib, email, urllib.request, urllib.parse
 from email.header import decode_header
 from datetime import datetime, timezone
 
@@ -318,7 +318,8 @@ def carga_incremental(tabela, linhas, coluna_data):
         no_banco = {str(x[chave]) for x in resp if x.get(chave)}
         sumiram = no_banco - chaves_arquivo
         for k in sumiram:
-            _req(f"{SB_URL}/rest/v1/{tabela}?{chave}=eq.{k}", metodo='DELETE')
+            k_enc = urllib.parse.quote(str(k), safe='')
+            _req(f"{SB_URL}/rest/v1/{tabela}?{chave}=eq.{k_enc}", metodo='DELETE')
         print(f"  {tabela}: {len(linhas)} upsert, {len(sumiram)} removidos ({de} a {ate})")
     else:
         print(f"  {tabela}: {len(linhas)} upsert ({de} a {ate})")
