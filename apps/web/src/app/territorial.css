@@ -521,7 +521,7 @@
 /* Tooltip do mapa */
 .tio-mapa-tooltip {
   position: absolute; z-index: 30; width: 264px;
-  border-radius: 12px; padding: 12px;
+  border-radius: 12px; padding: 12px; overflow: hidden;
   font-size: 12.5px; line-height: 1.4;
   pointer-events: none;
 }
@@ -653,7 +653,10 @@ tr[aria-selected="true"] td.tio-fixa-nome {
 /* ============ Drawer de detalhes ============ */
 
 .tio-veu {
-  position: fixed; inset: 0; z-index: 70;
+  /* Acima do mapa em TELA CHEIA (z-index 85 — .tio-mapa-moldura[data-cheia]):
+     sem isto o drawer "abria" (o estado mudava) mas ficava por trás do mapa
+     fixo, invisível. Abaixo do bottom-sheet de filtros (92/93). */
+  position: fixed; inset: 0; z-index: 87;
   border: none; cursor: default; padding: 0;
   background: rgba(2, 4, 12, 0.45);
 }
@@ -664,7 +667,7 @@ tr[aria-selected="true"] td.tio-fixa-nome {
   to { transform: translateX(0); }
 }
 .tio-drawer {
-  position: fixed; right: 0; top: 0; z-index: 75;
+  position: fixed; right: 0; top: 0; z-index: 88;
   height: 100%; width: 100%;
   display: flex; flex-direction: column;
   animation: tio-deslizar 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;

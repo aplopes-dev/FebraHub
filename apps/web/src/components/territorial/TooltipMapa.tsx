@@ -69,7 +69,11 @@ function TooltipPonto({ point }: { point: MapPoint }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <span
           className="tio-display tio-truncar"
-          style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}
+          // minWidth:0 é o que FALTAVA: um flex item com texto nowrap não
+          // encolhe abaixo do próprio min-content (a largura total do texto)
+          // a menos que isto seja zerado — sem ele o título empurrava o chip
+          // pra fora da largura fixa do card em vez de truncar com "…".
+          style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", minWidth: 0 }}
         >
           {point.name}
         </span>
