@@ -204,3 +204,34 @@ animados nos KPIs, busca global mora no painel de filtros (o hub tinha
 Header próprio; aqui o cabeçalho é do FebraHub). Os filtros de
 faturamento/funcionários/abertura existem e funcionam MAS a carga real vem
 zerada nesses campos (limitação do dado da origem, não da UI).
+
+### Pivô: conversas e agentes copiados literalmente do crm-aplopes (MUI)
+
+Decisão do cliente na revisão: *"copie tudo, não há necessidade de
+recriar — copiar e só ajustar aqui no projeto, tanto os agentes quanto o
+crm e o whatsapp"*. Os módulos de conversa reescritos no design do
+FebraHub (ConversasWhatsApp, ConversasAgentes, KanbanConversas,
+WidgetAgentes) foram REMOVIDOS e no lugar entraram os componentes do
+crm-aplopes sem alteração de layout/comportamento:
+
+- `components/conversations/` — inbox do WhatsApp completo (lista com
+  abas/busca, thread com citações e reações, composer com anexos e nota
+  de voz Opus, visualizador de mídia com thumbnail de PDF, painel de
+  contexto com cliente/negócios/tarefas, diálogos de atribuir/converter/
+  criar conversa/grupo). Entra na aba **Conversas do CRM** (`ConversationsView`).
+- `components/teams-widget/` — widget flutuante dos agentes (Shell),
+  central de conversas (`/integracoes/agentes/conversas`, deep-link
+  `?c=`) e kanban (`/integracoes/agentes/conversas/kanban`).
+
+A adaptação mora só na BORDA, os componentes ficam intactos:
+
+| Borda | Papel |
+|---|---|
+| `lib/api/http-client.ts` | expõe o `httpClient` axios-like da origem e roteia `/backend/conversations/*` → `/api/whatsapp/*` e `/backend/deals` → `/api/crm/*`, mapeando DTOs (aberta↔open, naoLidas↔unreadCount…). Recursos sem backend (grupos, reações, editar/apagar/encaminhar) respondem **501** e a UI trata como erro comum de mutação. |
+| `lib/teams/teams-api.ts` | mesmas exportações da origem chamando `/api/agentes/*` (enum de status já era idêntico BACKLOG…ERRO). |
+| `components/auth/auth-context.tsx` + shims de permissions/memberships/customers/deals/pipelines/tasks | contrato da origem alimentado pela sessão/API do FebraHub (single-tenant: organização fixa `febrahub`; membership = id do usuário). |
+| `components/mui/ProvedorMui.tsx` | porte do `theme.ts` da origem com a paleta FebraHub em dois esquemas (claro/escuro). O MUI usa atributo próprio `data-tema-mui`, espelhado do `data-tema` do app por MutationObserver; **sem CssBaseline** — o design system do resto do painel não é tocado. |
+
+Novas dependências: `@mui/material` 9, `@mui/icons-material`,
+`@emotion/react`, `@emotion/styled`, `opus-recorder` (worker em
+`/public/opus`), `pdfjs-dist` (worker em `/public/pdf.worker.min.mjs`).
