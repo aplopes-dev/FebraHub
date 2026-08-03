@@ -15,7 +15,6 @@ import { formatInt } from "@/lib/territorial/formato";
 
 export type DadosTooltip =
   | { kind: "ponto"; point: MapPoint }
-  | { kind: "cluster"; count: number }
   | { kind: "arco"; connection: CompanyConnection; sourceName: string; targetName: string };
 
 interface TooltipMapaProps {
@@ -35,17 +34,6 @@ export function TooltipMapa({ x, y, larguraContainer, alturaContainer, dados }: 
   return (
     <div role="tooltip" className="tio-mapa-tooltip tio-glass-strong" style={{ left, top }}>
       {dados.kind === "ponto" ? <TooltipPonto point={dados.point} /> : null}
-      {dados.kind === "cluster" ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink)" }}>
-          <span className="tio-display" style={{ fontSize: 15, fontWeight: 600 }}>
-            {formatInt(dados.count)}
-          </span>
-          empresas agrupadas
-          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--ink-faint)" }}>
-            clique para aproximar
-          </span>
-        </div>
-      ) : null}
       {dados.kind === "arco" ? (
         <div style={{ display: "grid", gap: 4 }}>
           <div

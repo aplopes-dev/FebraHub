@@ -317,11 +317,13 @@ function lerLocal<T>(chaveLs: string, padrao: T): T {
 
 export interface PrefsMapa {
   sizeMode: "revenue" | "employees" | "score" | "uniform";
-  clusterEnabled: boolean;
   showBorders: boolean;
 }
 
-const PREFS_PADRAO: PrefsMapa = { sizeMode: "revenue", clusterEnabled: true, showBorders: true };
+// Sem clusterEnabled: o agrupamento foi removido do mapa (cada empresa é
+// sempre uma esfera individual). Prefs antigas no localStorage com o campo
+// sobrando são inofensivas — o spread só carrega o que o tipo conhece usar.
+const PREFS_PADRAO: PrefsMapa = { sizeMode: "revenue", showBorders: true };
 
 /** Preferências do mapa que sobrevivem ao F5 (espelho do "ti-prefs" do hub). */
 export function usePrefsMapa(): [PrefsMapa, (p: Partial<PrefsMapa>) => void] {

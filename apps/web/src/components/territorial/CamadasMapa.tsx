@@ -20,8 +20,6 @@ export function CamadasMapa({
   aoFechar,
   mostrarPontos,
   setMostrarPontos,
-  agrupar,
-  setAgrupar,
   fronteiras,
   setFronteiras,
   modoTamanho,
@@ -31,8 +29,6 @@ export function CamadasMapa({
   aoFechar: () => void;
   mostrarPontos: boolean;
   setMostrarPontos: (v: boolean) => void;
-  agrupar: boolean;
-  setAgrupar: (v: boolean) => void;
   fronteiras: boolean;
   setFronteiras: (v: boolean) => void;
   modoTamanho: SizeMode;
@@ -67,10 +63,6 @@ export function CamadasMapa({
             onChange={(v) => estado.mudar({ showConnections: v })}
             label="Exibir conexões"
           />
-        </div>
-        <div className="tio-linha-switch">
-          Agrupar pontos (zoom baixo)
-          <Switch checked={agrupar} onChange={setAgrupar} label="Agrupar pontos" />
         </div>
         <div className="tio-linha-switch">
           Fronteiras estaduais

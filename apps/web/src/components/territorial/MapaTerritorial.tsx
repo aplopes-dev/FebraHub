@@ -8,9 +8,10 @@
    (basemap CARTO gratuito, com fallback local silencioso se o CDN
    cair) e deck.gl como MapboxOverlay por cima — pontos coloridos por
    nicho com raio pela métrica escolhida, arcos de conexão com
-   força/alfa, fronteiras estaduais, cluster (supercluster) em zoom
-   baixo, legenda interativa, painel de camadas e modo-foco de
-   conexões de uma empresa.
+   força/alfa, fronteiras estaduais, legenda interativa, painel de
+   camadas e modo-foco de conexões de uma empresa. SEM agrupamento:
+   a pedido do cliente, cada empresa é sempre uma esfera individual
+   (os círculos agregados do supercluster foram removidos).
 
    REGRAS DE SOBREVIVÊNCIA DO WEBGL (não mexer sem ler):
    - o mapa monta UMA vez; troca de tema é setStyle (preserva câmera);
@@ -22,14 +23,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibre } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { ArcLayer, GeoJsonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import { ArcLayer, GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { Layer, PickingInfo } from "@deck.gl/core";
 import { scaleSqrt } from "d3-scale";
 import { Clapperboard, Expand, Layers, Loader2, Maximize2, Minus, Plus, Shrink } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import estadosBr from "@/data/br-states.json";
 import { IntroTerritorial } from "./IntroTerritorial";
-import { buildClusterIndex, boundsOfPoints, type ClusterFeature } from "@/lib/territorial/geo";
+import { boundsOfPoints } from "@/lib/territorial/geo";
 import { isNicheId, nicheColorRgb } from "@/lib/territorial/nichos";
 import {
   BASEMAP_STYLE_URLS,
@@ -48,8 +49,6 @@ import { CamadasMapa } from "./CamadasMapa";
 import { TooltipMapa, type DadosTooltip } from "./TooltipMapa";
 
 const UFS_FOCO = new Set(["BA", "SE", "AL", "PE"]);
-/** Agrupa apenas em zoom bem baixo (visão além dos 4 estados focais). */
-const CLUSTER_MAX_ZOOM = 4.0;
 
 /** Tema efetivo do app: o FebraHub grava `data-tema` no <html>. */
 function useTemaMapa(): MapTheme {
@@ -129,7 +128,6 @@ export function MapaTerritorial({
 
   const [pronto, setPronto] = useState(false);
   const [zoom, setZoom] = useState(5.4);
-  const [carimboVista, setCarimboVista] = useState(0);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; dados: DadosTooltip } | null>(null);
   const [arcoHover, setArcoHover] = useState<string | null>(null);
   const [tamanho, setTamanho] = useState({ w: 800, h: 520 });
@@ -203,9 +201,6 @@ export function MapaTerritorial({
     // podia nunca disparar — 'idle' dispara assim que o render assenta.
     mapa.once("idle", () => setPronto(true));
     mapa.on("zoom", () => setZoom(mapa.getZoom()));
-    const carimbar = () => setCarimboVista((v) => v + 1);
-    mapa.on("moveend", carimbar);
-    mapa.on("zoomend", carimbar);
     mapa.on("movestart", () => setTooltip(null));
     mapaRef.current = mapa;
     overlayRef.current = overlay;
@@ -302,23 +297,6 @@ export function MapaTerritorial({
     mapa.flyTo({ center: p.position, zoom: Math.max(mapa.getZoom(), 9.4), duration: 900, essential: true });
   }, [pedidoCentro, pontos]);
 
-  /* ---------------- clusters ---------------- */
-  const modoCluster = prefs.clusterEnabled && zoom < CLUSTER_MAX_ZOOM;
-  const indice = useMemo(
-    () => (modoCluster && pontosVisiveis.length > 0 ? buildClusterIndex(pontosVisiveis) : null),
-    [modoCluster, pontosVisiveis],
-  );
-  const gruposCluster = useMemo(() => {
-    if (!modoCluster || !indice || !mapaRef.current) return null;
-    const b = mapaRef.current.getBounds();
-    return indice.getClusters(
-      [b.getWest() - 1, b.getSouth() - 1, b.getEast() + 1, b.getNorth() + 1],
-      zoom,
-    );
-    // carimboVista força recomputar após pan/zoom.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modoCluster, indice, zoom, carimboVista]);
-
   /* ---------------- raio por métrica ---------------- */
   const raioDe = useMemo(() => {
     const metrica = (p: MapPoint) =>
@@ -361,17 +339,11 @@ export function MapaTerritorial({
         aoPassarMouse(null);
         return;
       }
-      if (idCamada === "empresas" || idCamada === "folhas") {
-        const p = (idCamada === "folhas"
-          ? (info.object as ClusterFeature).point
-          : (info.object as MapPoint)) as MapPoint | undefined;
-        if (!p) return;
+      if (idCamada === "empresas") {
+        const p = info.object as MapPoint;
         setTooltip({ x: info.x, y: info.y, dados: { kind: "ponto", point: p } });
         setArcoHover(null);
         aoPassarMouse(p.id);
-      } else if (idCamada === "clusters") {
-        const f = info.object as ClusterFeature;
-        setTooltip({ x: info.x, y: info.y, dados: { kind: "cluster", count: f.count } });
       } else if (idCamada === "conexoes") {
         const k = info.object as CompanyConnection;
         setArcoHover(k.id);
@@ -394,25 +366,13 @@ export function MapaTerritorial({
     (info: PickingInfo) => {
       const idCamada = info.layer?.id;
       if (!info.object) return;
-      if (idCamada === "empresas" || idCamada === "folhas") {
-        const p = (idCamada === "folhas"
-          ? (info.object as ClusterFeature).point
-          : (info.object as MapPoint)) as MapPoint | undefined;
-        if (!p) return;
+      if (idCamada === "empresas") {
+        const p = info.object as MapPoint;
         aoSelecionar(p.id);
         mapaRef.current?.easeTo({ center: p.position, duration: 550 });
-      } else if (idCamada === "clusters") {
-        const f = info.object as ClusterFeature;
-        if (f.clusterId !== undefined && indice) {
-          mapaRef.current?.easeTo({
-            center: f.position,
-            zoom: indice.getExpansionZoom(f.clusterId),
-            duration: 600,
-          });
-        }
       }
     },
-    [aoSelecionar, indice],
+    [aoSelecionar],
   );
 
   /* ---------------- camadas ---------------- */
@@ -461,9 +421,7 @@ export function MapaTerritorial({
       );
     }
 
-    // Em modo cluster os arcos são ocultados: ligariam pontos não exibidos
-    // individualmente e comprometeriam a leitura (teia ilegível).
-    if (estado.filtros.showConnections && conexoesVisiveis.length > 0 && !modoCluster) {
+    if (estado.filtros.showConnections && conexoesVisiveis.length > 0) {
       const recortadas = conexoesVisiveis.slice(0, tetoArcos);
       saida.push(
         new ArcLayer<CompanyConnection>({
@@ -500,104 +458,58 @@ export function MapaTerritorial({
     }
 
     if (mostrarPontos) {
-      if (modoCluster && gruposCluster) {
-        const nos = gruposCluster.filter((g) => g.isCluster);
-        const folhas = gruposCluster.filter((g) => !g.isCluster);
-        saida.push(
-          new ScatterplotLayer<ClusterFeature>({
-            id: "folhas",
-            data: folhas,
-            getPosition: (d) => d.position,
-            getRadius: (d) => (d.point ? raioDe(d.point) : 4),
-            radiusUnits: "pixels",
-            getFillColor: (d) => corDe(d.point?.nicheId ?? "outros", 210),
-            stroked: true,
-            getLineColor: cores.leafStroke,
-            getLineWidth: 1,
-            lineWidthUnits: "pixels",
-            pickable: true,
-            transitions: { getRadius: 300 },
-            updateTriggers: { getRadius: [prefs.sizeMode] },
-          }),
-          new ScatterplotLayer<ClusterFeature>({
-            id: "clusters",
-            data: nos,
-            getPosition: (d) => d.position,
-            getRadius: (d) => 13 + Math.sqrt(d.count) * 2.4,
-            radiusUnits: "pixels",
-            getFillColor: cores.clusterFill,
-            stroked: true,
-            getLineColor: cores.clusterLine,
-            getLineWidth: 1.6,
-            lineWidthUnits: "pixels",
-            pickable: true,
-            transitions: { getRadius: 250 },
-          }),
-          new TextLayer<ClusterFeature>({
-            id: "cluster-contagem",
-            data: nos,
-            getPosition: (d) => d.position,
-            getText: (d) => String(d.count),
-            getSize: 12.5,
-            getColor: cores.clusterText,
-            fontFamily: "Manrope, Inter, system-ui, sans-serif",
-            fontWeight: 600,
-            pickable: false,
-          }),
-        );
-      } else {
+      // Sempre uma esfera por empresa — sem agrupamento em círculos grandes.
+      saida.push(
+        new ScatterplotLayer<MapPoint>({
+          id: "empresas",
+          data: pontosVisiveis,
+          getPosition: (d) => d.position,
+          getRadius: (d) => {
+            const base = raioDe(d);
+            return d.id === hoverId || d.id === selecionada ? base * 1.25 : base;
+          },
+          radiusUnits: "pixels",
+          getFillColor: (d) => corDe(d.nicheId, 196),
+          stroked: true,
+          getLineColor: (d) =>
+            d.id === selecionada
+              ? cores.pointStrokeSelected
+              : d.id === hoverId
+                ? cores.pointStrokeHover
+                : cores.pointStroke,
+          getLineWidth: (d) => (d.id === selecionada ? 2.2 : 1),
+          lineWidthUnits: "pixels",
+          pickable: true,
+          transitions: { getRadius: 260 },
+          updateTriggers: {
+            getRadius: [prefs.sizeMode, hoverId, selecionada],
+            getLineColor: [hoverId, selecionada, tema],
+            getLineWidth: [selecionada],
+          },
+        }),
+      );
+
+      const destaque = [selecionada, hoverId]
+        .filter((id): id is string => id !== null)
+        .map((id) => porId.get(id))
+        .filter((p): p is MapPoint => p !== undefined);
+      if (destaque.length > 0) {
         saida.push(
           new ScatterplotLayer<MapPoint>({
-            id: "empresas",
-            data: pontosVisiveis,
+            id: "anel-destaque",
+            data: destaque,
             getPosition: (d) => d.position,
-            getRadius: (d) => {
-              const base = raioDe(d);
-              return d.id === hoverId || d.id === selecionada ? base * 1.25 : base;
-            },
+            getRadius: (d) => raioDe(d) * 1.25 + 6,
             radiusUnits: "pixels",
-            getFillColor: (d) => corDe(d.nicheId, 196),
             stroked: true,
-            getLineColor: (d) =>
-              d.id === selecionada
-                ? cores.pointStrokeSelected
-                : d.id === hoverId
-                  ? cores.pointStrokeHover
-                  : cores.pointStroke,
-            getLineWidth: (d) => (d.id === selecionada ? 2.2 : 1),
+            filled: false,
+            getLineColor: (d) => corDe(d.nicheId, 200),
+            getLineWidth: 1.6,
             lineWidthUnits: "pixels",
-            pickable: true,
-            transitions: { getRadius: 260 },
-            updateTriggers: {
-              getRadius: [prefs.sizeMode, hoverId, selecionada],
-              getLineColor: [hoverId, selecionada, tema],
-              getLineWidth: [selecionada],
-            },
+            pickable: false,
+            updateTriggers: { getRadius: [prefs.sizeMode] },
           }),
         );
-
-        const destaque = [selecionada, hoverId]
-          .filter((id): id is string => id !== null)
-          .map((id) => porId.get(id))
-          .filter((p): p is MapPoint => p !== undefined);
-        if (destaque.length > 0) {
-          saida.push(
-            new ScatterplotLayer<MapPoint>({
-              id: "anel-destaque",
-              data: destaque,
-              getPosition: (d) => d.position,
-              getRadius: (d) => raioDe(d) * 1.25 + 6,
-              radiusUnits: "pixels",
-              stroked: true,
-              filled: false,
-              getLineColor: (d) => corDe(d.nicheId, 200),
-              getLineWidth: 1.6,
-              lineWidthUnits: "pixels",
-              pickable: false,
-              updateTriggers: { getRadius: [prefs.sizeMode] },
-            }),
-          );
-        }
       }
     }
 
@@ -608,13 +520,11 @@ export function MapaTerritorial({
     prefs.sizeMode,
     estado.filtros.showConnections,
     conexoesVisiveis,
-    modoCluster,
     tetoArcos,
     porId,
     arcoHover,
     focoConexoes,
     mostrarPontos,
-    gruposCluster,
     pontosVisiveis,
     raioDe,
     hoverId,
@@ -752,8 +662,6 @@ export function MapaTerritorial({
           aoFechar={() => setCamadasAbertas(false)}
           mostrarPontos={mostrarPontos}
           setMostrarPontos={setMostrarPontos}
-          agrupar={prefs.clusterEnabled}
-          setAgrupar={(v) => mudarPrefs({ clusterEnabled: v })}
           fronteiras={prefs.showBorders}
           setFronteiras={(v) => mudarPrefs({ showBorders: v })}
           modoTamanho={prefs.sizeMode as SizeMode}
@@ -775,7 +683,6 @@ export function MapaTerritorial({
           </span>
         ) : null}
         {estado.filtros.showConnections &&
-        !modoCluster &&
         !focoConexoes &&
         (conexoesTruncadas || tetoArcos < conexoesVisiveis.length) ? (
           <span className="tio-mapa-chip tio-glass">
