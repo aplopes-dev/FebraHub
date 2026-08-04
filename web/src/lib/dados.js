@@ -106,6 +106,9 @@ function useView(nome, opcoes = {}) {
     // Padrão 5 min; dados operacionais (ex.: fila de confirmação) passam
     // staleTime menor pra atualizar mais rápido.
     staleTime: opcoes.staleTime ?? 5 * 60 * 1000,
+    // Views pesadas dão statement-timeout no primeiro acesso frio; mais uma
+    // tentativa (com backoff do react-query) pega a segunda, já quente.
+    retry: opcoes.retry,
     queryFn: () => buscarTudo(nome, opcoes.seletor ?? "*", opcoes.ordem),
   });
 }
@@ -147,7 +150,7 @@ export const useComercialCursosPorConsultora = () =>
 export const useComercialRankingGeralConsolidado = () =>
   useView("vw_comercial_ranking_geral_consolidado", { ordem: ["data", "consultora", "valor"] });
 export const useComercialGeralMensal = () =>
-  useView("vw_comercial_geral_mensal", { ordem: ["data", "valor"] });
+  useView("vw_comercial_geral_mensal", { ordem: ["data", "valor"], retry: 2 });
 
 /* Sympla: já agregado e sem dimensão de data — só a Jennifer, porque o
    dado do Sympla não tem vínculo de consultora. */
@@ -184,7 +187,7 @@ export const useFinanceiroAPagarHorizonte = () => useView("vw_financeiro_a_pagar
 export const useFinanceiroPagoMensal = () => useView("vw_financeiro_pago_mensal");
 // Recebido por mês (caixa). Alimenta o card de Financeiro do Hub Executivo.
 export const useFinanceiroRecebidoMensal = () =>
-  useView("vw_financeiro_recebido_mensal", { ordem: ["mes"], staleTime: 60 * 1000 });
+  useView("vw_financeiro_recebido_mensal", { ordem: ["mes"], staleTime: 60 * 1000, retry: 2 });
 
 /* ============ HUB EXECUTIVO (setor 'geral') ============ */
 /* Faturamento de venda: a view tem 8k+ linhas. Em vez de puxar tudo, filtro no
@@ -196,6 +199,7 @@ export function useVendaFaturamentoDesde(desde) {
     queryKey: ["venda_faturamento", desde],
     enabled: !!desde,
     staleTime: 60 * 1000,
+    retry: 2,
     queryFn: async () => {
       let todos = [], de = 0;
       for (;;) {
@@ -216,11 +220,11 @@ export function useVendaFaturamentoDesde(desde) {
 }
 // Investimento de mídia (uma linha por campanha/mês; `gasto`). Card Marketing.
 export const useMarketingInvestimento = () =>
-  useView("vw_marketing_investimento", { ordem: ["mes"], staleTime: 60 * 1000 });
+  useView("vw_marketing_investimento", { ordem: ["mes"], staleTime: 60 * 1000, retry: 2 });
 // Loja: realizado vs meta do mês (realizado, pct_minima, nivel_atingido por
 // mes_ref). Alimenta o card da Loja e o radar (nivel_atingido='Abaixo').
 export const useLojaMetaRealizado = () =>
-  useView("vw_loja_meta_realizado", { ordem: ["mes_ref"], staleTime: 60 * 1000 });
+  useView("vw_loja_meta_realizado", { ordem: ["mes_ref"], staleTime: 60 * 1000, retry: 2 });
 
 /* Loja — receita própria. Curso ≠ loja: nunca entra num total conjunto.
    A receita virou CONSOLIDADA (ver useLojaReceitaTotalMes abaixo); os hooks
@@ -326,7 +330,7 @@ export const useMarketingOrigemVendas = () =>
    pra estourar o statement timeout na primeira execução fria — o retry
    padrão do QueryClient pega a segunda, já com o plano quente. */
 export const useMarketingAtribuicao = () =>
-  useView("vw_marketing_atribuicao_campanha");
+  useView("vw_marketing_atribuicao_campanha", { retry: 2 });
 
 /* ============ PEDAGÓGICO / SUCESSO DO CLIENTE ============
    Foco em SAÚDE (acompanhamento), não lista de tarefas. Tudo vem do
