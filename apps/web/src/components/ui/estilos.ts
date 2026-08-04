@@ -1,5 +1,30 @@
 import type { CSSProperties } from "react";
-import { C, SANS, alfa } from "@/lib/tema";
+import { C, SANS, SOBRE_OURO_2, alfa } from "@/lib/tema";
+
+/* ============ PINTURA DO BOTÃO PRIMÁRIO ============
+   O dourado da casa é GRADIENTE, não chapado — é assim no "Adicionar membro"
+   do organograma, no BotaoSalvar dos modais e nos cards de Integrações.
+
+   Está aqui porque cinco telas o redeclararam chapado, cada uma por conta
+   própria: `background: C.gold`. Chapado ao lado do gradiente lê como botão
+   DESABILITADO, e a diferença só aparece quando as duas telas ficam abertas
+   lado a lado — que é exatamente quando ninguém está olhando para isso.
+
+   Só a PINTURA mora aqui. Tamanho (padding, fonte, raio) continua de cada
+   tela: um botão de barra de ferramentas e um de rodapé de modal têm pesos
+   diferentes de propósito. */
+export const PINTURA_OURO: CSSProperties = {
+  background: `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`,
+  color: SOBRE_OURO_2,
+  border: "none",
+};
+
+/** A mesma pintura, apagada: primário desabilitado ou em andamento. */
+export const PINTURA_OURO_OFF: CSSProperties = {
+  background: alfa("sup", 0.08),
+  color: C.faint,
+  border: "none",
+};
 
 /** Item de lista dentro de um Popover (seletores de ano/mês/produto). */
 export const itemPop = (ativo: boolean): CSSProperties => ({

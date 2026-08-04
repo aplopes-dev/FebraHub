@@ -8,7 +8,8 @@
 
 import type { ReactNode } from "react";
 import { KeyRound, Loader2, Share2 } from "lucide-react";
-import { C, SOBRE_OURO, alfa } from "@/lib/tema";
+import { PINTURA_OURO } from "@/components/ui/estilos";
+import { C, alfa } from "@/lib/tema";
 
 export function SemChave({
   carregando,
@@ -61,8 +62,8 @@ export function SemChave({
           className="fh-toque"
           style={{
             marginTop: 20, display: "inline-flex", alignItems: "center", gap: 7,
-            padding: "10px 18px", borderRadius: 10, border: "none", cursor: "pointer",
-            background: C.gold, color: SOBRE_OURO, fontSize: 13, fontWeight: 800,
+            padding: "10px 18px", borderRadius: 10, cursor: "pointer",
+            ...PINTURA_OURO, fontSize: 13, fontWeight: 800,
           }}
         >
           <KeyRound size={14} />

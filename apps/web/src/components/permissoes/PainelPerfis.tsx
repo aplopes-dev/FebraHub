@@ -15,8 +15,8 @@ import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { useAcoesPerfis, useCatalogoPermissoes, usePerfisAcesso } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
-import { C, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
-import { inputAv, labelAv } from "@/components/ui/estilos";
+import { C, SANS, alfa } from "@/lib/tema";
+import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
 import type { PerfilAcesso } from "@/types/permissoes";
 
 const mesmaLista = (a: readonly string[], b: readonly string[]): boolean =>
@@ -318,10 +318,7 @@ const botaoBase = {
   borderRadius: 9, fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
 } as const;
 
-const botaoOuro = {
-  ...botaoBase,
-  background: C.gold, color: SOBRE_OURO, border: `1px solid ${C.gold}`,
-};
+const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
 
 const botaoNeutro = {
   ...botaoBase,

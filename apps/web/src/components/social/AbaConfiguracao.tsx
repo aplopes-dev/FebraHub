@@ -16,11 +16,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Loader2, PlugZap, Save, Trash2 } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { inputAv, labelAv } from "@/components/ui/estilos";
+import { PINTURA_OURO, PINTURA_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { configSocial, contasSocial, salvarConfigSocial, testarZernio } from "@/services/api/social";
-import { C, SOBRE_OURO, alfaDe } from "@/lib/tema";
+import { C, alfaDe } from "@/lib/tema";
 import { Aviso, SeloRede, estadoDe, nomeRede, quando } from "./comum";
 
 /** Os fusos que fazem sentido para a operação. Campo livre convidaria a
@@ -179,8 +179,9 @@ export function AbaConfiguracao() {
                 onClick={() => salvar.mutate()}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px",
-                  borderRadius: 10, border: "none", cursor: salvar.isPending ? "wait" : "pointer",
-                  background: C.gold, color: SOBRE_OURO, fontSize: 12.5, fontWeight: 800,
+                  borderRadius: 10, cursor: salvar.isPending ? "wait" : "pointer",
+                  ...(salvar.isPending ? PINTURA_OURO_OFF : PINTURA_OURO),
+                  fontSize: 12.5, fontWeight: 800,
                 }}
               >
                 {salvar.isPending ? <Loader2 size={13} className="girar" /> : <Save size={13} />}

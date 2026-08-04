@@ -15,11 +15,11 @@ import { useState } from "react";
 import { Copy, KeyRound, Loader2, Plus, UserPlus } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { inputAv, labelAv } from "@/components/ui/estilos";
+import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
 import { useAcoesUsuarios, usePerfisAcesso, useUsuariosAdmin } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
 import { HUBS } from "@/lib/hubs";
-import { C, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 import type { UsuarioAdmin } from "@/types/permissoes";
 
 /** Setores do cadastro: os hubs + 'geral', que é a diretoria histórica. */
@@ -273,7 +273,7 @@ const botaoBase = {
   borderRadius: 9, fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
 } as const;
 
-const botaoOuro = { ...botaoBase, background: C.gold, color: SOBRE_OURO, border: `1px solid ${C.gold}` };
+const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
 const botaoNeutro = { ...botaoBase, background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}` };
 
 const etiqueta = {

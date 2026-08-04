@@ -19,7 +19,8 @@ import { Estado } from "@/components/ui/Estado";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { listarConversas, listarMensagens, responderConversa } from "@/services/api/social";
-import { C, SOBRE_OURO, alfaDe } from "@/lib/tema";
+import { PINTURA_OURO, PINTURA_OURO_OFF } from "@/components/ui/estilos";
+import { C, alfaDe } from "@/lib/tema";
 import type { Conversa } from "@/types/social";
 import { Aviso, SeloRede, desde, estadoDe, quando } from "./comum";
 
@@ -160,10 +161,9 @@ export function AbaMensagens() {
                       onClick={() => enviar.mutate()}
                       style={{
                         display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 15px",
-                        borderRadius: 10, border: "none", background: C.gold, color: SOBRE_OURO,
-                        fontSize: 12.5, fontWeight: 800,
+                        borderRadius: 10, fontSize: 12.5, fontWeight: 800,
+                        ...(resposta.trim() && !enviar.isPending ? PINTURA_OURO : PINTURA_OURO_OFF),
                         cursor: resposta.trim() && !enviar.isPending ? "pointer" : "not-allowed",
-                        opacity: resposta.trim() && !enviar.isPending ? 1 : 0.5,
                       }}
                     >
                       {enviar.isPending ? <Loader2 size={13} className="girar" /> : <Send size={13} />}

@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Cpu, Database, FileText, Key, Loader2, PenLine, RefreshCw, Search, Sparkles, Upload, X, Zap } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { inputAv, labelAv } from "@/components/ui/estilos";
+import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import {
@@ -29,7 +29,7 @@ import {
   configBrain,
 } from "@/services/api/brain";
 import { ACEITA, extrairTexto, type DocumentoExtraido } from "@/lib/brain/extrair-texto";
-import { C, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
+import { C, SANS, alfa } from "@/lib/tema";
 import { MODELOS_SINTESE } from "@/types/brain";
 import type { RespostaBrain, ResultadoBrain } from "@/types/brain";
 
@@ -587,5 +587,5 @@ const botaoBase = {
   borderRadius: 9, fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
 } as const;
 
-const botaoOuro = { ...botaoBase, background: C.gold, color: SOBRE_OURO, border: `1px solid ${C.gold}` };
+const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
 const botaoNeutro = { ...botaoBase, background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}` };
