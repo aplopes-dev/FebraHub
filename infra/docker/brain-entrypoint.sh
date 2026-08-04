@@ -37,7 +37,8 @@ cat > "$CONFIG_DIR/config.json" <<JSON
   "brain_dir": "${REPO_DIR}",
   "embedding_model": "${MODELO_EMBEDDING}",
   "embedding_dimensions": ${DIMENSOES_EMBEDDING},
-  "chat_model": "${GBRAIN_CHAT_MODEL:-ollama:qwen2.5:3b-instruct}"
+  "models.think": "${GBRAIN_CHAT_MODEL:-ollama:qwen2.5:3b-instruct}",
+  "models.default": "${GBRAIN_CHAT_MODEL:-ollama:qwen2.5:3b-instruct}"
 }
 JSON
 log "config escrito em $CONFIG_DIR/config.json (engine=postgres)"

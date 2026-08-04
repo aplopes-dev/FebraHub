@@ -91,39 +91,53 @@ export class BrainService {
 
   async buscar(usuario: UsuarioLogado, consulta: string, limite = 12): Promise<ResultadoBusca[]> {
     const credencial = await this.credencialDe(usuario);
+    // `search` devolve um ARRAY de SearchResult direto — não um envelope
+    // `{results}`. E o SearchResult não carrega a fonte: ela sai do prefixo do
+    // slug, que é como escrevemos toda página (`<fonte>/<nome>`).
     const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'search', {
       query: consulta,
       limit: Math.min(50, Math.max(1, limite)),
     });
-    const dados = corpoDaOperacao(bruto);
-    const linhas = Array.isArray((dados as { results?: unknown })?.results)
-      ? ((dados as { results: Record<string, unknown>[] }).results ?? [])
-      : [];
-    return linhas.map((l) => ({
-      slug: String(l.slug ?? l.id ?? ''),
-      titulo: String(l.title ?? l.titulo ?? l.slug ?? 'Sem título'),
-      trecho: String(l.snippet ?? l.excerpt ?? l.text ?? '').slice(0, 600),
-      fonte: String(l.source_id ?? l.source ?? FONTE_GERAL),
-      score: typeof l.score === 'number' ? l.score : null,
-    }));
+    const linhas = comoLista(corpoDaOperacao(bruto));
+    return linhas.map((l) => {
+      const slug = String(l.slug ?? '');
+      return {
+        slug,
+        titulo: String(l.title ?? l.titulo ?? slug ?? 'Sem título'),
+        trecho: String(l.chunk_text ?? l.snippet ?? l.excerpt ?? '').slice(0, 600),
+        fonte: fonteDoSlug(slug),
+        score: typeof l.score === 'number' ? l.score : null,
+      };
+    });
   }
 
-  /** Resposta sintetizada com citações. É a operação cara — e a que exige o
-   *  recorte por credencial, não por filtro depois. */
+  /**
+   * Resposta sintetizada com citações.
+   *
+   * A operação é `think`, não `query`: no gbrain, `query` é a variante
+   * completa da BUSCA (devolve páginas), e quem sintetiza com LLM é o
+   * `think`. Confundir os dois devolve uma lista onde se esperava um texto.
+   *
+   * É a chamada cara — e a que exige o recorte por credencial e não por
+   * filtro depois: aqui o modelo lê as páginas antes de escrever a resposta.
+   */
   async perguntar(usuario: UsuarioLogado, pergunta: string) {
     const credencial = await this.credencialDe(usuario);
-    const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'query', { query: pergunta });
+    const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'think', {
+      question: pergunta,
+    });
     const dados = corpoDaOperacao(bruto) as Record<string, unknown> | null;
     const citacoes = Array.isArray(dados?.citations)
-      ? (dados!.citations as Record<string, unknown>[]).map((c) => ({
-          slug: String(c.slug ?? ''),
-          titulo: String(c.title ?? c.slug ?? ''),
-          fonte: String(c.source_id ?? c.source ?? FONTE_GERAL),
-        }))
+      ? (dados!.citations as Record<string, unknown>[]).map((c) => {
+          const slug = String(c.page_slug ?? c.slug ?? '');
+          return { slug, titulo: String(c.title ?? slug), fonte: fonteDoSlug(slug) };
+        })
       : [];
     return {
-      resposta: String(dados?.answer ?? dados?.text ?? '').trim(),
-      citacoes,
+      resposta: String(dados?.answer ?? '').trim(),
+      // Duas citações do mesmo documento viram um chip só na tela.
+      citacoes: citacoes.filter((c, i, todas) => c.slug && todas.findIndex((o) => o.slug === c.slug) === i),
+      lacunas: Array.isArray(dados?.gaps) ? (dados!.gaps as unknown[]).map(String) : [],
     };
   }
 
@@ -268,6 +282,22 @@ function corpoDaOperacao(bruto: ConteudoMcp): unknown {
     }
   }
   return bruto;
+}
+
+/** O gbrain devolve array cru nas buscas; alguns caminhos embrulham em
+ *  `{results}`. Aceita os dois e nunca estoura. */
+function comoLista(dados: unknown): Record<string, unknown>[] {
+  if (Array.isArray(dados)) return dados as Record<string, unknown>[];
+  const envelope = (dados as { results?: unknown })?.results;
+  return Array.isArray(envelope) ? (envelope as Record<string, unknown>[]) : [];
+}
+
+/** A fonte sai do prefixo do slug (`comercial/politica-de-desconto`), porque o
+ *  SearchResult do gbrain não traz `source_id`. Toda página que escrevemos
+ *  nasce com esse prefixo. */
+function fonteDoSlug(slug: string): string {
+  const prefixo = slug.split('/')[0];
+  return prefixo && [FONTE_GERAL, ...FONTES_SETOR].includes(prefixo as never) ? prefixo : FONTE_GERAL;
 }
 
 const mesmoConjunto = (a: readonly string[], b: readonly string[]): boolean =>

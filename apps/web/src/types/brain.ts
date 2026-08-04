@@ -19,6 +19,8 @@ export interface ResultadoBrain {
 export interface RespostaBrain {
   resposta: string;
   citacoes: { slug: string; titulo: string; fonte: string }[];
+  /** O que o gbrain diz que NÃO encontrou para responder melhor. */
+  lacunas?: string[];
 }
 
 export interface EstadoBrain {
