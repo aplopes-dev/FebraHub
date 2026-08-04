@@ -28,6 +28,9 @@ ENV TZ=America/Bahia
 # Provedor local por padrão (ver docker-compose.prod.yml): nenhuma chave de
 # provedor pago entra nesta imagem.
 ENV OLLAMA_BASE_URL=http://ollama:11434/v1
+# Mesmo endpoint, outra receita: a do Ollama só sabe fazer embedding, a
+# litellm é o adaptador OpenAI-compatível que serve para a síntese.
+ENV LITELLM_BASE_URL=http://ollama:11434/v1
 # Busca textual em português: sem isto o Postgres tokeniza com o dicionário
 # inglês e "matrículas" não casa com "matricula".
 ENV GBRAIN_FTS_LANGUAGE=portuguese

@@ -324,8 +324,14 @@ services:
       # endpoint compatível com OpenAI do Ollama.
       GBRAIN_EMBEDDING_MODEL: ollama:${BRAIN_MODELO_EMBEDDING:-nomic-embed-text}
       GBRAIN_EMBEDDING_DIMENSIONS: '${BRAIN_DIMENSOES_EMBEDDING:-768}'
-      GBRAIN_CHAT_MODEL: ollama:${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct}
+      # `litellm:` e não `ollama:` para a SÍNTESE: no gbrain, a receita do
+      # Ollama declara só o touchpoint de embedding — não existe chat nela, e
+      # `models.think: ollama:*` degrada para "no LLM available" sem erro. A
+      # receita litellm é o adaptador OpenAI-compatível genérico, e o endpoint
+      # /v1 do Ollama fala exatamente esse protocolo.
+      GBRAIN_CHAT_MODEL: litellm:${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct}
       OLLAMA_BASE_URL: http://ollama:11434/v1
+      LITELLM_BASE_URL: http://ollama:11434/v1
       TZ: America/Bahia
     volumes:
       # Os repositórios de cada fonte (o "system of record" do gbrain) e a
