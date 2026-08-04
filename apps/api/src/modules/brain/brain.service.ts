@@ -127,20 +127,51 @@ export class BrainService {
     };
   }
 
-  /** Grava uma página na fonte do próprio setor. */
-  async registrar(usuario: UsuarioLogado, titulo: string, conteudo: string) {
+  /**
+   * Grava uma página na fonte do próprio setor.
+   *
+   * A fonte NÃO vai no corpo: `put_page` do gbrain ignora qualquer `source_id`
+   * recebido e grava na fonte do grant do cliente. Como a credencial da pessoa
+   * tem `sourceId` = setor dela, o destino já é o certo — e ninguém consegue
+   * escrever em setor alheio nem forjando o parâmetro.
+   */
+  async registrar(usuario: UsuarioLogado, titulo: string, conteudo: string, origem?: string) {
     const credencial = await this.credencialDe(usuario);
     const fonte = this.fonteDeEscritaDe(usuario);
     const slug = `${fonte}/${apelido(titulo)}`;
+    const assinatura = origem
+      ? `Extraído de **${origem}** e registrado por ${usuario.nome} pelo FebraHub.`
+      : `Registrado por ${usuario.nome} pelo FebraHub.`;
     await this.gbrain.operacao(credencial, 'put_page', {
       slug,
       title: titulo,
       // Assinado no corpo: daqui a um ano ninguém lembra quem escreveu, e o
       // gbrain guarda markdown, não metadado nosso.
-      content: `${conteudo}\n\n---\nRegistrado por ${usuario.nome} pelo FebraHub.\n`,
-      source_id: fonte,
+      content: `# ${titulo}\n\n${conteudo}\n\n---\n${assinatura}\n`,
     });
     return { slug, fonte };
+  }
+
+  /**
+   * Credencial de MÁQUINA da fonte, criada na primeira publicação.
+   *
+   * Uma por fonte porque um cliente do gbrain escreve em uma fonte só. Lê
+   * todas: a sincronização precisa reescrever a própria página do mês
+   * anterior, e ler o que já publicou é inofensivo — quem nunca alcança essas
+   * páginas é a PESSOA, pela credencial dela.
+   */
+  async credencialDeServico(fonte: string = FONTE_GERAL): Promise<{ clientId: string; segredo: string }> {
+    const existente = await this.prisma.brainClienteServico.findUnique({ where: { fonte } });
+    if (existente) {
+      return { clientId: existente.clientId, segredo: decifrar(this.config, existente.segredo) };
+    }
+    const { clientId, clientSecret } = await this.gbrain.registrarCliente(`febrahub:sistema:${fonte}`);
+    await this.gbrain.reescoparCliente(clientId, fonte, [FONTE_GERAL, ...FONTES_SETOR]);
+    await this.prisma.brainClienteServico.create({
+      data: { fonte, clientId, segredo: cifrar(this.config, clientSecret) },
+    });
+    this.logger.log(`brain: credencial de serviço criada para a fonte ${fonte}`);
+    return { clientId, segredo: clientSecret };
   }
 
   /**

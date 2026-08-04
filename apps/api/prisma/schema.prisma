@@ -145,6 +145,23 @@ model BrainCliente {
   @@map("brain_clientes")
 }
 
+/// Credencial de MAQUINA no GBrain, uma por fonte.
+///
+/// Existe porque no gbrain um cliente OAuth escreve em UMA fonte so —
+/// `put_page` ignora o source_id do corpo e usa a fonte do grant. A
+/// sincronizacao dos indicadores publica em todas (uma pagina por setor),
+/// entao precisa de uma credencial por fonte. Nao pertencem a pessoa
+/// nenhuma, e por isso nao cabem em BrainCliente (que tem FK para Usuario).
+model BrainClienteServico {
+  fonte        String   @id
+  clientId     String   @unique @map("client_id")
+  segredo      String
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("brain_clientes_servico")
+}
+
 /// Notificacao de uma pessoa. Uma linha POR DESTINATARIO, mesmo quando o
 /// envio foi em lote: quem leu, quando leu e quem apagou sao respostas
 /// individuais, e uma tabela de "envio" com outra de "leitura" precisaria de

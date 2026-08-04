@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Menu, Moon, PanelLeft, Power, Sun, X } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
+import { PerguntaRapida } from "@/components/brain/PerguntaRapida";
 import { SinoNotificacoes } from "@/components/notificacoes/SinoNotificacoes";
 import { TeamsWidget } from "@/components/teams-widget/teams-widget";
 import { CHAVE_SESSAO, ehAdmin, pode, setoresVisiveis } from "@/hooks/auth";
@@ -271,7 +272,12 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                 {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban",
                    "organograma", "perfis", "usuarios", "comunicados", "brain"].includes(ativoId ?? "") && <SeletorPeriodo />}
                 {ativoId === "comercial" && <SeletorCategoria />}
-                {/* Some no celular: 40px numa barra apertada empurram o
+                {/* O robô abre a caixa de pergunta à memória institucional —
+                    a dúvida costuma surgir NO MEIO de outra tela, e mandar a
+                    pessoa até /configuracoes/brain quebraria o que ela estava
+                    fazendo. */}
+                {pode(perfil, "brain.ver") && <PerguntaRapida />}
+                {/* Somem no celular: 40px numa barra apertada empurram o
                     filtro para outra linha, e o aviso continua chegando na
                     próxima vez que a pessoa abrir no desktop. */}
                 <SinoNotificacoes />

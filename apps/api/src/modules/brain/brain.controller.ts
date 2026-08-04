@@ -12,6 +12,7 @@ import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'cla
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
+import { BrainDadosService } from './brain-dados.service';
 import { BrainService } from './brain.service';
 
 const aparar = ({ value }: { value: unknown }) =>
@@ -47,17 +48,33 @@ class PaginaDto {
   @MaxLength(160)
   titulo!: string;
 
+  /**
+   * 400 mil caracteres ≈ um PDF de umas 150 páginas. O teto não é o do
+   * gbrain (ele fatia o texto em chunks sozinho) — é o da nossa requisição:
+   * acima disso o upload passa a valer mais como arquivo no MinIO do que
+   * como página de conhecimento.
+   */
   @Transform(aparar)
   @IsString()
   @MinLength(10)
-  @MaxLength(20_000)
+  @MaxLength(400_000)
   conteudo!: string;
+
+  /** Nome do arquivo de origem, quando a página veio de um documento. */
+  @IsOptional()
+  @Transform(aparar)
+  @IsString()
+  @MaxLength(200)
+  origem?: string;
 }
 
 @ApiTags('brain')
 @Controller('brain')
 export class BrainController {
-  constructor(private readonly brain: BrainService) {}
+  constructor(
+    private readonly brain: BrainService,
+    private readonly dados: BrainDadosService,
+  ) {}
 
   @Get('fontes')
   @ExigePermissao('brain.ver')
@@ -83,9 +100,28 @@ export class BrainController {
 
   @Post('paginas')
   @ExigePermissao('brain.enviar')
-  @ApiOperation({ summary: 'Registra uma página na fonte do próprio setor' })
+  @ApiOperation({
+    summary: 'Registra uma página na fonte do próprio setor',
+    description:
+      'O texto chega pronto. Documento enviado pela tela é lido NO NAVEGADOR ' +
+      '(pdfjs para PDF, leitura direta para md/txt/csv) e chega aqui como texto — ' +
+      'a API não ganha um parser de PDF nem gasta CPU com isso.',
+  })
   registrar(@Usuario() u: UsuarioLogado, @Body() dto: PaginaDto) {
-    return this.brain.registrar(u, dto.titulo, dto.conteudo);
+    return this.brain.registrar(u, dto.titulo, dto.conteudo, dto.origem);
+  }
+
+  @Post('sincronizar-dados')
+  @ExigePermissao('brain.gerenciar')
+  @ApiOperation({
+    summary: 'Publica os indicadores do sistema na memória, um resumo por setor',
+    description:
+      'O gbrain só sabe o que foi escrito nele. Isto lê o Hub Executivo e ' +
+      'escreve uma página por setor na fonte correspondente, para a memória ' +
+      'responder sobre os NÚMEROS do mês e não só sobre os documentos.',
+  })
+  sincronizarDados(@Usuario() u: UsuarioLogado) {
+    return this.dados.sincronizar(u);
   }
 
   @Get('estado')

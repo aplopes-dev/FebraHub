@@ -9,9 +9,9 @@
    são, para ninguém achar que a memória está vazia quando na verdade a
    pergunta caiu num setor que ela não alcança. */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { BookOpen, Database, Loader2, PenLine, Search, Sparkles } from "lucide-react";
+import { BookOpen, Database, FileText, Loader2, PenLine, RefreshCw, Search, Sparkles, Upload, X } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { inputAv, labelAv } from "@/components/ui/estilos";
@@ -24,7 +24,9 @@ import {
   perguntarAoBrain,
   registrarNoBrain,
   revalidarAcessosBrain,
+  sincronizarDadosBrain,
 } from "@/services/api/brain";
+import { ACEITA, extrairTexto, type DocumentoExtraido } from "@/lib/brain/extrair-texto";
 import { C, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
 import type { RespostaBrain, ResultadoBrain } from "@/types/brain";
 
@@ -62,6 +64,13 @@ export function PainelBrain() {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
+  // Fila de documentos já lidos e ainda não enviados. O texto sai do arquivo
+  // NO NAVEGADOR (ver lib/brain/extrair-texto) — a API recebe texto, nunca o
+  // binário.
+  const [fila, setFila] = useState<DocumentoExtraido[]>([]);
+  const [lendo, setLendo] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
+  const entrada = useRef<HTMLInputElement>(null);
 
   const falhou = (e: unknown) =>
     setAviso({
@@ -96,6 +105,53 @@ export function PainelBrain() {
     },
     onError: falhou,
   });
+
+  /** Um documento = uma página. Enviar em lote sequencialmente e não em
+   *  paralelo: cada envio gera embeddings, e o modelo é local. */
+  const enviarFila = useMutation({
+    mutationFn: async () => {
+      const enviados: string[] = [];
+      for (const doc of fila) {
+        const r = await registrarNoBrain(doc.titulo, doc.texto, doc.origem);
+        enviados.push(`${doc.origem} → ${rotulo(r.fonte)}`);
+      }
+      return enviados;
+    },
+    onSuccess: (enviados) => {
+      setFila([]);
+      setAviso({ erro: false, texto: `${enviados.length} documento(s) na memória: ${enviados.join("; ")}.` });
+    },
+    onError: falhou,
+  });
+
+  const sincronizar = useMutation({
+    mutationFn: sincronizarDadosBrain,
+    onSuccess: (r) =>
+      setAviso({
+        erro: false,
+        texto: r.publicadas
+          ? `${r.publicadas} página(s) de indicadores publicada(s) na memória.`
+          : (r.motivo ?? "Nada a publicar."),
+      }),
+    onError: falhou,
+  });
+
+  const receber = async (arquivos: FileList | null) => {
+    if (!arquivos?.length) return;
+    setLendo(true);
+    setAviso(null);
+    const lidos: DocumentoExtraido[] = [];
+    for (const arquivo of Array.from(arquivos)) {
+      try {
+        lidos.push(await extrairTexto(arquivo));
+      } catch (e) {
+        setAviso({ erro: true, texto: e instanceof Error ? e.message : `Não consegui ler ${arquivo.name}.` });
+      }
+    }
+    setFila((atual) => [...atual, ...lidos]);
+    setLendo(false);
+    if (entrada.current) entrada.current.value = "";
+  };
 
   const revalidar = useMutation({
     mutationFn: revalidarAcessosBrain,
@@ -243,6 +299,89 @@ export function PainelBrain() {
 
       {podeEscrever && (
         <Bloco titulo="Registrar conhecimento" canto={fontes.data ? `Vai para ${rotulo(fontes.data.escrita)}` : undefined}>
+          {/* Documento primeiro: é o caminho mais usado. Quem vai digitar
+              direto rola e usa os campos abaixo. */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setArrastando(true); }}
+            onDragLeave={() => setArrastando(false)}
+            onDrop={(e) => { e.preventDefault(); setArrastando(false); void receber(e.dataTransfer.files); }}
+            onClick={() => entrada.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") entrada.current?.click(); }}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 6, padding: "22px 16px", borderRadius: 12, cursor: "pointer", textAlign: "center",
+              border: `1.5px dashed ${arrastando ? C.gold : C.cardLine}`,
+              background: arrastando ? alfa("gold", 0.08) : alfa("sup", 0.03),
+              transition: "background .15s ease, border-color .15s ease",
+            }}
+          >
+            {lendo ? <Loader2 size={18} className="girar" style={{ color: C.gold }} /> : <Upload size={18} style={{ color: C.gold }} />}
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.bright }}>
+              {lendo ? "Lendo o documento…" : "Arraste documentos aqui ou clique para escolher"}
+            </div>
+            <div style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.45, maxWidth: 460 }}>
+              PDF, Markdown, TXT ou CSV. O texto é extraído no seu navegador e só ele viaja —
+              o arquivo em si não sai do seu computador.
+            </div>
+            <input
+              ref={entrada}
+              type="file"
+              accept={ACEITA}
+              multiple
+              onChange={(e) => void receber(e.target.files)}
+              style={{ display: "none" }}
+            />
+          </div>
+
+          {fila.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={labelAv}>Prontos para enviar</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                {fila.map((doc, i) => (
+                  <div key={`${doc.origem}-${i}`} style={{
+                    display: "flex", alignItems: "center", gap: 9, padding: "9px 11px",
+                    borderRadius: 9, border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.03),
+                  }}>
+                    <FileText size={14} style={{ color: C.gold, flexShrink: 0 }} />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {doc.origem}
+                      </span>
+                      <span style={{ display: "block", fontSize: 11, color: C.faint, marginTop: 2 }}>
+                        {doc.texto.length.toLocaleString("pt-BR")} caracteres de texto
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => setFila((atual) => atual.filter((_, j) => j !== i))}
+                      aria-label={`Tirar ${doc.origem} da fila`}
+                      title="Tirar da fila"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: C.dim, padding: 2 }}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <button onClick={() => enviarFila.mutate()} disabled={enviarFila.isPending} style={botaoOuro}>
+                  {enviarFila.isPending ? <Loader2 size={13} className="girar" /> : <Upload size={13} />}
+                  {enviarFila.isPending ? "Indexando…" : `Enviar ${fila.length} documento(s)`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, margin: "20px 0 14px",
+            fontSize: 11, color: C.dim, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px",
+          }}>
+            <span style={{ flex: 1, height: 1, background: C.hair }} />
+            ou escreva
+            <span style={{ flex: 1, height: 1, background: C.hair }} />
+          </div>
+
           <label style={labelAv} htmlFor="brain-titulo">Título</label>
           <input id="brain-titulo" style={inputAv} value={titulo} maxLength={160}
             onChange={(e) => setTitulo(e.target.value)} placeholder="Política de cancelamento de matrícula" />
@@ -271,16 +410,30 @@ export function PainelBrain() {
         <Bloco
           titulo="Estado da memória"
           canto={
-            <button
-              onClick={() => revalidar.mutate()}
-              disabled={revalidar.isPending}
-              style={{
-                display: "flex", alignItems: "center", gap: 5, background: "none", border: "none",
-                cursor: "pointer", color: C.gold, fontFamily: SANS, fontSize: 11.5, fontWeight: 700, padding: 0,
-              }}
-            >
-              {revalidar.isPending ? <Loader2 size={12} className="girar" /> : null} Revalidar acessos
-            </button>
+            <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <button
+                onClick={() => sincronizar.mutate()}
+                disabled={sincronizar.isPending}
+                title="Publica os indicadores do Hub Executivo como páginas da memória"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, background: "none", border: "none",
+                  cursor: "pointer", color: C.gold, fontFamily: SANS, fontSize: 11.5, fontWeight: 700, padding: 0,
+                }}
+              >
+                {sincronizar.isPending ? <Loader2 size={12} className="girar" /> : <RefreshCw size={12} />}
+                Publicar indicadores
+              </button>
+              <button
+                onClick={() => revalidar.mutate()}
+                disabled={revalidar.isPending}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, background: "none", border: "none",
+                  cursor: "pointer", color: C.gold, fontFamily: SANS, fontSize: 11.5, fontWeight: 700, padding: 0,
+                }}
+              >
+                {revalidar.isPending ? <Loader2 size={12} className="girar" /> : null} Revalidar acessos
+              </button>
+            </span>
           }
         >
           <Estado carregando={estado.isLoading} erro={estado.error}>
