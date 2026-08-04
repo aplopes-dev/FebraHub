@@ -69,12 +69,28 @@ Nos perfis padrão (migration `00000000000016`): Diretoria tem as três, Gestor
 tem ver+enviar, Equipe e Somente leitura têm ver, Integrações e TI tem
 gerenciar. O Administrador recebe toda permissão nova automaticamente.
 
-### 5. Embeddings: OpenAI `text-embedding-3-small`
+### 5. Embeddings e síntese LOCAIS (Ollama), sem chave de provedor
 
-**Pendência para o Rafael:** hoje a `OPENAI_API_KEY` do FebraHub é a MESMA
-chave do projeto `crm-odonto` (era a única na VPS). Funciona, mas mistura
-custo e rotação de dois produtos. Vale criar uma chave exclusiva do FebraHub e
-trocar a linha no `.env` — nada mais muda.
+A primeira tentativa foi reaproveitar a única `OPENAI_API_KEY` da VPS — a do
+projeto `crm-odonto`. Ela está **revogada**: o gbrain respondeu
+`Incorrect API key provided` em toda tentativa de indexar. Como não havia
+chave válida do FebraHub para usar, a decisão foi ir para um provedor local.
+
+Roda um `ollama` na rede interna com dois modelos:
+
+| Papel | Modelo | Tamanho |
+|---|---|---|
+| Embeddings | `nomic-embed-text` (768d) | ~275 MB |
+| Síntese | `qwen2.5:3b-instruct` | ~2 GB |
+
+Isso resolve três coisas de uma vez: não depende de chave, não gera custo por
+token, e — o que mais importa numa memória INSTITUCIONAL — o conteúdo interno
+da empresa não sai da VPS.
+
+O preço é a velocidade: a síntese roda em CPU e uma resposta leva dezenas de
+segundos (a busca continua instantânea). Se o Rafael quiser trocar por um
+provedor pago, é mudar `GBRAIN_CHAT_MODEL` no compose — e só a troca do modelo
+de EMBEDDING exige reindexar, porque muda a dimensão do vetor.
 
 `GBRAIN_FTS_LANGUAGE=portuguese` no container: sem isso o Postgres tokeniza
 com o dicionário inglês e "matrículas" não casa com "matricula".
@@ -92,8 +108,11 @@ No `.env` da VPS:
 ```
 BRAIN_POSTGRES_PASSWORD=…   # banco do brain
 BRAIN_ADMIN_TOKEN=…         # bootstrap do /admin; a API provisiona com ele
-OPENAI_API_KEY=…            # provedor de embeddings
 ```
+
+Nenhuma chave de provedor: os modelos são locais. Os nomes deles têm padrão no
+compose e só precisam de linha no `.env` para mudar
+(`BRAIN_MODELO_EMBEDDING`, `BRAIN_MODELO_CHAT`, `BRAIN_DIMENSOES_EMBEDDING`).
 
 O deploy só sobe o brain quando `BRAIN_ADMIN_TOKEN` existe — instalação que
 ainda não usa o subsistema não falha por causa dele.
@@ -109,6 +128,9 @@ docker exec febrahub_brain gbrain sources status
 
 # reindexar depois de mexer nos repositórios à mão
 docker exec febrahub_brain gbrain sync --all
+
+# modelos locais baixados
+docker exec febrahub_ollama ollama list
 ```
 
 Os repositórios de cada fonte vivem em `/brain/<fonte>` dentro do container

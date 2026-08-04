@@ -60,8 +60,12 @@ $COMPOSE run --rm --no-deps -T api npx prisma migrate deploy
 
 if [ "$COM_BRAIN" = 1 ]; then
   echo "==> memória institucional (GBrain)"
-  $COMPOSE up -d brain_pg
+  $COMPOSE up -d brain_pg ollama
   esperar_saudavel febrahub_brain_pg
+  esperar_saudavel febrahub_ollama 40
+  # Baixa os modelos locais de embedding e síntese. Idempotente e demorado só
+  # na primeira vez (~2,5 GB); depois o volume já tem tudo.
+  $COMPOSE up ollama_init
   # O brain é iniciado ANTES da API porque ela consulta o /health dele ao
   # provisionar credencial. Não é bloqueante: a API sobe de qualquer forma e
   # a tela avisa quando o serviço está fora.

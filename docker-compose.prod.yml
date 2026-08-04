@@ -248,6 +248,60 @@ services:
       resources:
         limits: { memory: 1G }
 
+  # Embeddings e síntese LOCAIS.
+  #
+  # A alternativa era uma chave de provedor pago, e não havia nenhuma válida
+  # para o FebraHub na VPS (a única encontrada era de outro produto e estava
+  # revogada). Local resolve três coisas de uma vez: não depende de chave, não
+  # gera custo por token, e — o que mais importa numa memória INSTITUCIONAL —
+  # o conteúdo interno da empresa não sai daqui.
+  #
+  # Trocar por um provedor pago é mudar GBRAIN_EMBEDDING_MODEL/GBRAIN_CHAT_MODEL
+  # no serviço `brain`. Só a troca do modelo de EMBEDDING exige reindexar
+  # (dimensão diferente).
+  ollama:
+    image: ollama/ollama:0.6.2
+    container_name: febrahub_ollama
+    restart: unless-stopped
+    logging: *log
+    environment:
+      # O servidor fica só na rede do compose; nada publicado no host.
+      OLLAMA_HOST: 0.0.0.0:11434
+      # Descarrega o modelo da RAM depois de 5 min ocioso: a VPS é
+      # compartilhada com outros produtos e o brain é usado em rajadas.
+      OLLAMA_KEEP_ALIVE: 5m
+      TZ: America/Bahia
+    volumes:
+      - ollama_modelos:/root/.ollama
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'ollama list >/dev/null 2>&1 || exit 1']
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits: { memory: 6G }
+
+  # Baixa os modelos e sai. Mesmo padrão do minio_init: um passo de
+  # provisionamento que não vira serviço de pé.
+  ollama_init:
+    image: ollama/ollama:0.6.2
+    container_name: febrahub_ollama_init
+    depends_on:
+      ollama: { condition: service_healthy }
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: >
+      /bin/sh -c "
+      ollama pull ${BRAIN_MODELO_EMBEDDING:-nomic-embed-text} &&
+      ollama pull ${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct} &&
+      echo 'modelos do brain prontos'"
+    networks: [interna]
+    restart: 'no'
+    logging: *log
+
   brain:
     build:
       context: .
@@ -258,6 +312,7 @@ services:
     logging: *log
     depends_on:
       brain_pg: { condition: service_healthy }
+      ollama: { condition: service_healthy }
     environment:
       # GBRAIN_DATABASE_URL e não DATABASE_URL: o gbrain ignora um
       # DATABASE_URL que venha de .env do diretório atual (guarda dele contra
@@ -265,7 +320,12 @@ services:
       GBRAIN_DATABASE_URL: postgresql://${BRAIN_POSTGRES_USER:-gbrain}:${BRAIN_POSTGRES_PASSWORD}@brain_pg:5432/${BRAIN_POSTGRES_DB:-gbrain}
       GBRAIN_ADMIN_BOOTSTRAP_TOKEN: ${BRAIN_ADMIN_TOKEN}
       GBRAIN_FONTES: ${BRAIN_FONTES:-geral,comercial,financeiro,marketing,pedagogico,eventos,loja,estoque,crm}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Provedor local. `ollama:` é o prefixo que o gbrain resolve para o
+      # endpoint compatível com OpenAI do Ollama.
+      GBRAIN_EMBEDDING_MODEL: ollama:${BRAIN_MODELO_EMBEDDING:-nomic-embed-text}
+      GBRAIN_EMBEDDING_DIMENSIONS: '${BRAIN_DIMENSOES_EMBEDDING:-768}'
+      GBRAIN_CHAT_MODEL: ollama:${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct}
+      OLLAMA_BASE_URL: http://ollama:11434/v1
       TZ: America/Bahia
     volumes:
       # Os repositórios de cada fonte (o "system of record" do gbrain) e a
@@ -324,6 +384,8 @@ volumes:
     name: febrahub_brain_repos
   brain_config:
     name: febrahub_brain_config
+  ollama_modelos:
+    name: febrahub_ollama_modelos
 
 networks:
   interna:

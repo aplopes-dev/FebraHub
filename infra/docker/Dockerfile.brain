@@ -25,6 +25,9 @@ RUN bun install -g "github:garrytan/gbrain#${GBRAIN_REF}"
 # O binário global do bun cai aqui.
 ENV PATH="/root/.bun/bin:${PATH}"
 ENV TZ=America/Bahia
+# Provedor local por padrão (ver docker-compose.prod.yml): nenhuma chave de
+# provedor pago entra nesta imagem.
+ENV OLLAMA_BASE_URL=http://ollama:11434/v1
 # Busca textual em português: sem isto o Postgres tokeniza com o dicionário
 # inglês e "matrículas" não casa com "matricula".
 ENV GBRAIN_FTS_LANGUAGE=portuguese

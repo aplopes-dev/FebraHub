@@ -9,8 +9,8 @@ set -euo pipefail
 CONFIG_DIR="${GBRAIN_CONFIG_DIR:-/root/.gbrain}"
 REPO_DIR="${GBRAIN_REPO_DIR:-/brain}"
 PORTA="${GBRAIN_PORT:-3131}"
-MODELO_EMBEDDING="${GBRAIN_EMBEDDING_MODEL:-openai:text-embedding-3-small}"
-DIMENSOES_EMBEDDING="${GBRAIN_EMBEDDING_DIMENSIONS:-1536}"
+MODELO_EMBEDDING="${GBRAIN_EMBEDDING_MODEL:-ollama:nomic-embed-text}"
+DIMENSOES_EMBEDDING="${GBRAIN_EMBEDDING_DIMENSIONS:-768}"
 
 log() { echo "[brain] $*" >&2; }
 
@@ -36,7 +36,8 @@ cat > "$CONFIG_DIR/config.json" <<JSON
   "database_url": "${GBRAIN_DATABASE_URL}",
   "brain_dir": "${REPO_DIR}",
   "embedding_model": "${MODELO_EMBEDDING}",
-  "embedding_dimensions": ${DIMENSOES_EMBEDDING}
+  "embedding_dimensions": ${DIMENSOES_EMBEDDING},
+  "chat_model": "${GBRAIN_CHAT_MODEL:-ollama:qwen2.5:3b-instruct}"
 }
 JSON
 log "config escrito em $CONFIG_DIR/config.json (engine=postgres)"
