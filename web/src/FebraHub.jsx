@@ -1504,6 +1504,19 @@ const recebidoMaisRecente = (rows, ymAtual) => {
   return { valor: Number(ultima.recebido ?? 0), mes: ultima.mes, ym, fechado: ym < ymAtual };
 };
 
+/* Inadimplência ACUMULADA (estoque): total histórico de parcelas vencidas —
+   valor e contagem de vw_financeiro_inadimplencia. É outra grandeza que o
+   Recebido (fluxo do mês): não se somam nem se contradizem. `pct` = quanto da
+   carteira (recebido + vencido) está vencido. */
+const inadimplenciaResumo = (inadRows, recebRows) => {
+  const arr = inadRows ?? [];
+  const valor = arr.reduce((s, r) => s + Number(r.valor_vencido ?? 0), 0);
+  const parcelas = arr.reduce((s, r) => s + Number(r.vencidas ?? 0), 0);
+  const recebido = (recebRows ?? []).reduce((s, r) => s + Number(r.recebido ?? 0), 0);
+  const carteira = recebido + valor;
+  return { valor, parcelas, pct: carteira > 0 ? (valor / carteira) * 100 : null };
+};
+
 // Bloco 1: faturamento do mês — número grande + comparação com o MESMO período
 // do mês anterior (mesmos dias decorridos). Clica pro Comercial.
 function HeroFaturamento({ fat, ateDia, carregando, erro, onIr }) {
@@ -1629,14 +1642,14 @@ function HubExecutivo({ onIr }) {
   const pedK = usePedagogicoKpis();
   const pedP = usePedagogicoPresencaKpis();
 
-  const totVencido = useMemo(() => (inadimp.data ?? []).reduce((s, r) => s + Number(r.valor_vencido ?? 0), 0), [inadimp.data]);
+  const inad = useMemo(() => inadimplenciaResumo(inadimp.data, recMensal.data), [inadimp.data, recMensal.data]);
   const lojaRow = useMemo(() => (lojaMeta.data ?? []).find((r) => noMesYM(r.mes_ref, ym)), [lojaMeta.data, ym]);
   const lojaAbaixo = lojaRow && String(lojaRow.nivel_atingido ?? "").trim().toLowerCase() === "abaixo";
   const integParadas = useMemo(() => (integ.data ?? []).filter((r) => { const v = visualFonte(r); return v.alerta && !v.manual; }), [integ.data]);
 
   // Bloco 2 — radar (só críticos).
   const alertas = [
-    ...(totVencido > 0 ? [{ cor: C.warn, Icone: AlertTriangle, titulo: "Inadimplência", valor: moeda(totVencido), sub: "vencido em aberto" }] : []),
+    ...(inad.valor > 0 ? [{ cor: C.warn, Icone: AlertTriangle, titulo: "Inadimplência acumulada", valor: moeda(inad.valor), sub: `${numero(inad.parcelas)} parcelas vencidas` }] : []),
     ...(lojaAbaixo ? [{ cor: C.down, Icone: ShoppingBag, titulo: "Loja abaixo da meta", valor: fmtPct(lojaRow.pct_minima), sub: "da meta mínima" }] : []),
     ...integParadas.map((r) => ({ cor: visualFonte(r).cor, Icone: Database, titulo: `Integração: ${r.nome_exibicao ?? r.fonte}`, valor: "", sub: r.rotulo ?? "sync atrasado" })),
   ];
@@ -1679,9 +1692,10 @@ function HubExecutivo({ onIr }) {
         <CardSetor Icone={Wallet} titulo="Financeiro" onIr={() => onIr("financeiro")}
           estado={{ carregando: recMensal.isLoading, erro: recMensal.error }}
           linhas={[
-            { label: recebido ? `recebido · ${dataCurta(recebido.mes)}${recebido.fechado ? " · último fechado" : ""}` : "recebido", valor: recebido ? moeda(recebido.valor) : "—", cor: C.up },
-            { label: "inadimplência", valor: moeda(totVencido), cor: totVencido > 0 ? C.warn : C.text },
-          ]} />
+            { label: recebido ? `recebido em ${dataCurta(recebido.mes)}${recebido.fechado ? " · último fechado" : ""}` : "recebido no mês", valor: recebido ? moeda(recebido.valor) : "—", cor: C.up },
+            { label: "inadimplência acumulada", valor: moeda(inad.valor), cor: inad.valor > 0 ? C.warn : C.text },
+          ]}
+          nota={inad.parcelas ? `${numero(inad.parcelas)} parcelas vencidas${inad.pct != null ? ` · ${inad.pct.toFixed(1).replace(".", ",")}% da carteira` : ""}` : null} />
         <CardSetor Icone={ShoppingBag} titulo="Loja" onIr={() => onIr("loja")}
           estado={{ carregando: lojaMeta.isLoading, erro: lojaMeta.error }}
           linhas={lojaRow
@@ -2132,6 +2146,7 @@ function HubFinanceiro() {
   const caixaMensal = useFinanceiroCaixaMensal();
   const recebidoMensal = useFinanceiroRecebidoMensal();
   const inadOrig = useFinanceiroInadimpOrigem();
+  const inadimp = useFinanceiroInadimp();
   const aReceberHor = useFinanceiroAReceberHorizonte();
   const despCat = useFinanceiroDespesaCategoriaPeriodo();
   const aPagarHor = useFinanceiroAPagarHorizonte();
@@ -2241,6 +2256,7 @@ function HubFinanceiro() {
   const caixaSemFonte = !!caixaMensal.error || !caixaSerie.length;
   // Recebido: sempre o mês mais recente com lançamento (independe do filtro).
   const recebido = recebidoMaisRecente(recebidoMensal.data, ymCorrente());
+  const inad = inadimplenciaResumo(inadimp.data, recebidoMensal.data);
 
   return (
     <>
@@ -2251,9 +2267,9 @@ function HubFinanceiro() {
         <ChipKpi Icone={AlertTriangle} label="Em aberto" valor={pagTot.pctEmAberto != null ? pagTot.pctEmAberto.toFixed(1) : "—"} unidade="%" nota="posição atual" />
         <ChipKpi Icone={Receipt} label="Ticket médio" valor={ticket != null ? moeda(ticket) : "—"} nota={rotulo} />
         <ChipKpi Icone={Hourglass} label="A receber" valor={moeda(aReceber)} nota="CisPay · posição atual" />
-        <ChipKpi Icone={Receipt} label={recebido ? `Recebido · ${dataCurta(recebido.mes)}` : "Recebido"}
+        <ChipKpi Icone={Receipt} label={recebido ? `Recebido em ${dataCurta(recebido.mes)}` : "Recebido"}
           valor={recebido ? moeda(recebido.valor) : "—"}
-          nota={recebido ? (recebido.fechado ? "último fechado" : "mês corrente") : "sem lançamento"} />
+          nota={recebido ? (recebido.fechado ? "último fechado · fluxo do mês" : "mês corrente · fluxo") : "sem lançamento"} />
       </div>
 
       {/* Linha 1: categoria (larga) · status donut · caixa destaque */}
@@ -2315,7 +2331,8 @@ function HubFinanceiro() {
       </div>
 
       {/* ============ INADIMPLÊNCIA ============ */}
-      <SecaoTitulo titulo="Inadimplência" canto="posição atual · não muda com o período · nunca somado à receita" />
+      <SecaoTitulo titulo="Inadimplência acumulada"
+        canto={`${inad.parcelas ? `${numero(inad.parcelas)} parcelas · ${moeda(inad.valor)}${inad.pct != null ? ` · ${inad.pct.toFixed(1).replace(".", ",")}% da carteira` : ""} · ` : ""}posição atual · não muda com o período · nunca somado à receita`} />
       <div className="finRow2">
         <Bloco titulo="Vencidos por origem" canto={vencidoTot ? moeda(vencidoTot) + " vencido" : null} sem altura={ALTURA_PAINEL}>
           <Estado carregando={inadOrig.isLoading} erro={inadOrig.error} vazio={!vencidos.length}>
