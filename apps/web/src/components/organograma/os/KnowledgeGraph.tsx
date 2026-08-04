@@ -179,7 +179,7 @@ const memNodeR = (n: { type: string; wordCount: number; links: number }) =>
 const CAM_EASE = 0.13;
 // returning to the main view is a SNAP, not a cruise — nodes teleport home,
 // so the camera matches with a much brisker pull-out (~4 frames to settle)
-const CAM_EASE_HOME = 0.3;
+const CAM_EASE_HOME = 0.45;
 
 // Labels keep ONE on-screen size at every camera depth: the camera loop
 // publishes its zoom as --kg-cam-k (viewBox width / canvas width) and every
@@ -1346,13 +1346,16 @@ export function KnowledgeGraph({
       n.fx = null;
       n.fy = null;
     }
-    settleBoostRef.current = 0.32;
+    // FebraHub: puxão de volta mais forte e mais curto que o da origem
+    // (0.32 por 1.1s) — o retorno ao círculo era a transição mais lenta que
+    // restava depois de acelerar o resto da física.
+    settleBoostRef.current = 0.7;
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
     settleTimerRef.current = setTimeout(() => {
       settleBoostRef.current = 0;
       settleTimerRef.current = null;
-    }, 1100);
-    simRef.current?.alpha(0.35).restart();
+    }, 620);
+    simRef.current?.alpha(0.6).restart();
   };
   const navDept = (teamId: string) => {
     setFocusId(teamId);
