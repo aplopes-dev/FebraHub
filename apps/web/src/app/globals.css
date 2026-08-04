@@ -935,6 +935,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 @media (min-width: 900px) {
   .fh-linha-usuario { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 3fr) auto; gap: 14px; }
 }
+/* ---- Redes sociais: caixa de entrada ---- */
+/* Duas colunas (lista | conversa) só quando há largura. Abaixo disso a
+   conversa desce para baixo da lista, em vez de espremer as duas. */
+.fh-social-inbox { grid-template-columns: minmax(0, 1fr) !important; }
+@media (min-width: 900px) {
+  .fh-social-inbox { grid-template-columns: minmax(240px, 340px) minmax(0, 1fr) !important; }
+}
+
 /* Item do sino: o hover só existe onde há mouse — no toque ele "gruda". */
 @media (hover: hover) {
   .fh-notificacao:hover { background: rgb(var(--sup-rgb) / 0.06) !important; }

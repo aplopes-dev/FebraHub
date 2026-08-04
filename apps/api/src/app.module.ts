@@ -19,6 +19,7 @@ import { OrganogramaModule } from './modules/organograma/organograma.module';
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PermissoesModule } from './modules/permissoes/permissoes.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
+import { SocialModule } from './modules/social/social.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TerritorialModule } from './modules/territorial/territorial.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
@@ -80,6 +81,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     PermissoesModule,
     NotificacoesModule,
     BrainModule,
+    SocialModule,
     CrmModule,
     WhatsappModule,
     AgentesModule,

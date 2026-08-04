@@ -270,7 +270,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                     mesma tela. As de Administração são cadastro: não têm
                     recorte de tempo nenhum. */}
                 {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban",
-                   "organograma", "perfis", "usuarios", "comunicados", "brain"].includes(ativoId ?? "") && <SeletorPeriodo />}
+                   "organograma", "perfis", "usuarios", "comunicados", "brain", "social"].includes(ativoId ?? "") && <SeletorPeriodo />}
                 {ativoId === "comercial" && <SeletorCategoria />}
                 {/* O robô abre a caixa de pergunta à memória institucional —
                     a dúvida costuma surgir NO MEIO de outra tela, e mandar a

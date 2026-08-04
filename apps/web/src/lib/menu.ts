@@ -1,5 +1,5 @@
 import {
-  Bell, BookOpen, Bot, LayoutDashboard, MapPinned, MessageCircle, Network, ShieldCheck, Users,
+  Bell, BookOpen, Bot, LayoutDashboard, MapPinned, MessageCircle, Network, Share2, ShieldCheck, Users,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -63,6 +63,12 @@ export const GRUPOS_MENU: readonly GrupoMenu[] = [
       // funções, funcionários e agentes de IA — editável na própria tela.
       { id: "organograma", label: "Organograma", href: "/organograma", Icone: Network,
         desc: "Setores, funções, funcionários e agentes de IA", visivel: comPermissao("organograma.ver") },
+      // Zernio: publicação, mensagens diretas e campanhas pagas. Fica em
+      // Painéis (e não em Integrações) porque o dia a dia da tela é
+      // acompanhar e publicar — configurar é uma aba dentro dela.
+      { id: "social", label: "Redes sociais", href: "/social", Icone: Share2,
+        desc: "Publicação, mensagens e campanhas das redes oficiais",
+        visivel: comPermissao("social.ver") },
     ],
   },
   {

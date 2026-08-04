@@ -10,7 +10,7 @@
  *  3. o fallback de quem não tem perfil, que é o caminho de qualquer conta
  *     criada fora da tela.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { temPermissao } from '../../common/guards/permissao.guard';
@@ -32,10 +32,19 @@ function permissoesDaMigration14(slug: string): string[] {
   return [...bloco.slice(0, fim).matchAll(/'([a-z]+\.[a-z.]+)'/g)].map((m) => m[1]);
 }
 
-/** Os pares (slug, permissão) que a migration aditiva acrescenta. */
-function adicoesDaMigration16(slug: string): string[] {
-  const sql = migration('00000000000016_brain_permissoes');
-  return [...sql.matchAll(/\('([a-z-]+)',\s*'([a-z]+\.[a-z.]+)'\)/g)]
+/**
+ * Os pares (slug, permissão) que as migrations ADITIVAS acrescentam.
+ *
+ * Varre a pasta em vez de citar cada migration pelo nome: subsistema novo
+ * entra com uma `*_permissoes` própria (16 = brain, 20 = social), e o teste
+ * passa a cobri-la sem ninguém precisar lembrar de vir aqui — que é
+ * exatamente o esquecimento que esta guarda existe para pegar.
+ */
+function adicoesAditivas(slug: string): string[] {
+  const raiz = join(__dirname, '../../../prisma/migrations');
+  return readdirSync(raiz)
+    .filter((pasta) => pasta.endsWith('_permissoes'))
+    .flatMap((pasta) => [...migration(pasta).matchAll(/\('([a-z-]+)',\s*'([a-z]+\.[a-z.]+)'\)/g)])
     .filter((m) => m[1] === slug)
     .map((m) => m[2]);
 }
@@ -84,12 +93,12 @@ describe('perfis padrão', () => {
   // As migrations são o que chega ao servidor: a imagem da API não tem
   // ts-node para rodar o seed. Divergir delas é divergir da produção.
   //
-  // São DUAS porque a 14 já rodou em produção e perfil existente não é
+  // São VÁRIAS porque a 14 já rodou em produção e perfil existente não é
   // reescrito — permissão nova de um subsistema novo entra por migration
-  // aditiva. O estado esperado é a união das duas.
+  // aditiva. O estado esperado é a união do INSERT inicial com todas elas.
   it('bate com o que as migrations semeiam', () => {
     for (const perfil of PERFIS_PADRAO) {
-      const esperado = new Set([...permissoesDaMigration14(perfil.slug), ...adicoesDaMigration16(perfil.slug)]);
+      const esperado = new Set([...permissoesDaMigration14(perfil.slug), ...adicoesAditivas(perfil.slug)]);
       // O admin não é semeado por migration aditiva: onModuleInit sincroniza
       // ele com o catálogo inteiro a cada boot.
       if (perfil.sistema) continue;

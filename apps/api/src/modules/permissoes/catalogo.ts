@@ -134,6 +134,32 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     ],
   },
   {
+    id: 'social',
+    nome: 'Redes sociais',
+    descricao:
+      'O painel do Zernio: contas conectadas, publicação, mensagens diretas e as campanhas pagas. Aqui o recorte NÃO é por setor — a conta do Zernio é uma só, da Febracis Salvador.',
+    permissoes: [
+      {
+        id: 'social.ver',
+        nome: 'Acompanhar as redes',
+        descricao:
+          'Abrir o painel: contas, alcance, postagens publicadas, análise e o desempenho das campanhas.',
+      },
+      {
+        id: 'social.publicar',
+        nome: 'Publicar e responder',
+        descricao:
+          'Criar e agendar postagens, apagar o que ainda não saiu e responder às mensagens diretas.',
+      },
+      {
+        id: 'social.gerenciar',
+        nome: 'Configurar a integração',
+        descricao:
+          'Gravar a chave do Zernio, escolher o perfil padrão e ligar ou desligar campanhas.',
+      },
+    ],
+  },
+  {
     id: 'administracao',
     nome: 'Administração',
     descricao: 'Quem entra, com qual perfil, e o que é comunicado a todos.',

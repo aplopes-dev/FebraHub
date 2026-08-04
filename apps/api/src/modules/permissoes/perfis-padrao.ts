@@ -60,6 +60,9 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'brain.ver',
       'brain.enviar',
       'brain.gerenciar',
+      'social.ver',
+      'social.publicar',
+      'social.gerenciar',
       'notificacoes.enviar',
     ],
   },
@@ -69,7 +72,14 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     descricao:
       'Hub Executivo com metas e organograma. Os dados continuam recortados pelo setor do cadastro.',
     sistema: false,
-    permissoes: ['executivo.ver', 'executivo.metas', 'organograma.ver', 'brain.ver', 'brain.enviar'],
+    permissoes: [
+      'executivo.ver',
+      'executivo.metas',
+      'organograma.ver',
+      'brain.ver',
+      'brain.enviar',
+      'social.ver',
+    ],
   },
   {
     slug: 'equipe',
@@ -90,6 +100,8 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'agentes.gerenciar',
       'setor.crm.ver',
       'brain.gerenciar',
+      'social.ver',
+      'social.gerenciar',
       'usuarios.gerenciar',
     ],
   },
@@ -98,7 +110,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     nome: 'Somente leitura',
     descricao: 'Abre os painéis da diretoria sem poder alterar nada.',
     sistema: false,
-    permissoes: ['executivo.ver', 'territorial.ver', 'organograma.ver', 'brain.ver'],
+    permissoes: ['executivo.ver', 'territorial.ver', 'organograma.ver', 'brain.ver', 'social.ver'],
   },
 ];
 
