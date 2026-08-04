@@ -6,6 +6,7 @@ import { podeVer } from '../../common/guards/setor.guard';
 import { cifrar, decifrar } from '../agentes/agentes.service';
 import { permissoesEfetivas } from '../permissoes/efetivas';
 import { GbrainCliente } from './gbrain.cliente';
+import { SinteseService } from './sintese.service';
 
 /**
  * A fonte que todo mundo lê. Existe para o que não é de setor nenhum —
@@ -57,6 +58,7 @@ export class BrainService {
     private readonly prisma: PrismaService,
     private readonly gbrain: GbrainCliente,
     private readonly config: ConfigService,
+    private readonly sintese: SinteseService,
   ) {}
 
   /**
@@ -114,14 +116,37 @@ export class BrainService {
   /**
    * Resposta sintetizada com citações.
    *
-   * A operação é `think`, não `query`: no gbrain, `query` é a variante
-   * completa da BUSCA (devolve páginas), e quem sintetiza com LLM é o
-   * `think`. Confundir os dois devolve uma lista onde se esperava um texto.
+   * Dois motores, e o rápido é o padrão:
    *
-   * É a chamada cara — e a que exige o recorte por credencial e não por
-   * filtro depois: aqui o modelo lê as páginas antes de escrever a resposta.
+   *   com chave de provedor -> a busca do gbrain traz os trechos (já
+   *     recortados pela credencial da pessoa) e QUEM ESCREVE é a nossa API,
+   *     com o prompt em português (ver SinteseService). Leva segundos.
+   *
+   *   sem chave -> cai no `think` do gbrain sobre o modelo local da VPS.
+   *     Funciona e não custa nada, mas leva de 100 a 145 segundos em CPU e a
+   *     qualidade de um modelo de 3B aparece na resposta.
+   *
+   * Nos dois caminhos o modelo só enxerga o que a pessoa poderia ler: as
+   * páginas vêm da credencial dela, nunca de uma consulta ampla filtrada
+   * depois.
    */
   async perguntar(usuario: UsuarioLogado, pergunta: string) {
+    if (await this.sintese.temProvedor()) {
+      const trechos = await this.buscar(usuario, pergunta, 10);
+      if (!trechos.length) {
+        return {
+          resposta:
+            'Não encontrei nada na memória institucional sobre isso — dentro das fontes que você alcança.',
+          citacoes: [],
+          lacunas: [],
+        };
+      }
+      const r = await this.sintese.responder(pergunta, trechos);
+      return { resposta: r.resposta, citacoes: r.citacoes, lacunas: [] };
+    }
+
+    // Sem provedor: o `think` do gbrain. `query` NÃO serve — ela é a variante
+    // completa da busca e devolve páginas, não texto.
     const credencial = await this.credencialDe(usuario);
     const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'think', {
       question: pergunta,
@@ -135,9 +160,8 @@ export class BrainService {
       : [];
     return {
       resposta: String(dados?.answer ?? '').trim(),
-      // Duas citações do mesmo documento viram um chip só na tela.
       citacoes: citacoes.filter((c, i, todas) => c.slug && todas.findIndex((o) => o.slug === c.slug) === i),
-      lacunas: Array.isArray(dados?.gaps) ? (dados!.gaps as unknown[]).map(String) : [],
+      lacunas: Array.isArray(dados?.gaps) ? (dados!.gaps as unknown[]).map(String).filter(Boolean) : [],
     };
   }
 

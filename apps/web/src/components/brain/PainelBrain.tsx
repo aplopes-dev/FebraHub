@@ -10,8 +10,8 @@
    pergunta caiu num setor que ela não alcança. */
 
 import { useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { BookOpen, Database, FileText, Loader2, PenLine, RefreshCw, Search, Sparkles, Upload, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookOpen, Cpu, Database, FileText, Key, Loader2, PenLine, RefreshCw, Search, Sparkles, Upload, X, Zap } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { inputAv, labelAv } from "@/components/ui/estilos";
@@ -24,10 +24,13 @@ import {
   perguntarAoBrain,
   registrarNoBrain,
   revalidarAcessosBrain,
+  salvarConfigBrain,
   sincronizarDadosBrain,
+  configBrain,
 } from "@/services/api/brain";
 import { ACEITA, extrairTexto, type DocumentoExtraido } from "@/lib/brain/extrair-texto";
 import { C, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
+import { MODELOS_SINTESE } from "@/types/brain";
 import type { RespostaBrain, ResultadoBrain } from "@/types/brain";
 
 const NOME_FONTE: Record<string, string> = {
@@ -45,6 +48,7 @@ const NOME_FONTE: Record<string, string> = {
 const rotulo = (f: string) => NOME_FONTE[f] ?? f;
 
 export function PainelBrain() {
+  const qc = useQueryClient();
   const perfil = usePerfil(useSessao()).data ?? null;
   const podeEscrever = pode(perfil, "brain.enviar");
   const podeAdministrar = pode(perfil, "brain.gerenciar");
@@ -64,6 +68,8 @@ export function PainelBrain() {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
+  const [chave, setChave] = useState("");
+  const [modelo, setModelo] = useState(MODELOS_SINTESE[0].id);
   // Fila de documentos já lidos e ainda não enviados. O texto sai do arquivo
   // NO NAVEGADOR (ver lib/brain/extrair-texto) — a API recebe texto, nunca o
   // binário.
@@ -152,6 +158,28 @@ export function PainelBrain() {
     setLendo(false);
     if (entrada.current) entrada.current.value = "";
   };
+
+  const config = useQuery({
+    queryKey: ["brain-config"],
+    queryFn: configBrain,
+    enabled: podeAdministrar,
+    staleTime: 60_000,
+  });
+
+  const salvarConfig = useMutation({
+    mutationFn: (dados: { chaveOpenai?: string | null; modelo?: string }) => salvarConfigBrain(dados),
+    onSuccess: (r) => {
+      setChave("");
+      void qc.invalidateQueries({ queryKey: ["brain-config"] });
+      setAviso({
+        erro: false,
+        texto: r.temChave
+          ? `Respostas pela OpenAI (${r.modelo}) — devem sair em segundos.`
+          : "Chave removida. As respostas voltam ao modelo local da VPS (grátis, porém lento).",
+      });
+    },
+    onError: falhou,
+  });
 
   const revalidar = useMutation({
     mutationFn: revalidarAcessosBrain,
@@ -402,6 +430,90 @@ export function PainelBrain() {
             >
               {registrar.isPending ? <Loader2 size={13} className="girar" /> : <PenLine size={13} />} Registrar
             </button>
+          </div>
+        </Bloco>
+      )}
+
+      {podeAdministrar && (
+        <Bloco
+          titulo="Motor de resposta"
+          canto={
+            config.data && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800,
+                padding: "3px 9px", borderRadius: 20,
+                background: config.data.provedor === "openai" ? alfa("up", 0.13) : alfa("warn", 0.13),
+                color: config.data.provedor === "openai" ? C.up : C.warn,
+              }}>
+                {config.data.provedor === "openai" ? <Zap size={11} /> : <Cpu size={11} />}
+                {config.data.provedor === "openai" ? "OpenAI" : "Modelo local"}
+              </span>
+            )
+          }
+        >
+          <p style={{ fontSize: 12.5, color: C.faint, lineHeight: 1.6, marginBottom: 16 }}>
+            Quem <strong style={{ color: C.muted }}>encontra</strong> as páginas é a busca da própria VPS —
+            isso não muda e não custa nada. Quem <strong style={{ color: C.muted }}>escreve a resposta</strong> é
+            um modelo de linguagem: sem chave, roda o modelo local da VPS, que leva de 1 a 3 minutos por
+            pergunta; com a chave da OpenAI, a resposta sai em segundos e custa frações de centavo por
+            pergunta. Os documentos continuam sendo indexados localmente — a chave é usada só na hora de
+            redigir a resposta.
+          </p>
+
+          <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
+            <div>
+              <label style={labelAv} htmlFor="brain-chave">
+                Chave da OpenAI {config.data?.temChave && "(uma já está gravada)"}
+              </label>
+              <input
+                id="brain-chave"
+                type="password"
+                autoComplete="off"
+                style={inputAv}
+                value={chave}
+                maxLength={200}
+                onChange={(e) => setChave(e.target.value)}
+                placeholder={config.data?.temChave ? "•••••••••• — digite para substituir" : "sk-..."}
+              />
+              <div style={{ fontSize: 11, color: C.dim, marginTop: 5, lineHeight: 1.45 }}>
+                Guardada cifrada no banco do FebraHub. Não volta para esta tela nem aparece em log.
+              </div>
+            </div>
+            <div>
+              <label style={labelAv} htmlFor="brain-modelo">Modelo</label>
+              <select
+                id="brain-modelo"
+                style={inputAv}
+                value={config.data?.modelo ?? modelo}
+                onChange={(e) => {
+                  setModelo(e.target.value);
+                  salvarConfig.mutate({ modelo: e.target.value });
+                }}
+              >
+                {MODELOS_SINTESE.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nome} — {m.nota}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+            <button
+              onClick={() => salvarConfig.mutate({ chaveOpenai: chave.trim(), modelo })}
+              disabled={salvarConfig.isPending || chave.trim().length < 20}
+              style={chave.trim().length >= 20 ? botaoOuro : botaoNeutro}
+            >
+              {salvarConfig.isPending ? <Loader2 size={13} className="girar" /> : <Key size={13} />} Salvar chave
+            </button>
+            {config.data?.temChave && (
+              <button
+                onClick={() => salvarConfig.mutate({ chaveOpenai: null })}
+                disabled={salvarConfig.isPending}
+                style={botaoNeutro}
+              >
+                Remover chave
+              </button>
+            )}
           </div>
         </Bloco>
       )}

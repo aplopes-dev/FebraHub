@@ -6,14 +6,15 @@
  * cada pessoa é a credencial OAuth provisionada para ela — as permissões
  * abaixo decidem só o que ela pode FAZER.
  */
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { BrainDadosService } from './brain-dados.service';
 import { BrainService } from './brain.service';
+import { SinteseService } from './sintese.service';
 
 const aparar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -39,6 +40,26 @@ class PerguntaDto {
   @MinLength(5)
   @MaxLength(600)
   pergunta!: string;
+}
+
+/** Modelos aceitos. Lista curta de propósito: cada um foi escolhido por
+ *  custo-benefício, e campo livre convidaria a digitar id inexistente. */
+export const MODELOS_SINTESE = ['gpt-4o-mini', 'gpt-5.2'] as const;
+
+class ConfiguracaoDto {
+  /**
+   * A chave em si. `null` remove e devolve a síntese ao modelo local.
+   * Ausente = não mexe (a tela salva só o modelo sem reenviar a chave).
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === null ? null : typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(200)
+  chaveOpenai?: string | null;
+
+  @IsOptional()
+  @IsIn(MODELOS_SINTESE)
+  modelo?: (typeof MODELOS_SINTESE)[number];
 }
 
 class PaginaDto {
@@ -74,6 +95,7 @@ export class BrainController {
   constructor(
     private readonly brain: BrainService,
     private readonly dados: BrainDadosService,
+    private readonly sintese: SinteseService,
   ) {}
 
   @Get('fontes')
@@ -122,6 +144,23 @@ export class BrainController {
   })
   sincronizarDados(@Usuario() u: UsuarioLogado) {
     return this.dados.sincronizar(u);
+  }
+
+  @Get('configuracao')
+  @ExigePermissao('brain.gerenciar')
+  @ApiOperation({
+    summary: 'Motor de resposta: provedor, modelo e se há chave',
+    description: 'A chave NUNCA sai daqui — a resposta diz apenas se existe uma.',
+  })
+  configuracao() {
+    return this.sintese.configuracao();
+  }
+
+  @Put('configuracao')
+  @ExigePermissao('brain.gerenciar')
+  @ApiOperation({ summary: 'Grava a chave da OpenAI (cifrada) e o modelo de síntese' })
+  salvarConfiguracao(@Usuario() u: UsuarioLogado, @Body() dto: ConfiguracaoDto) {
+    return this.sintese.salvar(dto, u.id);
   }
 
   @Get('estado')

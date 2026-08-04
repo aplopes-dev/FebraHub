@@ -1,7 +1,7 @@
 /* Memória institucional — /api/brain. */
 
 import { api } from "./client";
-import type { EstadoBrain, FontesBrain, ResultadoBrain, RespostaBrain } from "@/types/brain";
+import type { ConfigBrain, EstadoBrain, FontesBrain, ResultadoBrain, RespostaBrain } from "@/types/brain";
 
 export const fontesBrain = (): Promise<FontesBrain> => api.get("/brain/fontes");
 
@@ -34,3 +34,12 @@ export const sincronizarDadosBrain = (): Promise<{
   competencia?: string;
   motivo?: string;
 }> => api.post("/brain/sincronizar-dados", undefined, { timeout: 300_000 });
+
+export const configBrain = (): Promise<ConfigBrain> => api.get("/brain/configuracao");
+
+/** `chaveOpenai: null` remove a chave e devolve a síntese ao modelo local.
+ *  Omitir o campo mantém a que está gravada. */
+export const salvarConfigBrain = (dados: {
+  chaveOpenai?: string | null;
+  modelo?: string;
+}): Promise<ConfigBrain> => api.put("/brain/configuracao", dados);
