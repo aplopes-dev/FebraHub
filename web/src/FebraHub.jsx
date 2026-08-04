@@ -1491,6 +1491,18 @@ function Estado({ carregando, erro, vazio, children, vazioTitulo, vazioDica }) {
    card é do seu setor e clica pro hub detalhado. Grafite + dourado. */
 const isoDia = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 const noMesYM = (v, ym) => String(v ?? "").slice(0, 7) === ym;
+const ymCorrente = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+/* Recebido do mês: SEMPRE o mês mais recente COM lançamento na view (max mes),
+   nunca R$ 0 pro mês corrente ainda vazio. `fechado` = o mais recente é
+   anterior ao mês atual (rótulo "último fechado"). Quando agosto começar a
+   receber, o card passa a mostrar agosto sozinho — sem mexer no código. */
+const recebidoMaisRecente = (rows, ymAtual) => {
+  const arr = rows ?? [];
+  if (!arr.length) return null;
+  const ultima = arr.reduce((a, b) => (String(a.mes) > String(b.mes) ? a : b));
+  const ym = String(ultima.mes).slice(0, 7);
+  return { valor: Number(ultima.recebido ?? 0), mes: ultima.mes, ym, fechado: ym < ymAtual };
+};
 
 // Bloco 1: faturamento do mês — número grande + comparação com o MESMO período
 // do mês anterior (mesmos dias decorridos). Clica pro Comercial.
@@ -1634,7 +1646,7 @@ function HubExecutivo({ onIr }) {
     const rows = (comMensal.data ?? []).filter((r) => noMesYM(r.data ?? r.mes, ym));
     return { fat: rows.reduce((s, r) => s + Number(r.valor_bruto ?? 0), 0), mat: rows.reduce((s, r) => s + Number(r.conta_matricula ?? 0), 0) };
   }, [comMensal.data, ym]);
-  const recebidoMes = useMemo(() => (recMensal.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.recebido ?? 0), 0), [recMensal.data, ym]);
+  const recebido = useMemo(() => recebidoMaisRecente(recMensal.data, ym), [recMensal.data, ym]);
   const investMes = useMemo(() => (mktInv.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.gasto ?? 0), 0), [mktInv.data, ym]);
   const retornoMes = useMemo(() => (mktAtr.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.faturamento_atribuido ?? 0), 0), [mktAtr.data, ym]);
   const recompra = pedK.data?.[0]?.taxa_recompra;
@@ -1666,7 +1678,10 @@ function HubExecutivo({ onIr }) {
           linhas={[{ label: "faturamento bruto", valor: moeda(com.fat), cor: C.gold }, { label: "matrículas", valor: numero(com.mat) }]} />
         <CardSetor Icone={Wallet} titulo="Financeiro" onIr={() => onIr("financeiro")}
           estado={{ carregando: recMensal.isLoading, erro: recMensal.error }}
-          linhas={[{ label: "recebido no mês", valor: moeda(recebidoMes), cor: C.up }, { label: "inadimplência", valor: moeda(totVencido), cor: totVencido > 0 ? C.warn : C.text }]} />
+          linhas={[
+            { label: recebido ? `recebido · ${dataCurta(recebido.mes)}${recebido.fechado ? " · último fechado" : ""}` : "recebido", valor: recebido ? moeda(recebido.valor) : "—", cor: C.up },
+            { label: "inadimplência", valor: moeda(totVencido), cor: totVencido > 0 ? C.warn : C.text },
+          ]} />
         <CardSetor Icone={ShoppingBag} titulo="Loja" onIr={() => onIr("loja")}
           estado={{ carregando: lojaMeta.isLoading, erro: lojaMeta.error }}
           linhas={lojaRow
@@ -2115,6 +2130,7 @@ function HubFinanceiro() {
   const fpag = useFinanceiroFormasPagamento();
   const recMensal = useFinanceiroReceitaMensal();
   const caixaMensal = useFinanceiroCaixaMensal();
+  const recebidoMensal = useFinanceiroRecebidoMensal();
   const inadOrig = useFinanceiroInadimpOrigem();
   const aReceberHor = useFinanceiroAReceberHorizonte();
   const despCat = useFinanceiroDespesaCategoriaPeriodo();
@@ -2223,6 +2239,8 @@ function HubFinanceiro() {
   const leaderPct = formasTot ? Math.round((formas[0].valor / formasTot) * 100) : 0;
   const evolSemFonte = !!recMensal.error || evolucao.length < 2;
   const caixaSemFonte = !!caixaMensal.error || !caixaSerie.length;
+  // Recebido: sempre o mês mais recente com lançamento (independe do filtro).
+  const recebido = recebidoMaisRecente(recebidoMensal.data, ymCorrente());
 
   return (
     <>
@@ -2233,6 +2251,9 @@ function HubFinanceiro() {
         <ChipKpi Icone={AlertTriangle} label="Em aberto" valor={pagTot.pctEmAberto != null ? pagTot.pctEmAberto.toFixed(1) : "—"} unidade="%" nota="posição atual" />
         <ChipKpi Icone={Receipt} label="Ticket médio" valor={ticket != null ? moeda(ticket) : "—"} nota={rotulo} />
         <ChipKpi Icone={Hourglass} label="A receber" valor={moeda(aReceber)} nota="CisPay · posição atual" />
+        <ChipKpi Icone={Receipt} label={recebido ? `Recebido · ${dataCurta(recebido.mes)}` : "Recebido"}
+          valor={recebido ? moeda(recebido.valor) : "—"}
+          nota={recebido ? (recebido.fechado ? "último fechado" : "mês corrente") : "sem lançamento"} />
       </div>
 
       {/* Linha 1: categoria (larga) · status donut · caixa destaque */}
