@@ -1,16 +1,16 @@
 "use client";
 
 import { Suspense } from "react";
-import { GuardaExecutivo } from "@/components/executivo/GuardaExecutivo";
+import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { TelaMetas } from "@/components/executivo/TelaMetas";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 
 export default function PaginaMetas() {
   return (
-    <GuardaExecutivo>
+    <GuardaPermissao permissoes={["executivo.metas"]}>
       <Suspense fallback={<TelaCarregando />}>
         <TelaMetas />
       </Suspense>
-    </GuardaExecutivo>
+    </GuardaPermissao>
   );
 }

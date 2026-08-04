@@ -10,7 +10,7 @@ import { HubMarketing } from "@/components/hubs/HubMarketing";
 import { HubPedagogico } from "@/components/hubs/HubPedagogico";
 import { SemFonte } from "@/components/hubs/SemFonte";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
+import { ehAdmin, pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { ROTAS_HUB, acharHub, hubInicial } from "@/lib/hubs";
 
 /* Um hub por rota. O `tela` do protótipo virou o parâmetro da URL, e o
@@ -43,14 +43,14 @@ export default function PaginaHub({ params }: { params: Promise<{ hub: string }>
      encarar uma tela de erros. */
   const permitido = !dados
     ? true
-    : ehAdmin(dados) || setoresDo(dados).includes(hub);
+    : ehAdmin(dados) || setoresVisiveis(dados).includes(hub);
   const conhecido = ROTAS_HUB.includes(hub);
   const liberado = conhecido && permitido;
 
   useEffect(() => {
     if (!dados) return;
     if (liberado) return;
-    const destino = hubInicial(setoresDo(dados), ehAdmin(dados));
+    const destino = hubInicial(setoresVisiveis(dados), pode(dados, "executivo.ver"));
     router.replace(destino ? `/${destino}` : "/");
   }, [dados, liberado, router]);
 

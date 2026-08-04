@@ -5,11 +5,12 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Menu, Moon, PanelLeft, Power, Sun, X } from "lucide-react";
+import { Menu, Moon, PanelLeft, Power, Sun, X } from "lucide-react";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
+import { SinoNotificacoes } from "@/components/notificacoes/SinoNotificacoes";
 import { TeamsWidget } from "@/components/teams-widget/teams-widget";
-import { CHAVE_SESSAO, ehAdmin, setoresDo } from "@/hooks/auth";
+import { CHAVE_SESSAO, ehAdmin, pode, setoresVisiveis } from "@/hooks/auth";
 import { useMenu } from "@/hooks/menu";
 import { useSessaoViva } from "@/hooks/sessao-viva";
 import { useTema } from "@/hooks/tema";
@@ -38,11 +39,15 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   // Renova o acesso antes de expirar (só monta aqui: quem chegou ao Shell
   // está logado — na tela de login não há o que renovar).
   useSessaoViva();
-  // União de setores: o setor do perfil + os de perfil_setores. Admin/geral
-  // seguem vendo tudo, agora também se "geral" estiver entre os múltiplos setores.
-  const setores = setoresDo(perfil);
+  // Setores que a pessoa alcança: os do cadastro (perfil + perfil_setores)
+  // MAIS os que o perfil de acesso concede via `setor.<hub>.ver`. Admin/geral
+  // seguem vendo tudo.
+  const setores = setoresVisiveis(perfil);
   const admin = ehAdmin(perfil);
-  const ctxMenu = { admin, setores };
+  // O menu agora pergunta por PERMISSÃO, não por "é admin?": quem abre o
+  // Territorial ou a tela de Perfis é decisão do perfil de acesso, editável
+  // em /configuracoes/perfis sem tocar em código.
+  const ctxMenu = { admin, setores, pode: (...p: string[]) => pode(perfil, ...p) };
 
   // O item ativo vem da config central (lib/menu): casa por segmento inteiro
   // e a rota mais específica vence. Era aqui que "Fontes de dados" acendia em
@@ -261,19 +266,15 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                 {/* Executivo, Territorial, CRM e as telas de Integrações têm
                     estado próprio na URL; o seletor global de período não age
                     sobre elas e só confundiria — dois controles de período na
-                    mesma tela. */}
-                {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban"].includes(ativoId ?? "") && <SeletorPeriodo />}
+                    mesma tela. As de Administração são cadastro: não têm
+                    recorte de tempo nenhum. */}
+                {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban",
+                   "organograma", "perfis", "usuarios", "comunicados"].includes(ativoId ?? "") && <SeletorPeriodo />}
                 {ativoId === "comercial" && <SeletorCategoria />}
-                {/* O sino é decorativo (sem notificação ainda) e some no
-                    celular: ocupar 40px de uma barra apertada por um enfeite
-                    é o tipo de coisa que empurra o filtro para outra linha. */}
-                <div className="fh-sem-celular" style={{
-                  width: 40, height: 40, borderRadius: 10, border: `1px solid ${C.cardLine}`,
-                  background: alfa("sup", 0.04), display: "flex", alignItems: "center",
-                  justifyContent: "center", color: "var(--icone)", flexShrink: 0,
-                }}>
-                  <Bell size={16} />
-                </div>
+                {/* Some no celular: 40px numa barra apertada empurram o
+                    filtro para outra linha, e o aviso continua chegando na
+                    próxima vez que a pessoa abrir no desktop. */}
+                <SinoNotificacoes />
               </div>
             </div>
 
@@ -284,7 +285,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         {/* Widget flutuante dos agentes (porte do crm-aplopes): montado no
             Shell — e não numa página — para a conversa aberta, as não-lidas e
             a posição sobreviverem à navegação entre os hubs. Aparece para
-            quem pode falar com os agentes (admin ou setor crm). */}
+            quem alcança o CRM, pelo cadastro ou pelo perfil de acesso. */}
         {(admin || setores.includes("crm")) && <TeamsWidget />}
       </div>
     </ProvedorPeriodo>

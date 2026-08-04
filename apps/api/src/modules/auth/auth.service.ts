@@ -11,6 +11,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { Configuracao, ttlMs } from '../../config/configuracao';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
+import { permissoesEfetivas } from '../permissoes/efetivas';
 
 /** Argon2id com custo alinhado ao OWASP: 19 MiB, 2 passes. */
 const ARGON: argon2.Options = {
@@ -48,7 +49,7 @@ export class AuthService {
 
     const usuario = await this.prisma.usuario.findUnique({
       where: { email: chave },
-      include: { setores: true },
+      include: { setores: true, perfilAcesso: true },
     });
 
     // Hash falso quando o usuário não existe: sem isso, "e-mail inexistente"
@@ -184,7 +185,7 @@ export class AuthService {
 
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: sessao.usuarioId },
-      include: { setores: true },
+      include: { setores: true, perfilAcesso: true },
     });
     if (!usuario || !usuario.ativo) {
       throw new UnauthorizedException({ codigo: 'USUARIO_INATIVO', message: 'Usuário inativo' });
@@ -253,7 +254,7 @@ export class AuthService {
   async perfilDe(usuarioId: string): Promise<UsuarioLogado | null> {
     const u = await this.prisma.usuario.findUnique({
       where: { id: usuarioId },
-      include: { setores: true },
+      include: { setores: true, perfilAcesso: true },
     });
     return u && u.ativo ? this.montarPerfil(u) : null;
   }
@@ -269,14 +270,27 @@ export class AuthService {
     papel: string;
     setor: string;
     setores: { setor: string }[];
+    perfilAcesso?: { id: string; slug: string; nome: string; permissoes: string[] } | null;
   }): UsuarioLogado {
+    const setores = [...new Set([u.setor, ...u.setores.map((s) => s.setor)])].filter(Boolean);
     return {
       id: u.id,
       email: u.email,
       nome: u.nome,
       papel: u.papel as UsuarioLogado['papel'],
       setor: u.setor,
-      setores: [...new Set([u.setor, ...u.setores.map((s) => s.setor)])].filter(Boolean),
+      setores,
+      // Resolvidas aqui e carimbadas no token: os guards decidem sem tocar no
+      // banco, e o front recebe exatamente a mesma lista pelo /auth/eu.
+      permissoes: permissoesEfetivas({
+        papel: u.papel,
+        setor: u.setor,
+        setores,
+        perfilAcesso: u.perfilAcesso ?? null,
+      }),
+      perfilAcesso: u.perfilAcesso
+        ? { id: u.perfilAcesso.id, slug: u.perfilAcesso.slug, nome: u.perfilAcesso.nome }
+        : null,
     };
   }
 

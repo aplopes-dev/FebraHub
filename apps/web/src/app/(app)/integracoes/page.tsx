@@ -8,7 +8,7 @@ import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { SecaoTitulo } from "@/components/ui/SecaoTitulo";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
+import { pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
 import { C, SANS, SOBRE_OURO_2, alfa, alfaDe } from "@/lib/tema";
 import {
@@ -65,13 +65,13 @@ export default function PaginaIntegracoes() {
   const qc = useQueryClient();
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
 
-  /* Mesma guarda dos hubs: esconder o menu não é segurança — a API exige o
-     setor 'geral' de qualquer jeito. Isto aqui é UX, para quem digitar
-     /integracoes sem ser admin cair no próprio painel em vez de num 403. */
-  const liberado = !dados || ehAdmin(dados);
+  /* Mesma guarda dos hubs: esconder o menu não é segurança — a API exige a
+     permissão de qualquer jeito. Isto aqui é UX, para quem digitar
+     /integracoes sem tê-la cair no próprio painel em vez de num 403. */
+  const liberado = !dados || pode(dados, "integracoes.ver", "integracoes.gerenciar");
   useEffect(() => {
     if (!dados || liberado) return;
-    const destino = hubInicial(setoresDo(dados), false);
+    const destino = hubInicial(setoresVisiveis(dados), pode(dados, "executivo.ver"));
     router.replace(destino ? `/${destino}` : "/");
   }, [dados, liberado, router]);
 

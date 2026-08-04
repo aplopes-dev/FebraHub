@@ -5,17 +5,17 @@
    existirem debaixo do mesmo caminho. */
 
 import { Suspense } from "react";
-import { GuardaExecutivo } from "@/components/executivo/GuardaExecutivo";
+import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { PainelExecutivo } from "@/components/executivo/PainelExecutivo";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 
 export default function PaginaExecutivo() {
   return (
-    <GuardaExecutivo>
+    <GuardaPermissao permissoes={["executivo.ver"]}>
       {/* useSearchParams (filtros na URL) exige um limite de Suspense. */}
       <Suspense fallback={<TelaCarregando />}>
         <PainelExecutivo />
       </Suspense>
-    </GuardaExecutivo>
+    </GuardaPermissao>
   );
 }

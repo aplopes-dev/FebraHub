@@ -12,7 +12,7 @@ import { ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags } from '@nestjs/swa
 import { FastifyReply } from 'fastify';
 import { IntegracoesService } from './integracoes.service';
 import { Fonte, PROVEDORES, ehFonte } from './provedores';
-import { ExigeSetor } from '../../common/guards/setor.guard';
+import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { Publica } from '../../common/decorators/usuario.decorator';
 
 /**
@@ -22,7 +22,7 @@ import { Publica } from '../../common/decorators/usuario.decorator';
  * `geral` (o SetorGuard já libera admin). A exceção é o callback — ver o
  * comentário dele.
  *
- * `@ExigeSetor` está método a método de propósito. No controller inteiro ele
+ * `@ExigePermissao` está método a método de propósito. No controller inteiro ele
  * também valeria para o callback, e a rota que o provedor chama não tem
  * sessão nenhuma para checar.
  */
@@ -32,7 +32,7 @@ export class IntegracoesController {
   constructor(private readonly integracoes: IntegracoesService) {}
 
   @Get()
-  @ExigeSetor('geral')
+  @ExigePermissao('integracoes.ver', 'integracoes.gerenciar')
   @ApiOperation({
     summary: 'Estado de cada fonte que usa OAuth',
     description:
@@ -45,7 +45,7 @@ export class IntegracoesController {
   }
 
   @Get(':fonte/autorizar')
-  @ExigeSetor('geral')
+  @ExigePermissao('integracoes.gerenciar')
   @ApiOperation({
     summary: 'URL de autorização do provedor',
     description: 'Responde { url }. O front abre em aba nova — a API não redireciona.',
@@ -113,7 +113,7 @@ export class IntegracoesController {
   }
 
   @Post(':fonte/renovar')
-  @ExigeSetor('geral')
+  @ExigePermissao('integracoes.gerenciar')
   @ApiOperation({
     summary: 'Renova o token agora, sem navegador',
     description:
@@ -126,7 +126,7 @@ export class IntegracoesController {
   }
 
   @Delete(':fonte')
-  @ExigeSetor('geral')
+  @ExigePermissao('integracoes.gerenciar')
   @ApiOperation({
     summary: 'Desconecta a fonte (apaga o token guardado)',
     description: 'Usado para forçar uma reautorização limpa.',

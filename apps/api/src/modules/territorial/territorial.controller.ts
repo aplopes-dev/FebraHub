@@ -10,7 +10,7 @@
  */
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ExigeSetor } from '../../common/guards/setor.guard';
+import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { PrismaService } from '../../database/prisma.service';
 import {
   CompanyFiltersDto,
@@ -41,7 +41,7 @@ class CitiesQueryDto {
 
 @ApiTags('territorial')
 @Controller('territorial')
-@ExigeSetor('geral')
+@ExigePermissao('territorial.ver')
 export class TerritorialController {
   constructor(
     private readonly service: TerritorialService,

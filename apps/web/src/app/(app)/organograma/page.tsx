@@ -6,17 +6,17 @@
    backend). */
 
 import { Suspense } from "react";
-import { GuardaExecutivo } from "@/components/executivo/GuardaExecutivo";
+import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { PainelOrganograma } from "@/components/organograma/PainelOrganograma";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import "@/app/organograma.css";
 
 export default function PaginaOrganograma() {
   return (
-    <GuardaExecutivo>
+    <GuardaPermissao permissoes={["organograma.ver"]}>
       <Suspense fallback={<TelaCarregando />}>
         <PainelOrganograma />
       </Suspense>
-    </GuardaExecutivo>
+    </GuardaPermissao>
   );
 }

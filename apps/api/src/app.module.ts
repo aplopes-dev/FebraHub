@@ -15,12 +15,15 @@ import { CrmModule } from './modules/crm/crm.module';
 import { ExecutivoModule } from './modules/executivo/executivo.module';
 import { IngestModule } from './modules/ingest/ingest.module';
 import { OrganogramaModule } from './modules/organograma/organograma.module';
+import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
+import { PermissoesModule } from './modules/permissoes/permissoes.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TerritorialModule } from './modules/territorial/territorial.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
+import { PermissaoGuard } from './common/guards/permissao.guard';
 import { SessaoGuard } from './common/guards/sessao.guard';
 import { SetorGuard } from './common/guards/setor.guard';
 
@@ -73,16 +76,21 @@ import { SetorGuard } from './common/guards/setor.guard';
     IntegracoesModule,
     TerritorialModule,
     OrganogramaModule,
+    PermissoesModule,
+    NotificacoesModule,
     CrmModule,
     WhatsappModule,
     AgentesModule,
   ],
   controllers: [HealthController],
   providers: [
-    // Ordem importa: throttle primeiro (barra antes de gastar CPU),
-    // depois sessão, depois setor.
+    // Ordem importa: throttle primeiro (barra antes de gastar CPU), depois
+    // sessão (quem é), depois permissão (o que pode fazer) e por fim setor
+    // (sobre quais dados). Os dois últimos são independentes: uma rota pode
+    // declarar um, o outro, ou os dois.
     { provide: APP_GUARD, useClass: LimiteGuard },
     { provide: APP_GUARD, useClass: SessaoGuard },
+    { provide: APP_GUARD, useClass: PermissaoGuard },
     { provide: APP_GUARD, useClass: SetorGuard },
   ],
 })

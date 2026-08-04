@@ -9,7 +9,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TeamsConversationsCenter } from "@/components/teams-widget/teams-conversations-center";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
+import { ehAdmin, pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
 
 function Central() {
@@ -22,11 +22,11 @@ export default function PaginaConversasAgentes() {
   const perfil = usePerfil(sessao);
   const router = useRouter();
   const dados = perfil.data;
-  const liberado = !!dados && (ehAdmin(dados) || setoresDo(dados).includes("crm"));
+  const liberado = !!dados && (ehAdmin(dados) || setoresVisiveis(dados).includes("crm"));
 
   useEffect(() => {
     if (!dados || liberado) return;
-    const destino = hubInicial(setoresDo(dados), ehAdmin(dados));
+    const destino = hubInicial(setoresVisiveis(dados), pode(dados, "executivo.ver"));
     router.replace(destino ? `/${destino}` : "/");
   }, [dados, liberado, router]);
 

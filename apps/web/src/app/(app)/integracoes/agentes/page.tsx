@@ -7,7 +7,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PainelAgentes } from "@/components/canais/PainelAgentes";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
+import { pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
 
 export default function PaginaAgentes() {
@@ -15,12 +15,14 @@ export default function PaginaAgentes() {
   const perfil = usePerfil(sessao);
   const router = useRouter();
   const dados = perfil.data;
-  const admin = !!dados && ehAdmin(dados);
-  const liberado = !!dados && (admin || setoresDo(dados).includes("crm"));
+  // `admin` aqui significa "pode parear/desparear", não o papel: é o que o
+  // PainelAgentes usa para mostrar o bloco de conexão.
+  const admin = pode(dados, "agentes.gerenciar");
+  const liberado = !!dados && (admin || setoresVisiveis(dados).includes("crm"));
 
   useEffect(() => {
     if (!dados || liberado) return;
-    const destino = hubInicial(setoresDo(dados), ehAdmin(dados));
+    const destino = hubInicial(setoresVisiveis(dados), pode(dados, "executivo.ver"));
     router.replace(destino ? `/${destino}` : "/");
   }, [dados, liberado, router]);
 

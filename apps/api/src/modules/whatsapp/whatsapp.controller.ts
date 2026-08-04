@@ -9,6 +9,7 @@ import { ApiConsumes, ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/
 import type { FastifyRequest } from 'fastify';
 import type { MultipartFile } from '@fastify/multipart';
 import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { ExigeSetor } from '../../common/guards/setor.guard';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { WhatsappService } from './whatsapp.service';
@@ -42,21 +43,21 @@ export class WhatsappController {
   /* ---------- conexão (admin/geral) ---------- */
 
   @Get('status')
-  @ExigeSetor('geral')
+  @ExigePermissao('whatsapp.gerenciar')
   @ApiOperation({ summary: 'Estado da conexão (inclui o QR quando pendente)' })
   status() {
     return this.whatsapp.status();
   }
 
   @Post('conectar')
-  @ExigeSetor('geral')
+  @ExigePermissao('whatsapp.gerenciar')
   @ApiOperation({ summary: 'Inicia a conexão Baileys — o QR aparece no status' })
   conectar() {
     return this.whatsapp.conectar();
   }
 
   @Post('desconectar')
-  @ExigeSetor('geral')
+  @ExigePermissao('whatsapp.gerenciar')
   @ApiOperation({ summary: 'Desliga a sessão e apaga as credenciais do disco' })
   desconectar() {
     return this.whatsapp.desconectar();

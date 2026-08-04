@@ -27,6 +27,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
+import { PERFIS_PADRAO, PERFIL_PADRAO_NOVO_USUARIO } from '../src/modules/permissoes/perfis-padrao';
 
 const prisma = new PrismaClient();
 
@@ -53,6 +54,53 @@ interface UsuarioSemente {
   setor: string;
   /** Setores além do próprio. Ver PerfilSetor no schema. */
   setoresExtras?: string[];
+  /** Slug do perfil de acesso. Ausente = PERFIL_PADRAO_NOVO_USUARIO. */
+  perfil?: string;
+}
+
+/**
+ * Perfis de acesso — os mesmos seis de
+ * src/modules/permissoes/perfis-padrao.ts, que é a lista canônica.
+ *
+ * A produção NÃO passa por aqui: a imagem da API não carrega ts-node, então
+ * quem semeia lá é a migration 00000000000014 (mesmas linhas, em SQL). Este
+ * caminho serve ao ambiente local e a qualquer banco recriado do zero.
+ *
+ * Cria o que falta e NÃO reescreve o que existe — mesma regra dos usuários:
+ * permissão ajustada na tela não é desfeita por um `npm run seed` distraído.
+ * A única exceção é o perfil `admin`, que sempre recebe o catálogo inteiro
+ * (ver PermissoesService.onModuleInit, que faz o mesmo no boot da API).
+ */
+async function semearPerfis(): Promise<number> {
+  let criados = 0;
+  for (const p of PERFIS_PADRAO) {
+    const existente = await prisma.perfilAcesso.findUnique({
+      where: { slug: p.slug },
+      select: { id: true },
+    });
+    if (existente) {
+      if (p.sistema) {
+        await prisma.perfilAcesso.update({
+          where: { id: existente.id },
+          data: { permissoes: [...p.permissoes] },
+        });
+      }
+      console.log(`existente perfil ${p.slug.padEnd(12)} — permissões preservadas`);
+      continue;
+    }
+    await prisma.perfilAcesso.create({
+      data: {
+        slug: p.slug,
+        nome: p.nome,
+        descricao: p.descricao,
+        sistema: p.sistema,
+        permissoes: [...p.permissoes],
+      },
+    });
+    criados += 1;
+    console.log(`criado    perfil ${p.slug.padEnd(12)} (${p.permissoes.length} permissões)`);
+  }
+  return criados;
 }
 
 /**
@@ -67,6 +115,7 @@ const USUARIOS: UsuarioSemente[] = [
     nome: 'Dulce Mariano',
     papel: 'admin',
     setor: 'geral',
+    perfil: 'admin',
   },
   {
     email: 'financeiro@febracis.com',
@@ -124,10 +173,14 @@ async function semear(u: UsuarioSemente, senhaFixa?: string): Promise<string | n
   // senha vai para o stdout. Daí a consulta antes.
   const existente = await prisma.usuario.findUnique({
     where: { email: u.email },
-    select: { id: true },
+    select: { id: true, perfilAcessoId: true },
   });
 
   const senha = senhaFixa ?? senhaTemporaria();
+  const perfil = await prisma.perfilAcesso.findUnique({
+    where: { slug: u.perfil ?? PERFIL_PADRAO_NOVO_USUARIO },
+    select: { id: true },
+  });
 
   const usuario = await prisma.usuario.upsert({
     where: { email: u.email },
@@ -137,6 +190,7 @@ async function semear(u: UsuarioSemente, senhaFixa?: string): Promise<string | n
       senhaHash: await argon2.hash(senha, ARGON),
       papel: u.papel,
       setor: u.setor,
+      perfilAcessoId: perfil?.id ?? null,
       ativo: true,
       // Só a conta de QA nasce sem a trava: ela é usada de novo a cada validação,
       // e forçar troca na primeira entrada acabaria com a utilidade dela.
@@ -156,12 +210,26 @@ async function semear(u: UsuarioSemente, senhaFixa?: string): Promise<string | n
     });
   }
 
+  // Conta que já existia SEM perfil (banco anterior à migration 14) ganha o
+  // dela agora. Quem já tem um perfil atribuído não é mexido: trocar perfil
+  // é decisão de quem administra, não de um seed.
+  if (existente && !existente.perfilAcessoId && perfil) {
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { perfilAcessoId: perfil.id },
+    });
+    console.log(`vinculado ${u.email.padEnd(38)} ao perfil ${u.perfil ?? PERFIL_PADRAO_NOVO_USUARIO}`);
+  }
+
   return existente ? null : senha;
 }
 
 async function main(): Promise<void> {
   const criadas: Array<{ email: string; senha: string }> = [];
   let jaExistiam = 0;
+
+  // Antes dos usuários: semear na ordem inversa deixaria todo mundo sem perfil.
+  const perfisCriados = await semearPerfis();
 
   for (const u of USUARIOS) {
     const senha = await semear(u);
@@ -211,7 +279,10 @@ async function main(): Promise<void> {
     console.log('='.repeat(72) + '\n');
   }
 
-  console.log(`resumo: ${criadas.length} criado(s), ${jaExistiam} já existia(m)`);
+  console.log(
+    `resumo: ${criadas.length} usuário(s) criado(s), ${jaExistiam} já existia(m), ` +
+      `${perfisCriados} perfil(is) de acesso criado(s)`,
+  );
 }
 
 main()

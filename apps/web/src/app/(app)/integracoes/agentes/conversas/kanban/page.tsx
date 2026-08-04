@@ -8,7 +8,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TeamsKanbanBoard } from "@/components/teams-widget/teams-kanban-board";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { ehAdmin, setoresDo, usePerfil, useSessao } from "@/hooks/auth";
+import { ehAdmin, pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
 
 export default function PaginaKanbanConversas() {
@@ -16,11 +16,11 @@ export default function PaginaKanbanConversas() {
   const perfil = usePerfil(sessao);
   const router = useRouter();
   const dados = perfil.data;
-  const liberado = !!dados && (ehAdmin(dados) || setoresDo(dados).includes("crm"));
+  const liberado = !!dados && (ehAdmin(dados) || setoresVisiveis(dados).includes("crm"));
 
   useEffect(() => {
     if (!dados || liberado) return;
-    const destino = hubInicial(setoresDo(dados), ehAdmin(dados));
+    const destino = hubInicial(setoresVisiveis(dados), pode(dados, "executivo.ver"));
     router.replace(destino ? `/${destino}` : "/");
   }, [dados, liberado, router]);
 

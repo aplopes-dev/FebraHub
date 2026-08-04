@@ -40,6 +40,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Publica } from '../../common/decorators/usuario.decorator';
+import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { ExigeSetor } from '../../common/guards/setor.guard';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { AgentesService, PRIORIDADES, STATUS_KANBAN } from './agentes.service';
@@ -88,28 +89,28 @@ export class AgentesController {
   /* ---------------- administração (setor geral) ---------------- */
 
   @Get('conexao')
-  @ExigeSetor('geral')
+  @ExigePermissao('agentes.gerenciar')
   @ApiOperation({ summary: 'Estado do pareamento (sem segredos)' })
   conexao() {
     return this.agentes.statusConexao();
   }
 
   @Post('conexao/token')
-  @ExigeSetor('geral')
+  @ExigePermissao('agentes.gerenciar')
   @ApiOperation({ summary: 'Gera o token fhk_live_ para colar no Aplopes (só o hash fica)' })
   gerarToken(@Usuario() u: UsuarioLogado, @Req() req: FastifyRequest) {
     return this.agentes.gerarTokenConexao(u, req.ip);
   }
 
   @Get('lista')
-  @ExigeSetor('geral')
+  @ExigePermissao('agentes.gerenciar')
   @ApiOperation({ summary: 'Agentes do workspace pareado' })
   listar() {
     return this.agentes.listarAgentes();
   }
 
   @Delete('conexao')
-  @ExigeSetor('geral')
+  @ExigePermissao('agentes.gerenciar')
   @HttpCode(204)
   async desparear(@Usuario() u: UsuarioLogado, @Req() req: FastifyRequest) {
     await this.agentes.desparear(u, req.ip);

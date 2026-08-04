@@ -7,6 +7,14 @@ export interface UsuarioLogado {
   papel: 'admin' | 'gestor' | 'membro';
   setor: string;
   setores: string[];
+  /** Ids do catálogo (modules/permissoes/catalogo.ts) que o perfil de acesso
+   *  concede. Viaja DENTRO do token de acesso: assim o guard decide sem ir ao
+   *  banco a cada requisição. O preço é o mesmo que papel e setor já pagam —
+   *  mudou o perfil, a mudança vale a partir da próxima renovação (≤ TTL do
+   *  acesso). `GET /auth/eu` relê do banco, então o menu atualiza no F5. */
+  permissoes: string[];
+  /** Só para a UI mostrar de qual perfil as permissões vieram. */
+  perfilAcesso?: { id: string; slug: string; nome: string } | null;
 }
 
 /** Marca a rota como aberta — sem ela, o guard global exige sessão. */

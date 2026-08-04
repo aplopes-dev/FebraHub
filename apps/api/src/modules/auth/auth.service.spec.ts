@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ttlMs } from '../../config/configuracao';
+import { PERMISSOES } from '../permissoes/catalogo';
 
 const SEG_ACESSO = 'segredo-de-acesso-com-32-caracteres!';
 const SEG_REFRESH = 'segredo-de-refresh-com-32-caracteres';
@@ -30,6 +31,10 @@ const PERFIL = {
   papel: 'admin' as const,
   setor: 'geral',
   setores: ['geral'],
+  // Admin recebe o catálogo inteiro (ver permissoesEfetivas); aqui basta a
+  // forma do campo — estes testes são de rotação de sessão, não de acesso.
+  permissoes: [...PERMISSOES],
+  perfilAcesso: null,
 };
 
 const USUARIO_BANCO = { ...PERFIL, ativo: true, setores: [{ setor: 'geral' }] };

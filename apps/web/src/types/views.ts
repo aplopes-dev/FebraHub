@@ -27,6 +27,11 @@ export interface Perfil {
   papel: string | null;
   /** Um usuário pode ter acesso a mais de um setor (perfil_setores). */
   setores: string[];
+  /** Ids do catálogo que o perfil de acesso concede — quem decide o menu.
+   *  Opcional porque uma sessão aberta antes da versão de permissões existe
+   *  sem o campo até a próxima renovação. */
+  permissoes?: string[];
+  perfilAcesso?: { id: string; slug: string; nome: string } | null;
 }
 
 export interface Sessao {

@@ -49,9 +49,13 @@ model Usuario {
   /// Nunca a senha. argon2id — a configuracao esta no AuthService e no seed.
   senhaHash          String    @map("senha_hash")
   /// admin | gestor | membro — CHECK no banco, ver a migration 00000000000000_init.
+  /// Continua sendo a chave-mestra: `admin` atravessa qualquer permissao.
   papel              String
   /// Setor primario. Acesso a setores adicionais vive em PerfilSetor.
   setor              String
+  /// Perfil de acesso (o QUE a pessoa pode fazer). Nulo cai no fallback
+  /// derivado de papel/setor — ver PermissoesService.doUsuario.
+  perfilAcessoId     String?   @map("perfil_acesso_id") @db.Uuid
   /// Desligamento nao apaga usuario: apaga-lo levaria junto a autoria dos
   /// arquivos e a leitura da trilha de auditoria.
   ativo              Boolean   @default(true)
@@ -67,7 +71,75 @@ model Usuario {
   sessoes  Sessao[]
   arquivos Arquivo[]
 
+  perfilAcesso         PerfilAcesso? @relation(fields: [perfilAcessoId], references: [id], onDelete: SetNull)
+  notificacoes         Notificacao[] @relation("NotificacoesRecebidas")
+  notificacoesEnviadas Notificacao[] @relation("NotificacoesEnviadas")
+
+  @@index([perfilAcessoId])
   @@map("usuarios")
+}
+
+/// Perfil de acesso — o conjunto de FUNCIONALIDADES que a pessoa alcanca.
+///
+/// Nao substitui `setor`: os dois eixos respondem perguntas diferentes.
+///   perfil -> o QUE se pode fazer  (abrir o Territorial, editar o organograma)
+///   setor  -> SOBRE QUAIS DADOS    (as vendas do comercial, a receita do financeiro)
+/// Um "Gestor de setor" e o mesmo perfil para todo mundo; quem muda de pessoa
+/// para pessoa e o setor no cadastro. Quando um perfil precisa enxergar alem
+/// do proprio setor, ele carrega as permissoes `setor.<hub>.ver` — e por isso
+/// que podeVer() (setor.guard) consulta os dois lugares.
+///
+/// `permissoes` e um text[] e nao uma tabela de ligacao: a lista e curta,
+/// sempre lida inteira e sempre gravada inteira. Uma tabela N:N so
+/// acrescentaria um join a cada leitura.
+model PerfilAcesso {
+  id        String  @id @default(uuid()) @db.Uuid
+  /// Chave estavel usada no seed e nas migrations. O nome pode ser reescrito
+  /// pela tela; o slug, nao.
+  slug      String  @unique
+  nome      String
+  descricao String?
+  /// Perfil de sistema: nome, permissoes e exclusao ficam travados na API.
+  /// Hoje so o `admin` — sem ele, uma edicao distraida tranca todo mundo
+  /// para fora da propria tela de perfis.
+  sistema   Boolean @default(false)
+  /// Ids do catalogo (modules/permissoes/catalogo.ts). O que nao esta no
+  /// catalogo e recusado na escrita.
+  permissoes   String[] @default([])
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  usuarios Usuario[]
+
+  @@map("perfis_acesso")
+}
+
+/// Notificacao de uma pessoa. Uma linha POR DESTINATARIO, mesmo quando o
+/// envio foi em lote: quem leu, quando leu e quem apagou sao respostas
+/// individuais, e uma tabela de "envio" com outra de "leitura" precisaria de
+/// join em toda abertura do sino.
+model Notificacao {
+  id        String    @id @default(uuid()) @db.Uuid
+  usuarioId String    @map("usuario_id") @db.Uuid
+  titulo    String
+  mensagem  String
+  /// info | sucesso | alerta | erro — CHECK no banco; decide a cor no sino.
+  tipo      String    @default("info")
+  /// Rotulo curto de agrupamento ('sistema', 'acesso', 'comunicado'…).
+  categoria String?
+  /// Rota interna que o item abre ao ser clicado. Sempre comeca com '/':
+  /// notificacao nao leva ninguem para fora do hub.
+  href      String?
+  lidaEm    DateTime? @map("lida_em") @db.Timestamptz(6)
+  criadaEm  DateTime  @default(now()) @map("criada_em") @db.Timestamptz(6)
+  /// Quem disparou. Nulo quando quem gerou foi o proprio sistema.
+  criadaPor String?   @map("criada_por") @db.Uuid
+
+  usuario Usuario  @relation("NotificacoesRecebidas", fields: [usuarioId], references: [id], onDelete: Cascade)
+  autor   Usuario? @relation("NotificacoesEnviadas", fields: [criadaPor], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, criadaEm(sort: Desc)])
+  @@map("notificacoes")
 }
 
 /// Setores extras que o usuario enxerga alem do proprio.

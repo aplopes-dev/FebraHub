@@ -82,6 +82,11 @@ export class SessaoGuard implements CanActivate {
         papel: carga.papel,
         setor: carga.setor,
         setores: carga.setores ?? [],
+        // Token emitido antes desta versão não tem o campo. Lista vazia é o
+        // default seguro: o PermissaoGuard nega, o usuário renova a sessão
+        // (≤ TTL do acesso) e volta com as permissões do perfil.
+        permissoes: carga.permissoes ?? [],
+        perfilAcesso: carga.perfilAcesso ?? null,
       };
       return true;
     } catch (e) {

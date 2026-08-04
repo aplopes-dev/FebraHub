@@ -4,17 +4,17 @@
    do hub herdados pela query string. */
 
 import { Suspense, use } from "react";
-import { GuardaExecutivo } from "@/components/executivo/GuardaExecutivo";
+import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { TelaIndicador } from "@/components/executivo/TelaIndicador";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 
 export default function PaginaIndicador({ params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = use(params);
   return (
-    <GuardaExecutivo>
+    <GuardaPermissao permissoes={["executivo.ver"]}>
       <Suspense fallback={<TelaCarregando />}>
         <TelaIndicador codigo={codigo} />
       </Suspense>
-    </GuardaExecutivo>
+    </GuardaPermissao>
   );
 }

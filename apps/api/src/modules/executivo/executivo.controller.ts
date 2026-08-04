@@ -5,6 +5,10 @@
  * DENTRO do service, indicador a indicador — um gestor do financeiro recebe
  * o resumo só com os cards do financeiro, e um pedido de indicador de outro
  * setor leva 403. É a mesma regra do módulo de dados, aplicada por item.
+ *
+ * A permissão, essa sim, é da classe: `executivo.ver` abre a porta do painel
+ * e `executivo.metas` a de gravar meta. São perguntas diferentes de "quais
+ * dados" — quem entra vê os SEUS indicadores, e não os de todo mundo.
  */
 import {
   Body,
@@ -23,6 +27,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
+import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { ExecutivoService } from './executivo.service';
 import { MetasService } from './metas.service';
 import type { PreferenciasHub } from './executivo.types';
@@ -60,6 +65,7 @@ class PreferenciasDto {
 
 @ApiTags('executivo')
 @Controller('executivo')
+@ExigePermissao('executivo.ver')
 export class ExecutivoController {
   constructor(
     private readonly executivo: ExecutivoService,
@@ -156,6 +162,7 @@ export class ExecutivoController {
   }
 
   @Put('metas')
+  @ExigePermissao('executivo.metas')
   @HttpCode(204)
   @ApiOperation({ summary: 'Define ou remove (valor null) a meta de um período — com trilha' })
   async definirMeta(

@@ -52,3 +52,32 @@ export function setoresDo(perfil: Perfil): string[] {
 export function ehAdmin(perfil: Perfil): boolean {
   return perfil.papel === "admin" || setoresDo(perfil).includes("geral");
 }
+
+/**
+ * A pessoa tem ao menos UMA das permissões? Mesma regra do PermissaoGuard da
+ * API, e de propósito: quando as duas discordam, ou some um botão que
+ * funcionaria, ou aparece um que devolve 403.
+ *
+ * Isto NÃO é segurança — é o que o usuário enxerga. Quem recusa de verdade é
+ * o backend, que relê o perfil do banco a cada renovação de sessão.
+ */
+export function pode(perfil: Perfil | null | undefined, ...permissoes: string[]): boolean {
+  if (!perfil) return false;
+  if (ehAdmin(perfil)) return true;
+  const minhas = new Set(perfil.permissoes ?? []);
+  return permissoes.some((p) => minhas.has(p));
+}
+
+/** Permissão de ver o hub `chave` — o formato vive no catálogo da API
+ *  (modules/permissoes/catalogo.ts). */
+export const permissaoDoSetor = (chave: string): string => `setor.${chave}.ver`;
+
+/** Setores que a pessoa alcança: os do cadastro MAIS os que o perfil de
+ *  acesso concede. É o espelho de podeVer() no backend. */
+export function setoresVisiveis(perfil: Perfil): string[] {
+  const doCadastro = setoresDo(perfil);
+  const doPerfil = (perfil.permissoes ?? [])
+    .filter((p) => p.startsWith("setor.") && p.endsWith(".ver"))
+    .map((p) => p.slice("setor.".length, -".ver".length));
+  return [...new Set([...doCadastro, ...doPerfil])].filter(Boolean);
+}

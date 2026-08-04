@@ -923,6 +923,23 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   justify-content: center; padding: 0 5px;
 }
 
+/* ---- Administração: perfis de acesso e usuários ---- */
+/* Uma coluna no celular; no desktop a lista fica estreita e o editor de
+   permissões (que é o trabalho de verdade) fica com o resto. */
+.fh-grade-perfis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; align-items: start; }
+@media (min-width: 1000px) {
+  .fh-grade-perfis { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+}
+/* Linha de usuário: no celular vira bloco, no desktop uma grade de 4 faixas. */
+.fh-linha-usuario { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center; }
+@media (min-width: 900px) {
+  .fh-linha-usuario { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 3fr) auto; gap: 14px; }
+}
+/* Item do sino: o hover só existe onde há mouse — no toque ele "gruda". */
+@media (hover: hover) {
+  .fh-notificacao:hover { background: rgb(var(--sup-rgb) / 0.06) !important; }
+}
+
 /* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
    O botão PDF do painel chama window.print(). */
 @media print {

@@ -7,7 +7,7 @@
    backend). */
 
 import { Suspense } from "react";
-import { GuardaExecutivo } from "@/components/executivo/GuardaExecutivo";
+import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { PainelTerritorial } from "@/components/territorial/PainelTerritorial";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 // Escopo visual .tio (tokens do hub original nos dois temas do FebraHub).
@@ -15,10 +15,10 @@ import "@/app/territorial.css";
 
 export default function PaginaTerritorial() {
   return (
-    <GuardaExecutivo>
+    <GuardaPermissao permissoes={["territorial.ver"]}>
       <Suspense fallback={<TelaCarregando />}>
         <PainelTerritorial />
       </Suspense>
-    </GuardaExecutivo>
+    </GuardaPermissao>
   );
 }

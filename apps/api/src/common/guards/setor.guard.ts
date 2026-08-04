@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UsuarioLogado } from '../decorators/usuario.decorator';
+import { permissaoDoSetor } from '../../modules/permissoes/catalogo';
 
 export const SETOR_EXIGIDO = 'setor_exigido';
 
@@ -49,9 +50,24 @@ export class SetorGuard implements CanActivate {
   }
 }
 
+/**
+ * Dois caminhos levam ao mesmo dado, e é de propósito:
+ *
+ *   1. o SETOR do cadastro (usuarios.setor + usuario_setores) — o recorte
+ *      individual, que muda de pessoa para pessoa;
+ *   2. a PERMISSÃO `setor.<hub>.ver` do perfil de acesso — o recorte do
+ *      cargo, igual para todo mundo que tem aquele perfil.
+ *
+ * A Diretoria enxerga os oito hubs porque o perfil dela carrega os oito
+ * `setor.*.ver`; um gestor enxerga só o seu porque o perfil dele não carrega
+ * nenhum e quem responde é o cadastro. Sem o segundo caminho, dar visão
+ * ampla a alguém exigiria cadastrar oito setores extras na mão.
+ */
 export function podeVer(u: UsuarioLogado, alvos: string[]): boolean {
   if (u.papel === 'admin') return true;
   const meus = new Set([u.setor, ...(u.setores ?? [])].filter(Boolean));
   if (meus.has('geral')) return true;
-  return alvos.some((a) => meus.has(a));
+  if (alvos.some((a) => meus.has(a))) return true;
+  const minhas = new Set(u.permissoes ?? []);
+  return alvos.some((a) => minhas.has(permissaoDoSetor(a)));
 }
