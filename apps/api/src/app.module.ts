@@ -14,6 +14,7 @@ import { AgentesModule } from './modules/agentes/agentes.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { ExecutivoModule } from './modules/executivo/executivo.module';
 import { IngestModule } from './modules/ingest/ingest.module';
+import { OrganogramaModule } from './modules/organograma/organograma.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TerritorialModule } from './modules/territorial/territorial.module';
@@ -71,6 +72,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     IngestModule,
     IntegracoesModule,
     TerritorialModule,
+    OrganogramaModule,
     CrmModule,
     WhatsappModule,
     AgentesModule,

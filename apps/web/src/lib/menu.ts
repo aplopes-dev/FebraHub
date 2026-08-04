@@ -1,5 +1,5 @@
 import {
-  Bot, LayoutDashboard, MapPinned, MessageCircle,
+  Bot, LayoutDashboard, MapPinned, MessageCircle, Network,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -48,6 +48,10 @@ export const GRUPOS_MENU: readonly GrupoMenu[] = [
       // Porte do hub.aplopes.com — exclusivo da diretoria, como o Executivo.
       { id: "territorial", label: "Inteligência Territorial", href: "/territorial", Icone: MapPinned,
         desc: "Mapa de empresas e conexões do território", visivel: soAdmin },
+      // Roda radial no estilo do /brain do Founder OS: setores (menos CRM),
+      // funções, funcionários e agentes de IA — editável na própria tela.
+      { id: "organograma", label: "Organograma", href: "/organograma", Icone: Network,
+        desc: "Setores, funções, funcionários e agentes de IA", visivel: soAdmin },
     ],
   },
   {

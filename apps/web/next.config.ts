@@ -24,7 +24,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:caminho((?!saude$).*)",
-        destination: `${interna.replace(/\/$/, "")}/:caminho`,
+        // `:caminho` captura só o que vem DEPOIS de "/api/" — a API do Nest
+        // usa app.setGlobalPrefix('api'), então o "/api" precisa voltar aqui
+        // ou toda rota cai em 404 (a origem não tinha isso: destino batia em
+        // {api}/:caminho, sem prefixo, e o Nest não reconhece nada assim).
+        destination: `${interna.replace(/\/$/, "")}/api/:caminho`,
       },
     ];
   },

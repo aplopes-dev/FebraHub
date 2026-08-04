@@ -1492,6 +1492,35 @@ model CompanyConnection {
 }
 
 // --------------------------------------------------------------------
+// ORGANOGRAMA
+// Quem faz o quê em cada setor — funcionários e agentes de IA, com a
+// função como agrupador. Alimenta o painel /organograma (grafo radial).
+// Nasce com dados mock (migration 13) e é editado pela própria tela.
+// --------------------------------------------------------------------
+
+/// Um nó-folha do organograma: pessoa OU agente de IA. `setor` usa as mesmas
+/// chaves dos hubs do menu (comercial, financeiro, marketing, pedagogico,
+/// eventos, loja, estoque — CRM fica de fora por decisão do Rafael, 03/08).
+/// `funcao` é texto livre: o grafo agrupa por igualdade, então "Consultora
+/// de Vendas" e "Consultora de vendas" viram nós diferentes — a UI de edição
+/// sugere as funções já existentes pra evitar a duplicata acidental.
+model OrgMembro {
+  id           String   @id @default(uuid()) @db.Uuid
+  /// 'funcionario' | 'agente'
+  tipo         String   @db.VarChar(12)
+  nome         String
+  funcao       String
+  setor        String
+  ordem        Int      @default(0)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([setor])
+  @@map("org_membros")
+}
+
+// --------------------------------------------------------------------
 // LEGADO
 // Legado do Supabase — nao usar em codigo novo.
 // --------------------------------------------------------------------
