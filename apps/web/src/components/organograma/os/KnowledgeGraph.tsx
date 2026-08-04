@@ -11,7 +11,7 @@ import {
   forceY,
   type Simulation,
 } from 'd3-force';
-import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardList, Maximize2, Sparkles, User, UserRound, Users, Wrench, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Bot, ChevronLeft, ChevronRight, ClipboardList, Maximize2, Sparkles, UserRound, Users, Wrench, X, type LucideIcon } from 'lucide-react';
 import { graphDirectory, orderGraphDepartments, SELF_ID, toolSlugOf, workerNodeId, type DirectoryGroup, type KGNode, type KGNodeKind, type KnowledgeGraph as KGData } from '@/lib/knowledge-graph';
 import { ACTION_LENSES, ENTITY_LENSES, FUNCTION_LENSES, lensNodeSet, type Lens } from '@/lib/graph-lens';
 import { GraphDirectory } from './GraphDirectory';
@@ -50,7 +50,7 @@ const CAT: Record<KGNodeKind, { color: string; Icon: LucideIcon; label: string; 
   team: { color: 'var(--brain-1)', Icon: Users, label: 'Setores', r: 15 },
   task: { color: 'var(--muted)', Icon: ClipboardList, label: 'Funções', r: 7 },
   person: { color: 'var(--warn)', Icon: UserRound, label: 'Funcionários', r: 10 },
-  employee: { color: 'var(--accent)', Icon: User, label: 'Agentes de IA', r: 10 },
+  employee: { color: 'var(--accent)', Icon: Bot, label: 'Agentes de IA', r: 10 },
   tool: { color: 'var(--kg-tool)', Icon: Wrench, label: 'Ferramentas', r: 7.5 },
 };
 
@@ -176,7 +176,7 @@ const memNodeR = (n: { type: string; wordCount: number; links: number }) =>
       : 0.45 + Math.min(0.95, n.links * 0.1 + n.wordCount / 4000);
 
 // per-frame camera catch-up: ~0.075 feels like a camera operator gliding
-const CAM_EASE = 0.075;
+const CAM_EASE = 0.13;
 // returning to the main view is a SNAP, not a cruise — nodes teleport home,
 // so the camera matches with a much brisker pull-out (~4 frames to settle)
 const CAM_EASE_HOME = 0.3;
@@ -645,8 +645,8 @@ export function KnowledgeGraph({
     const sim = forceSimulation(nodes)
       // extra friction + a slow cool-down → nodes drift floatily into place
       // instead of snapping or overshooting
-      .velocityDecay(0.62)
-      .alphaDecay(0.015)
+      .velocityDecay(0.68)
+      .alphaDecay(0.028)
       .force('link', forceLink<SimNode, SimLink>(links).id((d) => d.id))
       .force('charge', forceManyBody())
       .force('radial', forceRadial<SimNode>((d) => RING_R[d.ring], CX, CY))
@@ -771,13 +771,13 @@ export function KnowledgeGraph({
       // ease the wheel toward its target (shortest way around) — the physics
       // accessors read wheelRef live, so the whole background glides with it
       const wd = shortestAngleDelta(wheelRef.current, wheelTargetRef.current);
-      if (Math.abs(wd) > 0.0005) wheelRef.current += wd * 0.075;
+      if (Math.abs(wd) > 0.0005) wheelRef.current += wd * 0.14;
       // ease the STAGE PHASE with inertia — velocity chases the error, phase
       // integrates velocity, so the turn winds up, coasts, and settles like a
       // massive wheel; keep the sim warm for the whole sweep or the nodes
       // would stall mid-rim
       const sd = stageTargetRef.current - stagePhaseRef.current;
-      stageVelRef.current += (sd * 0.075 - stageVelRef.current) * 0.09;
+      stageVelRef.current += (sd * 0.14 - stageVelRef.current) * 0.16;
       if (Math.abs(sd) > 0.0008 || Math.abs(stageVelRef.current) > 0.0004) {
         stagePhaseRef.current += stageVelRef.current;
         const sim = simRef.current;

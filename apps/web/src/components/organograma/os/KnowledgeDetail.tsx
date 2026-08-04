@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ArrowLeft, ChevronRight, ClipboardList, FileText, ListChecks, Server, User, UserCog, Wrench, X, type LucideIcon,
+  ArrowLeft, Bot, ChevronRight, ClipboardList, FileText, ListChecks, Server, UserCog, Wrench, X, type LucideIcon,
 } from 'lucide-react';
 import type { AgentWiki, ToolWiki } from '@/lib/agent-wiki';
 import type { Personnel } from '@/lib/personnel';
@@ -115,7 +115,7 @@ export function DeptOverviewCard({
         )}
 
         <div className="mt-4">
-          <SectionLabel icon={User}>Agentes ({agents.length})</SectionLabel>
+          <SectionLabel icon={Bot}>Agentes ({agents.length})</SectionLabel>
           <div className="flex flex-col gap-1.5">
             {agents.map((a) => (
               <Row key={a.id} color="var(--accent)" title={a.name} sub={`${a.role} · ${a.model}`} onClick={() => onAgent(a.id)} />
@@ -270,7 +270,7 @@ export function ToolDetailCard({
         <div className="mb-4 flex items-center gap-2">
           <WikiLink label={`${wiki.slug}.md`} mcp={wiki.mcp} />
         </div>
-        <SectionLabel icon={User}>usada por ({wiki.usedBy.length})</SectionLabel>
+        <SectionLabel icon={Bot}>usada por ({wiki.usedBy.length})</SectionLabel>
         {wiki.usedBy.length === 0 ? (
           <p className="font-mono text-[11px] text-os-muted">nenhum agente à vista</p>
         ) : (
@@ -517,7 +517,7 @@ export function PersonDetailCard({
         </p>
         <SectionLabel icon={FileText}>contexto · brain-store/people/{person.name.toLowerCase()}.md</SectionLabel>
         <div className="mb-4"><WikiLink label={`${person.name.toLowerCase()}.md`} /></div>
-        <SectionLabel icon={User}>gerencia</SectionLabel>
+        <SectionLabel icon={Bot}>gerencia</SectionLabel>
         <div className="flex flex-col gap-1">
           {agents.map((a) => (
             <span key={a.id} className="font-mono text-[11px] text-os-muted">{a.name}</span>
