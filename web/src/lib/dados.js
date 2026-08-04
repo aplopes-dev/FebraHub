@@ -182,6 +182,45 @@ export const useFinanceiroAReceberHorizonte = () => useView("vw_financeiro_a_rec
 export const useFinanceiroDespesaCategoria = () => useView("vw_financeiro_despesa_categoria");
 export const useFinanceiroAPagarHorizonte = () => useView("vw_financeiro_a_pagar_horizonte");
 export const useFinanceiroPagoMensal = () => useView("vw_financeiro_pago_mensal");
+// Recebido por mês (caixa). Alimenta o card de Financeiro do Hub Executivo.
+export const useFinanceiroRecebidoMensal = () =>
+  useView("vw_financeiro_recebido_mensal", { ordem: ["mes"], staleTime: 60 * 1000 });
+
+/* ============ HUB EXECUTIVO (setor 'geral') ============ */
+/* Faturamento de venda: a view tem 8k+ linhas. Em vez de puxar tudo, filtro no
+   servidor pelas datas recentes (aprovação OU pagamento >= `desde`) e o front
+   soma o mês corrente por coalesce(data_aprovacao, data_pagamento). staleTime
+   60s (operacional). */
+export function useVendaFaturamentoDesde(desde) {
+  return useQuery({
+    queryKey: ["venda_faturamento", desde],
+    enabled: !!desde,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      let todos = [], de = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from("vw_venda_faturamento")
+          .select("valor_bruto,data_aprovacao,data_pagamento")
+          .or(`data_aprovacao.gte.${desde},data_pagamento.gte.${desde}`)
+          .range(de, de + PAGINA - 1);
+        if (error) throw error;
+        const lote = data ?? [];
+        todos = todos.concat(lote);
+        de += lote.length;
+        if (lote.length < PAGINA) break;
+      }
+      return todos;
+    },
+  });
+}
+// Investimento de mídia (uma linha por campanha/mês; `gasto`). Card Marketing.
+export const useMarketingInvestimento = () =>
+  useView("vw_marketing_investimento", { ordem: ["mes"], staleTime: 60 * 1000 });
+// Loja: realizado vs meta do mês (realizado, pct_minima, nivel_atingido por
+// mes_ref). Alimenta o card da Loja e o radar (nivel_atingido='Abaixo').
+export const useLojaMetaRealizado = () =>
+  useView("vw_loja_meta_realizado", { ordem: ["mes_ref"], staleTime: 60 * 1000 });
 
 /* Loja — receita própria. Curso ≠ loja: nunca entra num total conjunto.
    A receita virou CONSOLIDADA (ver useLojaReceitaTotalMes abaixo); os hooks

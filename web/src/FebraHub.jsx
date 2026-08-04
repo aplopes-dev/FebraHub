@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
   LayoutDashboard, Lock, Mail, AlertTriangle, Package, LogOut, Power,
-  Database, ShieldAlert, Loader2, ArrowRight, Sparkles, Bell,
+  Database, ShieldAlert, Loader2, ArrowRight, Bell,
   Clock, Receipt, Hourglass, ChevronLeft, ChevronRight, ChevronDown,
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
@@ -16,7 +16,6 @@ import {
   useComercialVerdesDetalhe,
   useComercialMatriculasFaturamento, useComercialCursosPorConsultora,
   useComercialRankingGeralConsolidado, useComercialGeralMensal,
-  useFinanceiroReceita, useFinanceiroQualid,
   useFinanceiroPagamentos,
   useFinanceiroCaixaHorizonte, useFinanceiroFormasPagamento,
   useFinanceiroReceitaMensal, useFinanceiroCaixaMensal,
@@ -34,11 +33,13 @@ import {
   usePedagogicoAvaliacao, usePedagogicoAvaliacaoKpis,
   usePedagogicoRetencaoCasos, usePedagogicoRetencao, usePedagogicoRetencaoMotivos,
   usePedagogicoPainel,
+  useVendaFaturamentoDesde, useFinanceiroRecebidoMensal,
+  useMarketingInvestimento, useLojaMetaRealizado,
   salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
   usePedagogicoAusentes,
   useEventosDesempenho,
-  useDiretoriaConsol, useIntegracaoStatus,
-  porMes, variacao, moeda, numero,
+  useIntegracaoStatus,
+  porMes, moeda, numero,
 } from "./lib/dados";
 
 const qc = new QueryClient({
@@ -1452,43 +1453,6 @@ function CaixaCard({ serie, semFonte }) {
   );
 }
 
-/* Faixa narrativa. No mockup ela diz "gerado pela IA" — não existe
-   IA aqui ainda, e prometer isso queima a confiança no painel.
-   O texto abaixo é CALCULADO a partir dos números reais. Quando o
-   motor de atribuição existir, troca-se a fonte, não o layout. */
-function Historia({ frases, cobertura }) {
-  return (
-    <div style={{
-      position: "relative", border: `1px solid ${C.gold}38`, borderRadius: 18,
-      padding: "26px 28px", marginBottom: 26, overflow: "hidden",
-      background: `linear-gradient(120deg, ${C.gold}17, ${C.gold}05 42%, rgba(255,255,255,.015))`,
-    }}>
-      <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: `linear-gradient(${C.goldTop}, ${C.goldBase})` }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <span style={{
-          width: 22, height: 22, borderRadius: 6, background: C.gold, color: "#100c04",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <Sparkles size={12} />
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: C.gold }}>
-          O mês em uma frase
-        </span>
-        <span style={{ fontSize: 11, color: C.faint, marginLeft: 4 }}>calculado sobre os dados do banco</span>
-      </div>
-      <p style={{ fontSize: 18.5, lineHeight: 1.62, fontWeight: 500, color: C.bright, maxWidth: 960 }}>
-        {frases}
-      </p>
-      {cobertura && (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.gold}22` }}>
-          <AlertTriangle size={13} style={{ color: C.warn, marginTop: 2, flexShrink: 0 }} />
-          <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.55 }}>{cobertura}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Estado({ carregando, erro, vazio, children, vazioTitulo, vazioDica }) {
   if (carregando)
     return (
@@ -1522,93 +1486,202 @@ function Estado({ carregando, erro, vazio, children, vazioTitulo, vazioDica }) {
   return children;
 }
 
-/* ============ HUB EXECUTIVO ============ */
+/* ============ HUB EXECUTIVO (Diretoria/Dulce · setor 'geral') ============
+   Visão de mês corrente, navegável. Nada de somar unidades diferentes — cada
+   card é do seu setor e clica pro hub detalhado. Grafite + dourado. */
+const isoDia = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+const noMesYM = (v, ym) => String(v ?? "").slice(0, 7) === ym;
 
-function HubExecutivo() {
-  const cons = useDiretoriaConsol();
-  const rec = useFinanceiroReceita();
-  const qual = useFinanceiroQualid();
-  const ev = useEventosDesempenho();
-
-  const cursos = useMemo(
-    () => porMes((cons.data ?? []).filter((r) => r.unidade_negocio === "cursos"), "mes", "receita_liquida"),
-    [cons.data]
+// Bloco 1: faturamento do mês — número grande + comparação com o MESMO período
+// do mês anterior (mesmos dias decorridos). Clica pro Comercial.
+function HeroFaturamento({ fat, ateDia, carregando, erro, onIr }) {
+  const up = fat.up, temComp = fat.delta != null;
+  return (
+    <button onClick={onIr} style={{
+      display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+      background: `linear-gradient(135deg, ${C.gold}14, transparent 60%), ${C.card}`,
+      border: `1px solid ${C.gold}3D`, borderRadius: 18, padding: "20px 22px", marginBottom: 16,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".5px", textTransform: "uppercase", color: C.gold }}>Faturamento do mês · até dia {ateDia}</span>
+        <ArrowUpRight size={16} style={{ color: C.faint }} />
+      </div>
+      {carregando ? (
+        <div style={{ margin: "12px 0 4px", color: C.faint, fontSize: 14 }}>Carregando…</div>
+      ) : erro ? (
+        <div style={{ margin: "12px 0 4px", color: C.down, fontSize: 13 }}>Não foi possível carregar o faturamento.</div>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", margin: "8px 0 2px" }}>
+            <span style={{ fontFamily: GROTESK, fontSize: 40, fontWeight: 700, letterSpacing: "-1px", color: C.gold, lineHeight: 1 }}>{moeda(fat.atual)}</span>
+            {temComp && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 15, fontWeight: 800, color: up ? C.up : C.down }}>
+                {up ? "▲" : "▼"} {Math.abs(fat.delta).toFixed(1).replace(".", ",")}%
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: C.muted }}>
+            {temComp
+              ? <>vs {moeda(fat.ant)} no mesmo período do mês passado ({ateDia} {ateDia === 1 ? "dia" : "dias"})</>
+              : <>sem base comparável no mês passado</>}
+          </div>
+        </>
+      )}
+    </button>
   );
-  const eventos = useMemo(
-    () => porMes((cons.data ?? []).filter((r) => r.unidade_negocio === "eventos"), "mes", "receita_liquida"),
-    [cons.data]
+}
+
+// Bloco 2: radar de alertas — só o que é crítico, com cor. Vazio = tudo certo.
+function RadarAlertas({ alertas }) {
+  if (!alertas.length) return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 14, padding: "12px 16px", marginBottom: 20 }}>
+      <ShieldCheck size={16} style={{ color: C.up }} />
+      <span style={{ fontSize: 12.5, color: C.muted }}>Nada crítico agora. Inadimplência, meta da loja e integrações sob controle.</span>
+    </div>
   );
-  const vc = variacao(cursos), ve = variacao(eventos);
+  return (
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+      {alertas.map((a, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: `${a.cor}12`, border: `1px solid ${a.cor}44`, borderRadius: 12, padding: "10px 13px", flex: "1 1 240px", minWidth: 220, maxWidth: 360 }}>
+          <a.Icone size={16} style={{ color: a.cor, flexShrink: 0 }} />
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</span>
+            <span style={{ display: "block", fontSize: 10.5, color: C.faint }}>{a.valor ? <b style={{ color: a.cor }}>{a.valor}</b> : null}{a.valor && a.sub ? " · " : ""}{a.sub}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const vendas = useMemo(() => (rec.data ?? []).filter((r) => r.natureza === "venda"), [rec.data]);
+// Bloco 3: card de setor navegável (mês corrente).
+function CardSetor({ Icone, titulo, linhas, nota, estado, onIr }) {
+  return (
+    <button onClick={onIr} style={{
+      display: "flex", flexDirection: "column", gap: 10, textAlign: "left", cursor: "pointer",
+      background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 14, padding: "14px 16px", minHeight: 118,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 26, height: 26, borderRadius: 8, background: `${C.gold}1E`, color: C.gold, display: "flex", alignItems: "center", justifyContent: "center" }}><Icone size={14} /></span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>{titulo}</span>
+        </span>
+        <ArrowUpRight size={15} style={{ color: C.faint }} />
+      </div>
+      {estado?.carregando ? <span style={{ fontSize: 12, color: C.faint }}>Carregando…</span>
+        : estado?.erro ? <span style={{ fontSize: 12, color: C.down }}>Fonte indisponível</span>
+          : (
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+              {linhas.map((l, i) => (
+                <span key={i} style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontFamily: GROTESK, fontSize: 18, fontWeight: 700, color: l.cor ?? C.text }}>{l.valor}</span>
+                  <span style={{ display: "block", fontSize: 10, color: C.faint }}>{l.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
+      {nota && <span style={{ fontSize: 10, color: C.dim, marginTop: "auto" }}>{nota}</span>}
+    </button>
+  );
+}
 
-  const porCurso = useMemo(() => {
-    const g = agrupar(vendas, "curso", "valor").slice(0, 6);
-    return g.map((l) => l.rotulo === "nao_determinado"
-      ? { ...l, rotulo: "Sem curso vinculado", orfa: true } : l);
-  }, [vendas]);
+function HubExecutivo({ onIr }) {
+  const hoje = new Date();
+  const Y = hoje.getFullYear(), Mo = hoje.getMonth(), Di = hoje.getDate();
+  const ym = `${Y}-${String(Mo + 1).padStart(2, "0")}`;
+  const inicioMes = isoDia(new Date(Y, Mo, 1)), fimMes = isoDia(new Date(Y, Mo, Di));
+  const inicioAnt = isoDia(new Date(Y, Mo - 1, 1));
+  const ultDiaAnt = new Date(Y, Mo, 0).getDate();
+  const fimAnt = isoDia(new Date(Y, Mo - 1, Math.min(Di, ultDiaAnt)));
 
-  const taxaSympla = useMemo(() => {
-    const d = ev.data ?? [];
-    const b = d.reduce((s, e) => s + Number(e.receita_bruta ?? 0), 0);
-    const l = d.reduce((s, e) => s + Number(e.receita_liquida ?? 0), 0);
-    return { retido: b - l, pct: b ? ((b - l) / b) * 100 : 0 };
-  }, [ev.data]);
+  // Bloco 1 — faturamento (recorte servidor: só datas recentes).
+  const fatHook = useVendaFaturamentoDesde(inicioAnt);
+  const fat = useMemo(() => {
+    const rows = fatHook.data ?? [];
+    const soma = (ini, fim) => rows.reduce((s, r) => {
+      const d = String(r.data_aprovacao ?? r.data_pagamento ?? "").slice(0, 10);
+      return d >= ini && d <= fim ? s + Number(r.valor_bruto ?? 0) : s;
+    }, 0);
+    const atual = soma(inicioMes, fimMes), ant = soma(inicioAnt, fimAnt);
+    return { atual, ant, delta: ant > 0 ? ((atual - ant) / ant) * 100 : null, up: atual >= ant };
+  }, [fatHook.data, inicioMes, fimMes, inicioAnt, fimAnt]);
 
-  const q = qual.data?.[0];
+  // Fontes dos demais blocos.
+  const inadimp = useFinanceiroInadimp();
+  const lojaMeta = useLojaMetaRealizado();
+  const integ = useIntegracaoStatus();
+  const comMensal = useComercialGeralMensal();
+  const recMensal = useFinanceiroRecebidoMensal();
+  const mktInv = useMarketingInvestimento();
+  const mktAtr = useMarketingAtribuicao();
+  const pedK = usePedagogicoKpis();
+  const pedP = usePedagogicoPresencaKpis();
 
-  const historia = useMemo(() => {
-    if (!vc.atual) return "Aguardando dados.";
-    const lider = porCurso.find((c) => !c.orfa);
-    const ref = vc.mes
-      ? new Date(vc.mes + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
-      : "";
-    return (
-      <>
-        Em <b style={{ color: C.text }}>{ref}</b>, o último mês fechado, a receita de cursos foi de{" "}
-        <b style={{ color: C.text }}>{moeda(vc.atual)}</b>
-        {vc.delta && (
-          <>, {vc.up ? "acima" : "abaixo"} do mês anterior em{" "}
-            <b style={{ color: vc.up ? C.up : C.down }}>{String(vc.delta).replace(/[+-]/, "")}</b></>
-        )}.
-        {lider && <> O produto que mais pesou foi <b style={{ color: C.text }}>{lider.rotulo}</b>, com {moeda(lider.valor)}.</>}
-        {" "}Os eventos entraram com <b style={{ color: C.text }}>{moeda(ve.atual)}</b> líquidos —{" "}
-        <b style={{ color: C.warn }}>{moeda(taxaSympla.retido)}</b> ficaram retidos como taxa da plataforma
-        ({taxaSympla.pct.toFixed(1)}%).
-      </>
-    );
-  }, [vc, ve, porCurso, taxaSympla]);
+  const totVencido = useMemo(() => (inadimp.data ?? []).reduce((s, r) => s + Number(r.valor_vencido ?? 0), 0), [inadimp.data]);
+  const lojaRow = useMemo(() => (lojaMeta.data ?? []).find((r) => noMesYM(r.mes_ref, ym)), [lojaMeta.data, ym]);
+  const lojaAbaixo = lojaRow && String(lojaRow.nivel_atingido ?? "").trim().toLowerCase() === "abaixo";
+  const integParadas = useMemo(() => (integ.data ?? []).filter((r) => { const v = visualFonte(r); return v.alerta && !v.manual; }), [integ.data]);
 
-  const cobertura = q
-    ? `84% da receita tem curso vinculado · ${q.pct_sem_status}% dos pagamentos sem status, então inadimplência ainda não é confiável · Loja e Estoque sem fonte conectada.`
-    : null;
+  // Bloco 2 — radar (só críticos).
+  const alertas = [
+    ...(totVencido > 0 ? [{ cor: C.warn, Icone: AlertTriangle, titulo: "Inadimplência", valor: moeda(totVencido), sub: "vencido em aberto" }] : []),
+    ...(lojaAbaixo ? [{ cor: C.down, Icone: ShoppingBag, titulo: "Loja abaixo da meta", valor: fmtPct(lojaRow.pct_minima), sub: "da meta mínima" }] : []),
+    ...integParadas.map((r) => ({ cor: visualFonte(r).cor, Icone: Database, titulo: `Integração: ${r.nome_exibicao ?? r.fonte}`, valor: "", sub: r.rotulo ?? "sync atrasado" })),
+  ];
+
+  // Bloco 3 — cards por setor (mês corrente).
+  const com = useMemo(() => {
+    const rows = (comMensal.data ?? []).filter((r) => noMesYM(r.data ?? r.mes, ym));
+    return { fat: rows.reduce((s, r) => s + Number(r.valor_bruto ?? 0), 0), mat: rows.reduce((s, r) => s + Number(r.conta_matricula ?? 0), 0) };
+  }, [comMensal.data, ym]);
+  const recebidoMes = useMemo(() => (recMensal.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.recebido ?? 0), 0), [recMensal.data, ym]);
+  const investMes = useMemo(() => (mktInv.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.gasto ?? 0), 0), [mktInv.data, ym]);
+  const retornoMes = useMemo(() => (mktAtr.data ?? []).filter((r) => noMesYM(r.mes, ym)).reduce((s, r) => s + Number(r.faturamento_atribuido ?? 0), 0), [mktAtr.data, ym]);
+  const recompra = pedK.data?.[0]?.taxa_recompra;
+  const comparec = pedP.data?.[0]?.taxa_comparecimento_geral;
 
   return (
-    <Estado carregando={cons.isLoading} erro={cons.error} vazio={!cons.data?.length}>
-      <Historia frases={historia} cobertura={cobertura} />
+    <>
+      <style>{`
+        .execCards { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        @media (min-width: 680px)  { .execCards { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1040px) { .execCards { grid-template-columns: repeat(3, 1fr); } }
+      `}</style>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 800, color: C.bright }}>Indicadores-chave</h2>
-        <span style={{ fontSize: 11.5, color: C.faint }}>último mês fechado · cursos e eventos nunca somados</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: C.bright }}>Visão executiva</h2>
+        <span style={{ fontSize: 11.5, color: C.faint }}>{hoje.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · mês corrente</span>
       </div>
 
-      {/* R$ 6.138 e R$ 46 não são a mesma unidade de negócio.
-          Um total conjunto não significaria nada. */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, marginBottom: 30 }}>
-        <Kpi label="Receita · cursos" valor={moeda(vc.atual)} delta={vc.delta} up={vc.up}
-             serie={vc.serie} parcial={vc.parcial != null ? moeda(vc.parcial) : null} />
-        <Kpi label="Receita · eventos" valor={moeda(ve.atual)} delta={ve.delta} up={ve.up}
-             serie={ve.serie} parcial={ve.parcial != null ? moeda(ve.parcial) : null} />
-        <Kpi label="Taxa retida (Sympla)" valor={moeda(taxaSympla.retido)} nota={`${taxaSympla.pct.toFixed(1)}% do bruto`} destaque={C.warn} />
-        <Kpi label="Pagamentos sem status" valor={q ? q.pct_sem_status : "—"} unidade="%" nota="risco de KPI" destaque={C.warn} />
-      </div>
+      {/* Bloco 1 */}
+      <HeroFaturamento fat={fat} ateDia={Di} carregando={fatHook.isLoading} erro={fatHook.error} onIr={() => onIr("comercial")} />
 
-      <Bloco titulo="Receita por curso" canto="venda · acumulado" sem>
-        <Estado carregando={rec.isLoading} erro={rec.error} vazio={!porCurso.length}>
-          <Lista linhas={porCurso} total={porCurso.reduce((s, l) => s + l.valor, 0)} />
-        </Estado>
-      </Bloco>
-    </Estado>
+      {/* Bloco 2 */}
+      <RadarAlertas alertas={alertas} />
+
+      {/* Bloco 3 */}
+      <div className="execCards">
+        <CardSetor Icone={TrendingUp} titulo="Comercial" onIr={() => onIr("comercial")}
+          estado={{ carregando: comMensal.isLoading, erro: comMensal.error }}
+          linhas={[{ label: "faturamento bruto", valor: moeda(com.fat), cor: C.gold }, { label: "matrículas", valor: numero(com.mat) }]} />
+        <CardSetor Icone={Wallet} titulo="Financeiro" onIr={() => onIr("financeiro")}
+          estado={{ carregando: recMensal.isLoading, erro: recMensal.error }}
+          linhas={[{ label: "recebido no mês", valor: moeda(recebidoMes), cor: C.up }, { label: "inadimplência", valor: moeda(totVencido), cor: totVencido > 0 ? C.warn : C.text }]} />
+        <CardSetor Icone={ShoppingBag} titulo="Loja" onIr={() => onIr("loja")}
+          estado={{ carregando: lojaMeta.isLoading, erro: lojaMeta.error }}
+          linhas={lojaRow
+            ? [{ label: "realizado", valor: moeda(lojaRow.realizado), cor: C.gold }, { label: "da meta mín.", valor: fmtPct(lojaRow.pct_minima), cor: lojaAbaixo ? C.down : C.up }]
+            : [{ label: "meta do mês", valor: "—" }]}
+          nota={lojaRow ? `nível: ${lojaRow.nivel_atingido}` : null} />
+        <CardSetor Icone={Megaphone} titulo="Marketing" onIr={() => onIr("marketing")}
+          estado={{ carregando: mktInv.isLoading, erro: mktInv.error }}
+          linhas={[{ label: "investimento", valor: moeda(investMes) }, { label: "retorno atribuído", valor: moeda(retornoMes), cor: C.up }]}
+          nota="atribuição parcial — só vendas com origem confirmada" />
+        <CardSetor Icone={GraduationCap} titulo="Pedagógico" onIr={() => onIr("pedagogico")}
+          estado={{ carregando: pedK.isLoading, erro: pedK.error }}
+          linhas={[{ label: "recompra (grade)", valor: fmtPct(recompra, 1), cor: C.gold }, { label: "comparecimento", valor: fmtPct(comparec), cor: C.up }]} />
+      </div>
+    </>
   );
 }
 
@@ -4935,7 +5008,7 @@ function Shell({ perfil }) {
 
   const conteudo = () => {
     switch (tela) {
-      case "executivo":  return <HubExecutivo />;
+      case "executivo":  return <HubExecutivo onIr={setTela} />;
       case "comercial":  return <HubComercial />;
       case "financeiro": return <HubFinanceiro />;
       case "marketing":  return <HubMarketing />;
