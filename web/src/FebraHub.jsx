@@ -5162,7 +5162,9 @@ function Shell({ perfil }) {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <SeletorPeriodo />
+              {/* Executivo é sempre mês corrente — sem filtro de período. Os hubs
+                  setoriais mantêm o seletor (é lá que a Dulce fatia por período). */}
+              {tela !== "executivo" && <SeletorPeriodo />}
               {tela === "comercial" && <SeletorCategoria />}
               <div style={{
                 width: 40, height: 40, borderRadius: 10, border: `1px solid ${C.cardLine}`,
