@@ -134,6 +134,11 @@ services:
       # plataforma Aplopes em repouso (AES-256-GCM, 32 bytes em base64).
       WHATSAPP_SESSIONS_DIR: /dados/whatsapp-sessoes
       AGENTES_CHAVE_CIFRA: ${AGENTES_CHAVE_CIFRA}
+      # GBrain: a API é o ÚNICO cliente dele. O token de admin serve para
+      # provisionar um cliente OAuth por pessoa, com as fontes que o perfil
+      # de acesso dela permite ler; o navegador nunca vê credencial nenhuma.
+      BRAIN_URL: http://brain:3131
+      BRAIN_ADMIN_TOKEN: ${BRAIN_ADMIN_TOKEN}
       TZ: America/Bahia
     env_file:
       # As credenciais OAuth (CONTAAZUL_CLIENT_ID/SECRET/SCOPE, META_APP_ID/
@@ -208,6 +213,72 @@ services:
       resources:
         limits: { memory: 1G }
 
+  # ---------------- GBrain (memória institucional) ----------------
+  #
+  # Banco PRÓPRIO, e não o `postgres` do FebraHub, por duas razões:
+  #   1. o gbrain exige a extensão pgvector, e a imagem do banco de negócio é
+  #      postgres:17.4-alpine — trocá-la por pgvector/pgvector:pg17 debaixo de
+  #      um banco em produção significa trocar musl por glibc sob os índices
+  #      já criados, risco que uma funcionalidade nova não justifica;
+  #   2. o próprio tutorial do gbrain recomenda isolar o banco do brain e
+  #      nunca entregar a DATABASE_URL dele a container de agente — quem faz
+  #      o recorte de acesso é o OAuth, não o acesso direto ao SQL.
+  brain_pg:
+    image: pgvector/pgvector:pg17
+    container_name: febrahub_brain_pg
+    restart: unless-stopped
+    logging: *log
+    environment:
+      POSTGRES_DB: ${BRAIN_POSTGRES_DB:-gbrain}
+      POSTGRES_USER: ${BRAIN_POSTGRES_USER:-gbrain}
+      POSTGRES_PASSWORD: ${BRAIN_POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C.UTF-8'
+      TZ: America/Bahia
+      PGTZ: America/Bahia
+    volumes:
+      - brain_pg_dados:/var/lib/postgresql/data
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${BRAIN_POSTGRES_USER:-gbrain} -d ${BRAIN_POSTGRES_DB:-gbrain}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  brain:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.brain
+    image: febrahub-brain:${TAG:-latest}
+    container_name: febrahub_brain
+    restart: unless-stopped
+    logging: *log
+    depends_on:
+      brain_pg: { condition: service_healthy }
+    environment:
+      # GBRAIN_DATABASE_URL e não DATABASE_URL: o gbrain ignora um
+      # DATABASE_URL que venha de .env do diretório atual (guarda dele contra
+      # sequestro), e a variável namespaced é sempre honrada.
+      GBRAIN_DATABASE_URL: postgresql://${BRAIN_POSTGRES_USER:-gbrain}:${BRAIN_POSTGRES_PASSWORD}@brain_pg:5432/${BRAIN_POSTGRES_DB:-gbrain}
+      GBRAIN_ADMIN_BOOTSTRAP_TOKEN: ${BRAIN_ADMIN_TOKEN}
+      GBRAIN_FONTES: ${BRAIN_FONTES:-geral,comercial,financeiro,marketing,pedagogico,eventos,loja,estoque,crm}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TZ: America/Bahia
+    volumes:
+      # Os repositórios de cada fonte (o "system of record" do gbrain) e a
+      # config resolvida. Volume, não bind: o conteúdo é dado da aplicação.
+      - brain_repos:/brain
+      - brain_config:/root/.gbrain
+    # Sem `ports`: só a API fala com ele, pela rede interna. O Nginx do host
+    # não tem rota para cá, e o /admin do gbrain não fica exposto.
+    networks: [interna]
+    deploy:
+      resources:
+        limits: { memory: 2G }
+
   # ---------------- ETLs ----------------
   # Não fica de pé: sobe, roda um sync e sai (`compose run --rm etl ...`).
   # Quem agenda é o cron do host, por infra/scripts/sync.sh. Antes isso vivia
@@ -247,6 +318,12 @@ volumes:
     name: febrahub_minio_dados
   wa_sessoes:
     name: febrahub_wa_sessoes
+  brain_pg_dados:
+    name: febrahub_brain_pg_dados
+  brain_repos:
+    name: febrahub_brain_repos
+  brain_config:
+    name: febrahub_brain_config
 
 networks:
   interna:

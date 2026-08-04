@@ -1,0 +1,39 @@
+# FebraHub — GBrain (memória institucional)
+#
+# O gbrain é distribuído só pelo GitHub e exige Bun (o package.json declara
+# `engines: { bun: ">=1.3.10" }`). Por isso a imagem parte do oven/bun em vez
+# de reaproveitar o node:22 da API — e por isso ele roda em container próprio,
+# sem contaminar a imagem da API com um segundo runtime.
+#
+# ATENÇÃO ao pacote npm homônimo: o README do projeto avisa que `npm i gbrain`
+# instala outra coisa. A instalação é sempre a partir do repositório.
+FROM oven/bun:1.3
+
+# git: o gbrain sincroniza cada fonte a partir de um repositório na pasta do
+# volume (`gbrain sources add <id> --path ...`) e inicializa esses repos.
+# ca-certificates: chamadas ao provedor de embeddings.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Versão fixada: `master` muda várias vezes por dia, e um deploy do FebraHub
+# não pode arrastar junto uma versão do gbrain que ninguém testou. Subir de
+# versão é editar esta linha — um commit, revisável como qualquer outro.
+ARG GBRAIN_REF=v0.42.72.1
+RUN bun install -g "github:garrytan/gbrain#${GBRAIN_REF}"
+
+# O binário global do bun cai aqui.
+ENV PATH="/root/.bun/bin:${PATH}"
+ENV TZ=America/Bahia
+# Busca textual em português: sem isto o Postgres tokeniza com o dicionário
+# inglês e "matrículas" não casa com "matricula".
+ENV GBRAIN_FTS_LANGUAGE=portuguese
+
+COPY infra/docker/brain-entrypoint.sh /usr/local/bin/brain-entrypoint.sh
+RUN chmod +x /usr/local/bin/brain-entrypoint.sh
+
+EXPOSE 3131
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+  CMD curl -fsS http://127.0.0.1:3131/health >/dev/null || exit 1
+
+ENTRYPOINT ["/usr/local/bin/brain-entrypoint.sh"]

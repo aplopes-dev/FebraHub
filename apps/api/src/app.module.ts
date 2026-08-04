@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { carregarConfiguracao } from './config/configuracao';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BrainModule } from './modules/brain/brain.module';
 import { DadosModule } from './modules/dados/dados.module';
 import { ArquivosModule } from './modules/arquivos/arquivos.module';
 import { PedagogicoModule } from './modules/pedagogico/pedagogico.module';
@@ -78,6 +79,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     OrganogramaModule,
     PermissoesModule,
     NotificacoesModule,
+    BrainModule,
     CrmModule,
     WhatsappModule,
     AgentesModule,

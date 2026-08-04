@@ -24,7 +24,16 @@ echo "==> backup antes de mexer"
 ../scripts/backup.sh || ./infra/scripts/backup.sh || { echo "backup falhou — abortando o deploy"; exit 1; }
 
 echo "==> construindo imagens"
-$COMPOSE build --pull api web
+# O brain só entra na lista quando está configurado: sem BRAIN_ADMIN_TOKEN o
+# container sobe e morre no entrypoint, e um deploy do FebraHub não pode
+# falhar por causa de um subsistema que a instalação ainda não usa.
+SERVICOS_BUILD="api web"
+COM_BRAIN=0
+if grep -qE '^BRAIN_ADMIN_TOKEN=.+' .env 2>/dev/null; then
+  COM_BRAIN=1
+  SERVICOS_BUILD="$SERVICOS_BUILD brain"
+fi
+$COMPOSE build --pull $SERVICOS_BUILD
 
 echo "==> banco e storage"
 $COMPOSE up -d postgres minio
@@ -48,6 +57,17 @@ echo "==> migrations"
 # migrate deploy só aplica o que já está versionado: não gera migration nova
 # nem pede confirmação, que é o comportamento certo para produção.
 $COMPOSE run --rm --no-deps -T api npx prisma migrate deploy
+
+if [ "$COM_BRAIN" = 1 ]; then
+  echo "==> memória institucional (GBrain)"
+  $COMPOSE up -d brain_pg
+  esperar_saudavel febrahub_brain_pg
+  # O brain é iniciado ANTES da API porque ela consulta o /health dele ao
+  # provisionar credencial. Não é bloqueante: a API sobe de qualquer forma e
+  # a tela avisa quando o serviço está fora.
+  $COMPOSE up -d brain
+  esperar_saudavel febrahub_brain 60 || echo "AVISO: o brain não ficou saudável; a API sobe assim mesmo"
+fi
 
 echo "==> API"
 $COMPOSE up -d api

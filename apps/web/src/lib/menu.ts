@@ -1,5 +1,5 @@
 import {
-  Bell, Bot, LayoutDashboard, MapPinned, MessageCircle, Network, ShieldCheck, Users,
+  Bell, BookOpen, Bot, LayoutDashboard, MapPinned, MessageCircle, Network, ShieldCheck, Users,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -98,6 +98,12 @@ export const GRUPOS_MENU: readonly GrupoMenu[] = [
     id: "configuracoes",
     titulo: () => "Configurações",
     itens: [
+      // GBrain: a memória institucional. Fica em Configurações e não em
+      // Painéis porque não é um painel de BI — é onde se consulta e se
+      // registra o que a empresa sabe.
+      { id: "brain", label: "Memória institucional", href: "/configuracoes/brain", Icone: BookOpen,
+        desc: "Busca, respostas com citação e registro do que a empresa sabe",
+        visivel: comPermissao("brain.ver") },
       { id: "perfis", label: "Perfis de acesso", href: "/configuracoes/perfis", Icone: ShieldCheck,
         desc: "O que cada perfil pode abrir e alterar", visivel: comPermissao("perfis.gerenciar") },
       { id: "usuarios", label: "Usuários", href: "/configuracoes/usuarios", Icone: Users,

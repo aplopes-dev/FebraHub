@@ -74,6 +74,7 @@ model Usuario {
   perfilAcesso         PerfilAcesso? @relation(fields: [perfilAcessoId], references: [id], onDelete: SetNull)
   notificacoes         Notificacao[] @relation("NotificacoesRecebidas")
   notificacoesEnviadas Notificacao[] @relation("NotificacoesEnviadas")
+  brainCliente         BrainCliente?
 
   @@index([perfilAcessoId])
   @@map("usuarios")
@@ -112,6 +113,36 @@ model PerfilAcesso {
   usuarios Usuario[]
 
   @@map("perfis_acesso")
+}
+
+/// Credencial de UMA pessoa no GBrain.
+///
+/// O recorte de acesso ao conhecimento nao e feito filtrando a resposta
+/// depois: cada pessoa tem um cliente OAuth proprio no gbrain, cujo
+/// `federated_read` lista exatamente as fontes dos setores que ela alcanca.
+/// Quem recusa e o gbrain, no SQL, antes de a busca acontecer — e por isso
+/// nem a sintese (que le varias fontes de uma vez) pode vazar setor alheio.
+///
+/// `fontes` guarda o recorte com que o cliente foi provisionado. Quando o
+/// perfil ou os setores da pessoa mudam, o conjunto calculado deixa de bater
+/// com esta coluna e o servico reescopa o cliente la — e so entao.
+model BrainCliente {
+  usuarioId String   @id @map("usuario_id") @db.Uuid
+  clientId  String   @unique @map("client_id")
+  /// AES-256-GCM com a mesma chave dos tokens de agentes: o gbrain devolve o
+  /// segredo UMA vez no registro, e sem guarda-lo a pessoa perderia o acesso
+  /// no primeiro restart.
+  segredo   String
+  /// Fonte onde a pessoa ESCREVE (o setor primario dela).
+  fonteEscrita String   @map("fonte_escrita")
+  /// Fontes que ela LE. Espelho do que foi enviado ao gbrain.
+  fontes       String[]
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("brain_clientes")
 }
 
 /// Notificacao de uma pessoa. Uma linha POR DESTINATARIO, mesmo quando o

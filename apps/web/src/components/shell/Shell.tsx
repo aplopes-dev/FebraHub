@@ -269,7 +269,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                     mesma tela. As de Administração são cadastro: não têm
                     recorte de tempo nenhum. */}
                 {!["executivo", "territorial", "crm", "fontes", "whatsapp", "agentes", "conversas", "kanban",
-                   "organograma", "perfis", "usuarios", "comunicados"].includes(ativoId ?? "") && <SeletorPeriodo />}
+                   "organograma", "perfis", "usuarios", "comunicados", "brain"].includes(ativoId ?? "") && <SeletorPeriodo />}
                 {ativoId === "comercial" && <SeletorCategoria />}
                 {/* Some no celular: 40px numa barra apertada empurram o
                     filtro para outra linha, e o aviso continua chegando na

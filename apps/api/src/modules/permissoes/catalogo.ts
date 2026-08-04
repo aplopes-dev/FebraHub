@@ -111,6 +111,29 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     ],
   },
   {
+    id: 'brain',
+    nome: 'Memória institucional',
+    descricao:
+      'A base de conhecimento do GBrain. O que cada pessoa alcança são as fontes dos setores dela — as permissões abaixo dizem o que ela pode FAZER com elas.',
+    permissoes: [
+      {
+        id: 'brain.ver',
+        nome: 'Consultar a memória',
+        descricao: 'Buscar e pedir respostas com citação. Só nas fontes dos setores que a pessoa alcança.',
+      },
+      {
+        id: 'brain.enviar',
+        nome: 'Registrar conhecimento',
+        descricao: 'Gravar novas páginas na fonte do próprio setor.',
+      },
+      {
+        id: 'brain.gerenciar',
+        nome: 'Administrar a memória',
+        descricao: 'Ver o estado das fontes, o volume indexado e revalidar os acessos.',
+      },
+    ],
+  },
+  {
     id: 'administracao',
     nome: 'Administração',
     descricao: 'Quem entra, com qual perfil, e o que é comunicado a todos.',

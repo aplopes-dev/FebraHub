@@ -57,6 +57,9 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'organograma.editar',
       ...TODOS_SETORES,
       'integracoes.ver',
+      'brain.ver',
+      'brain.enviar',
+      'brain.gerenciar',
       'notificacoes.enviar',
     ],
   },
@@ -66,14 +69,14 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     descricao:
       'Hub Executivo com metas e organograma. Os dados continuam recortados pelo setor do cadastro.',
     sistema: false,
-    permissoes: ['executivo.ver', 'executivo.metas', 'organograma.ver'],
+    permissoes: ['executivo.ver', 'executivo.metas', 'organograma.ver', 'brain.ver', 'brain.enviar'],
   },
   {
     slug: 'equipe',
     nome: 'Equipe',
     descricao: 'O hub do próprio setor e o organograma. É o perfil padrão de quem entra.',
     sistema: false,
-    permissoes: ['organograma.ver'],
+    permissoes: ['organograma.ver', 'brain.ver'],
   },
   {
     slug: 'integracoes',
@@ -86,6 +89,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'whatsapp.gerenciar',
       'agentes.gerenciar',
       'setor.crm.ver',
+      'brain.gerenciar',
       'usuarios.gerenciar',
     ],
   },
@@ -94,7 +98,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     nome: 'Somente leitura',
     descricao: 'Abre os painéis da diretoria sem poder alterar nada.',
     sistema: false,
-    permissoes: ['executivo.ver', 'territorial.ver', 'organograma.ver'],
+    permissoes: ['executivo.ver', 'territorial.ver', 'organograma.ver', 'brain.ver'],
   },
 ];
 

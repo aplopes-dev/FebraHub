@@ -19,6 +19,27 @@ import { PERMISSOES, normalizarPermissoes, permissoesDesconhecidas } from './cat
 import { permissoesEfetivas } from './efetivas';
 import { PERFIS_PADRAO } from './perfis-padrao';
 
+const migration = (pasta: string): string =>
+  readFileSync(join(__dirname, `../../../prisma/migrations/${pasta}/migration.sql`), 'utf8');
+
+/** As permissões do INSERT inicial, por slug. */
+function permissoesDaMigration14(slug: string): string[] {
+  const sql = migration('00000000000014_permissoes_notificacoes');
+  const trecho = sql.slice(sql.indexOf('INSERT INTO public.perfis_acesso'));
+  const bloco = trecho.slice(trecho.indexOf(`('${slug}',`));
+  const fim = bloco.indexOf('])');
+  if (fim < 0) return [];
+  return [...bloco.slice(0, fim).matchAll(/'([a-z]+\.[a-z.]+)'/g)].map((m) => m[1]);
+}
+
+/** Os pares (slug, permissão) que a migration aditiva acrescenta. */
+function adicoesDaMigration16(slug: string): string[] {
+  const sql = migration('00000000000016_brain_permissoes');
+  return [...sql.matchAll(/\('([a-z-]+)',\s*'([a-z]+\.[a-z.]+)'\)/g)]
+    .filter((m) => m[1] === slug)
+    .map((m) => m[2]);
+}
+
 const usuario = (p: Partial<UsuarioLogado>): UsuarioLogado => ({
   id: 'u',
   email: 'a@b.c',
@@ -60,21 +81,19 @@ describe('perfis padrão', () => {
     expect([...sistema[0].permissoes].sort()).toEqual([...PERMISSOES].sort());
   });
 
-  // A migration é o que chega ao servidor: a imagem da API não tem ts-node
-  // para rodar o seed. Divergir dela é divergir da produção.
-  it('bate com as linhas da migration 14', () => {
-    const sql = readFileSync(
-      join(__dirname, '../../../prisma/migrations/00000000000014_permissoes_notificacoes/migration.sql'),
-      'utf8',
-    );
-    const trecho = sql.slice(sql.indexOf('INSERT INTO public.perfis_acesso'));
-
+  // As migrations são o que chega ao servidor: a imagem da API não tem
+  // ts-node para rodar o seed. Divergir delas é divergir da produção.
+  //
+  // São DUAS porque a 14 já rodou em produção e perfil existente não é
+  // reescrito — permissão nova de um subsistema novo entra por migration
+  // aditiva. O estado esperado é a união das duas.
+  it('bate com o que as migrations semeiam', () => {
     for (const perfil of PERFIS_PADRAO) {
-      const bloco = trecho.slice(trecho.indexOf(`('${perfil.slug}',`));
-      const fim = bloco.indexOf('])');
-      expect(fim).toBeGreaterThan(0);
-      const doSql = [...bloco.slice(0, fim).matchAll(/'([a-z]+\.[a-z.]+)'/g)].map((m) => m[1]);
-      expect([...doSql].sort()).toEqual([...perfil.permissoes].sort());
+      const esperado = new Set([...permissoesDaMigration14(perfil.slug), ...adicoesDaMigration16(perfil.slug)]);
+      // O admin não é semeado por migration aditiva: onModuleInit sincroniza
+      // ele com o catálogo inteiro a cada boot.
+      if (perfil.sistema) continue;
+      expect([...esperado].sort()).toEqual([...perfil.permissoes].sort());
     }
   });
 });
