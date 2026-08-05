@@ -455,6 +455,94 @@ export async function salvarRetencao(registro) {
   if (error) throw new Error(error.message);
 }
 
+/* ============ AUTOMAÇÃO — DRAWER DA TURMA (bloco 2) ============
+   O drawer edita dim_turmas por turma_id. Escrita gated pela RLS
+   pode_ver('pedagogico'); sem policy o update volta 42501/403 e o form mostra
+   "Você não tem permissão para editar" (não contornamos). Preservo `code` e
+   `status` do erro pra o front distinguir permissão de falha genérica. */
+export async function salvarTurma(turmaId, campos) {
+  const { error } = await supabase.from("dim_turmas").update(campos).eq("turma_id", turmaId);
+  if (error) { const e = new Error(error.message); e.code = error.code; e.status = error.status; throw e; }
+}
+
+// Linha de dim_turmas da turma aberta: campos de leitura (curso/datas/cidade) +
+// os editáveis. RLS libera só ao pedagógico; anon vê a estrutura, não as linhas.
+export function useTurmaDim(turmaId) {
+  return useQuery({
+    queryKey: ["turma_dim", turmaId],
+    enabled: turmaId != null,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dim_turmas")
+        .select("turma_id,curso,sigla,data_inicio,data_fim,cidade,horario_credenciamento,horario_inicio,horario_fim,local,endereco,capacidade,nome_comercial,link_grupo")
+        .eq("turma_id", turmaId)
+        .limit(1);
+      if (error) throw error;
+      return (data ?? [])[0] ?? null;
+    },
+  });
+}
+
+// Sugestão de pré-preenchimento: a última turma PASSADA de mesma sigla
+// (data_inicio anterior à turma aberta), ordenada desc. Só os campos que o
+// drawer sugere; o front preenche o input, não grava.
+export function useTurmaSugestao(sigla, dataInicio, turmaId) {
+  return useQuery({
+    queryKey: ["turma_sugestao", sigla, dataInicio, turmaId],
+    enabled: !!sigla,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      let q = supabase
+        .from("dim_turmas")
+        .select("horario_credenciamento,horario_inicio,horario_fim,local,endereco,capacidade,nome_comercial,data_inicio")
+        .eq("sigla", sigla)
+        .order("data_inicio", { ascending: false })
+        .limit(1);
+      if (turmaId != null) q = q.neq("turma_id", turmaId);
+      if (dataInicio) q = q.lt("data_inicio", dataInicio);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? [])[0] ?? null;
+    },
+  });
+}
+
+// Fila de confirmação da turma (pendentes, com PII). Sem coluna de status — são
+// os que ainda não receberam. `aluno_id` é o CPF.
+export function useFilaTurma(turmaId) {
+  return useQuery({
+    queryKey: ["fila_turma", turmaId],
+    enabled: turmaId != null,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_pedagogico_fila")
+        .select("aluno_id,nome,canal,telefone_bruto,telefone_invalido")
+        .eq("turma_id", turmaId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+// Envios já disparados da turma (com status e erro_msg). Sem nome — só CPF.
+export function useEnviosTurma(turmaId) {
+  return useQuery({
+    queryKey: ["envios_turma", turmaId],
+    enabled: turmaId != null,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pedagogico_envios")
+        .select("aluno_id,canal,status,erro_msg,enviado_em,tipo")
+        .eq("turma_id", turmaId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export const useEventosDesempenho = () => useView("vw_eventos_desempenho");
 export const useDiretoriaConsol   = () => useView("vw_diretoria_consolidado");
 
