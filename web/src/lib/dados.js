@@ -226,6 +226,44 @@ export const useMarketingInvestimento = () =>
 export const useLojaMetaRealizado = () =>
   useView("vw_loja_meta_realizado", { ordem: ["mes_ref"], staleTime: 60 * 1000, retry: 2 });
 
+/* Reativação: alunos que COMPRARAM e NÃO compareceram (vw_comprou_nao_compareceu).
+   Uma linha por matrícula ausente (aluno_id, curso_id, turma, valor) — a fonte
+   repete algumas, então o front conta alunos distintos e soma o valor
+   DEDUPLICADO por (aluno+curso+turma). Alimenta o alerta do Hub Executivo. Sem
+   PII de nome, leitura liberada; ~2,4k linhas, pagina numa boa. */
+export const useExecutivoReativacao = () =>
+  useView("vw_comprou_nao_compareceu", { ordem: ["aluno_id", "curso_id", "turma"], staleTime: 60 * 1000, retry: 2 });
+
+/* Concentração comercial + Top 3 consultoras (Hub Executivo) — MESMA base e
+   janela pros dois, pra o % bater. Recorte no servidor: só data_pagamento nos
+   últimos 30 dias (poucas centenas de linhas). O front filtra tipo_matricula
+   válido, deduplica por original_id_venda com MAX(valor) (somar cru infla) e
+   agrupa por consultor_id (que já vem com o NOME). staleTime 60s. */
+export function useExecutivoComercial30d(desde) {
+  return useQuery({
+    queryKey: ["exec_comercial_30d", desde],
+    enabled: !!desde,
+    staleTime: 60 * 1000,
+    retry: 2,
+    queryFn: async () => {
+      let todos = [], de = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from("vw_venda_faturamento")
+          .select("original_id_venda,consultor_id,tipo_matricula,valor,data_pagamento")
+          .gte("data_pagamento", desde)
+          .range(de, de + PAGINA - 1);
+        if (error) throw error;
+        const lote = data ?? [];
+        todos = todos.concat(lote);
+        de += lote.length;
+        if (lote.length < PAGINA) break;
+      }
+      return todos;
+    },
+  });
+}
+
 /* Loja — receita própria. Curso ≠ loja: nunca entra num total conjunto.
    A receita virou CONSOLIDADA (ver useLojaReceitaTotalMes abaixo); os hooks
    antigos de KPI Omie-só / meta separada saíram junto com a mudança. */
