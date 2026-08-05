@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, createContext, useContext } from "react";
+import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
@@ -36,7 +36,8 @@ import {
   useVendaFaturamentoDesde, useFinanceiroRecebidoMensal,
   useMarketingInvestimento, useLojaMetaRealizado,
   useExecutivoReativacao, useExecutivoComercial30d,
-  salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
+  useTurmaDim, useTurmaSugestao, useFilaTurma, useEnviosTurma,
+  salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao, salvarTurma,
   usePedagogicoAusentes,
   useEventosDesempenho,
   useIntegracaoStatus,
@@ -4060,7 +4061,7 @@ function TabelaConfirmacoes({ turmas, onAbrir }) {
                 <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
                   {t.grupo_criado
                     ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: C.up, fontWeight: 700 }}><Check size={13} /> criado</span>
-                    : <span onClick={(e) => { e.stopPropagation(); onAbrir(t); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: C.gold, cursor: "pointer", padding: "3px 9px", borderRadius: 8, border: `1px solid ${C.gold}55`, background: `${C.gold}14` }}><Link2 size={12} /> colar link</span>}
+                    : <span onClick={(e) => { e.stopPropagation(); onAbrir(t, "link"); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: C.gold, cursor: "pointer", padding: "3px 9px", borderRadius: 8, border: `1px solid ${C.gold}55`, background: `${C.gold}14` }}><Link2 size={12} /> colar link</span>}
                 </td>
                 <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
                   {t.pendencia ? <span style={{ fontSize: 11, fontWeight: 700, color: corPendencia(t.pendencia) }}>{t.pendencia}</span> : <span style={{ color: C.faint }}>—</span>}
@@ -4071,6 +4072,271 @@ function TabelaConfirmacoes({ turmas, onAbrir }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* ---- Bloco 2 da automação: o DRAWER da turma ---- */
+
+// CPF mascarado ***.456.789-** — esconde os 3 primeiros e os 2 últimos dígitos.
+const mascaraCpf = (cpf) => {
+  const d = String(cpf ?? "").replace(/\D/g, "");
+  if (d.length !== 11) return String(cpf ?? "").trim() || "—";
+  return `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**`;
+};
+
+// Une a fila (pendentes, com nome) e os envios (só CPF, com status real) de uma
+// turma numa lista por aluno. O envio manda no status; a fila completa o nome e
+// os dados de contato, e marca quem ainda está "pendente".
+const montaAlunos = (fila, envios) => {
+  const porAluno = new Map();
+  for (const e of envios ?? []) {
+    porAluno.set(String(e.aluno_id), { aluno_id: e.aluno_id, nome: null, canal: e.canal, status: e.status, erro_msg: e.erro_msg, telefone_invalido: false, telefone_bruto: null });
+  }
+  for (const f of fila ?? []) {
+    const k = String(f.aluno_id);
+    const ja = porAluno.get(k);
+    if (ja) { if (!ja.nome) ja.nome = f.nome; if (ja.canal == null) ja.canal = f.canal; ja.telefone_invalido = f.telefone_invalido === true; ja.telefone_bruto = f.telefone_bruto; }
+    else porAluno.set(k, { aluno_id: f.aluno_id, nome: f.nome ?? null, canal: f.canal, status: "pendente", erro_msg: null, telefone_invalido: f.telefone_invalido === true, telefone_bruto: f.telefone_bruto });
+  }
+  return [...porAluno.values()];
+};
+
+// Exceções que travam o envio (sub-bloco com contagem): sem canal de contato,
+// telefone inválido, erro no disparo.
+const exceptionsAlunos = (alunos) => {
+  const semContato = (alunos ?? []).filter((a) => String(a.canal ?? "").trim().toLowerCase() === "sem_contato");
+  const telInvalido = (alunos ?? []).filter((a) => a.telefone_invalido === true);
+  const erros = (alunos ?? []).filter((a) => String(a.status ?? "").trim().toLowerCase() === "erro");
+  return { semContato, telInvalido, erros, total: semContato.length + telInvalido.length + erros.length };
+};
+
+const LINK_GRUPO_PREFIXO = "https://chat.whatsapp.com/";
+const linkGrupoValido = (v) => { const s = String(v ?? "").trim(); return s === "" || s.startsWith(LINK_GRUPO_PREFIXO); };
+// 403 / RLS: NÃO contornar — mensagem clara e para por aqui.
+const semPermissao = (e) => e?.code === "42501" || e?.status === 403 || e?.status === 401 || /permission denied|row-level security|not authorized|violates row-level/i.test(String(e?.message ?? ""));
+
+const CHIP_STATUS = { pendente: C.warn, erro: C.down, enviado: C.up, confirmado: C.up, ok: C.up, sucesso: C.up, sem_contato: C.faint };
+const corChipStatus = (s) => CHIP_STATUS[String(s ?? "").trim().toLowerCase()] ?? C.muted;
+
+// Toast de feedback de escrita (sucesso · info · erro). Auto-some; some no X.
+function Toast({ toast, onFechar }) {
+  if (!toast) return null;
+  const cor = toast.tipo === "erro" ? C.down : toast.tipo === "info" ? C.gold : C.up;
+  const Icone = toast.tipo === "erro" ? AlertTriangle : toast.tipo === "info" ? Bell : Check;
+  return (
+    <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 80, maxWidth: 380, display: "flex", alignItems: "flex-start", gap: 9, background: "#1B1B20", border: `1px solid ${cor}66`, borderRadius: 12, padding: "12px 14px", boxShadow: "0 16px 40px rgba(0,0,0,.5)" }}>
+      <Icone size={16} style={{ color: cor, flexShrink: 0, marginTop: 1 }} />
+      <span style={{ fontSize: 12.5, color: C.text, lineHeight: 1.45 }}>{toast.msg}</span>
+      <button onClick={onFechar} aria-label="Fechar aviso" style={{ background: "transparent", border: "none", color: C.faint, cursor: "pointer", display: "flex", marginLeft: 4, flexShrink: 0 }}><X size={14} /></button>
+    </div>
+  );
+}
+
+// Painel lateral (drawer) — desliza da direita. Mesmos tokens do ModalCentro.
+function DrawerLado({ titulo, sub, onFechar, children, largura = 500 }) {
+  return (
+    <>
+      <div onClick={onFechar} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.6)" }} />
+      <div className="rolagem" style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 61, width: `min(${largura}px, 96vw)`, overflowY: "auto", background: "#141418", borderLeft: `1px solid ${C.cardLine}`, boxShadow: "-24px 0 64px rgba(0,0,0,.5)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 18px", borderBottom: `1px solid ${C.hair}`, position: "sticky", top: 0, background: "#141418", zIndex: 1 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={titulo}>{titulo}</div>
+            {sub && <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>{sub}</div>}
+          </div>
+          <button onClick={onFechar} aria-label="Fechar" style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", display: "flex", flexShrink: 0 }}><X size={18} /></button>
+        </div>
+        <div style={{ padding: 18 }}>{children}</div>
+      </div>
+    </>
+  );
+}
+
+// Campo somente leitura (curso/datas/cidade no topo do drawer).
+function CampoLeitura({ label, valor }) {
+  return (
+    <div>
+      <div style={labelAv}>{label}</div>
+      <div style={{ fontSize: 13, color: C.text, padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={valor || ""}>{valor || "—"}</div>
+    </div>
+  );
+}
+
+/* Formulário editável de dim_turmas (update por turma_id). Pré-preenche
+   horários/local vazios com a última turma passada de mesma sigla — SUGESTÃO,
+   só no input, não grava. Valida o link do grupo e avisa quando é o 1º link. */
+function FormTurma({ dim, sug, aguardando, foco, onSalvo, notificar }) {
+  const vazio = (v) => v == null || String(v).trim() === "";
+  const doSug = (campo) => vazio(dim[campo]) && sug && !vazio(sug[campo]);
+  const init = (campo) => doSug(campo) ? String(sug[campo]) : (dim[campo] != null ? String(dim[campo]) : "");
+  const [hCred, setHCred] = useState(init("horario_credenciamento"));
+  const [hIni, setHIni] = useState(init("horario_inicio"));
+  const [hFim, setHFim] = useState(init("horario_fim"));
+  const [local, setLocal] = useState(init("local"));
+  const [endereco, setEndereco] = useState(dim.endereco ?? "");
+  const [capacidade, setCapacidade] = useState(dim.capacidade != null ? String(dim.capacidade) : "");
+  const [nomeComercial, setNomeComercial] = useState(dim.nome_comercial ?? "");
+  const [link, setLink] = useState(dim.link_grupo ?? "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const linkRef = useRef(null);
+  const linkEraVazio = vazio(dim.link_grupo);
+  const temSugestao = doSug("horario_credenciamento") || doSug("horario_inicio") || doSug("horario_fim") || doSug("local");
+
+  // "colar link" abre o drawer já com o foco no campo do link.
+  useEffect(() => {
+    if (foco === "link" && linkRef.current) { linkRef.current.focus(); linkRef.current.scrollIntoView({ block: "center" }); }
+  }, [foco]);
+
+  const salvar = async () => {
+    setErro(null);
+    const linkTrim = link.trim();
+    if (!linkGrupoValido(linkTrim)) {
+      const m = `O link do grupo precisa começar com ${LINK_GRUPO_PREFIXO}`;
+      setErro(m); notificar(m, "erro"); return;
+    }
+    setSalvando(true);
+    try {
+      const cap = parseBRNumero(capacidade);
+      await salvarTurma(dim.turma_id, {
+        horario_credenciamento: hCred.trim() || null,
+        horario_inicio: hIni.trim() || null,
+        horario_fim: hFim.trim() || null,
+        local: local.trim() || null,
+        endereco: endereco.trim() || null,
+        capacidade: cap != null ? Math.round(cap) : null,
+        nome_comercial: nomeComercial.trim() || null,
+        link_grupo: linkTrim || null,
+      });
+      if (linkEraVazio && linkTrim) notificar(`O link será enviado automaticamente na próxima rodada para ${numero(aguardando ?? 0)} pessoas.`, "info");
+      else notificar("Turma atualizada.", "ok");
+      onSalvo();
+    } catch (e) {
+      const msg = semPermissao(e) ? "Você não tem permissão para editar." : (e.message || "Falha ao salvar.");
+      setErro(msg); notificar(msg, "erro"); setSalvando(false);
+    }
+  };
+
+  const campo = (label, valor, set, extra = {}) => (
+    <div>
+      <label style={labelAv}>{label}</label>
+      <input style={inputAv} value={valor} onChange={(e) => set(e.target.value)} {...extra} />
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.dim }}>Cadastro da turma</div>
+      {temSugestao && <div style={{ fontSize: 11, color: C.gold, display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}><Bell size={12} style={{ flexShrink: 0 }} /> Campos vazios preenchidos com a última turma de mesma sigla — confira antes de salvar.</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {campo("Credenciamento", hCred, setHCred, { placeholder: "Ex.: 08:30" })}
+        {campo("Início", hIni, setHIni, { placeholder: "Ex.: 09:00" })}
+        {campo("Fim", hFim, setHFim, { placeholder: "Ex.: 18:00" })}
+        {campo("Capacidade", capacidade, setCapacidade, { inputMode: "numeric", placeholder: "Ex.: 40" })}
+        <div style={{ gridColumn: "1 / -1" }}>{campo("Local", local, setLocal, { placeholder: "Ex.: Hotel Fulano — Salão A" })}</div>
+        <div style={{ gridColumn: "1 / -1" }}>{campo("Endereço", endereco, setEndereco)}</div>
+        <div style={{ gridColumn: "1 / -1" }}>{campo("Nome comercial", nomeComercial, setNomeComercial)}</div>
+      </div>
+      <div>
+        <label style={labelAv}>Link do grupo (WhatsApp)</label>
+        <input ref={linkRef} style={{ ...inputAv, borderColor: link && !linkGrupoValido(link) ? C.down : C.cardLine }} value={link} onChange={(e) => setLink(e.target.value)} placeholder={LINK_GRUPO_PREFIXO + "…"} />
+        {link && !linkGrupoValido(link)
+          ? <div style={{ fontSize: 10.5, color: C.down, marginTop: 4 }}>Precisa começar com {LINK_GRUPO_PREFIXO}</div>
+          : linkEraVazio && <div style={{ fontSize: 10.5, color: C.faint, marginTop: 4 }}>Ao salvar, o link entra na próxima rodada para {numero(aguardando ?? 0)} pessoas que confirmaram.</div>}
+      </div>
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} salvando={salvando}>Salvar turma</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+// Lista de alunos da turma (fila + envios) + sub-bloco de exceções.
+function ListaAlunosTurma({ alunos, exc, estado }) {
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.dim }}>Alunos</span>
+        {!estado.carregando && !estado.erro && <span style={{ fontSize: 11, color: C.faint }}>{numero(alunos.length)} no total</span>}
+      </div>
+      {estado.carregando ? <div style={{ fontSize: 12, color: C.faint, padding: "8px 0" }}>Carregando…</div>
+        : estado.erro ? <div style={{ fontSize: 12, color: C.down, padding: "8px 0" }}>{semPermissao(estado.erro) ? "Sem permissão para ver a lista de alunos." : "Não foi possível carregar a lista."}</div>
+          : !alunos.length ? <div style={{ fontSize: 12, color: C.faint, padding: "8px 0" }}>Nenhum aluno na fila ou enviado ainda.</div>
+            : (
+              <>
+                {exc.total > 0 && (
+                  <div style={{ background: `${C.warn}0E`, border: `1px solid ${C.warn}3A`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+                      <AlertTriangle size={13} style={{ color: C.warn }} />
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.warn }}>Exceções · {numero(exc.total)}</span>
+                    </div>
+                    {exc.semContato.length > 0 && <div style={{ fontSize: 11, color: C.muted }}><b style={{ color: C.text }}>{numero(exc.semContato.length)}</b> sem canal de contato</div>}
+                    {exc.telInvalido.length > 0 && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                        <b style={{ color: C.text }}>{numero(exc.telInvalido.length)}</b> com telefone inválido
+                        {exc.telInvalido.some((a) => a.telefone_bruto) ? <span style={{ color: C.faint }}>: {exc.telInvalido.map((a) => a.telefone_bruto).filter(Boolean).slice(0, 6).join(", ")}</span> : null}
+                      </div>
+                    )}
+                    {exc.erros.length > 0 && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                        <b style={{ color: C.down }}>{numero(exc.erros.length)}</b> com erro no envio
+                        {exc.erros.slice(0, 5).map((a, i) => (
+                          <div key={i} style={{ fontSize: 10.5, color: C.faint, marginLeft: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>· {a.nome || mascaraCpf(a.aluno_id)}: {a.erro_msg || "erro"}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="rolagem" style={{ maxHeight: 280, overflowY: "auto", border: `1px solid ${C.hair}`, borderRadius: 10 }}>
+                  {alunos.map((a, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 11px", borderBottom: i < alunos.length - 1 ? `1px solid ${C.hair}` : "none" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.nome || mascaraCpf(a.aluno_id)}</div>
+                        <div style={{ fontSize: 10, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.canal || "—"}{a.erro_msg ? ` · ${a.erro_msg}` : ""}</div>
+                      </div>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, color: corChipStatus(a.status), background: `${corChipStatus(a.status)}1A`, border: `1px solid ${corChipStatus(a.status)}44`, whiteSpace: "nowrap", flexShrink: 0 }}>{a.status || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+    </div>
+  );
+}
+
+/* Orquestra o drawer: carrega a dim_turmas da turma, a sugestão (última de
+   mesma sigla) e as listas (fila + envios). O form só monta quando a sugestão
+   resolve, pra pré-preencher os campos vazios de uma vez. */
+function DrawerTurma({ turma, aguardando, onFechar, onSalvo, notificar }) {
+  const dim = useTurmaDim(turma.turma_id);
+  const sug = useTurmaSugestao(dim.data?.sigla, dim.data?.data_inicio, turma.turma_id);
+  const fila = useFilaTurma(turma.turma_id);
+  const envios = useEnviosTurma(turma.turma_id);
+  const alunos = useMemo(() => montaAlunos(fila.data, envios.data), [fila.data, envios.data]);
+  const exc = useMemo(() => exceptionsAlunos(alunos), [alunos]);
+  const d = dim.data;
+  const prontoForm = !!d && !sug.isLoading;
+  const sub = d ? [d.data_inicio ? `início ${dataDDMM(d.data_inicio)}` : null, d.cidade].filter(Boolean).join(" · ") : "carregando…";
+  return (
+    <DrawerLado titulo={turma.curso || d?.curso || "Turma"} sub={sub} onFechar={onFechar}>
+      {dim.isLoading ? <div style={{ fontSize: 12, color: C.faint, display: "flex", alignItems: "center", gap: 7 }}><Loader2 size={14} className="girar" /> Carregando turma…</div>
+        : dim.error ? <div style={{ fontSize: 12.5, color: C.down }}>{semPermissao(dim.error) ? "Você não tem permissão para ver esta turma." : "Não foi possível carregar a turma."}</div>
+          : !d ? <div style={{ fontSize: 12.5, color: C.faint }}>Turma não encontrada em dim_turmas.</div>
+            : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <CampoLeitura label="Curso" valor={d.curso} />
+                  <CampoLeitura label="Cidade" valor={d.cidade} />
+                  <CampoLeitura label="Início" valor={dataDDMM(d.data_inicio)} />
+                  <CampoLeitura label="Fim" valor={dataDDMM(d.data_fim)} />
+                </div>
+                {prontoForm
+                  ? <FormTurma dim={d} sug={sug.data} aguardando={aguardando} foco={turma.foco} onSalvo={onSalvo} notificar={notificar} />
+                  : <div style={{ fontSize: 12, color: C.faint, marginTop: 16, display: "flex", alignItems: "center", gap: 7 }}><Loader2 size={13} className="girar" /> Buscando sugestões…</div>}
+                <ListaAlunosTurma alunos={alunos} exc={exc} estado={{ carregando: fila.isLoading || envios.isLoading, erro: fila.error || envios.error }} />
+              </>
+            )}
+    </DrawerLado>
   );
 }
 
@@ -4096,6 +4362,7 @@ function HubPedagogico() {
   const ausentes = usePedagogicoAusentes();
   const qc = useQueryClient();
   const [turmaSel, setTurmaSel] = useState(null); // turma aberta no drawer (bloco 2)
+  const [toast, setToast] = useState(null);       // feedback de escrita (some sozinho)
   const [verReativar, setVerReativar] = useState(false);
   const [statusMaestro, setStatusMaestro] = useState("todos");
   const [modalAv, setModalAv] = useState(null);       // 'ggb' | 'evento' | null
@@ -4197,7 +4464,15 @@ function HubPedagogico() {
     const env = turmasPainel.reduce((s, t) => s + Number(t.confirmacao_enviada ?? 0), 0);
     return { fila, aguardando, taxa: env > 0 ? (conf / env) * 100 : null };
   }, [turmasPainel]);
-  const abrirTurma = (t) => setTurmaSel(t);
+  // Clique na linha abre o drawer; "colar link" abre com foco no link.
+  const abrirTurma = (t, foco = null) => setTurmaSel({ ...t, foco });
+  const notificar = (msg, tipo = "ok") => setToast({ msg, tipo });
+  // Toast some sozinho (erro fica um pouco mais).
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), toast.tipo === "erro" ? 8000 : 6000);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   const reativar = ausentes.data ?? [];
 
@@ -4430,6 +4705,17 @@ function HubPedagogico() {
           <FormRetencao caso={retEdit === "novo" ? null : retEdit} onSalvo={aposSalvar} />
         </ModalCentro>
       )}
+
+      {/* ---- Bloco 2: drawer da turma (cadastro + link + alunos) ---- */}
+      {turmaSel && (
+        <DrawerTurma
+          turma={turmaSel}
+          aguardando={turmaSel.aguardando_link_grupo}
+          onFechar={() => setTurmaSel(null)}
+          onSalvo={() => { qc.invalidateQueries(); setTurmaSel(null); }}
+          notificar={notificar} />
+      )}
+      <Toast toast={toast} onFechar={() => setToast(null)} />
     </>
   );
 }
