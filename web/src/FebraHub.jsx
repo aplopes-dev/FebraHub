@@ -35,6 +35,7 @@ import {
   usePedagogicoPainel,
   useVendaFaturamentoDesde, useFinanceiroRecebidoMensal,
   useMarketingInvestimento, useLojaMetaRealizado,
+  useExecutivoReativacao, useExecutivoComercial30d,
   salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao,
   usePedagogicoAusentes,
   useEventosDesempenho,
@@ -1517,6 +1518,62 @@ const inadimplenciaResumo = (inadRows, recebRows) => {
   return { valor, parcelas, pct: carteira > 0 ? (valor / carteira) * 100 : null };
 };
 
+// Só o primeiro nome + primeiro sobrenome — os nomes vêm inteiros ("Larissa
+// Lima dos Santos Barbosa Santana") e estouram o card.
+const primeiroNome = (n) => {
+  const p = String(n ?? "").trim().split(/\s+/).filter(Boolean);
+  return p.length <= 2 ? p.join(" ") : `${p[0]} ${p[1]}`;
+};
+
+/* Reativação pedagógica: alunos que COMPRARAM e NÃO compareceram
+   (vw_comprou_nao_compareceu). Conta alunos distintos (aluno_id) e soma o valor
+   DEDUPLICADO por (aluno_id, curso_id, turma) — a fonte repete algumas
+   matrículas e somar cru infla. Oportunidade de reativação, não receita. */
+const resumoReativacao = (rows) => {
+  const arr = rows ?? [];
+  const alunos = new Set(), combos = new Set();
+  let valor = 0;
+  for (const r of arr) {
+    alunos.add(String(r.aluno_id));
+    const k = `${r.aluno_id}|${r.curso_id}|${r.turma}`;
+    if (!combos.has(k)) { combos.add(k); valor += Number(r.valor ?? 0); }
+  }
+  return { alunos: alunos.size, valor, temDados: arr.length > 0 };
+};
+
+/* Receita comercial dos últimos 30 dias por consultora — a MESMA base sustenta o
+   alerta de concentração e o card Top 3 (o % tem que bater). Regras do dado
+   (task da diretoria): só tipo_matricula de venda real; receita = MAX(valor) por
+   original_id_venda (somar cru infla ~77% por causa das parcelas); agrupa por
+   consultor_id, que já traz o NOME. Concentração = líder ÷ total. */
+const TIPOS_MATRICULA_VENDA = ["Matrícula", "COMPRADOR DE VAGAS", "MAT. RETROATIVA"];
+const rankConsultoras30d = (rows) => {
+  const arr = (rows ?? []).filter((r) => TIPOS_MATRICULA_VENDA.includes(String(r.tipo_matricula)));
+  const maxVenda = new Map(), consVenda = new Map();
+  for (const r of arr) {
+    const k = String(r.original_id_venda), v = Number(r.valor ?? 0);
+    maxVenda.set(k, Math.max(maxVenda.get(k) ?? -Infinity, v));
+    if (!consVenda.has(k)) consVenda.set(k, r.consultor_id);
+  }
+  const porCons = new Map();
+  for (const [venda, v] of maxVenda) {
+    const c = consVenda.get(venda) ?? "—";
+    porCons.set(c, (porCons.get(c) ?? 0) + v);
+  }
+  const rank = [...porCons.entries()]
+    .map(([nome, receita]) => ({ nome, receita }))
+    .sort((a, b) => b.receita - a.receita);
+  const total = rank.reduce((s, r) => s + r.receita, 0);
+  const lider = rank[0] ?? null;
+  return {
+    total,
+    top3: rank.slice(0, 3).map((r) => ({ ...r, pct: total > 0 ? (r.receita / total) * 100 : null })),
+    concentracao: lider && total > 0 ? (lider.receita / total) * 100 : null,
+    lider: lider ? lider.nome : null,
+    temDados: rank.length > 0,
+  };
+};
+
 // Bloco 1: faturamento do mês — número grande + comparação com o MESMO período
 // do mês anterior (mesmos dias decorridos). Clica pro Comercial.
 function HeroFaturamento({ fat, ateDia, carregando, erro, onIr }) {
@@ -1561,7 +1618,7 @@ function RadarAlertas({ alertas }) {
   if (!alertas.length) return (
     <div style={{ display: "flex", alignItems: "center", gap: 9, background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 14, padding: "12px 16px", marginBottom: 20 }}>
       <ShieldCheck size={16} style={{ color: C.up }} />
-      <span style={{ fontSize: 12.5, color: C.muted }}>Nada crítico agora. Inadimplência, meta da loja e integrações sob controle.</span>
+      <span style={{ fontSize: 12.5, color: C.muted }}>Nada crítico agora. Inadimplência, meta da loja e concentração comercial sob controle.</span>
     </div>
   );
   return (
@@ -1610,6 +1667,45 @@ function CardSetor({ Icone, titulo, linhas, nota, estado, onIr }) {
   );
 }
 
+// Bloco 3: Top 3 consultoras (30 dias) — reconhecimento, não alerta. Mesma base
+// e período do alerta de concentração; o % bate com ele.
+function CardTopConsultoras({ top3, estado, onIr }) {
+  return (
+    <button onClick={onIr} style={{
+      display: "flex", flexDirection: "column", gap: 10, textAlign: "left", cursor: "pointer",
+      background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 14, padding: "14px 16px", minHeight: 118,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 26, height: 26, borderRadius: 8, background: `${C.gold}1E`, color: C.gold, display: "flex", alignItems: "center", justifyContent: "center" }}><Crown size={14} /></span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>Top 3 consultoras</span>
+        </span>
+        <ArrowUpRight size={15} style={{ color: C.faint }} />
+      </div>
+      {estado?.carregando ? <span style={{ fontSize: 12, color: C.faint }}>Carregando…</span>
+        : estado?.erro ? <span style={{ fontSize: 12, color: C.down }}>Fonte indisponível</span>
+          : !top3.length ? <span style={{ fontSize: 12, color: C.faint }}>Sem vendas nos últimos 30 dias</span>
+            : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {top3.map((r, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ minWidth: 0, display: "flex", alignItems: "baseline", gap: 7 }}>
+                      <span style={{ fontFamily: GROTESK, fontSize: 12, fontWeight: 700, color: i === 0 ? C.gold : C.faint, width: 12, flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{primeiroNome(r.nome)}</span>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontFamily: GROTESK, fontSize: 13, fontWeight: 700, color: C.text }}>{moeda(r.receita)}</span>
+                      <span style={{ fontSize: 10, color: C.faint, width: 32, textAlign: "right" }}>{r.pct != null ? `${Math.round(r.pct)}%` : "—"}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+      <span style={{ fontSize: 10, color: C.dim, marginTop: "auto" }}>últimos 30 dias · reconhecimento</span>
+    </button>
+  );
+}
+
 function HubExecutivo({ onIr }) {
   const hoje = new Date();
   const Y = hoje.getFullYear(), Mo = hoje.getMonth(), Di = hoje.getDate();
@@ -1618,6 +1714,7 @@ function HubExecutivo({ onIr }) {
   const inicioAnt = isoDia(new Date(Y, Mo - 1, 1));
   const ultDiaAnt = new Date(Y, Mo, 0).getDate();
   const fimAnt = isoDia(new Date(Y, Mo - 1, Math.min(Di, ultDiaAnt)));
+  const desde30 = isoDia(new Date(Y, Mo, Di - 30)); // últimos 30 dias (concentração/top 3)
 
   // Bloco 1 — faturamento (recorte servidor: só datas recentes).
   const fatHook = useVendaFaturamentoDesde(inicioAnt);
@@ -1634,7 +1731,8 @@ function HubExecutivo({ onIr }) {
   // Fontes dos demais blocos.
   const inadimp = useFinanceiroInadimp();
   const lojaMeta = useLojaMetaRealizado();
-  const integ = useIntegracaoStatus();
+  const reativ = useExecutivoReativacao();
+  const cons30 = useExecutivoComercial30d(desde30);
   const comMensal = useComercialGeralMensal();
   const recMensal = useFinanceiroRecebidoMensal();
   const mktInv = useMarketingInvestimento();
@@ -1645,13 +1743,18 @@ function HubExecutivo({ onIr }) {
   const inad = useMemo(() => inadimplenciaResumo(inadimp.data, recMensal.data), [inadimp.data, recMensal.data]);
   const lojaRow = useMemo(() => (lojaMeta.data ?? []).find((r) => noMesYM(r.mes_ref, ym)), [lojaMeta.data, ym]);
   const lojaAbaixo = lojaRow && String(lojaRow.nivel_atingido ?? "").trim().toLowerCase() === "abaixo";
-  const integParadas = useMemo(() => (integ.data ?? []).filter((r) => { const v = visualFonte(r); return v.alerta && !v.manual; }), [integ.data]);
+  const reativacao = useMemo(() => resumoReativacao(reativ.data), [reativ.data]);
+  const consultoras = useMemo(() => rankConsultoras30d(cons30.data), [cons30.data]);
 
-  // Bloco 2 — radar (só críticos).
+  /* Bloco 2 — radar. Status de integração saiu daqui: saúde de API é assunto da
+     Central de APIs, não decisão de diretoria. No lugar, dois alertas de
+     NEGÓCIO: reativação pedagógica (dinheiro parado, sempre visível) e
+     concentração comercial (risco — só aparece se a líder passar de 40%). */
   const alertas = [
+    ...(reativacao.temDados && reativacao.alunos > 0 ? [{ cor: C.warn, Icone: PhoneCall, titulo: "Reativação pedagógica", valor: moeda(reativacao.valor), sub: `${numero(reativacao.alunos)} compraram e não compareceram` }] : []),
     ...(inad.valor > 0 ? [{ cor: C.warn, Icone: AlertTriangle, titulo: "Inadimplência acumulada", valor: moeda(inad.valor), sub: `${numero(inad.parcelas)} parcelas vencidas` }] : []),
     ...(lojaAbaixo ? [{ cor: C.down, Icone: ShoppingBag, titulo: "Loja abaixo da meta", valor: fmtPct(lojaRow.pct_minima), sub: "da meta mínima" }] : []),
-    ...integParadas.map((r) => ({ cor: visualFonte(r).cor, Icone: Database, titulo: `Integração: ${r.nome_exibicao ?? r.fonte}`, valor: "", sub: r.rotulo ?? "sync atrasado" })),
+    ...(consultoras.concentracao != null && consultoras.concentracao > 40 ? [{ cor: C.down, Icone: AlertTriangle, titulo: "Concentração comercial", valor: `${Math.round(consultoras.concentracao)}%`, sub: `da receita de 30 dias em ${consultoras.lider ? primeiroNome(consultoras.lider) : "1 consultora"}` }] : []),
   ];
 
   // Bloco 3 — cards por setor (mês corrente).
@@ -1709,6 +1812,7 @@ function HubExecutivo({ onIr }) {
         <CardSetor Icone={GraduationCap} titulo="Pedagógico" onIr={() => onIr("pedagogico")}
           estado={{ carregando: pedK.isLoading, erro: pedK.error }}
           linhas={[{ label: "recompra (grade)", valor: fmtPct(recompra, 1), cor: C.gold }, { label: "comparecimento", valor: fmtPct(comparec), cor: C.up }]} />
+        <CardTopConsultoras top3={consultoras.top3} estado={{ carregando: cons30.isLoading, erro: cons30.error }} onIr={() => onIr("comercial")} />
       </div>
     </>
   );
