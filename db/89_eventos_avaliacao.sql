@@ -4,7 +4,7 @@
 --
 -- Aplicado no Supabase em 06/08/2026.
 -- Arquivo já aplicado não se edita: mudança vira arquivo novo com o
--- número seguinte. Ver 02_eventos_sympla_id.sql.
+-- número seguinte. Ver 90_eventos_sympla_id.sql.
 --
 -- O que cria:
 --   palestras            a carteira — uma linha por palestra que existe como produto

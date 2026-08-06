@@ -105,3 +105,5 @@ Ordem de aplicação e o que cada uma faz. Gerado a partir do cabeçalho de cada
 | 86 | `86_grades_life_business.sql` | FebraHub · Migration 86 — Grades Life e Business (análise Dulce) |
 | 87 | `87_recebido_mensal_fix.sql` | FebraHub · Migration 87 — Corrige recebido mensal (fonte defasada) |
 | 88 | `88_remover_smart_notas.sql` | FebraHub · Migration 88 — Remover Smart Notas da Central de APIs |
+| 89 | `89_eventos_avaliacao.sql` | FebraHub · Migration 89 — Avaliação de eventos por QR (palestras, eventos, perguntas, respostas, funções, trigger de trava, RLS e views) |
+| 90 | `90_eventos_sympla_id.sql` | FebraHub · Migration 90 — Coluna eventos.sympla_evento_id (ponte Sympla, fora do formulário) |

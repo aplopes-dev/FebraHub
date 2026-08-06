@@ -1,6 +1,6 @@
 -- ============================================================
--- 02 — PONTE COM O SYMPLA
--- Aplicado no Supabase em 06/08/2026, depois do 01.
+-- 90 — PONTE COM O SYMPLA
+-- Aplicado no Supabase em 06/08/2026, depois do 89.
 --
 -- Palestras, workshops e mentorias não vêm do Salesforce: são
 -- vendidos pelo Sympla. `dim_turmas` é turma de curso com aluno
