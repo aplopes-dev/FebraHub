@@ -40,6 +40,7 @@ import {
   useExecutivoReativacao, useExecutivoComercial30d,
   useTurmaDim, useTurmaSugestao, useFilaTurma, useEnviosTurma,
   useCarteira, usePerfisVisiveis, criarEvento, salvarPerguntas,
+  useEventos, useEventoNps, useEventoNotas, useEventoTextos, useEventoPerguntas, definirStatusCarteira,
   salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao, salvarTurma,
   usePedagogicoAusentes,
   useEventosDesempenho,
@@ -4366,31 +4367,12 @@ const PERGUNTAS_NUCLEO = [
 const LIMITE_PERGUNTAS = 7; // acima disso, avisa (não bloqueia)
 const dataBR = (iso) => { const p = String(iso ?? "").slice(0, 10).split("-"); return p[2] ? `${p[2]}/${p[1]}/${p[0]}` : "—"; };
 
-/* `travado` (evento já respondeu / travado_em setado): o editor de perguntas
+/* Editor das perguntas da Elis — compartilhado pelo cadastro (novo evento) e
+   pelo resultado (editar evento existente). `travado` (evento já respondeu):
    fica desabilitado com o motivo na tela — a pessoa vê o porquê, não digita pra
-   descobrir o erro só ao salvar. `perguntasIniciais` semeia o editor ao abrir um
-   evento existente. */
-function FormEvento({ meuId, onFechar, onSalvo, notificar, travado = false, motivoTravado = null, perguntasIniciais = null }) {
-  const carteira = useCarteira();
-  const perfis = usePerfisVisiveis();
-
-  const [tipo, setTipo] = useState("palestra");
-  const [palestraSel, setPalestraSel] = useState("");   // "" = escolher · "__nova__" = digitar novo
-  const [tituloNovo, setTituloNovo] = useState("");
-  const [data, setData] = useState("");
-  const [objetivo, setObjetivo] = useState("");
-  const [local, setLocal] = useState("");
-  const [responsavelId, setResponsavelId] = useState(meuId ?? "");
-  const [perguntas, setPerguntas] = useState(perguntasIniciais ?? []);
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState(null);
-  const [resultado, setResultado] = useState(null);
-
-  const ehPalestra = tipo === "palestra";
-  const tituloFinal = (ehPalestra && palestraSel && palestraSel !== "__nova__") ? palestraSel : tituloNovo.trim();
+   descobrir o erro só ao salvar. O núcleo aparece só pra leitura. */
+function EditorPerguntas({ perguntas, setPerguntas, travado = false, motivoTravado = null, rotulo = "Perguntas" }) {
   const total = perguntas.length + PERGUNTAS_NUCLEO.length;
-  const palestras = carteira.data ?? [];
-
   const setP = (i, campo, val) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: val } : p)));
   const addPergunta = () => setPerguntas((ps) => [...ps, { texto: "", tipo: "escala_1_5", obrigatoria: true, opcoes: ["", ""] }]);
   const removePergunta = (i) => setPerguntas((ps) => ps.filter((_, j) => j !== i));
@@ -4401,6 +4383,100 @@ function FormEvento({ meuId, onFechar, onSalvo, notificar, travado = false, moti
   const setOpcao = (i, oi, val) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: p.opcoes.map((o, k) => (k === oi ? val : o)) } : p)));
   const addOpcao = (i) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: [...p.opcoes, ""] } : p)));
   const removeOpcao = (i, oi) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: p.opcoes.filter((_, k) => k !== oi) } : p)));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold }}>{rotulo}</span>
+        <span style={{ fontSize: 10.5, color: !travado && total > LIMITE_PERGUNTAS ? C.warn : C.faint }}>{total} no formulário (com o núcleo)</span>
+      </div>
+      {travado && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}55`, borderRadius: 9, padding: "10px 12px", lineHeight: 1.45 }}>
+          <Lock size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span><b>Perguntas travadas.</b> {motivoTravado || "Este evento já recebeu respostas — mudar as perguntas agora quebraria a comparação com quem já respondeu."} Dá para editar os dados do evento, mas não as perguntas.</span>
+        </div>
+      )}
+      {!travado && total > LIMITE_PERGUNTAS && (
+        <div style={{ fontSize: 11.5, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}44`, borderRadius: 9, padding: "8px 11px", lineHeight: 1.45 }}>
+          Formulário longo derruba a taxa de resposta no celular — e o núcleo fica no fim. Considere enxugar.
+        </div>
+      )}
+
+      {perguntas.map((p, i) => (
+        <div key={i} style={{ border: `1px solid ${C.hair}`, borderRadius: 10, padding: 11, display: "flex", flexDirection: "column", gap: 9, background: "rgba(255,255,255,.02)" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <span style={{ fontFamily: GROTESK, fontSize: 12, color: C.faint, paddingTop: 9, minWidth: 16 }}>{i + 1}</span>
+            <input value={p.texto} disabled={travado} onChange={(e) => setP(i, "texto", e.target.value)} placeholder="Enunciado da pergunta" style={{ ...inputAv, flex: 1, opacity: travado ? 0.7 : 1 }} />
+            {!travado && (
+              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                <BtnIcone titulo="Subir" disabled={i === 0} onClick={() => mover(i, -1)}><ChevronUp size={14} /></BtnIcone>
+                <BtnIcone titulo="Descer" disabled={i === perguntas.length - 1} onClick={() => mover(i, 1)}><ChevronDown size={14} /></BtnIcone>
+                <BtnIcone titulo="Remover" onClick={() => removePergunta(i)}><X size={14} /></BtnIcone>
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", paddingLeft: 24 }}>
+            <select value={p.tipo} disabled={travado} onChange={(e) => setP(i, "tipo", e.target.value)} style={{ ...inputAv, width: "auto", cursor: travado ? "default" : "pointer", padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }}>
+              {TIPOS_PERGUNTA.map((t) => (<option key={t.k} value={t.k}>{t.r}</option>))}
+            </select>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: travado ? "default" : "pointer" }}>
+              <input type="checkbox" checked={p.obrigatoria} disabled={travado} onChange={(e) => setP(i, "obrigatoria", e.target.checked)} /> obrigatória
+            </label>
+          </div>
+          {p.tipo === "escolha_unica" && (
+            <div style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ fontSize: 10, color: C.faint }}>Opções</span>
+              {(p.opcoes ?? []).map((o, oi) => (
+                <div key={oi} style={{ display: "flex", gap: 6 }}>
+                  <input value={o} disabled={travado} onChange={(e) => setOpcao(i, oi, e.target.value)} placeholder={`Opção ${oi + 1}`} style={{ ...inputAv, flex: 1, padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }} />
+                  {!travado && <BtnIcone titulo="Remover opção" disabled={(p.opcoes ?? []).length <= 2} onClick={() => removeOpcao(i, oi)}><X size={13} /></BtnIcone>}
+                </div>
+              ))}
+              {!travado && <button onClick={() => addOpcao(i)} style={{ alignSelf: "flex-start", fontSize: 11.5, color: C.gold, background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> opção</button>}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {!travado && (
+        <button onClick={addPergunta} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: C.gold, background: `${C.gold}12`, border: `1px solid ${C.gold}44`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: SANS }}>
+          <Plus size={14} /> Adicionar pergunta
+        </button>
+      )}
+      {travado && !perguntas.length && (
+        <div style={{ fontSize: 12, color: C.faint }}>Este evento não teve perguntas próprias — só o núcleo.</div>
+      )}
+
+      {/* Núcleo — leitura */}
+      <div style={{ background: "rgba(255,255,255,.02)", border: `1px dashed ${C.cardLine}`, borderRadius: 10, padding: "11px 13px", marginTop: 2 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, marginBottom: 7 }}>Perguntas de núcleo — fecham todo formulário, iguais em todo evento</div>
+        <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
+          {PERGUNTAS_NUCLEO.map((t, i) => (<li key={i} style={{ fontSize: 12, color: C.faint, lineHeight: 1.4 }}>{t}</li>))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function FormEvento({ meuId, onFechar, onSalvo, notificar }) {
+  const carteira = useCarteira();
+  const perfis = usePerfisVisiveis();
+
+  const [tipo, setTipo] = useState("palestra");
+  const [palestraSel, setPalestraSel] = useState("");   // "" = escolher · "__nova__" = digitar novo
+  const [tituloNovo, setTituloNovo] = useState("");
+  const [data, setData] = useState("");
+  const [objetivo, setObjetivo] = useState("");
+  const [local, setLocal] = useState("");
+  const [responsavelId, setResponsavelId] = useState(meuId ?? "");
+  const [perguntas, setPerguntas] = useState([]);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [resultado, setResultado] = useState(null);
+
+  const ehPalestra = tipo === "palestra";
+  const tituloFinal = (ehPalestra && palestraSel && palestraSel !== "__nova__") ? palestraSel : tituloNovo.trim();
+  const palestras = carteira.data ?? [];
 
   const resetar = () => {
     setResultado(null); setTipo("palestra"); setPalestraSel(""); setTituloNovo("");
@@ -4526,75 +4602,8 @@ function FormEvento({ meuId, onFechar, onSalvo, notificar, travado = false, moti
       </div>
 
       {/* Parte 2 — as perguntas da Elis */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 11, borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold }}>2 · Suas perguntas</span>
-          <span style={{ fontSize: 10.5, color: total > LIMITE_PERGUNTAS ? C.warn : C.faint }}>{total} no formulário (com o núcleo)</span>
-        </div>
-        {travado && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}55`, borderRadius: 9, padding: "10px 12px", lineHeight: 1.45 }}>
-            <Lock size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span><b>Perguntas travadas.</b> {motivoTravado || "Este evento já recebeu respostas — mudar as perguntas agora quebraria a comparação com quem já respondeu."} Dá para editar os dados do evento, mas não as perguntas.</span>
-          </div>
-        )}
-        {!travado && total > LIMITE_PERGUNTAS && (
-          <div style={{ fontSize: 11.5, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}44`, borderRadius: 9, padding: "8px 11px", lineHeight: 1.45 }}>
-            Formulário longo derruba a taxa de resposta no celular — e o núcleo fica no fim. Considere enxugar.
-          </div>
-        )}
-
-        {perguntas.map((p, i) => (
-          <div key={i} style={{ border: `1px solid ${C.hair}`, borderRadius: 10, padding: 11, display: "flex", flexDirection: "column", gap: 9, background: "rgba(255,255,255,.02)" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <span style={{ fontFamily: GROTESK, fontSize: 12, color: C.faint, paddingTop: 9, minWidth: 16 }}>{i + 1}</span>
-              <input value={p.texto} disabled={travado} onChange={(e) => setP(i, "texto", e.target.value)} placeholder="Enunciado da pergunta" style={{ ...inputAv, flex: 1, opacity: travado ? 0.7 : 1 }} />
-              {!travado && (
-                <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                  <BtnIcone titulo="Subir" disabled={i === 0} onClick={() => mover(i, -1)}><ChevronUp size={14} /></BtnIcone>
-                  <BtnIcone titulo="Descer" disabled={i === perguntas.length - 1} onClick={() => mover(i, 1)}><ChevronDown size={14} /></BtnIcone>
-                  <BtnIcone titulo="Remover" onClick={() => removePergunta(i)}><X size={14} /></BtnIcone>
-                </div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", paddingLeft: 24 }}>
-              <select value={p.tipo} disabled={travado} onChange={(e) => setP(i, "tipo", e.target.value)} style={{ ...inputAv, width: "auto", cursor: travado ? "default" : "pointer", padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }}>
-                {TIPOS_PERGUNTA.map((t) => (<option key={t.k} value={t.k}>{t.r}</option>))}
-              </select>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: travado ? "default" : "pointer" }}>
-                <input type="checkbox" checked={p.obrigatoria} disabled={travado} onChange={(e) => setP(i, "obrigatoria", e.target.checked)} /> obrigatória
-              </label>
-            </div>
-            {p.tipo === "escolha_unica" && (
-              <div style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 10, color: C.faint }}>Opções</span>
-                {p.opcoes.map((o, oi) => (
-                  <div key={oi} style={{ display: "flex", gap: 6 }}>
-                    <input value={o} disabled={travado} onChange={(e) => setOpcao(i, oi, e.target.value)} placeholder={`Opção ${oi + 1}`} style={{ ...inputAv, flex: 1, padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }} />
-                    {!travado && <BtnIcone titulo="Remover opção" disabled={p.opcoes.length <= 2} onClick={() => removeOpcao(i, oi)}><X size={13} /></BtnIcone>}
-                  </div>
-                ))}
-                {!travado && <button onClick={() => addOpcao(i)} style={{ alignSelf: "flex-start", fontSize: 11.5, color: C.gold, background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> opção</button>}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {!travado && (
-          <button onClick={addPergunta} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: C.gold, background: `${C.gold}12`, border: `1px solid ${C.gold}44`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: SANS }}>
-            <Plus size={14} /> Adicionar pergunta
-          </button>
-        )}
-        {travado && !perguntas.length && (
-          <div style={{ fontSize: 12, color: C.faint }}>Este evento não teve perguntas próprias — só o núcleo.</div>
-        )}
-
-        {/* Núcleo — leitura */}
-        <div style={{ background: "rgba(255,255,255,.02)", border: `1px dashed ${C.cardLine}`, borderRadius: 10, padding: "11px 13px", marginTop: 2 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, marginBottom: 7 }}>Perguntas de núcleo — fecham todo formulário, iguais em todo evento</div>
-          <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
-            {PERGUNTAS_NUCLEO.map((t, i) => (<li key={i} style={{ fontSize: 12, color: C.faint, lineHeight: 1.4 }}>{t}</li>))}
-          </ol>
-        </div>
+      <div style={{ borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
+        <EditorPerguntas perguntas={perguntas} setPerguntas={setPerguntas} rotulo="2 · Suas perguntas" />
       </div>
 
       {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
@@ -4616,13 +4625,270 @@ function BtnIcone({ children, onClick, disabled, titulo }) {
   );
 }
 
-// Seção do Hub Pedagógico: cadastro de evento + link (lista e resultado no
-// próximo bloco). O Toast e o `notificar` vêm do hub.
+// Estado do link a partir da janela do evento (não muda o token, só informa).
+const estadoLink = (e) => {
+  const agora = Date.now();
+  const abre = e.abre_em ? new Date(e.abre_em).getTime() : null;
+  const fecha = e.fecha_em ? new Date(e.fecha_em).getTime() : null;
+  if (abre != null && agora < abre) return { k: "aguardando", label: "aguardando", cor: C.warn };
+  if (fecha != null && agora > fecha) return { k: "encerrado", label: "encerrado", cor: C.faint };
+  return { k: "aberto", label: "aberto", cor: C.up };
+};
+const rotuloTipoEvento = (k) => TIPOS_EVENTO.find((t) => t.k === k)?.r ?? k;
+const corNps = (v) => (v == null ? C.faint : v >= 50 ? C.up : v >= 0 ? C.gold : C.down);
+const STATUS_CARTEIRA = [{ k: "ativa", r: "Ativa" }, { k: "em_observacao", r: "Em observação" }, { k: "aposentada", r: "Aposentada" }];
+const rotuloStatusCarteira = (s) => STATUS_CARTEIRA.find((x) => x.k === s)?.r ?? "—";
+const corStatusCarteira = (s) => (s === "aposentada" ? C.down : s === "em_observacao" ? C.warn : C.up);
+
+// Lista dos eventos do setor (RLS filtra). Estado do link + contagem de resposta.
+function ListaEventos({ eventos, npsPorEvento, onAbrir }) {
+  const th = (txt, alin) => <th style={{ textAlign: alin, padding: "8px 12px", fontSize: 9.5, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.dim, whiteSpace: "nowrap" }}>{txt}</th>;
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: SANS }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${C.hair}` }}>{th("Evento", "left")}{th("Data", "left")}{th("Tipo", "left")}{th("Link", "left")}{th("Respostas", "right")}</tr>
+        </thead>
+        <tbody>
+          {eventos.map((e) => {
+            const est = estadoLink(e);
+            const resp = npsPorEvento.get(e.id)?.respostas;
+            return (
+              <tr key={e.id} onClick={() => onAbrir(e)} style={{ borderBottom: `1px solid ${C.hair}`, cursor: "pointer" }}>
+                <td style={{ padding: "9px 12px" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }} title={e.titulo}>{e.titulo}</div>
+                  <div style={{ fontSize: 10, color: C.faint }}>{e.codigo}</div>
+                </td>
+                <td style={{ padding: "9px 12px", fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{dataBR(e.data_evento)}</td>
+                <td style={{ padding: "9px 12px", fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{rotuloTipoEvento(e.tipo)}</td>
+                <td style={{ padding: "9px 12px", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, color: est.cor, background: `${est.cor}1A`, border: `1px solid ${est.cor}44` }}>{est.label}</span>
+                </td>
+                <td style={{ padding: "9px 12px", textAlign: "right", fontFamily: GROTESK, fontSize: 12.5, color: resp ? C.text : C.faint }}>{numero(resp ?? 0)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Decisão de carteira: a palestra continua? Motivo obrigatório (o banco recusa
+// sem). Só aparece para evento ligado a uma palestra.
+function DecisaoCarteira({ palestraId, palestraRow, onMudou, notificar }) {
+  const [status, setStatus] = useState(palestraRow?.status ?? "ativa");
+  const [motivo, setMotivo] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => { setStatus(palestraRow?.status ?? "ativa"); }, [palestraRow?.status]);
+  const salvar = async () => {
+    if (!motivo.trim()) { notificar("Escreva o motivo da decisão.", "erro"); return; }
+    setSalvando(true);
+    try { await definirStatusCarteira(palestraId, status, motivo.trim()); notificar("Decisão de carteira registrada.", "ok"); setMotivo(""); onMudou?.(); }
+    catch (e) { notificar(e.message || "Não foi possível salvar.", "erro"); }
+    setSalvando(false);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
+        Situação atual: <b style={{ color: corStatusCarteira(palestraRow?.status) }}>{rotuloStatusCarteira(palestraRow?.status)}</b>
+        {palestraRow?.nps_acumulado != null
+          ? <> · NPS acumulado <b style={{ color: corNps(Number(palestraRow.nps_acumulado)) }}>{palestraRow.nps_acumulado}</b> · {numero(palestraRow.respostas_total)} resp. em {numero(palestraRow.edicoes)} {Number(palestraRow.edicoes) === 1 ? "edição" : "edições"}</>
+          : <> · NPS acumulado ainda sem base (mín. 5 respostas)</>}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...inputAv, width: "auto", cursor: "pointer" }}>
+          {STATUS_CARTEIRA.map((s) => (<option key={s.k} value={s.k}>{s.r}</option>))}
+        </select>
+      </div>
+      <textarea rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo da decisão (obrigatório)" style={{ ...inputAv, resize: "vertical" }} />
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <BotaoSalvar onClick={salvar} disabled={!motivo.trim()} salvando={salvando}>Salvar decisão</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+// Cabeçalho de seção dentro do drawer de resultado.
+function TituloResultado({ children }) {
+  return <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold, margin: "4px 0 2px" }}>{children}</div>;
+}
+
+/* Resultado de um evento. Lê das views (nunca das tabelas cruas de resposta).
+   O NPS NUNCA aparece sozinho: vem com a distribuição e a contagem ao lado —
+   com 12 respostas, um detrator move o índice 8 pontos. Sem gráfico: número e
+   contagem bastam. Aqui também está o ponto de entrada que abre um evento já
+   respondido — o editor de perguntas vem travado. */
+function ResultadoEvento({ evento, nps, onFechar, onMudou, notificar }) {
+  const notas = useEventoNotas();
+  const textos = useEventoTextos();
+  const perguntasHook = useEventoPerguntas(evento.id);
+  const carteira = useCarteira();
+
+  const est = estadoLink(evento);
+  const link = `${window.location.origin}/e/${evento.token}`;
+  const travado = !!evento.travado_em;
+  const resp = nps ? Number(nps.respostas ?? 0) : 0;
+
+  const minhasNotas = useMemo(() => (notas.data ?? []).filter((n) => Number(n.evento_id) === evento.id), [notas.data, evento.id]);
+  const gruposTexto = useMemo(() => {
+    const m = new Map();
+    for (const t of (textos.data ?? []).filter((t) => Number(t.evento_id) === evento.id)) {
+      if (!m.has(t.pergunta_id)) m.set(t.pergunta_id, { pergunta: t.pergunta, respostas: [] });
+      m.get(t.pergunta_id).respostas.push(t.resposta);
+    }
+    return [...m.values()];
+  }, [textos.data, evento.id]);
+  const palestraRow = useMemo(() => (carteira.data ?? []).find((p) => p.palestra_id === evento.palestra_id) ?? null, [carteira.data, evento.palestra_id]);
+
+  // perguntas da Elis (não-núcleo) para o editor
+  const [perguntas, setPerguntas] = useState([]);
+  useEffect(() => {
+    setPerguntas((perguntasHook.data ?? []).filter((p) => !p.nucleo).map((p) => ({ texto: p.texto, tipo: p.tipo, obrigatoria: p.obrigatoria, opcoes: p.opcoes ?? [] })));
+  }, [perguntasHook.data]);
+  const [salvandoP, setSalvandoP] = useState(false);
+
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(link); notificar("Link copiado.", "ok"); }
+    catch { notificar("Não consegui copiar — selecione e copie manual.", "erro"); }
+  };
+  const salvarPergs = async () => {
+    for (let i = 0; i < perguntas.length; i++) {
+      const p = perguntas[i];
+      if (!p.texto.trim()) { notificar(`A pergunta ${i + 1} está sem enunciado.`, "erro"); return; }
+      if (p.tipo === "escolha_unica" && (p.opcoes ?? []).map((o) => o.trim()).filter(Boolean).length < 2) { notificar(`A pergunta ${i + 1} (escolha única) precisa de ao menos duas opções.`, "erro"); return; }
+    }
+    setSalvandoP(true);
+    try {
+      await salvarPerguntas(evento.id, perguntas.map((p) => ({ texto: p.texto.trim(), tipo: p.tipo, obrigatoria: !!p.obrigatoria, opcoes: p.tipo === "escolha_unica" ? p.opcoes.map((o) => o.trim()).filter(Boolean) : null })));
+      notificar("Perguntas salvas.", "ok");
+      onMudou?.();
+    } catch (e) { notificar(e.message || "Não foi possível salvar as perguntas.", "erro"); }
+    setSalvandoP(false);
+  };
+
+  return (
+    <DrawerLado titulo={evento.titulo} sub={`${evento.codigo} · ${rotuloTipoEvento(evento.tipo)} · ${dataBR(evento.data_evento)}`} onFechar={onFechar} largura={600}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Link */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, color: est.cor, background: `${est.cor}1A`, border: `1px solid ${est.cor}44` }}>{est.label}</span>
+            <span style={{ fontSize: 10.5, color: C.faint }}>responde de {dataBR(evento.abre_em)} até {dataBR(evento.fecha_em)}</span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={link} onFocus={(e) => e.target.select()} style={{ ...inputAv, fontFamily: GROTESK, fontSize: 12 }} />
+            <button onClick={copiar} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 14px", borderRadius: 10, border: `1px solid ${C.gold}66`, background: `${C.gold}14`, color: C.gold, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap", fontFamily: SANS }}><Link2 size={13} /> Copiar</button>
+          </div>
+        </div>
+
+        {/* NPS — nunca sozinho: com distribuição e contagem ao lado */}
+        <div>
+          <TituloResultado>Recomendação (NPS)</TituloResultado>
+          <div style={{ background: "rgba(255,255,255,.02)", border: `1px solid ${C.cardLine}`, borderRadius: 12, padding: "14px 16px", display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ textAlign: "center", minWidth: 80 }}>
+              <div style={{ fontFamily: GROTESK, fontSize: 34, fontWeight: 700, lineHeight: 1, color: corNps(nps?.nps != null ? Number(nps.nps) : null) }}>{nps?.nps != null ? nps.nps : "—"}</div>
+              <div style={{ fontSize: 9.5, color: C.faint, textTransform: "uppercase", letterSpacing: ".5px", marginTop: 4 }}>NPS</div>
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, marginBottom: 6 }}>
+                <span style={{ color: C.up }}><b>{numero(nps?.promotores ?? 0)}</b> promotores</span>
+                <span style={{ color: C.warn }}><b>{numero(nps?.neutros ?? 0)}</b> neutros</span>
+                <span style={{ color: C.down }}><b>{numero(nps?.detratores ?? 0)}</b> detratores</span>
+              </div>
+              <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", background: "rgba(255,255,255,.06)" }}>
+                <div style={{ width: `${(Number(nps?.promotores ?? 0) / (resp || 1)) * 100}%`, background: C.up }} />
+                <div style={{ width: `${(Number(nps?.neutros ?? 0) / (resp || 1)) * 100}%`, background: C.warn }} />
+                <div style={{ width: `${(Number(nps?.detratores ?? 0) / (resp || 1)) * 100}%`, background: C.down }} />
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 7 }}><b style={{ color: C.text }}>{numero(resp)}</b> {resp === 1 ? "resposta" : "respostas"} no total</div>
+            </div>
+          </div>
+          {nps?.nps == null && <div style={{ fontSize: 10.5, color: C.faint, marginTop: 6 }}>O NPS aparece a partir de 5 respostas — {numero(resp)} até agora. A distribuição já conta.</div>}
+        </div>
+
+        {/* Média por pergunta numérica */}
+        <div>
+          <TituloResultado>Média por pergunta</TituloResultado>
+          {notas.isLoading ? <div style={{ fontSize: 12, color: C.faint }}>Carregando…</div>
+            : !minhasNotas.length ? <div style={{ fontSize: 12, color: C.faint }}>Nenhuma pergunta de escala neste evento.</div>
+              : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {minhasNotas.map((n) => (
+                    <div key={n.pergunta_id} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, borderBottom: `1px solid ${C.hair}`, paddingBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: C.text, minWidth: 0 }}>{n.texto}{n.nucleo ? <span style={{ color: C.faint, fontSize: 10 }}> · núcleo</span> : null}</span>
+                      <span style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: n.media != null ? C.text : C.faint }}>{n.media != null ? n.media : "—"}</span>
+                        <span style={{ fontSize: 10, color: C.faint }}>{numero(n.respostas ?? 0)} resp.</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+        </div>
+
+        {/* Texto livre */}
+        <div>
+          <TituloResultado>Respostas em texto</TituloResultado>
+          {textos.isLoading ? <div style={{ fontSize: 12, color: C.faint }}>Carregando…</div>
+            : !gruposTexto.length ? <div style={{ fontSize: 12, color: C.faint }}>Ninguém escreveu ainda.</div>
+              : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {gruposTexto.map((g, i) => (
+                    <div key={i}>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, marginBottom: 6 }}>{g.pergunta} <span style={{ color: C.faint, fontWeight: 400 }}>· {g.respostas.length}</span></div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {g.respostas.map((r, j) => (<div key={j} style={{ fontSize: 12, color: C.text, background: "rgba(255,255,255,.02)", border: `1px solid ${C.hair}`, borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>{r}</div>))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+        </div>
+
+        {/* Perguntas do formulário — editor (travado quando já houve resposta) */}
+        <div style={{ borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
+          <EditorPerguntas perguntas={perguntas} setPerguntas={setPerguntas} travado={travado} rotulo="Perguntas do formulário" />
+          {!travado && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+              <BotaoSalvar onClick={salvarPergs} salvando={salvandoP}>Salvar perguntas</BotaoSalvar>
+            </div>
+          )}
+        </div>
+
+        {/* Decisão de carteira (só palestra ligada à carteira) */}
+        {evento.palestra_id != null && (
+          <div style={{ borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
+            <TituloResultado>Carteira · esta palestra continua?</TituloResultado>
+            <DecisaoCarteira palestraId={evento.palestra_id} palestraRow={palestraRow} onMudou={onMudou} notificar={notificar} />
+          </div>
+        )}
+      </div>
+    </DrawerLado>
+  );
+}
+
+// Seção do Hub Pedagógico: cadastro + lista de eventos + resultado.
+// O Toast e o `notificar` vêm do hub.
 function SecaoAvaliacaoEventos({ notificar }) {
   const sessao = useSessao();
   const meuId = sessao?.user?.id ?? null;
   const qc = useQueryClient();
+  const eventos = useEventos();
+  const npsHook = useEventoNps();
   const [novo, setNovo] = useState(false);
+  const [abertoId, setAbertoId] = useState(null);
+
+  const npsPorEvento = useMemo(() => {
+    const m = new Map();
+    for (const r of npsHook.data ?? []) m.set(Number(r.evento_id), r);
+    return m;
+  }, [npsHook.data]);
+  const lista = useMemo(() => [...(eventos.data ?? [])].sort((a, b) => String(b.data_evento).localeCompare(String(a.data_evento)) || Number(b.id) - Number(a.id)), [eventos.data]);
+  const eventoAberto = useMemo(() => lista.find((e) => e.id === abertoId) ?? null, [lista, abertoId]);
+  const recarregar = () => qc.invalidateQueries();
+
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 4 }}>
@@ -4630,7 +4896,7 @@ function SecaoAvaliacaoEventos({ notificar }) {
         <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Avaliação de eventos</span>
         <span style={{ fontSize: 11, color: C.faint }}>palestras, workshops e mentorias · link por QR</span>
       </div>
-      <div style={{ background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+      <div style={{ background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
         <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5, maxWidth: 460 }}>
           Cadastre o evento e suas perguntas e receba o link da avaliação para gerar o QR code. Quem assistiu responde no celular, sem login.
         </span>
@@ -4638,10 +4904,19 @@ function SecaoAvaliacaoEventos({ notificar }) {
           <Plus size={15} /> Novo evento
         </button>
       </div>
+      <Bloco titulo="Eventos" canto="clique para ver o resultado" sem altura={320}>
+        <Estado carregando={eventos.isLoading} erro={eventos.error} vazio={!lista.length}
+          vazioTitulo="Nenhum evento ainda" vazioDica="Cadastre o primeiro evento para gerar o link de avaliação.">
+          <ListaEventos eventos={lista} npsPorEvento={npsPorEvento} onAbrir={(e) => setAbertoId(e.id)} />
+        </Estado>
+      </Bloco>
       {novo && (
         <ModalCentro titulo="Novo evento" largura={680} onFechar={() => setNovo(false)}>
-          <FormEvento meuId={meuId} onFechar={() => setNovo(false)} onSalvo={() => qc.invalidateQueries()} notificar={notificar} />
+          <FormEvento meuId={meuId} onFechar={() => setNovo(false)} onSalvo={recarregar} notificar={notificar} />
         </ModalCentro>
+      )}
+      {eventoAberto && (
+        <ResultadoEvento evento={eventoAberto} nps={npsPorEvento.get(eventoAberto.id)} onFechar={() => setAbertoId(null)} onMudou={recarregar} notificar={notificar} />
       )}
     </>
   );

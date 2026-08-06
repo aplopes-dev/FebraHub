@@ -361,7 +361,16 @@ function Moldura({ children, larga }) {
         textarea::placeholder { color: ${C.faint}; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
       `}</style>
-      <div style={{ ...S.coluna, paddingTop: larga ? 32 : 72 }}>{children}</div>
+      <div style={{ ...S.coluna, paddingTop: larga ? 28 : 56 }}>
+        <img
+          src="/logo-febracis.webp"
+          alt="Febracis"
+          width={46}
+          height={46}
+          style={{ display: "block", margin: "0 auto 22px", filter: `drop-shadow(0 6px 22px ${C.gold}33)` }}
+        />
+        {children}
+      </div>
     </div>
   );
 }

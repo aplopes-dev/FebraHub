@@ -5,3 +5,11 @@ html, body, #root {
   min-height: 100%;
   background: #08080A;
 }
+
+/* App é tema escuro: a lista nativa de <option> abre com fundo branco, então
+   texto claro herdado do <select> ficava invisível (só aparecia no hover).
+   Força fundo escuro + texto claro na lista. */
+select option {
+  background-color: #17171c;
+  color: #f2ede1;
+}

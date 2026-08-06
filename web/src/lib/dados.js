@@ -478,6 +478,42 @@ export const useEventos = () =>
 export const useEventoNps = () =>
   useView("vw_evento_nps", { ordem: ["evento_id"], staleTime: 60 * 1000, retry: 2 });
 
+// Média por pergunta numérica (vw_evento_notas): media só com ≥ 5 respostas.
+export const useEventoNotas = () =>
+  useView("vw_evento_notas", { ordem: ["evento_id", "nucleo", "ordem"], staleTime: 60 * 1000, retry: 2 });
+
+// Texto livre (vw_evento_textos): uma linha por resposta escrita.
+export const useEventoTextos = () =>
+  useView("vw_evento_textos", { ordem: ["evento_id", "pergunta_id"], staleTime: 60 * 1000, retry: 2 });
+
+// Perguntas de um evento (tabela evento_perguntas, RLS pode_ver do setor):
+// alimenta o editor ao abrir um evento existente. Núcleo primeiro (false<true),
+// depois ordem — a mesma ordem do formulário.
+export function useEventoPerguntas(eventoId) {
+  return useQuery({
+    queryKey: ["evento_perguntas", eventoId],
+    enabled: eventoId != null,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("evento_perguntas")
+        .select("id,ordem,texto,tipo,obrigatoria,nucleo,opcoes")
+        .eq("evento_id", eventoId)
+        .order("nucleo").order("ordem");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+// Decisão de carteira: ativa | em_observacao | aposentada, com motivo obrigatório
+// (o banco recusa sem motivo). Só authenticated com pode_ver do setor.
+export async function definirStatusCarteira(palestraId, status, motivo) {
+  const { data, error } = await supabase.rpc("definir_status_carteira", { p_palestra_id: palestraId, p_status: status, p_motivo: motivo });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // Perfis que a sessão enxerga (o próprio; admin vê todos) — seletor de
 // responsável. A RLS já limita: não-admin recebe só a própria linha, que é o
 // default. `criar_evento` recusa não-admin tentando pôr outra pessoa; o front
