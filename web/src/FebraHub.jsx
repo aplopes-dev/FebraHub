@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
+import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import Avaliacao from "./Rotas/Avaliacao.jsx";
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
   LayoutDashboard, Lock, Mail, AlertTriangle, Package, LogOut, Power,
@@ -5654,10 +5656,26 @@ function App() {
   return <Shell perfil={perfil.data} />;
 }
 
+// A rota pública /e/:token vira QR code impresso, então precisa de URL de
+// verdade. É a ÚNICA tela usada por gente de fora da Febracis: fica FORA do
+// portal — sem auth, sem QueryClient, sem Shell (sidebar/topbar). Todo o
+// resto cai no catch-all e é o portal de sempre, que navega por estado.
+function RotaAvaliacao() {
+  const { token } = useParams();
+  return <Avaliacao token={token} />;
+}
+
 export default function Root() {
   return (
-    <QueryClientProvider client={qc}>
-      <App />
-    </QueryClientProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/e/:token" element={<RotaAvaliacao />} />
+        <Route path="*" element={
+          <QueryClientProvider client={qc}>
+            <App />
+          </QueryClientProvider>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
