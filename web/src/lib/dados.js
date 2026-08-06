@@ -455,6 +455,60 @@ export async function salvarRetencao(registro) {
   if (error) throw new Error(error.message);
 }
 
+/* ============ AVALIAÇÃO DE EVENTOS (Hub Pedagógico) ============
+   Sistema NOVO por token/QR (não é o fato_avaliacao_evento antigo, via Make).
+   Toda ESCRITA passa pelas funções SECURITY DEFINER — nunca insert/update
+   direto (não há policy de escrita; tentativa direta falha). Leitura respeita
+   RLS pode_ver('setor'): não filtrar por setor no front. */
+
+// Carteira de palestras (vw_carteira): alimenta o seletor de título quando o
+// tipo é 'palestra', pra edição repetida cair na MESMA linha (não parte o NPS
+// acumulado). Traz status, edições e nps_acumulado (só com respostas ≥ 5).
+export const useCarteira = () =>
+  useView("vw_carteira", { ordem: ["titulo"], staleTime: 60 * 1000, retry: 2 });
+
+// Eventos do setor (RLS filtra). Lista + estado do link. `codigo`/`token`/
+// janelas/travado_em vêm daqui; a contagem de respostas cruza com vw_evento_nps.
+export const useEventos = () =>
+  useView("eventos", { ordem: ["data_evento", "id"], staleTime: 60 * 1000, retry: 2 });
+
+// NPS por evento (vw_evento_nps): respostas, promotores/neutros/detratores e o
+// nps (só com ≥ 5 respostas; senão null). Alimenta a contagem na lista e o
+// resultado — nunca o NPS sozinho.
+export const useEventoNps = () =>
+  useView("vw_evento_nps", { ordem: ["evento_id"], staleTime: 60 * 1000, retry: 2 });
+
+// Perfis que a sessão enxerga (o próprio; admin vê todos) — seletor de
+// responsável. A RLS já limita: não-admin recebe só a própria linha, que é o
+// default. `criar_evento` recusa não-admin tentando pôr outra pessoa; o front
+// não replica essa regra — mostra o erro do banco se vier.
+export function usePerfisVisiveis() {
+  return useQuery({
+    queryKey: ["perfis_visiveis"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("perfis").select("id, nome").order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+/* Escrita via RPC. `criar_evento` insere o evento + as 3 perguntas de núcleo e
+   devolve { id, codigo, token, palestra_id, nova_na_carteira, abre_em, fecha_em }.
+   `salvar_perguntas` grava só as perguntas da Elis (o núcleo já entrou). Erros
+   sobem com a mensagem do banco pro form/toast — inclusive a de permissão. */
+export async function criarEvento(campos) {
+  const { data, error } = await supabase.rpc("criar_evento", campos);
+  if (error) throw new Error(error.message);
+  return data;
+}
+export async function salvarPerguntas(eventoId, perguntas) {
+  const { data, error } = await supabase.rpc("salvar_perguntas", { p_evento_id: eventoId, p_perguntas: perguntas });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 /* ============ AUTOMAÇÃO — DRAWER DA TURMA (bloco 2) ============
    O drawer edita dim_turmas por turma_id. Escrita gated pela RLS
    pode_ver('pedagogico'); sem policy o update volta 42501/403 e o form mostra
