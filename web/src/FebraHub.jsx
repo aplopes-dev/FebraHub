@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
+import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import Avaliacao from "./Rotas/Avaliacao.jsx";
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
   LayoutDashboard, Lock, Mail, AlertTriangle, Package, LogOut, Power,
@@ -37,6 +39,7 @@ import {
   useMarketingInvestimento, useLojaMetaRealizado,
   useExecutivoReativacao, useExecutivoComercial30d,
   useTurmaDim, useTurmaSugestao, useFilaTurma, useEnviosTurma,
+  useCarteira, usePerfisVisiveis, criarEvento, salvarPerguntas,
   salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao, salvarTurma,
   usePedagogicoAusentes,
   useEventosDesempenho,
@@ -4340,6 +4343,310 @@ function DrawerTurma({ turma, aguardando, onFechar, onSalvo, notificar }) {
   );
 }
 
+/* ============ AVALIAÇÃO DE EVENTOS — cadastro + link (QR) ============
+   Sistema por token: a Elis cadastra o evento e as PRÓPRIAS perguntas e recebe
+   /e/<token> pra virar QR na palestra; a plateia responde no celular, anônimo.
+   Escrita só pelas funções (criar_evento + salvar_perguntas). As 3 perguntas de
+   núcleo o banco insere sozinho — aqui aparecem só pra leitura. Token nunca
+   regenera: não existe ação de recriar o link (QR já impresso morreria). */
+const TIPOS_EVENTO = [
+  { k: "palestra", r: "Palestra" }, { k: "workshop", r: "Workshop" },
+  { k: "mentoria", r: "Mentoria" }, { k: "curso", r: "Curso" },
+];
+const TIPOS_PERGUNTA = [
+  { k: "escala_1_5", r: "Escala 1–5" }, { k: "escala_0_10", r: "Escala 0–10" },
+  { k: "sim_nao", r: "Sim / Não" }, { k: "escolha_unica", r: "Escolha única" },
+  { k: "texto_livre", r: "Texto livre" },
+];
+const PERGUNTAS_NUCLEO = [
+  "De 0 a 10, quanto você recomendaria esta palestra a um colega?",
+  "O que você mudaria nesta palestra?",
+  "Qual tema você gostaria de ver numa próxima palestra?",
+];
+const LIMITE_PERGUNTAS = 7; // acima disso, avisa (não bloqueia)
+const dataBR = (iso) => { const p = String(iso ?? "").slice(0, 10).split("-"); return p[2] ? `${p[2]}/${p[1]}/${p[0]}` : "—"; };
+
+/* `travado` (evento já respondeu / travado_em setado): o editor de perguntas
+   fica desabilitado com o motivo na tela — a pessoa vê o porquê, não digita pra
+   descobrir o erro só ao salvar. `perguntasIniciais` semeia o editor ao abrir um
+   evento existente. */
+function FormEvento({ meuId, onFechar, onSalvo, notificar, travado = false, motivoTravado = null, perguntasIniciais = null }) {
+  const carteira = useCarteira();
+  const perfis = usePerfisVisiveis();
+
+  const [tipo, setTipo] = useState("palestra");
+  const [palestraSel, setPalestraSel] = useState("");   // "" = escolher · "__nova__" = digitar novo
+  const [tituloNovo, setTituloNovo] = useState("");
+  const [data, setData] = useState("");
+  const [objetivo, setObjetivo] = useState("");
+  const [local, setLocal] = useState("");
+  const [responsavelId, setResponsavelId] = useState(meuId ?? "");
+  const [perguntas, setPerguntas] = useState(perguntasIniciais ?? []);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [resultado, setResultado] = useState(null);
+
+  const ehPalestra = tipo === "palestra";
+  const tituloFinal = (ehPalestra && palestraSel && palestraSel !== "__nova__") ? palestraSel : tituloNovo.trim();
+  const total = perguntas.length + PERGUNTAS_NUCLEO.length;
+  const palestras = carteira.data ?? [];
+
+  const setP = (i, campo, val) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: val } : p)));
+  const addPergunta = () => setPerguntas((ps) => [...ps, { texto: "", tipo: "escala_1_5", obrigatoria: true, opcoes: ["", ""] }]);
+  const removePergunta = (i) => setPerguntas((ps) => ps.filter((_, j) => j !== i));
+  const mover = (i, dir) => setPerguntas((ps) => {
+    const j = i + dir; if (j < 0 || j >= ps.length) return ps;
+    const c = [...ps]; [c[i], c[j]] = [c[j], c[i]]; return c;
+  });
+  const setOpcao = (i, oi, val) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: p.opcoes.map((o, k) => (k === oi ? val : o)) } : p)));
+  const addOpcao = (i) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: [...p.opcoes, ""] } : p)));
+  const removeOpcao = (i, oi) => setPerguntas((ps) => ps.map((p, j) => (j === i ? { ...p, opcoes: p.opcoes.filter((_, k) => k !== oi) } : p)));
+
+  const resetar = () => {
+    setResultado(null); setTipo("palestra"); setPalestraSel(""); setTituloNovo("");
+    setData(""); setObjetivo(""); setLocal(""); setResponsavelId(meuId ?? "");
+    setPerguntas([]); setErro(null);
+  };
+
+  const salvar = async () => {
+    if (!tituloFinal) { const m = "Dê um título ao evento."; setErro(m); notificar(m, "erro"); return; }
+    if (!data) { const m = "Informe a data do evento."; setErro(m); notificar(m, "erro"); return; }
+    for (let i = 0; i < perguntas.length; i++) {
+      const p = perguntas[i];
+      if (!p.texto.trim()) { const m = `A pergunta ${i + 1} está sem enunciado.`; setErro(m); notificar(m, "erro"); return; }
+      if (p.tipo === "escolha_unica" && p.opcoes.map((o) => o.trim()).filter(Boolean).length < 2) {
+        const m = `A pergunta ${i + 1} (escolha única) precisa de ao menos duas opções.`; setErro(m); notificar(m, "erro"); return;
+      }
+    }
+    setSalvando(true); setErro(null);
+    try {
+      const ev = await criarEvento({
+        p_tipo: tipo, p_titulo: tituloFinal, p_data_evento: data,
+        p_objetivo: objetivo.trim() || null, p_local: local.trim() || null,
+        p_responsavel_id: responsavelId || null,
+      });
+      if (perguntas.length) {
+        await salvarPerguntas(ev.id, perguntas.map((p) => ({
+          texto: p.texto.trim(), tipo: p.tipo, obrigatoria: !!p.obrigatoria,
+          opcoes: p.tipo === "escolha_unica" ? p.opcoes.map((o) => o.trim()).filter(Boolean) : null,
+        })));
+      }
+      setResultado(ev);
+      notificar("Evento salvo.", "ok");
+      onSalvo?.();
+    } catch (e) {
+      // Mostra a mensagem do banco (inclusive a de permissão do responsável) —
+      // não contornamos nem inventamos regra no front.
+      const msg = e.message || "Não foi possível salvar o evento.";
+      setErro(msg); notificar(msg, "erro");
+    }
+    setSalvando(false);
+  };
+
+  /* ---- sucesso: o link (token nunca regenera) ---- */
+  if (resultado) {
+    const link = `${window.location.origin}/e/${resultado.token}`;
+    const copiar = async () => {
+      try { await navigator.clipboard.writeText(link); notificar("Link copiado.", "ok"); }
+      catch { notificar("Não consegui copiar — selecione e copie manual.", "erro"); }
+    };
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.up, fontSize: 14, fontWeight: 800 }}>
+          <Check size={17} /> Evento salvo
+        </div>
+        <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
+          {resultado.nova_na_carteira ? "Abriu uma nova palestra na carteira." : "Somou à palestra já existente na carteira."} Mostre este link como QR code na hora da avaliação.
+        </div>
+        <div>
+          <label style={labelAv}>Link da avaliação</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={link} onFocus={(e) => e.target.select()} style={{ ...inputAv, fontFamily: GROTESK, fontSize: 12.5 }} />
+            <button onClick={copiar} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 14px", borderRadius: 10, border: `1px solid ${C.gold}66`, background: `${C.gold}14`, color: C.gold, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap", fontFamily: SANS }}>
+              <Link2 size={13} /> Copiar
+            </button>
+          </div>
+          <div style={{ fontSize: 10.5, color: C.faint, marginTop: 6 }}>Código {resultado.codigo} · o link não muda — gere o QR com folga antes do evento.</div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 4 }}>
+          <button onClick={resetar} style={{ fontSize: 12.5, fontWeight: 700, padding: "9px 14px", borderRadius: 10, background: "transparent", border: `1px solid ${C.cardLine}`, color: C.muted, cursor: "pointer", fontFamily: SANS }}>Cadastrar outro</button>
+          <button onClick={onFechar} style={{ fontSize: 12.5, fontWeight: 800, padding: "9px 18px", borderRadius: 10, background: `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`, border: "none", color: "#1A1305", cursor: "pointer", fontFamily: SANS }}>Concluir</button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---- formulário ---- */
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Parte 1 — o evento */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold }}>1 · O evento</div>
+        <div>
+          <label style={labelAv}>Tipo</label>
+          <Segmentado valor={tipo} onChange={(v) => { setTipo(v); setPalestraSel(""); }} opcoes={TIPOS_EVENTO.map((t) => ({ key: t.k, label: t.r }))} />
+        </div>
+
+        {ehPalestra ? (
+          <div>
+            <label style={labelAv}>Palestra</label>
+            <select value={palestraSel} onChange={(e) => setPalestraSel(e.target.value)} style={{ ...inputAv, cursor: "pointer" }}>
+              <option value="">Selecione uma palestra da carteira…</option>
+              {palestras.map((p) => (
+                <option key={p.palestra_id} value={p.titulo}>
+                  {p.titulo}{p.ultima_edicao ? ` · última edição ${dataBR(p.ultima_edicao)}` : ""}{p.status && p.status !== "ativa" ? ` · ${p.status.replace("_", " ")}` : ""}
+                </option>
+              ))}
+              <option value="__nova__">＋ Nova palestra…</option>
+            </select>
+            <div style={{ fontSize: 10.5, color: C.faint, marginTop: 5 }}>Reutilize um título existente para a palestra repetida cair na mesma linha da carteira — senão o NPS acumulado se parte.</div>
+            {palestraSel === "__nova__" && (
+              <input autoFocus value={tituloNovo} onChange={(e) => setTituloNovo(e.target.value)} placeholder="Título da nova palestra" style={{ ...inputAv, marginTop: 8 }} />
+            )}
+          </div>
+        ) : (
+          <div>
+            <label style={labelAv}>Título</label>
+            <input value={tituloNovo} onChange={(e) => setTituloNovo(e.target.value)} placeholder="Título do evento" style={inputAv} />
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label style={labelAv}>Data</label><input type="date" value={data} onChange={(e) => setData(e.target.value)} style={inputAv} /></div>
+          <div><label style={labelAv}>Local</label><input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Onde acontece" style={inputAv} /></div>
+        </div>
+        <div><label style={labelAv}>Objetivo</label><textarea rows={2} value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder="O que esta palestra se propõe a entregar" style={{ ...inputAv, resize: "vertical" }} /></div>
+        <div>
+          <label style={labelAv}>Responsável</label>
+          <select value={responsavelId ?? ""} onChange={(e) => setResponsavelId(e.target.value)} style={{ ...inputAv, cursor: "pointer" }}>
+            <option value="">— sem responsável definido —</option>
+            {(perfis.data ?? []).map((p) => (<option key={p.id} value={p.id}>{p.nome}{p.id === meuId ? " (você)" : ""}</option>))}
+          </select>
+        </div>
+      </div>
+
+      {/* Parte 2 — as perguntas da Elis */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 11, borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".4px", textTransform: "uppercase", color: C.gold }}>2 · Suas perguntas</span>
+          <span style={{ fontSize: 10.5, color: total > LIMITE_PERGUNTAS ? C.warn : C.faint }}>{total} no formulário (com o núcleo)</span>
+        </div>
+        {travado && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}55`, borderRadius: 9, padding: "10px 12px", lineHeight: 1.45 }}>
+            <Lock size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span><b>Perguntas travadas.</b> {motivoTravado || "Este evento já recebeu respostas — mudar as perguntas agora quebraria a comparação com quem já respondeu."} Dá para editar os dados do evento, mas não as perguntas.</span>
+          </div>
+        )}
+        {!travado && total > LIMITE_PERGUNTAS && (
+          <div style={{ fontSize: 11.5, color: C.warn, background: `${C.warn}12`, border: `1px solid ${C.warn}44`, borderRadius: 9, padding: "8px 11px", lineHeight: 1.45 }}>
+            Formulário longo derruba a taxa de resposta no celular — e o núcleo fica no fim. Considere enxugar.
+          </div>
+        )}
+
+        {perguntas.map((p, i) => (
+          <div key={i} style={{ border: `1px solid ${C.hair}`, borderRadius: 10, padding: 11, display: "flex", flexDirection: "column", gap: 9, background: "rgba(255,255,255,.02)" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <span style={{ fontFamily: GROTESK, fontSize: 12, color: C.faint, paddingTop: 9, minWidth: 16 }}>{i + 1}</span>
+              <input value={p.texto} disabled={travado} onChange={(e) => setP(i, "texto", e.target.value)} placeholder="Enunciado da pergunta" style={{ ...inputAv, flex: 1, opacity: travado ? 0.7 : 1 }} />
+              {!travado && (
+                <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                  <BtnIcone titulo="Subir" disabled={i === 0} onClick={() => mover(i, -1)}><ChevronUp size={14} /></BtnIcone>
+                  <BtnIcone titulo="Descer" disabled={i === perguntas.length - 1} onClick={() => mover(i, 1)}><ChevronDown size={14} /></BtnIcone>
+                  <BtnIcone titulo="Remover" onClick={() => removePergunta(i)}><X size={14} /></BtnIcone>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", paddingLeft: 24 }}>
+              <select value={p.tipo} disabled={travado} onChange={(e) => setP(i, "tipo", e.target.value)} style={{ ...inputAv, width: "auto", cursor: travado ? "default" : "pointer", padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }}>
+                {TIPOS_PERGUNTA.map((t) => (<option key={t.k} value={t.k}>{t.r}</option>))}
+              </select>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: travado ? "default" : "pointer" }}>
+                <input type="checkbox" checked={p.obrigatoria} disabled={travado} onChange={(e) => setP(i, "obrigatoria", e.target.checked)} /> obrigatória
+              </label>
+            </div>
+            {p.tipo === "escolha_unica" && (
+              <div style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 10, color: C.faint }}>Opções</span>
+                {p.opcoes.map((o, oi) => (
+                  <div key={oi} style={{ display: "flex", gap: 6 }}>
+                    <input value={o} disabled={travado} onChange={(e) => setOpcao(i, oi, e.target.value)} placeholder={`Opção ${oi + 1}`} style={{ ...inputAv, flex: 1, padding: "6px 10px", fontSize: 12, opacity: travado ? 0.7 : 1 }} />
+                    {!travado && <BtnIcone titulo="Remover opção" disabled={p.opcoes.length <= 2} onClick={() => removeOpcao(i, oi)}><X size={13} /></BtnIcone>}
+                  </div>
+                ))}
+                {!travado && <button onClick={() => addOpcao(i)} style={{ alignSelf: "flex-start", fontSize: 11.5, color: C.gold, background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> opção</button>}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {!travado && (
+          <button onClick={addPergunta} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: C.gold, background: `${C.gold}12`, border: `1px solid ${C.gold}44`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: SANS }}>
+            <Plus size={14} /> Adicionar pergunta
+          </button>
+        )}
+        {travado && !perguntas.length && (
+          <div style={{ fontSize: 12, color: C.faint }}>Este evento não teve perguntas próprias — só o núcleo.</div>
+        )}
+
+        {/* Núcleo — leitura */}
+        <div style={{ background: "rgba(255,255,255,.02)", border: `1px dashed ${C.cardLine}`, borderRadius: 10, padding: "11px 13px", marginTop: 2 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, marginBottom: 7 }}>Perguntas de núcleo — fecham todo formulário, iguais em todo evento</div>
+          <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
+            {PERGUNTAS_NUCLEO.map((t, i) => (<li key={i} style={{ fontSize: 12, color: C.faint, lineHeight: 1.4 }}>{t}</li>))}
+          </ol>
+        </div>
+      </div>
+
+      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", borderTop: `1px solid ${C.hair}`, paddingTop: 14 }}>
+        <BotaoSalvar onClick={salvar} disabled={!tituloFinal || !data} salvando={salvando}>Salvar evento</BotaoSalvar>
+      </div>
+    </div>
+  );
+}
+
+// Botãozinho de ícone (reordenar/remover) — cinza, borda fina.
+function BtnIcone({ children, onClick, disabled, titulo }) {
+  return (
+    <button onClick={onClick} disabled={disabled} title={titulo} aria-label={titulo} style={{
+      display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8,
+      background: "transparent", border: `1px solid ${C.cardLine}`, color: disabled ? C.hair : C.muted,
+      cursor: disabled ? "default" : "pointer",
+    }}>{children}</button>
+  );
+}
+
+// Seção do Hub Pedagógico: cadastro de evento + link (lista e resultado no
+// próximo bloco). O Toast e o `notificar` vêm do hub.
+function SecaoAvaliacaoEventos({ notificar }) {
+  const sessao = useSessao();
+  const meuId = sessao?.user?.id ?? null;
+  const qc = useQueryClient();
+  const [novo, setNovo] = useState(false);
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, marginTop: 4 }}>
+        <Star size={15} style={{ color: C.gold, flexShrink: 0 }} />
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Avaliação de eventos</span>
+        <span style={{ fontSize: 11, color: C.faint }}>palestras, workshops e mentorias · link por QR</span>
+      </div>
+      <div style={{ background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5, maxWidth: 460 }}>
+          Cadastre o evento e suas perguntas e receba o link da avaliação para gerar o QR code. Quem assistiu responde no celular, sem login.
+        </span>
+        <button onClick={() => setNovo(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: "#1A1305", background: `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`, border: "none", borderRadius: 10, padding: "9px 16px", cursor: "pointer", fontFamily: SANS, whiteSpace: "nowrap" }}>
+          <Plus size={15} /> Novo evento
+        </button>
+      </div>
+      {novo && (
+        <ModalCentro titulo="Novo evento" largura={680} onFechar={() => setNovo(false)}>
+          <FormEvento meuId={meuId} onFechar={() => setNovo(false)} onSalvo={() => qc.invalidateQueries()} notificar={notificar} />
+        </ModalCentro>
+      )}
+    </>
+  );
+}
+
 /* Hub Pedagógico / Sucesso do Cliente. Foco em SAÚDE: acompanhamento, não
    fila de tarefas. Tudo vem do Salesforce; conclusão, notas e NPS não são
    medidos (não existem na fonte). Presença cobre só as turmas com
@@ -4675,8 +4982,13 @@ function HubPedagogico() {
         </Estado>
       </Bloco>
 
+      {/* ---- Avaliação de eventos (cadastro + link/QR) ---- */}
+      <div style={{ marginTop: 22 }}>
+        <SecaoAvaliacaoEventos notificar={notificar} />
+      </div>
+
       {/* ---- Transparência ---- */}
-      <div style={{ fontSize: 11, color: C.faint, lineHeight: 1.6, marginTop: 4 }}>
+      <div style={{ fontSize: 11, color: C.faint, lineHeight: 1.6, marginTop: 22 }}>
         <b style={{ color: C.muted }}>Transparência.</b> A presença cobre {pk.turmas_cobertas ? numero(pk.turmas_cobertas) : "—"} turmas
         com credenciamento confiável; as demais ficam de fora do comparecimento. Conclusão, notas e NPS
         não são medidos — não estão no Salesforce.
@@ -5654,10 +5966,26 @@ function App() {
   return <Shell perfil={perfil.data} />;
 }
 
+// A rota pública /e/:token vira QR code impresso, então precisa de URL de
+// verdade. É a ÚNICA tela usada por gente de fora da Febracis: fica FORA do
+// portal — sem auth, sem QueryClient, sem Shell (sidebar/topbar). Todo o
+// resto cai no catch-all e é o portal de sempre, que navega por estado.
+function RotaAvaliacao() {
+  const { token } = useParams();
+  return <Avaliacao token={token} />;
+}
+
 export default function Root() {
   return (
-    <QueryClientProvider client={qc}>
-      <App />
-    </QueryClientProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/e/:token" element={<RotaAvaliacao />} />
+        <Route path="*" element={
+          <QueryClientProvider client={qc}>
+            <App />
+          </QueryClientProvider>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
