@@ -142,3 +142,4 @@ Se tentar `fato_pagamento_base`, recebe **permission denied**. Testado.
 - [`docs/BRIEFING.md`](docs/BRIEFING.md) — contexto, modelo de negócio, tarefas
 - [`docs/DESCOBERTAS.md`](docs/DESCOBERTAS.md) — o que os dados revelaram, e o que não é verdade
 - [`docs/DIVIDAS.md`](docs/DIVIDAS.md) — pendências conhecidas, com tamanho e causa
+- [`docs/HOMOLOGACAO.md`](docs/HOMOLOGACAO.md) — checklist pra subir o ambiente de homologação (banco, site, subdomínio)
