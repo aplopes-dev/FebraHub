@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": false,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    // incremental desligado: o cache do tsc sobrevivia ao deleteOutDir do nest e
+    // deixava o dist pela metade (main.js sem config/, common/, database/).
+    "incremental": false,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "rootDir": "./src",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  // prisma/ fica de fora do build: o seed.ts roda por ts-node e, incluído
+  // aqui, empurraria o rootDir um nível acima — a saída viraria dist/src/main.js
+  // e o CMD do container apontaria para o lugar errado.
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "prisma"]
+}

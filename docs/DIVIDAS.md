@@ -120,13 +120,16 @@ quebra em silêncio. Trate a linha 1 como contrato e valide os cabeçalhos a cad
 
 ---
 
-## 🟢 9. Sem metas
+## 🟢 9. Sem metas — PAGA em 01/08/2026
 
-Não existe tabela de metas. Onde um mockup pediria "meta comercial em 68%", o sistema
-mostra variação real vs. mês anterior.
+A tabela pedida aqui existe: `meta_indicador` (migration 00000000000005), cadastrada
+pela tela **/executivo/metas** e com trilha em `auditoria_acesso` (`meta_definida` /
+`meta_removida`, com valor anterior e novo). Precedência: cadastro > planilha da loja
+(`fato_loja_meta_mes`, que segue valendo para `receita_loja` quando não há override).
 
-Se o KPI de meta for necessário, precisa de uma tabela `metas` — e aí ele passa a existir
-de verdade, com histórico de quem mudou o quê e quando.
+O que continua verdade: **nenhuma meta é inventada**. Indicador sem meta cadastrada
+mostra "Sem meta definida" — e não é classificado contra meta inexistente.
+Ver docs/HUB_EXECUTIVO.md.
 
 ---
 

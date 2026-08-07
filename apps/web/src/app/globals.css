@@ -1,0 +1,958 @@
+/* Estilos globais do FebraHub.
+
+   O app é feito de inline styles (paleta em src/lib/tema.ts). O que sobra
+   aqui é o que inline style não alcança: reset, scrollbar, keyframes,
+   pseudo-elementos e os grids responsivos por classe — que no protótipo
+   viviam em <style> injetado dentro do Shell e dos hubs.
+
+   ============ TEMAS ============
+   A paleta virou CUSTOM PROPERTY. src/lib/tema.ts só aponta para elas
+   (`C.gold === "var(--gold)"`), então trocar de tema é trocar o atributo
+   `data-tema` no <html> — sem re-render de componente nenhum.
+
+   Cada cor sólida publica DUAS variáveis: a cor (`--gold`) e os componentes
+   RGB soltos (`--gold-rgb`), porque `var()` não aceita concatenar os dois
+   dígitos de alpha do hex. Onde antes se colava "1F" no fim do token, agora
+   vai `rgb(var(--gold-rgb) / 0.12)` — é o que o helper `alfa()` monta.
+   Os tokens já translúcidos (--panel, --card, --card-line, --hair) não têm
+   par `-rgb`: são composições prontas, ninguém empilha alpha em cima. */
+
+:root {
+  /* ---- TEMA CLARO ---- */
+  color-scheme: light;
+
+  --void: #FAF8F5;             --void-rgb: 250 248 245;
+  --panel: rgba(255,255,255,.78);
+  --card: rgba(23,20,14,.030);
+  --card-line: rgba(23,20,14,.13);
+  --hair: rgba(23,20,14,.08);
+  --text: #1B1813;             --text-rgb: 27 24 19;
+  --bright: #0E0C09;           --bright-rgb: 14 12 9;
+  --muted: #5C5A60;            --muted-rgb: 92 90 96;
+  --faint: #67656C;            --faint-rgb: 103 101 108;
+  --dim: #6B6970;              --dim-rgb: 107 105 112;
+
+  /* O dourado do produto tem 1.9:1 sobre branco — ilegível como TEXTO no
+     tema claro. Então o token se divide por papel: `--gold` (texto, ícone,
+     borda, linha de gráfico) escurece; `--gold-top`/`--gold-base` NÃO, porque
+     são fundo de botão/barra com texto escuro por cima (8.9:1) e são a
+     identidade visual do painel. Ver `--gold-top` no bloco comum abaixo. */
+  --gold: #8A6A1E;             --gold-rgb: 138 106 30;
+
+  --down: #C0392B;             --down-rgb: 192 57 43;
+  --up: #17784A;               --up-rgb: 23 120 74;
+  --warn: #8A6410;             --warn-rgb: 138 100 16;
+
+  /* Superfície translúcida genérica (as dezenas de rgba(255,255,255,.0x) do
+     protótipo). No claro o véu é escuro, senão some no fundo. */
+  --sup-rgb: 23 20 14;
+
+  --azul: #2A6FB5;             /* linha de meta e do ano anterior */
+  --verde-forte: #128046;      /* meta máster, distinto do verde da básica */
+  --roxo: #7A4FA8;             /* 5ª fatia da quebra por fonte */
+  --icone: #55535A;            /* ícone neutro (sino, chip não-hero) */
+  --sem-status: #9A979F;       /* fatia "Sem status" do donut de pagamento */
+
+  /* Gradiente da 2ª barra em diante (Receita por categoria): é FUNDO de
+     barra, então segue dourado nos dois temas, como --gold-top/--gold-base. */
+  --gold-dim-top: #d9b866;
+  --gold-dim-base: #7d6634;
+
+  /* Avatar de fallback (iniciais em --gold sobre o gradiente). No claro o
+     gradiente clareia junto, senão o dourado escuro fica ilegível nele. */
+  --avatar-top: #EFEBE3;
+  --avatar-base: #DFDAD0;
+
+  --pop-fundo: #FFFFFF;        /* popover e tooltip */
+  --modal-fundo: #FFFFFF;
+  --drawer-fundo: #FFFFFF;
+  --badge-fundo: #E8E5DF;      /* selo de posição fora do 1º lugar */
+
+  --veu-modal: rgba(23,20,14,.38);
+  --veu-drawer: rgba(23,20,14,.32);
+
+  /* Sombras: no claro precisam ser bem mais suaves, senão viram borrão. */
+  --sombra-popover: 0 10px 28px rgba(23,20,14,.13);
+  --sombra-tooltip: 0 12px 32px rgba(23,20,14,.15);
+  --sombra-drawer: -18px 0 48px rgba(23,20,14,.13);
+  --sombra-modal: 0 24px 64px rgba(23,20,14,.18);
+
+  --brilho-fundo: rgb(var(--gold-rgb) / .06);   /* mais fraco: no claro .07 já borra */
+  --selecao: rgba(138,106,30,.20);
+  --scroll-thumb: rgba(23,20,14,.16);
+  /* Hachura de "parcial": no claro precisa de mais corpo pra continuar
+     visível sobre o fundo quase branco (.3 contra os .22 do escuro). */
+  --hachura: rgb(var(--gold-rgb) / .3);
+}
+
+/* Sem escolha salva, o sistema decide. O bloco repete os valores do tema
+   escuro de propósito: media query não entra em lista de seletores.
+   MEXEU AQUI? Mexa também em :root[data-tema="escuro"] logo abaixo. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema]) {
+    color-scheme: dark;
+
+    --void: #08080A;             --void-rgb: 8 8 10;
+    --panel: rgba(14,14,16,.72);
+    --card: rgba(255,255,255,.028);
+    --card-line: rgba(255,255,255,.08);
+    --hair: rgba(255,255,255,.05);
+    --text: #F5F3EE;             --text-rgb: 245 243 238;
+    --bright: #EDEBE4;           --bright-rgb: 237 235 228;
+    --muted: #8B8B90;            --muted-rgb: 139 139 144;
+    --faint: #6A6A70;            --faint-rgb: 106 106 112;
+    --dim: #5B5B62;              --dim-rgb: 91 91 98;
+    --gold: #E4C06A;             --gold-rgb: 228 192 106;
+    --down: #E06C75;             --down-rgb: 224 108 117;
+    --up: #6FCF97;               --up-rgb: 111 207 151;
+    --warn: #E6B04D;             --warn-rgb: 230 176 77;
+
+    --sup-rgb: 255 255 255;
+
+    --azul: #6BA8E5;
+    --verde-forte: #3DBE6B;
+    --roxo: #B98AD9;
+    --icone: #C9C9CE;
+    --sem-status: #55555c;
+
+    --avatar-top: #3a3a40;
+    --avatar-base: #1c1c20;
+
+    --pop-fundo: #15151a;
+    --modal-fundo: #141418;
+    --drawer-fundo: #101014;
+    --badge-fundo: #22222a;
+
+    --veu-modal: rgba(0,0,0,.62);
+    --veu-drawer: rgba(0,0,0,.55);
+
+    --sombra-popover: 0 12px 32px rgba(0,0,0,.5);
+    --sombra-tooltip: 0 12px 32px rgba(0,0,0,.55);
+    --sombra-drawer: -18px 0 48px rgba(0,0,0,.5);
+    --sombra-modal: 0 24px 64px rgba(0,0,0,.6);
+
+    --brilho-fundo: rgb(var(--gold-rgb) / .07);
+    --selecao: #E4C06A47;
+    --scroll-thumb: rgba(255,255,255,.09);
+    --hachura: rgb(var(--gold-rgb) / .22);
+  }
+}
+
+/* ---- TEMA ESCURO (escolha explícita) ----
+   É o painel histórico: todo valor daqui tem que continuar idêntico ao que
+   estava chumbado nos componentes antes do tema claro existir. */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+
+  --void: #08080A;             --void-rgb: 8 8 10;
+  --panel: rgba(14,14,16,.72);
+  --card: rgba(255,255,255,.028);
+  --card-line: rgba(255,255,255,.08);
+  --hair: rgba(255,255,255,.05);
+  --text: #F5F3EE;             --text-rgb: 245 243 238;
+  --bright: #EDEBE4;           --bright-rgb: 237 235 228;
+  --muted: #8B8B90;            --muted-rgb: 139 139 144;
+  --faint: #6A6A70;            --faint-rgb: 106 106 112;
+  --dim: #5B5B62;              --dim-rgb: 91 91 98;
+  --gold: #E4C06A;             --gold-rgb: 228 192 106;
+  --down: #E06C75;             --down-rgb: 224 108 117;
+  --up: #6FCF97;               --up-rgb: 111 207 151;
+  --warn: #E6B04D;             --warn-rgb: 230 176 77;
+
+  --sup-rgb: 255 255 255;
+
+  --azul: #6BA8E5;
+  --verde-forte: #3DBE6B;
+  --roxo: #B98AD9;
+  --icone: #C9C9CE;
+  --sem-status: #55555c;
+
+  --avatar-top: #3a3a40;
+  --avatar-base: #1c1c20;
+
+  --pop-fundo: #15151a;
+  --modal-fundo: #141418;
+  --drawer-fundo: #101014;
+  --badge-fundo: #22222a;
+
+  --veu-modal: rgba(0,0,0,.62);
+  --veu-drawer: rgba(0,0,0,.55);
+
+  --sombra-popover: 0 12px 32px rgba(0,0,0,.5);
+  --sombra-tooltip: 0 12px 32px rgba(0,0,0,.55);
+  --sombra-drawer: -18px 0 48px rgba(0,0,0,.5);
+  --sombra-modal: 0 24px 64px rgba(0,0,0,.6);
+
+  --brilho-fundo: rgb(var(--gold-rgb) / .07);
+  --selecao: #E4C06A47;
+  --scroll-thumb: rgba(255,255,255,.09);
+  --hachura: rgb(var(--gold-rgb) / .22);
+}
+
+/* Tokens que NÃO mudam com o tema. */
+:root {
+  /* Fundo do dourado é sempre dourado claro: o botão/barra dourada é a
+     identidade do produto e o texto por cima é `--sobre-ouro`. */
+  --gold-top: #F2D488;         --gold-top-rgb: 242 212 136;
+  --gold-base: #B8934A;        --gold-base-rgb: 184 147 74;
+  --sobre-ouro: #100c04;       /* texto/ícone sobre fundo dourado */
+  --sobre-ouro-2: #1A1305;     /* variante do BotaoSalvar */
+
+  /* Fundo da página (Shell e Login) — o brilho dourado é que muda de tema. */
+  --fundo-app: radial-gradient(1200px 600px at 78% -10%, var(--brilho-fundo), transparent 60%), var(--void);
+}
+
+/* ============ ESCALA RESPONSIVA ============
+   Um painel de BI desenhado para TV precisa caber num celular sem virar outro
+   produto. O que muda com a largura é ESPAÇO e DENSIDADE — não o conteúdo:
+   nenhum número, alerta ou aviso de cobertura some no mobile, porque é
+   justamente no celular que a Dulce olha o painel fora do escritório.
+
+   Os tamanhos abaixo entram por variável para o ajuste ficar num lugar só, em
+   vez de espalhado por 100 arquivos de inline style.
+
+   Breakpoints (mobile primeiro, batendo com os que o design já usava):
+     base    celular em pé      (< 600px)
+     600px   celular deitado / tablet pequeno
+     900px   tablet
+     1100px  desktop            — a partir daqui a sidebar é fixa
+*/
+:root {
+  --pad-pagina: 14px;        /* respiro lateral do conteúdo */
+  --pad-pagina-baixo: 40px;
+  --gap-secao: 12px;
+  --h1: 21px;                /* título do hub */
+  --data-topo: 10.5px;
+  --alvo-toque: 40px;        /* piso de área tocável (WCAG 2.5.8 pede 24; 40 é confortável) */
+  --sidebar: 250px;
+  --topbar: 0px;             /* altura da barra fixa do mobile; 0 no desktop */
+
+  /* ---- ESCALA TIPOGRÁFICA COMPACTA (fonte única da verdade) ----
+     Chips, campos e gráficos leem DAQUI — componente nenhum inventa
+     tamanho próprio. A escala segue o hub original (chip 12px/28px) e o
+     piso de acessibilidade: nada de texto funcional abaixo de 10px. */
+  --chip-fs: 12px;           /* fonte do chip/tag/badge */
+  --chip-h: 28px;            /* altura do chip */
+  --chip-px: 10px;           /* padding horizontal do chip */
+  --chip-icone: 13px;        /* ícone dentro do chip */
+  --chip-contador-fs: 10.5px;
+
+  --campo-label-fs: 11.5px;  /* label de select/combobox/input */
+  --campo-fs: 12.5px;        /* valor, placeholder e opções */
+  --campo-aux-fs: 11px;      /* texto auxiliar / vazio */
+  --campo-h: 36px;           /* altura do campo */
+
+  --grafico-titulo-fs: 14px;
+  --grafico-sub-fs: 11.5px;
+  --grafico-eixo-fs: 10.5px;
+  --grafico-legenda-fs: 11px;
+  --grafico-tooltip-fs: 11.5px;
+}
+
+@media (min-width: 600px) {
+  :root { --pad-pagina: 20px; --gap-secao: 14px; --h1: 24px; --data-topo: 11px; }
+}
+
+@media (min-width: 900px) {
+  :root { --pad-pagina: 26px; --h1: 26px; }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --pad-pagina: 34px; --pad-pagina-baixo: 60px;
+    --gap-secao: 16px; --h1: 29px; --data-topo: 12px;
+  }
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--void);
+  /* Sem isto, um SVG ou uma tabela que estoure a largura arrasta a página
+     inteira para o lado no celular — o sintoma clássico de "quebrou no
+     mobile". Quem precisa rolar na horizontal é o container, não o body. */
+  overflow-x: hidden;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--void);
+  -webkit-font-smoothing: antialiased;
+  /* iOS aumenta a fonte sozinho ao girar o aparelho; o painel tem tamanhos
+     fracionários calibrados e isso os desalinha. */
+  -webkit-text-size-adjust: 100%;
+}
+
+::selection { background: var(--selecao); }
+
+input::placeholder { color: var(--dim); }
+
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.rolagem::-webkit-scrollbar { width: 9px; }
+.rolagem::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
+
+/* Ícone do botão de tema: quem manda é o CSS, não o estado do React. Se o
+   ícone dependesse de useState, ele piscaria entre o HTML do servidor
+   (que não sabe o tema) e a hidratação. */
+.so-claro, .so-escuro { display: inline-flex; }
+.so-claro { display: none; }                                   /* escuro é o default */
+:root[data-tema="claro"] .so-claro { display: inline-flex; }
+:root[data-tema="claro"] .so-escuro { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema]) .so-claro { display: inline-flex; }
+  :root:not([data-tema]) .so-escuro { display: none; }
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes subir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.girar { animation: girar 1s linear infinite; }
+.subir { animation: subir .4s ease; }
+
+/* ============ SIDEBAR: fixa no desktop, gaveta no celular ============
+   Abaixo de 1100px a sidebar sai do fluxo e vira gaveta sobre o conteúdo. Em
+   250px numa tela de 375px sobrariam 125px para o painel — não é estreito, é
+   inutilizável.
+
+   A gaveta é controlada por `data-menu="aberto"` no <html>, não por classe no
+   componente, para o backdrop e o travamento do scroll do body virem junto
+   sem prop drilling. */
+.fh-sidebar {
+  width: var(--sidebar);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  transition: width .18s ease;
+}
+
+/* ---- Recolhido no desktop: coluna de ícones ----
+   O menu vira uma faixa de 64px com só os ícones. Serve a quem usa o painel
+   numa tela de 13" e quer o gráfico inteiro — e é a mesma ação do hambúrguer
+   do celular, por isso o botão é o mesmo. A preferência fica no localStorage:
+   recolher o menu a cada visita seria pior que não ter o botão. */
+:root[data-menu-recolhido] .fh-sidebar { --sidebar: 64px; }
+
+/* Some tudo que é texto; ficam os ícones, centralizados. */
+:root[data-menu-recolhido] .fh-so-expandido { display: none; }
+:root[data-menu-recolhido] .fh-item-menu {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* O rótulo do grupo ("Painéis", "Setores") vira um traço: sem ele os blocos
+   se fundem num bloco só de ícones. */
+:root[data-menu-recolhido] .fh-grupo-menu {
+  /* !important porque o tamanho vem de inline style: sem ele o rótulo não
+     zera e aparece cortado pela coluna estreita ("PAINÉI", "SETOR"). */
+  font-size: 0 !important;
+  padding: 12px 18px 8px;
+  border-top: 1px solid var(--hair);
+  margin-top: 6px;
+}
+/* Recolhido, o topo mostra só o botão de expandir: a logo de 32px mais o
+   botão não cabem nos 64px da coluna, e a logo saía cortada. */
+:root[data-menu-recolhido] .fh-topo-menu img { display: none; }
+:root[data-menu-recolhido] .fh-rodape-perfil {
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+:root[data-menu-recolhido] .fh-topo-menu { justify-content: center; padding: 22px 8px 18px; }
+
+/* No celular a gaveta é sempre a versão inteira: recolher um menu que já está
+   escondido não faria sentido, e a faixa de ícones sobre o conteúdo seria pior
+   que a gaveta. */
+@media (max-width: 1099px) {
+  :root[data-menu-recolhido] .fh-sidebar { --sidebar: 250px; }
+  :root[data-menu-recolhido] .fh-so-expandido { display: revert; }
+  :root[data-menu-recolhido] .fh-item-menu { justify-content: flex-start; padding-left: 12px; padding-right: 12px; }
+  :root[data-menu-recolhido] .fh-grupo-menu { font-size: 10px; border-top: none; }
+  :root[data-menu-recolhido] .fh-rodape-perfil { flex-direction: row; }
+}
+
+.fh-topbar { display: none; }
+.fh-backdrop { display: none; }
+/* Fechar-a-gaveta só faz sentido onde existe gaveta. */
+.fh-so-gaveta { display: none !important; }   /* o botão traz display inline */
+/* Recolher a coluna só faz sentido onde ela é coluna. */
+.fh-so-desktop { display: flex; }
+/* Enfeite que some quando o espaço fica caro (o sino, hoje sem notificação). */
+.fh-sem-celular { display: flex; }
+
+@media (max-width: 1099px) {
+  .fh-sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    height: 100dvh;              /* dvh e não vh: a barra do navegador móvel some e volta */
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: 8px 0 32px var(--sombra-drawer-cor, rgba(0,0,0,.4));
+    /* A gaveta cobre o conteúdo, então precisa de fundo opaco — o
+       `--panel` translúcido do desktop deixaria o painel aparecer atrás. */
+    background: var(--void);
+  }
+  :root[data-menu="aberto"] .fh-sidebar { transform: translateX(0); }
+
+  .fh-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0,0,0,.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease;
+    border: none;
+  }
+  :root[data-menu="aberto"] .fh-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* Trava o fundo enquanto a gaveta está aberta: sem isso o painel rola por
+     baixo quando o dedo passa do menu. */
+  :root[data-menu="aberto"] body { overflow: hidden; }
+
+  .fh-topbar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    padding: 8px var(--pad-pagina);
+    min-height: 52px;
+    background: var(--panel);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--card-line);
+  }
+  :root { --topbar: 52px; }
+
+  .fh-so-gaveta { display: flex !important; }
+  .fh-so-desktop { display: none !important; }
+
+  /* Com o menu recolhido, o topo vira só a logo centralizada. */
+  :root[data-menu-recolhido] .fh-topo-menu { justify-content: center; padding: 22px 8px 18px; }
+}
+
+@media (max-width: 599px) {
+  .fh-sem-celular { display: none; }
+}
+
+/* Área tocável mínima sem inflar o desenho: o botão continua pequeno, mas o
+   alvo do dedo cresce por pseudo-elemento. */
+.fh-toque { position: relative; }
+.fh-toque::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--alvo-toque);
+  height: var(--alvo-toque);
+}
+
+/* ============ DEDO E LEGIBILIDADE NO CELULAR ============
+   O painel foi desenhado para mouse e TV: botão de filtro com 27px de altura
+   e rótulo de 9px funcionam com cursor a 60cm, não com o polegar a 30cm.
+
+   O `!important` aqui não é preguiça: os tamanhos vêm de inline style (a UI
+   inteira é assim, portada do protótipo), e inline vence folha de estilo. Sem
+   ele o CSS não alcança. O escopo é o mínimo — só abaixo de 900px, e só nos
+   elementos que o dedo realmente toca. */
+@media (max-width: 899px) {
+  /* Botões e links de comando: 40px de altura, o piso confortável.
+     Ficam de fora os que vivem dentro de tabela ou de linha densa de lista,
+     onde inflar a altura empurraria o conteúdo para fora da tela. */
+  button:not(.fh-sem-alvo),
+  a[href]:not(.fh-sem-alvo),
+  [role="button"]:not(.fh-sem-alvo) {
+    min-height: 40px;
+    /* Largura também: o botão de ícone (editar maestro, filtro de produto)
+       tinha 27px de lado — alto o bastante depois do min-height, mas ainda
+       estreito demais para acertar com o polegar. */
+    min-width: 40px;
+  }
+  /* Alvo grande não pode virar botão gordo: o padding lateral segue o desenho
+     e quem cresce é só a altura, com o conteúdo centralizado. */
+  button:not(.fh-sem-alvo) { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Piso de fonte. 9px é ilegível num celular; 10.5 mantém a hierarquia
+     (continua menor que os 11-13 do corpo) e passa a ser lido.
+     O seletor casa a serialização do React, que sai com espaço depois dos
+     dois-pontos ("font-size: 9.5px") — conferido no DOM, não suposto. */
+  [style*="font-size: 9"] { font-size: 10.5px !important; }
+}
+
+/* Conteúdo que pode estourar a largura (tabela, gráfico largo) rola dentro do
+   próprio card, nunca arrastando a página. */
+.fh-rolagem-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.fh-rolagem-x::-webkit-scrollbar { height: 8px; }
+.fh-rolagem-x::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
+
+/* Painéis do Hub Financeiro (design portado): 1 coluna no mobile,
+   proporções do design (5:4:3 e 7:5) em telas largas. */
+.finRow1 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-secao); align-items: start; }
+.finRow2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-secao); align-items: start; }
+@media (min-width: 1000px) {
+  .finRow1 { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); }
+  .finRow2 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+
+/* Hub Comercial: evolução à esquerda, consultoras à direita. Denso
+   pra caber numa TV 16:9 sem rolagem. */
+.gridCom { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; align-items: start; }
+@media (min-width: 1100px) { .gridCom { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
+
+/* Hub Pedagógico. */
+.pedKpis, .pedMaestrosKpi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.pedConfKpis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+.pedBot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (min-width: 720px) {
+  .pedKpis, .pedMaestrosKpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pedConfKpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1000px) { .pedBot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }  /* fideliza · falta */
+
+/* Hub Loja. Uma tela só, sem rolagem vertical (alvo 1080p). Três faixas. */
+.lojaKpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+@media (min-width: 720px) { .lojaKpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.lojaMid, .lojaBot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (min-width: 1000px) {
+  .lojaMid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }       /* receita · estoque */
+  .lojaBot { grid-template-columns: minmax(0, 3fr) minmax(0, 4fr); }       /* mais vendidos · performance curso */
+}
+
+/* ============ AJUSTES DE CELULAR ============
+   Regras que valem para o painel inteiro e que seria pior repetir em cada
+   componente. Tudo aqui é espaço/densidade — nenhuma informação sai da tela. */
+@media (max-width: 599px) {
+  /* Painel com altura fixa (ALTURA_PAINEL = 260) existe para a TV: rolagem
+     dentro do card. No celular isso vira uma janelinha rolando dentro de outra
+     — o card cresce e quem rola é a página. */
+    .fh-painel-alto { max-height: none !important; overflow-y: visible !important; }
+
+  /* Grade de KPI: no desenho original o auto-fit já colapsa, mas com pisos de
+     190-220px sobra folga demais em 360px. Duas colunas mantêm a leitura de
+     relance, que é o ponto do KPI. */
+  .fh-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .fh-kpis-1 { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* Título de seção e canto explicativo empilham em vez de disputar a linha. */
+  .fh-secao-titulo { flex-direction: column; align-items: flex-start !important; gap: 4px; }
+}
+
+/* O gráfico SVG escala por viewBox, então o texto dentro dele encolhe junto e
+   fica ilegível bem antes do desenho. Abaixo de 900px damos ao SVG uma
+   largura mínima e deixamos o container rolar: melhor arrastar o dedo do que
+   ler rótulo de 5px. */
+@media (max-width: 899px) {
+  .fh-grafico {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Sem estes dois o wrapper CRESCE até o tamanho do conteúdo em vez de
+       rolar — dentro de flex/grid a base é `auto`, não zero. O sintoma é o
+       gráfico ficar cortado pelo overflow do body, com o pedaço de fora
+       inalcançável: pior que rolar. */
+    max-width: 100%;
+    min-width: 0;
+  }
+  .fh-grafico > svg { min-width: 560px; }
+  .fh-grafico::-webkit-scrollbar { height: 8px; }
+  .fh-grafico::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ============================================================
+   HUB EXECUTIVO
+   As cores vêm das variáveis de tema (claro e escuro já cobertos);
+   aqui mora só estrutura: grades, cartões, chips e impressão.
+   ============================================================ */
+
+.fh-exec { min-width: 0; }
+
+.fh-exec-topo {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.fh-exec-filtros { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.fh-exec-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.fh-exec-select {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--card-line); border-radius: 8px;
+  /* NÃO usar o shorthand `font:` com var() de família: se a var não existe
+     (era o caso — o layout publica --fonte-sans, não --font-manrope), o
+     shorthand INTEIRO é invalidado no computed-value e o tamanho volta aos
+     16px herdados. Foi assim que "os botões ficaram grandes" em produção. */
+  font-weight: 700; font-size: var(--campo-fs); font-family: inherit; padding: 6px 8px;
+  max-width: 240px; min-height: 34px;
+}
+
+/* Chip genérico da escala compacta — os módulos novos (territorial,
+   conversas, kanban) montam em cima disto; a cor entra por style inline. */
+.fh-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: var(--chip-h); padding: 0 var(--chip-px);
+  border-radius: 999px; font-size: var(--chip-fs); font-weight: 500;
+  line-height: 1; white-space: nowrap; border: 1px solid var(--card-line);
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-family: inherit; transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.fh-chip:hover { color: var(--text); }
+.fh-chip[aria-pressed="true"], .fh-chip[data-ativo="1"] {
+  border-width: 2px; padding: 0 calc(var(--chip-px) - 1px);
+  color: var(--text); font-weight: 600;
+}
+.fh-chip:disabled { opacity: .4; pointer-events: none; }
+.fh-chip svg { width: var(--chip-icone); height: var(--chip-icone); flex-shrink: 0; }
+
+/* Campo compacto (select/input) para os módulos novos. */
+.fh-campo {
+  height: var(--campo-h); font-size: var(--campo-fs);
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--card-line); border-radius: 8px;
+  padding: 0 10px; font-family: inherit; min-width: 0;
+}
+.fh-campo::placeholder { color: var(--faint); }
+.fh-campo:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.fh-exec-contexto {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; font-size: 12px; color: var(--faint);
+  padding: 9px 14px; border: 1px solid var(--hair); border-radius: 12px;
+  background: rgb(var(--sup-rgb) / 0.03); margin-bottom: 16px;
+}
+
+/* Cards da visão geral: compactos, densos e SEMPRE minmax(0, …) —
+   1fr puro deixaria o conteúdo mínimo estourar a coluna. */
+.fh-exec-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px; margin-bottom: 22px;
+}
+.fh-exec-card {
+  display: block; min-width: 0; padding: 14px 16px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--card-line);
+  text-decoration: none; transition: transform .12s ease, box-shadow .12s ease;
+}
+.fh-exec-card:hover { transform: translateY(-1px); box-shadow: var(--sombra-popover); }
+
+.fh-exec-badge {
+  display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .3px;
+  text-transform: uppercase; padding: 3px 7px; border-radius: 999px;
+  border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+
+.fh-exec-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--card-line); background: transparent; color: var(--muted);
+  /* Sem shorthand `font:` aqui — ver a nota no .fh-exec-select. */
+  font-weight: 800; font-size: 11px; font-family: inherit; border-radius: 999px;
+  padding: 4px 10px; cursor: pointer; white-space: nowrap;
+}
+.fh-exec-chip:disabled { opacity: .45; cursor: default; }
+
+.fh-exec-duplo {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+  margin-bottom: 6px;
+}
+.fh-exec-alerta {
+  display: block; min-width: 0; padding: 10px 12px 12px; border-radius: 11px;
+  background: var(--card); border: 1px solid var(--card-line);
+  border-left-width: 3px; text-decoration: none;
+}
+.fh-exec-alerta:hover { box-shadow: var(--sombra-popover); }
+.fh-exec-vazio {
+  font-size: 12px; color: var(--faint); padding: 14px;
+  border: 1px dashed var(--card-line); border-radius: 11px;
+}
+
+.fh-exec-setores {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.fh-exec-setor {
+  min-width: 0; padding: 13px 15px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--card-line);
+}
+.fh-exec-mini {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 7px; margin: 0 -7px; border-radius: 8px; text-decoration: none;
+}
+.fh-exec-mini:hover { background: rgb(var(--sup-rgb) / 0.05); }
+
+.fh-exec-tabela { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text); }
+.fh-exec-tabela th {
+  text-align: left; font-size: 10px; font-weight: 800; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--faint); padding: 9px 14px;
+  border-bottom: 1px solid var(--hair); white-space: nowrap;
+}
+.fh-exec-tabela td { padding: 8px 14px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+.fh-exec-tabela tr:last-child td { border-bottom: none; }
+
+.fh-exec-quebras {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 0 16px;
+}
+
+.fh-exec-numeros {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, max-content));
+  gap: 12px 34px; margin-top: 16px; padding: 14px 18px;
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 14px;
+}
+.fh-exec-num-rotulo {
+  font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 4px;
+}
+
+.fh-exec-fontes {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 26px;
+  padding-top: 14px; border-top: 1px solid var(--hair);
+  font-size: 10.5px; color: var(--faint);
+}
+
+.fh-exec-personalizar {
+  padding: 14px 16px; border: 1px solid var(--card-line); border-radius: 14px;
+  background: var(--card); margin-bottom: 16px; max-width: 460px;
+}
+
+.fh-exec-meta-linha {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; border-bottom: 1px solid var(--hair);
+}
+.fh-exec-meta-linha > div:first-child { flex: 1; }
+.fh-exec-meta-linha:last-child { border-bottom: none; }
+
+@media (max-width: 899px) {
+  .fh-exec-duplo { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* No celular a tabela anual rola dentro do próprio wrapper. */
+  .fh-exec-tabela { min-width: 560px; }
+}
+@media (max-width: 599px) {
+  .fh-exec-grid { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-setores { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-quebras { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-numeros { grid-template-columns: minmax(0, 1fr); }
+  .fh-exec-meta-linha { flex-wrap: wrap; padding: 9px 14px; }
+}
+
+/* ============================================================
+   INTELIGÊNCIA TERRITORIAL (porte do hub.aplopes.com)
+   ============================================================ */
+
+.fh-terr-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-bottom: 14px;
+}
+.fh-terr-kpi {
+  min-width: 0; padding: 10px 13px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--card-line);
+  overflow: hidden;
+}
+
+.fh-terr-corpo {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px; margin-bottom: 20px; align-items: start;
+}
+.fh-terr-filtros {
+  min-width: 0; padding: 14px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--card-line);
+  max-height: 560px; overflow-y: auto;
+}
+
+.fh-terr-mapa {
+  position: relative; height: 560px; min-width: 0;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--card-line); background: var(--card);
+}
+/* Fallback de tela cheia quando a Fullscreen API é negada (iOS Safari). */
+.fh-terr-mapa-cheia { position: fixed; inset: 0; z-index: 85; height: auto; border-radius: 0; }
+
+.fh-terr-tooltip {
+  position: absolute; z-index: 6; pointer-events: none;
+  max-width: 220px; padding: 8px 10px; border-radius: 10px;
+  background: var(--pop-fundo); border: 1px solid var(--card-line);
+  box-shadow: var(--sombra-tooltip);
+}
+.fh-terr-chip-mapa {
+  display: inline-block; font-size: 10.5px; font-weight: 700; color: var(--muted);
+  background: var(--pop-fundo); border: 1px solid var(--card-line);
+  border-radius: 999px; padding: 4px 10px; max-width: 320px;
+}
+
+.fh-terr-veu {
+  position: fixed; inset: 0; z-index: 90; border: none; cursor: pointer;
+  background: var(--veu-modal);
+}
+.fh-terr-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
+  width: min(430px, 100vw); padding: 18px 18px 24px; overflow-y: auto;
+  background: var(--drawer-fundo); border-left: 1px solid var(--card-line);
+  box-shadow: var(--sombra-drawer);
+}
+
+/* A atribuição do MapLibre precisa continuar legível nos dois temas. */
+.fh-terr-mapa .maplibregl-ctrl-attrib { font-size: 10px; opacity: .8; }
+
+@media (max-width: 899px) {
+  .fh-terr-corpo { grid-template-columns: minmax(0, 1fr); }
+  .fh-terr-filtros { max-height: none; order: 2; }
+  .fh-terr-mapa { height: 420px; order: 1; }
+}
+
+/* ============================================================
+   CRM (Setores → CRM)
+   ============================================================ */
+
+.fh-crm-kanban {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 260px;
+  gap: 12px; align-items: start; padding-bottom: 6px;
+  min-width: min-content;
+}
+.fh-crm-col { min-width: 0; }
+.fh-crm-card {
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--card-line);
+}
+.fh-crm-card:hover { box-shadow: var(--sombra-popover); }
+
+@media (max-width: 599px) {
+  .fh-crm-kanban { grid-auto-columns: 230px; }
+}
+
+/* Chat (WhatsApp no CRM e conversas com agentes) */
+.fh-chat {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr);
+  height: 560px; border: 1px solid var(--card-line); border-radius: 14px;
+  overflow: hidden; background: var(--card);
+}
+.fh-chat-lista { min-width: 0; border-right: 1px solid var(--hair); overflow-y: auto; }
+.fh-chat-item {
+  all: unset; display: block; box-sizing: border-box; width: 100%; cursor: pointer;
+  padding: 10px 12px; border-bottom: 1px solid var(--hair);
+}
+.fh-chat-item:hover { background: rgb(var(--sup-rgb) / 0.05); }
+.fh-chat-thread { min-width: 0; display: flex; flex-direction: column; }
+.fh-chat-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--hair); flex-shrink: 0;
+}
+.fh-chat-mensagens { flex: 1; overflow-y: auto; padding: 14px; display: grid; gap: 8px; align-content: start; }
+.fh-chat-bolha {
+  max-width: min(420px, 85%); padding: 8px 11px; border-radius: 12px;
+  border: 1px solid;
+}
+.fh-chat-composer {
+  display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--hair); flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  /* No celular a lista vira faixa superior rolável e o thread ocupa o resto. */
+  .fh-chat { grid-template-columns: minmax(0, 1fr); grid-template-rows: 150px minmax(0, 1fr); height: 70dvh; }
+  .fh-chat-lista { border-right: none; border-bottom: 1px solid var(--hair); }
+}
+
+/* ---- Conversas de agentes: 3 colunas (lista · thread · contexto) ---- */
+.fh-chat-3 {
+  grid-template-columns: 320px minmax(0, 1fr) 300px;
+  height: calc(100dvh - 250px); min-height: 520px;
+}
+.fh-chat-contexto { min-width: 0; border-left: 1px solid var(--hair); overflow-y: auto; }
+@media (max-width: 1279px) {
+  .fh-chat-3 { grid-template-columns: 300px minmax(0, 1fr); }
+  /* O painel de contexto vira gaveta flutuante aberta pelo cabeçalho. */
+  .fh-chat-contexto { display: none; }
+  .fh-chat-contexto[data-flutuante="1"] {
+    display: block; position: fixed; right: 0; top: 0; bottom: 0;
+    width: min(340px, 92vw); z-index: 85; background: var(--card);
+    border-left: 1px solid var(--card-line); box-shadow: var(--sombra-popover);
+  }
+}
+@media (max-width: 899px) {
+  /* Lista ↔ thread alternam em tela cheia; quem decide é data-oculta. */
+  .fh-chat-3 { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: calc(100dvh - 210px); }
+  .fh-chat-3 .fh-chat-lista[data-oculta="1"], .fh-chat-3 .fh-chat-thread[data-oculta="1"] { display: none; }
+  .fh-chat-3 .fh-chat-lista { border-bottom: none; }
+}
+
+@keyframes fh-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ---- Kanban de conversas ---- */
+.fh-kb {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 262px; gap: 10px;
+  overflow-x: auto; padding-bottom: 12px; align-items: start;
+}
+.fh-kb-col {
+  background: rgb(var(--sup-rgb) / 0.03); border: 1px solid var(--card-line);
+  border-radius: 12px; padding: 8px; display: grid; gap: 8px;
+  align-content: start; min-height: 140px;
+}
+.fh-kb-col[data-sobre="1"] { outline: 2px solid var(--gold); outline-offset: -2px; }
+.fh-kb-card {
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 10px;
+  padding: 10px 11px; cursor: grab; min-width: 0;
+}
+.fh-kb-card:active { cursor: grabbing; }
+.fh-kb-card[data-arrastando="1"] { opacity: .45; }
+
+/* ---- Widget flutuante dos agentes ---- */
+.fh-widget-fab {
+  position: fixed; z-index: 95; width: 52px; height: 52px; border-radius: 50%;
+  border: 1px solid var(--card-line); background: var(--card); color: var(--gold);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: var(--sombra-popover); touch-action: none;
+}
+.fh-widget-painel {
+  position: fixed; z-index: 95;
+  width: min(392px, calc(100vw - 20px)); height: min(560px, calc(100dvh - 90px));
+  background: var(--card); border: 1px solid var(--card-line); border-radius: 16px;
+  box-shadow: var(--sombra-popover); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.fh-widget-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 19px; height: 19px;
+  border-radius: 999px; background: var(--down); color: #fff;
+  font-size: 10.5px; font-weight: 800; display: flex; align-items: center;
+  justify-content: center; padding: 0 5px;
+}
+
+/* ---- Administração: perfis de acesso e usuários ---- */
+/* Uma coluna no celular; no desktop a lista fica estreita e o editor de
+   permissões (que é o trabalho de verdade) fica com o resto. */
+.fh-grade-perfis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; align-items: start; }
+@media (min-width: 1000px) {
+  .fh-grade-perfis { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+}
+/* Linha de usuário: no celular vira bloco, no desktop uma grade de 4 faixas. */
+.fh-linha-usuario { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center; }
+@media (min-width: 900px) {
+  .fh-linha-usuario { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 3fr) auto; gap: 14px; }
+}
+/* ---- Redes sociais: caixa de entrada ---- */
+/* Duas colunas (lista | conversa) só quando há largura. Abaixo disso a
+   conversa desce para baixo da lista, em vez de espremer as duas. */
+.fh-social-inbox { grid-template-columns: minmax(0, 1fr) !important; }
+@media (min-width: 900px) {
+  .fh-social-inbox { grid-template-columns: minmax(240px, 340px) minmax(0, 1fr) !important; }
+}
+
+/* Item do sino: o hover só existe onde há mouse — no toque ele "gruda". */
+@media (hover: hover) {
+  .fh-notificacao:hover { background: rgb(var(--sup-rgb) / 0.06) !important; }
+}
+
+/* Impressão = o "PDF do resumo executivo": sai a navegação, ficam os números.
+   O botão PDF do painel chama window.print(). */
+@media print {
+  .fh-sidebar, .fh-topbar, .fh-backdrop, .fh-exec-acoes, .fh-exec-personalizar { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  .fh-exec-card, .fh-exec-setor, .fh-exec-alerta { break-inside: avoid; }
+  .fh-exec-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -1,4 +1,6 @@
-requests>=2.31
-python-dotenv>=1.0
-google-auth
+# febrahub_cliente.py usa só a biblioteca padrão de propósito — inclusive o
+# carregador de .env, que era o único uso de python-dotenv. Assim o meta_sync
+# roda até em workflow que não instala nada.
+requests>=2.31              # CisPay, Conta Azul e Sympla (APIs de origem)
+google-auth                 # Google Sheets (planilhas da loja)
 google-api-python-client

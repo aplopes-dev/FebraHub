@@ -1,11 +1,30 @@
+# ⚠️ AGENDAMENTO DESLIGADO EM 01/08/2026.
+#
+# As integrações passaram a rodar dentro da VPS (cron + infra/scripts/sync.sh).
+# Este workflow fica como plano B MANUAL, acionável por workflow_dispatch.
+#
+# O agendamento não pode voltar enquanto a VPS estiver ativa: o refresh token
+# do Conta Azul é rotativo e de uso único, e dois lugares renovando o mesmo
+# token derrubam um ao outro. Foi exatamente assim que a integração quebrou —
+# o run das 10:24 consumiu o token que a VPS tinha, e o `continue-on-error`
+# marcou o passo como sucesso.
+#
+# Ver docs/ETLS.md.
+
 # FebraHub · .github/workflows/meta-historico.yml
 #
 # Carga histórica do Meta Ads (2024 em diante). Roda só manualmente,
 # pelo botão Run workflow. Depois de rodar uma vez, o sync diário
 # (no sync-diario.yml) mantém atualizado.
 #
-# Secrets necessários:
-#   META_TOKEN, META_ACCOUNT_ID, SUPABASE_URL, SUPABASE_SERVICE_KEY
+# SECRETS NECESSÁRIOS:
+#   FEBRAHUB_ETL_TOKEN     token de máquina da API (só abre /ingest)
+#   META_TOKEN, META_ACCOUNT_ID
+#
+# VARIABLE (ou secret):
+#   FEBRAHUB_API_URL       ex.: https://febracis.aplopes.com/api
+#
+# O QUE SAIU: SUPABASE_URL / SUPABASE_SERVICE_KEY.
 
 name: Meta Ads — carga histórica
 
@@ -32,8 +51,14 @@ jobs:
           python-version: '3.11'
       - name: Carga histórica Meta
         env:
+          FEBRAHUB_API_URL: ${{ vars.FEBRAHUB_API_URL || secrets.FEBRAHUB_API_URL }}
+          FEBRAHUB_ETL_TOKEN: ${{ secrets.FEBRAHUB_ETL_TOKEN }}
           META_TOKEN: ${{ secrets.META_TOKEN }}
           META_ACCOUNT_ID: ${{ secrets.META_ACCOUNT_ID }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python etl/meta_sync.py --desde ${{ github.event.inputs.desde }} --ate ${{ github.event.inputs.ate }}
+          # As datas vêm da UI: passar por env em vez de interpolar direto no
+          # `run:` evita que um valor colado no formulário vire comando.
+          DESDE: ${{ github.event.inputs.desde }}
+          ATE: ${{ github.event.inputs.ate }}
+        # meta_sync.py e febrahub_cliente.py usam só a biblioteca padrão —
+        # por isso este workflow não precisa de pip install.
+        run: python etl/meta_sync.py --desde "$DESDE" --ate "$ATE"

@@ -9,25 +9,16 @@ soma ao PDV (Omie) e ao livrão (Salesforce).
 
 Variáveis de ambiente (ou .env):
   GOOGLE_SERVICE_ACCOUNT ou GOOGLE_SERVICE_ACCOUNT_FILE
-  SUPABASE_URL, SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL, FEBRAHUB_ETL_TOKEN
 """
-import os, json, re, urllib.request, hashlib
-from datetime import datetime, timezone
+import os, json, re, hashlib
 
-for _p in ('.env', 'etl/.env', os.path.join(os.path.dirname(__file__), '.env')):
-    if os.path.exists(_p):
-        for _l in open(_p, encoding='utf-8'):
-            _l = _l.strip()
-            if _l and not _l.startswith('#') and '=' in _l:
-                _k, _v = _l.split('=', 1)
-                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
-        break
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-
-SB_URL = os.environ['SUPABASE_URL']
-SB_KEY = os.environ['SUPABASE_SERVICE_KEY']
 
 PREMIUM_ID = '1Xstg_g7s2J5d5O0pVfyJhT-XBm-QXIr24-LdjZNA4_E'
 # abas oficiais = as com "C." (confirmado com a gestora)
@@ -54,19 +45,12 @@ def credencial():
         os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', 'service_account.json'),
         scopes=escopo)
 
+# positivo: linha de receita extra com valor <= 0 é linha de controle da
+# planilha (estorno anotado, total), não venda. Fora da carga.
 def val(s):
-    s = str(s or '').replace('R$', '').replace('\xa0', ' ').strip()
-    if not s or s in ('-', '?', '#REF!', '#DIV/0!'): return None
-    s = s.replace('.', '').replace(',', '.')
-    s = re.sub(r'[^0-9.\-]', '', s)
-    try:
-        v = float(s)
-        return round(v, 2) if v > 0 else None
-    except: return None
+    return fc.val(s, positivo=True)
 
-def txt(s):
-    s = str(s or '').strip()
-    return None if s in ('', '-', '?') else s
+txt = fc.txt
 
 def data_br(s, ano_padrao=None):
     """'14/03' ou '08/05/2026' -> ISO. Sem ano, usa ano_padrao."""
@@ -128,24 +112,15 @@ CAMPOS = ['fonte','data_venda','mes_ref','descricao','forma_pagto','valor',
           'quantidade','cliente','documento','observacao','chave_origem']
 
 def normalizar(linhas):
-    """PostgREST exige que todos os objetos do lote tenham as MESMAS chaves."""
+    """Todas as linhas com as MESMAS chaves.
+
+    Era exigência do PostgREST (lote heterogêneo dava 400). A API nova aceita
+    lote irregular, mas manter uniforme continua valendo: campo ausente numa
+    fonte e presente noutra vira UPDATE com NULL sem ninguém pedir."""
     return [{c: l.get(c) for c in CAMPOS} for l in linhas]
 
 def upsert(linhas):
-    if not linhas: return
-    linhas = normalizar(linhas)
-    url = f"{SB_URL}/rest/v1/fato_loja_receita_extra?on_conflict=fonte,chave_origem"
-    req = urllib.request.Request(url, data=json.dumps(linhas, default=str).encode(),
-        headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json',
-                 'Prefer': 'resolution=merge-duplicates'}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        print(f"  ERRO: {e.code} {e.read().decode(errors='replace')[:300]}")
-        print(f"  exemplo: {json.dumps(linhas[0], default=str)[:250]}")
-        raise
+    fc.upsert('fato_loja_receita_extra', normalizar(linhas), 'fonte,chave_origem')
 
 def premium(svc):
     todos, vistos = [], set()
@@ -277,8 +252,7 @@ def main():
     print("\n=== ALUGUEL DE SALAS ===")
     linhas += aluguel(svc)
 
-    for i in range(0, len(linhas), 200):
-        upsert(linhas[i:i+200])
+    upsert(linhas)
     print(f"\ntotal gravado: {len(linhas)} registros")
 
     por_fonte = {}

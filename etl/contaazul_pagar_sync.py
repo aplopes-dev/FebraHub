@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FebraHub · Conta Azul (v2) -> Supabase — Contas a PAGAR (despesas)
+FebraHub · Conta Azul (v2) -> API FebraHub — Contas a PAGAR (despesas)
 
 Espelho do contaazul_sync.py (contas a receber). Reaproveita TODA a
 lógica de token/refresh já provada — importa dela. Muda só:
@@ -27,14 +27,17 @@ import argparse
 import json
 import sys
 import time
-from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any, Dict, Iterator, List
 
 import requests
 
-# Reaproveita a máquina de token/refresh/helpers já provada.
+# Reaproveita a máquina de token/refresh já provada do contas a receber.
 import contaazul_sync as ca
+# Helpers de conversão e escrita na API — comuns a todos os ETLs.
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 
 ENDPOINT = "/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar"
@@ -73,12 +76,12 @@ PAGOS = {"ACQUITTED", "PAID", "SETTLED"}
 
 
 def montar(reg: Dict[str, Any]) -> Dict[str, Any]:
-    f = ca.achatar(reg)
-    l = {d: ca.resolver(f, c) for d, c in MAPA.items()}
+    f = fc.achatar(reg)
+    l = {d: fc.resolver(f, c) for d, c in MAPA.items()}
     for c in NUMERICOS:
-        l[c] = ca.num(l.get(c))
+        l[c] = fc.num(l.get(c))
     for c in DATAS:
-        l[c] = ca.data(l.get(c))
+        l[c] = fc.data(l.get(c))
 
     status_cru = (l.get("status_cru") or "").upper()
     pago_val = l.get("pago") or 0
@@ -144,45 +147,17 @@ def buscar(desde: str, ate: str) -> Iterator[Dict[str, Any]]:
 def diagnosticar() -> None:
     hoje = date.today().isoformat()
     inicio = date.today().replace(year=date.today().year - 1).isoformat()
-    amostra = [ca.achatar(r) for i, r in enumerate(buscar(inicio, hoje)) if i < 200]
+    amostra = [fc.achatar(r) for i, r in enumerate(buscar(inicio, hoje)) if i < 200]
 
     print(f"\nCONTAS A PAGAR · {len(amostra)} registros\n" + "=" * 62)
     if not amostra:
         print("Nada retornado. Sem contas a pagar no período?")
         return
 
-    cont: Counter = Counter()
-    for l in amostra:
-        for k, v in l.items():
-            if not ca.vazio(v):
-                cont[k] += 1
-    print("\n-- CHAVES REAIS --")
-    for k, n in sorted(cont.items()):
-        print(f"  {n/len(amostra):5.0%}  {k}")
-
-    print("\n-- MAPEAMENTO --")
-    for d, c in MAPA.items():
-        t = sum(1 for l in amostra if not ca.vazio(ca.resolver(l, c))) / len(amostra)
-        print(f"  {'OK ' if t >= ca.LIMITE else '!! '}{d:20} {t:5.0%}")
+    fc.diagnostico(amostra, MAPA, limite=fc.LIMITE, largura=20)
 
     print("\n-- EXEMPLO CRU --")
     print(json.dumps(amostra[0], indent=2, ensure_ascii=False)[:2000])
-
-
-def upsert(linhas: List[Dict]) -> None:
-    url, _ = ca._supa()
-    for i in range(0, len(linhas), 500):
-        lote = linhas[i : i + 500]
-        r = requests.post(
-            f"{url}/rest/v1/fato_contas_pagar",
-            headers={**ca._supa_headers(), "Prefer": "resolution=merge-duplicates,return=minimal"},
-            params={"on_conflict": "parcela_id"},
-            data=json.dumps(lote, ensure_ascii=False, default=str),
-            timeout=90,
-        )
-        if r.status_code >= 300:
-            raise RuntimeError(f"HTTP {r.status_code}\n{r.text[:400]}")
-        print(f"  {i + len(lote)}/{len(linhas)}")
 
 
 def sincronizar(desde: str) -> None:
@@ -192,10 +167,7 @@ def sincronizar(desde: str) -> None:
     if not linhas:
         sys.exit("Zero registros — nada a gravar.")
 
-    probs = [c for c in OBRIG
-             if sum(1 for l in linhas if not ca.vazio(l.get(c))) / len(linhas) < ca.LIMITE]
-    if probs:
-        sys.exit(f"ABORTADO — obrigatórios vazios: {probs}. Rode --diagnostico.")
+    fc.validar(linhas, OBRIG, dica="Rode --diagnostico.")
 
     total = sum(l["valor"] or 0 for l in linhas)
     pagas = sum(1 for l in linhas if l.get("data_pagamento"))
@@ -204,7 +176,7 @@ def sincronizar(desde: str) -> None:
     print(f"Pagas    {pagas}/{len(linhas)}")
     print(f"A pagar  R$ {a_pagar:>14,.2f}\n")
 
-    upsert(linhas)
+    fc.upsert("fato_contas_pagar", linhas, "parcela_id")
     print("OK.")
 
 

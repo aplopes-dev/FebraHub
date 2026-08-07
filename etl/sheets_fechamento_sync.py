@@ -16,27 +16,19 @@ O faturamento do mês é a soma das linhas COM descrição.
 
 Variáveis de ambiente (ou .env):
   GOOGLE_SERVICE_ACCOUNT ou GOOGLE_SERVICE_ACCOUNT_FILE
-  SUPABASE_URL, SUPABASE_SERVICE_KEY
+  FEBRAHUB_API_URL, FEBRAHUB_ETL_TOKEN
 """
-import os, json, re, urllib.request
-from datetime import datetime, timezone
+import os, json, re
 
-for _p in ('.env', 'etl/.env', os.path.join(os.path.dirname(__file__), '.env')):
-    if os.path.exists(_p):
-        for _l in open(_p, encoding='utf-8'):
-            _l = _l.strip()
-            if _l and not _l.startswith('#') and '=' in _l:
-                _k, _v = _l.split('=', 1)
-                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
-        break
+import febrahub_cliente as fc
+
+fc.carregar_env()
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 PLANILHA = '1d5CRf_SMsFFvqWzxXzWlY9ZunV4Z17S5QO5Rt781gqU'
 ABAS = ['META BATIDA 2022-2023-2024', 'META BATIDA 2025', 'META BATIDA 2026']
-SB_URL = os.environ['SUPABASE_URL']
-SB_KEY = os.environ['SUPABASE_SERVICE_KEY']
 
 MESES = {'JANEIRO':1,'FEVEREIRO':2,'MARCO':3,'MARÇO':3,'ABRIL':4,'MAIO':5,'JUNHO':6,
          'JULHO':7,'AGOSTO':8,'SETEMBRO':9,'OUTUBRO':10,'NOVEMBRO':11,'DEZEMBRO':12}
@@ -54,37 +46,16 @@ def credencial():
     return service_account.Credentials.from_service_account_file(caminho, scopes=escopo)
 
 def val(s):
-    """'30.000' -> 30000 ; 'R$ 32.073,10' -> 32073.10"""
-    s = str(s or '').replace('R$', '').replace('\xa0', ' ').strip()
-    if not s or s in ('-', '?', '#REF!', '#DIV/0!'): return None
-    if ',' in s:                    # vírgula = decimal, ponto = milhar
-        s = s.replace('.', '').replace(',', '.')
-    else:                           # só ponto = milhar
-        s = s.replace('.', '')
-    s = re.sub(r'[^0-9.\-]', '', s)
-    try:
-        v = float(s)
-        return round(v, 2) if v != 0 else None
-    except: return None
+    """'30.000' -> 30000 ; 'R$ 32.073,10' -> 32073.10
+
+    zero_nulo: mês em branco na planilha vem como 0 e não é faturamento zero —
+    é mês que a gestora ainda não fechou."""
+    return fc.val(s, zero_nulo=True)
 
 def cel(linhas, i, j):
     if i >= len(linhas): return ''
     l = linhas[i]
     return str(l[j]).strip() if j < len(l) and l[j] is not None else ''
-
-def upsert(linhas):
-    if not linhas: return
-    url = f"{SB_URL}/rest/v1/fato_loja_fechamento?on_conflict=mes_ref"
-    req = urllib.request.Request(url, data=json.dumps(linhas, default=str).encode(),
-        headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json',
-                 'Prefer': 'resolution=merge-duplicates'}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        print(f"  ERRO: {e.code} {e.read().decode(errors='replace')[:300]}")
-        raise
 
 def processar(svc, aba):
     r = svc.values().get(spreadsheetId=PLANILHA, range=f"'{aba}'!A1:L400").execute()
@@ -171,8 +142,7 @@ def main():
     todos = [r for r in sorted(d.values(), key=lambda x: x['mes_ref'])
              if r['faturamento'] or r['meta_minima']]
 
-    for i in range(0, len(todos), 200):
-        upsert(todos[i:i+200])
+    fc.upsert('fato_loja_fechamento', todos, 'mes_ref')
 
     print(f"\ntotal: {len(todos)} meses")
     for r in todos:

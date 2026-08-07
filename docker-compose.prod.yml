@@ -1,0 +1,398 @@
+# FebraHub — produção (VPS 72.61.131.155, /opt/febrahub)
+#
+# Nada de banco ou storage publicado no host: Postgres e MinIO só existem na
+# rede do compose. Web e API escutam em 127.0.0.1, e quem fala com a internet é
+# o Nginx do host, que termina o TLS.
+
+name: febrahub
+
+x-log: &log
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:17.4-alpine
+    container_name: febrahub_postgres
+    restart: unless-stopped
+    logging: *log
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # A base nasce com encoding e collation definidos: nome de aluno tem
+      # acento, e ordenação errada estraga ranking e busca.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C.UTF-8'
+      TZ: America/Bahia
+      PGTZ: America/Bahia
+    volumes:
+      - postgres_dados:/var/lib/postgresql/data
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { memory: 2G }
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: febrahub_minio
+    restart: unless-stopped
+    logging: *log
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      TZ: America/Bahia
+    volumes:
+      - minio_dados:/data
+    # Só em 127.0.0.1: quem alcança de fora é o Nginx do host, que termina o
+    # TLS. O console (9001) continua sem publicação nenhuma.
+    ports:
+      - '127.0.0.1:9014:9000'
+    networks: [interna]
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  # Cria o bucket e fecha o acesso anônimo. Sobe, faz o serviço e sai.
+  minio_init:
+    image: minio/mc:RELEASE.2025-02-21T16-00-46Z
+    container_name: febrahub_minio_init
+    depends_on:
+      minio: { condition: service_healthy }
+    networks: [interna]
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set fh http://minio:9000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY &&
+      (mc ls fh/$$MINIO_BUCKET >/dev/null 2>&1 || mc mb fh/$$MINIO_BUCKET) &&
+      mc anonymous set none fh/$$MINIO_BUCKET &&
+      mc version enable fh/$$MINIO_BUCKET || true &&
+      echo 'bucket pronto'"
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: febrahub-api:${TAG:-latest}
+    container_name: febrahub_api
+    restart: unless-stopped
+    logging: *log
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      PORT: 3261
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      # Tempos da sessão (nomes novos; os legados JWT_*_TTL seguem aceitos
+      # como fallback pela API). Acesso 1h: curto o bastante para revogação
+      # valer, longo o bastante para o refresh não ser marretado — e a
+      # renovação proativa do front age antes de expirar. Refresh desliza
+      # 30d por uso; a família nunca passa de 90d (teto absoluto).
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-1h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      AUTH_SESSION_MAX_AGE: ${AUTH_SESSION_MAX_AGE:-90d}
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-lax}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      # Host que entra na assinatura da URL de download (ver StorageService).
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-26214400}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      APP_URL: ${APP_URL}
+      ETL_TOKEN: ${ETL_TOKEN}
+      APP_VERSION: ${TAG:-1.0.0}
+      # Sessão do WhatsApp (Baileys) em volume: sem ela, cada deploy exigiria
+      # escanear o QR de novo. A chave dos agentes cifra os tokens da
+      # plataforma Aplopes em repouso (AES-256-GCM, 32 bytes em base64).
+      WHATSAPP_SESSIONS_DIR: /dados/whatsapp-sessoes
+      AGENTES_CHAVE_CIFRA: ${AGENTES_CHAVE_CIFRA}
+      # GBrain: a API é o ÚNICO cliente dele. O token de admin serve para
+      # provisionar um cliente OAuth por pessoa, com as fontes que o perfil
+      # de acesso dela permite ler; o navegador nunca vê credencial nenhuma.
+      BRAIN_URL: http://brain:3131
+      BRAIN_ADMIN_TOKEN: ${BRAIN_ADMIN_TOKEN}
+      TZ: America/Bahia
+    env_file:
+      # As credenciais OAuth (CONTAAZUL_CLIENT_ID/SECRET/SCOPE, META_APP_ID/
+      # SECRET) sempre viveram neste arquivo, lido só pelo serviço `etl`. Quem
+      # autoriza agora é a API — o módulo de Integrações monta a URL do
+      # provedor e troca o código por token — então ela precisa enxergar as
+      # mesmas variáveis. Mesmo arquivo, para não haver duas cópias do segredo
+      # em lugares diferentes saindo de sincronia.
+      #
+      # `required: false` porque a API tem que subir sem ele: sem as
+      # credenciais só as rotas de integração ficam indisponíveis (com erro
+      # legível), e o resto do painel continua de pé.
+      #
+      # Nada aqui sobrescreve o bloco `environment` acima — no Compose, o que
+      # está em `environment` vence o `env_file`.
+      - path: ${FEBRAHUB_DIR:-/opt/febrahub}/etl.env
+        required: false
+    volumes:
+      # Credenciais da sessão Baileys — sobrevivem a deploy e restart.
+      - wa_sessoes:/dados/whatsapp-sessoes
+    ports:
+      - '127.0.0.1:3261:3261'
+    networks: [interna]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:3261/api/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    image: febrahub-web:${TAG:-latest}
+    container_name: febrahub_web
+    restart: unless-stopped
+    logging: *log
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      PORT: 3260
+      HOSTNAME: 0.0.0.0
+      # No servidor o Next fala com a API pela rede do compose; no browser, pelo
+      # caminho /api do próprio domínio (ver NEXT_PUBLIC_API_URL).
+      API_INTERNAL_URL: http://api:3261
+      TZ: America/Bahia
+    ports:
+      - '127.0.0.1:3260:3260'
+    networks: [interna]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:3260/api/saude',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  # ---------------- GBrain (memória institucional) ----------------
+  #
+  # Banco PRÓPRIO, e não o `postgres` do FebraHub, por duas razões:
+  #   1. o gbrain exige a extensão pgvector, e a imagem do banco de negócio é
+  #      postgres:17.4-alpine — trocá-la por pgvector/pgvector:pg17 debaixo de
+  #      um banco em produção significa trocar musl por glibc sob os índices
+  #      já criados, risco que uma funcionalidade nova não justifica;
+  #   2. o próprio tutorial do gbrain recomenda isolar o banco do brain e
+  #      nunca entregar a DATABASE_URL dele a container de agente — quem faz
+  #      o recorte de acesso é o OAuth, não o acesso direto ao SQL.
+  brain_pg:
+    image: pgvector/pgvector:pg17
+    container_name: febrahub_brain_pg
+    restart: unless-stopped
+    logging: *log
+    environment:
+      POSTGRES_DB: ${BRAIN_POSTGRES_DB:-gbrain}
+      POSTGRES_USER: ${BRAIN_POSTGRES_USER:-gbrain}
+      POSTGRES_PASSWORD: ${BRAIN_POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C.UTF-8'
+      TZ: America/Bahia
+      PGTZ: America/Bahia
+    volumes:
+      - brain_pg_dados:/var/lib/postgresql/data
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${BRAIN_POSTGRES_USER:-gbrain} -d ${BRAIN_POSTGRES_DB:-gbrain}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  # Embeddings e síntese LOCAIS.
+  #
+  # A alternativa era uma chave de provedor pago, e não havia nenhuma válida
+  # para o FebraHub na VPS (a única encontrada era de outro produto e estava
+  # revogada). Local resolve três coisas de uma vez: não depende de chave, não
+  # gera custo por token, e — o que mais importa numa memória INSTITUCIONAL —
+  # o conteúdo interno da empresa não sai daqui.
+  #
+  # Trocar por um provedor pago é mudar GBRAIN_EMBEDDING_MODEL/GBRAIN_CHAT_MODEL
+  # no serviço `brain`. Só a troca do modelo de EMBEDDING exige reindexar
+  # (dimensão diferente).
+  ollama:
+    image: ollama/ollama:0.6.2
+    container_name: febrahub_ollama
+    restart: unless-stopped
+    logging: *log
+    environment:
+      # O servidor fica só na rede do compose; nada publicado no host.
+      OLLAMA_HOST: 0.0.0.0:11434
+      # Descarrega o modelo da RAM depois de 5 min ocioso: a VPS é
+      # compartilhada com outros produtos e o brain é usado em rajadas.
+      OLLAMA_KEEP_ALIVE: 5m
+      TZ: America/Bahia
+    volumes:
+      - ollama_modelos:/root/.ollama
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'ollama list >/dev/null 2>&1 || exit 1']
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits: { memory: 6G }
+
+  # Baixa os modelos e sai. Mesmo padrão do minio_init: um passo de
+  # provisionamento que não vira serviço de pé.
+  ollama_init:
+    image: ollama/ollama:0.6.2
+    container_name: febrahub_ollama_init
+    depends_on:
+      ollama: { condition: service_healthy }
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: >
+      /bin/sh -c "
+      ollama pull ${BRAIN_MODELO_EMBEDDING:-nomic-embed-text} &&
+      ollama pull ${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct} &&
+      echo 'modelos do brain prontos'"
+    networks: [interna]
+    restart: 'no'
+    logging: *log
+
+  brain:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.brain
+    image: febrahub-brain:${TAG:-latest}
+    container_name: febrahub_brain
+    restart: unless-stopped
+    logging: *log
+    depends_on:
+      brain_pg: { condition: service_healthy }
+      ollama: { condition: service_healthy }
+    environment:
+      # GBRAIN_DATABASE_URL e não DATABASE_URL: o gbrain ignora um
+      # DATABASE_URL que venha de .env do diretório atual (guarda dele contra
+      # sequestro), e a variável namespaced é sempre honrada.
+      GBRAIN_DATABASE_URL: postgresql://${BRAIN_POSTGRES_USER:-gbrain}:${BRAIN_POSTGRES_PASSWORD}@brain_pg:5432/${BRAIN_POSTGRES_DB:-gbrain}
+      GBRAIN_ADMIN_BOOTSTRAP_TOKEN: ${BRAIN_ADMIN_TOKEN}
+      GBRAIN_FONTES: ${BRAIN_FONTES:-geral,comercial,financeiro,marketing,pedagogico,eventos,loja,estoque,crm}
+      # Provedor local. `ollama:` é o prefixo que o gbrain resolve para o
+      # endpoint compatível com OpenAI do Ollama.
+      GBRAIN_EMBEDDING_MODEL: ollama:${BRAIN_MODELO_EMBEDDING:-nomic-embed-text}
+      GBRAIN_EMBEDDING_DIMENSIONS: '${BRAIN_DIMENSOES_EMBEDDING:-768}'
+      # `litellm:` e não `ollama:` para a SÍNTESE: no gbrain, a receita do
+      # Ollama declara só o touchpoint de embedding — não existe chat nela, e
+      # `models.think: ollama:*` degrada para "no LLM available" sem erro. A
+      # receita litellm é o adaptador OpenAI-compatível genérico, e o endpoint
+      # /v1 do Ollama fala exatamente esse protocolo.
+      GBRAIN_CHAT_MODEL: litellm:${BRAIN_MODELO_CHAT:-qwen2.5:3b-instruct}
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      LITELLM_BASE_URL: http://ollama:11434/v1
+      TZ: America/Bahia
+    volumes:
+      # Os repositórios de cada fonte (o "system of record" do gbrain) e a
+      # config resolvida. Volume, não bind: o conteúdo é dado da aplicação.
+      - brain_repos:/brain
+      - brain_config:/root/.gbrain
+    # Sem `ports`: só a API fala com ele, pela rede interna. O Nginx do host
+    # não tem rota para cá, e o /admin do gbrain não fica exposto.
+    networks: [interna]
+    deploy:
+      resources:
+        limits: { memory: 2G }
+
+  # ---------------- ETLs ----------------
+  # Não fica de pé: sobe, roda um sync e sai (`compose run --rm etl ...`).
+  # Quem agenda é o cron do host, por infra/scripts/sync.sh. Antes isso vivia
+  # no GitHub Actions; agora nada da sincronização depende de fora da VPS.
+  #
+  # `profiles` mantém o serviço fora do `up -d`: sem isso, todo deploy
+  # tentaria subir um container que existe só para executar comando.
+  etl:
+    build:
+      context: .
+      dockerfile: etl/Dockerfile
+    image: febrahub-etl:${TAG:-latest}
+    profiles: [manual]
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      # Pela rede do compose: não sai para a internet nem passa pelo Nginx,
+      # e continua funcionando se o TLS ou o proxy estiverem fora do ar.
+      FEBRAHUB_API_URL: http://api:3261/api
+      FEBRAHUB_ETL_TOKEN: ${ETL_TOKEN}
+      GOOGLE_SERVICE_ACCOUNT_FILE: /run/secrets/google_sa.json
+      TZ: America/Bahia
+    env_file:
+      # Credenciais das APIs de origem. Arquivo à parte do .env da aplicação:
+      # o compose lê este só aqui, e ele não entra no ambiente da API nem do web.
+      - ${FEBRAHUB_DIR:-/opt/febrahub}/etl.env
+    volumes:
+      - ${FEBRAHUB_DIR:-/opt/febrahub}/secrets/google_sa.json:/run/secrets/google_sa.json:ro
+    networks: [interna]
+    restart: 'no'
+    logging: *log
+
+volumes:
+  postgres_dados:
+    name: febrahub_postgres_dados
+  minio_dados:
+    name: febrahub_minio_dados
+  wa_sessoes:
+    name: febrahub_wa_sessoes
+  brain_pg_dados:
+    name: febrahub_brain_pg_dados
+  brain_repos:
+    name: febrahub_brain_repos
+  brain_config:
+    name: febrahub_brain_config
+  ollama_modelos:
+    name: febrahub_ollama_modelos
+
+networks:
+  interna:
+    name: febrahub_interna
