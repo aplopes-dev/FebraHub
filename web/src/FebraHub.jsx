@@ -10,7 +10,7 @@ import {
   Smile, Frown, Meh, Crown, Gift, X, ArrowUpRight,
   Users, Target, Construction, Percent, Filter, ChevronUp,
   Boxes, PackageX, Repeat, UserCheck, BookOpen, Activity, ShieldCheck,
-  Check, Upload, Pencil, Star, Plus, PhoneCall, Send, Link2,
+  Check, Pencil, Star, Plus, PhoneCall, Send, Link2,
 } from "lucide-react";
 import {
   useSessao, usePerfil, entrar, sair,
@@ -32,7 +32,6 @@ import {
   usePedagogicoKpis, usePedagogicoPresencaKpis, usePedagogicoPresencaTempo,
   usePedagogicoRecompraCurso, usePedagogicoPresencaCurso,
   usePedagogicoMaestrosCompleto, usePedagogicoMaestrosKpis, usePedagogicoMaestroAnotacoes,
-  usePedagogicoAvaliacao, usePedagogicoAvaliacaoKpis,
   usePedagogicoRetencaoCasos, usePedagogicoRetencao, usePedagogicoRetencaoMotivos,
   usePedagogicoPainel,
   useVendaFaturamentoDesde, useFinanceiroRecebidoMensal,
@@ -41,7 +40,7 @@ import {
   useTurmaDim, useTurmaSugestao, useFilaTurma, useEnviosTurma,
   useCarteira, usePerfisVisiveis, criarEvento, salvarPerguntas,
   useEventos, useEventoNps, useEventoNotas, useEventoTextos, useEventoPerguntas, definirStatusCarteira,
-  salvarAvaliacao, salvarMaestroAnotacao, salvarRetencao, salvarTurma,
+  salvarMaestroAnotacao, salvarRetencao, salvarTurma,
   usePedagogicoAusentes,
   useEventosDesempenho,
   useIntegracaoStatus,
@@ -3458,102 +3457,6 @@ function RankingCurso({ linhas, cor, sufixo, vazioTitulo, vazioDica }) {
   );
 }
 
-/* ============ AVALIAÇÕES: PARSERS + UI DE ENTRADA ============ */
-// Tokenizador que respeita aspas: um campo entre "..." pode conter o
-// delimitador E quebras de linha (comentários do GGB); "" é aspa escapada.
-function parseDelimitado(texto, delim) {
-  const s = String(texto ?? "").replace(/\r\n?/g, "\n");
-  const linhas = [];
-  let linha = [], campo = "", aspas = false;
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (aspas) {
-      if (c === '"') { if (s[i + 1] === '"') { campo += '"'; i++; } else aspas = false; }
-      else campo += c;
-    } else if (c === '"') aspas = true;
-    else if (c === delim) { linha.push(campo); campo = ""; }
-    else if (c === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
-    else campo += c;
-  }
-  if (campo.length || linha.length) { linha.push(campo); linhas.push(linha); }
-  return linhas;
-}
-// "9,5" | "9.5" | " 10 " -> número; vazio/lixo -> null.
-const notaNum = (v) => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) ? n : null; };
-const mediaNotas = (arr) => { const v = arr.filter((x) => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
-const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-// Ordem das 8 colunas de nota do bloco GGB -> campos da fato_avaliacao
-// (confirmado pela gestora). A 8ª é a indicação ("NPS"); a 9ª é comentário.
-const GGB_CAMPOS = ["q_conteudo", "q_clareza", "q_material", "q_aplicacao", "q_dominio", "q_pontualidade", "q_duvidas", "nps"];
-const GGB_ROTULO = { q_conteudo: "Conteúdo", q_clareza: "Clareza", q_material: "Material", q_aplicacao: "Aplicação", q_dominio: "Domínio", q_pontualidade: "Pontualidade", q_duvidas: "Dúvidas", nps: "Indicação (alunos)" };
-
-/* Processa o bloco colado do GGB (TSV; comentários entre aspas podem ter
-   quebras de linha). Devolve as 8 médias + nota do treinador + respondentes.
-   Não grava — o form mostra o preview e só então insere. */
-function parseGGB(texto) {
-  const linhas = parseDelimitado(texto, "\t");
-  let nota_treinador = null;
-  for (const l of linhas) {
-    const m = l.join(" ").match(/NOTA\s+D[AO]\s+TREINADOR[A]?\s*[:\-]?\s*([\d.,]+)/i);
-    if (m) { nota_treinador = notaNum(m[1]); break; }
-  }
-  // Respondentes: linhas com >= 8 colunas e 1º campo numérico (exclui
-  // cabeçalho de texto e a linha da nota da treinadora).
-  const resp = linhas.filter((l) => l.length >= 8 && notaNum(l[0]) != null);
-  const medias = {};
-  GGB_CAMPOS.forEach((campo, i) => { medias[campo] = mediaNotas(resp.map((l) => notaNum(l[i]))); });
-  return { ...medias, nota_treinador, respondentes: resp.length };
-}
-
-// Escala 1-5 em texto ("5 — Definitivamente sim"): pega o 1º dígito. Robusto
-// contra o travessão mal codificado — não depende do resto do rótulo.
-const notaEscala = (v) => { const m = String(v ?? "").match(/^\s*(\d)/); return m ? Number(m[1]) : null; };
-// "Submitted At" -> data ISO (aceita YYYY-MM-DD e DD/MM/YYYY).
-const dataISO = (v) => {
-  const s = String(v ?? "").trim();
-  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  return null;
-};
-// Colunas do CSV do Make Forms -> campos da fato_avaliacao (confirmado pela
-// gestora). A escala é 1-5 e NÃO é convertida. `recomendacao` é o indicador
-// principal (nps). Evento/treinador vêm à parte; a data sai de "Submitted At".
-const CSV_EVENTO_MAP = { satisfacao_geral: "q_conteudo", utilidade_conteudo: "q_material", metodologia: "q_clareza", dominio_treinador: "q_dominio", aplicacao_conhecimento: "q_aplicacao", recomendacao: "nps" };
-
-/* Processa o CSV do Make Forms. Casa colunas pelo NOME (sem acento, tolerante
-   a mojibake nos VALORES, que só lemos o 1º dígito). Devolve as médias 1-5
-   mapeadas, o comentário (principal_aprendizado juntado) e a data (Submitted
-   At). Encoding: o form lê o arquivo como UTF-8 antes de chamar aqui. */
-function parseCSVEvento(texto) {
-  const primeira = String(texto ?? "").split("\n")[0] ?? "";
-  const delim = (primeira.match(/;/g) || []).length > (primeira.match(/,/g) || []).length ? ";" : ",";
-  const linhas = parseDelimitado(texto, delim).filter((l) => l.some((c) => String(c).trim() !== ""));
-  if (linhas.length < 2) return { medias: {}, nps: null, comentario: null, data_curso: null, respondentes: 0, encontradas: [] };
-  // Normaliza o nome da coluna: sem acento, minúsculo, e espaço≡underscore
-  // (o header pode vir "satisfacao_geral" ou "Satisfação Geral").
-  const chaveCol = (s) => semAcento(s).trim().replace(/[\s_]+/g, "_");
-  const header = linhas[0].map(chaveCol);
-  const corpo = linhas.slice(1);
-  const idxDe = (nome) => { const n = chaveCol(nome); const e = header.indexOf(n); return e >= 0 ? e : header.findIndex((h) => h.includes(n)); };
-
-  const medias = {}, encontradas = [];
-  for (const [col, campo] of Object.entries(CSV_EVENTO_MAP)) {
-    const idx = idxDe(col);
-    if (idx < 0) continue;
-    encontradas.push(campo);
-    medias[campo] = mediaNotas(corpo.map((l) => notaEscala(l[idx])));
-  }
-  const idxCom = idxDe("principal_aprendizado");
-  const comentario = idxCom >= 0 ? (corpo.map((l) => String(l[idxCom] ?? "").trim()).filter(Boolean).join("\n") || null) : null;
-  const idxData = idxDe("submitted at");
-  const data_curso = idxData >= 0 ? (corpo.map((l) => dataISO(l[idxData])).find(Boolean) ?? null) : null;
-  return { medias, nps: medias.nps ?? null, comentario, data_curso, respondentes: corpo.length, encontradas };
-}
-const nota1 = (v) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
-
 // Estilos de formulário reaproveitados nos modais.
 const inputAv = { width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "9px 11px", color: C.text, fontFamily: SANS, fontSize: 13 };
 const labelAv = { fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 4, display: "block" };
@@ -3684,149 +3587,6 @@ const parseBRNumero = (v) => {
 /* GGB — colar o bloco de respostas. Parser mostra a prévia (8 médias + nota da
    treinadora + respondentes) antes de gravar; só insere no fato_avaliacao ao
    confirmar. Grava com fonte='ggb'. */
-function FormAvaliacaoGGB({ onSalvo }) {
-  const [texto, setTexto] = useState("");
-  const [curso, setCurso] = useState("");
-  const [treinador, setTreinador] = useState("");
-  const [data, setData] = useState("");
-  const [turma, setTurma] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState(null);
-  const previa = useMemo(() => (texto.trim() ? parseGGB(texto) : null), [texto]);
-  const pronto = !!(previa && previa.respondentes > 0 && curso.trim() && treinador.trim() && data);
-
-  const salvar = async () => {
-    setSalvando(true); setErro(null);
-    try {
-      const { respondentes, ...medias } = previa;
-      await salvarAvaliacao({ fonte: "ggb", curso: curso.trim(), treinador: treinador.trim(), data_curso: data, turma: turma.trim() || null, respondentes, ...medias });
-      onSalvo();
-    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div>
-        <label style={labelAv}>Bloco de respostas (colar do GGB)</label>
-        <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={6}
-          placeholder={"Cole as linhas (uma por respondente, 8 notas + comentário, separadas por tabulação) e a linha final NOTA DA TREINADORA: X,X"}
-          style={{ ...inputAv, fontFamily: "monospace", fontSize: 12, resize: "vertical" }} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div><label style={labelAv}>Curso GGB</label><input style={inputAv} value={curso} onChange={(e) => setCurso(e.target.value)} placeholder="Ex.: GGB Fortaleza" /></div>
-        <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
-        <div><label style={labelAv}>Data do curso</label><input type="date" style={inputAv} value={data} onChange={(e) => setData(e.target.value)} /></div>
-        <div><label style={labelAv}>Turma (opcional)</label><input style={inputAv} value={turma} onChange={(e) => setTurma(e.target.value)} /></div>
-      </div>
-      {previa && previa.respondentes > 0 && (
-        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
-            Prévia · {previa.respondentes} {previa.respondentes === 1 ? "respondente" : "respondentes"}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {GGB_CAMPOS.map((c) => (
-              <div key={c} style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 9.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{GGB_ROTULO[c]}</div>
-                <div style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: c === "nps" ? C.up : C.text }}>{nota1(previa[c])}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 8, fontSize: 11.5, color: C.muted }}>
-            Nota da treinadora: <b style={{ color: previa.nota_treinador != null ? C.gold : C.faint }}>{nota1(previa.nota_treinador)}</b>
-            {previa.nota_treinador == null && <span style={{ color: C.warn }}> · não encontrei a linha "NOTA DA TREINADORA"</span>}
-          </div>
-        </div>
-      )}
-      {texto.trim() && previa && previa.respondentes === 0 && <div style={{ fontSize: 12, color: C.warn }}>Nenhum respondente reconhecido — confira se as colunas estão separadas por tabulação.</div>}
-      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>Gravar avaliação</BotaoSalvar>
-      </div>
-    </div>
-  );
-}
-
-// Rótulo p/ o preview do evento (campos mapeados do CSV).
-const EV_ROTULO = { q_conteudo: "Satisfação", q_material: "Utilidade", q_clareza: "Metodologia", q_dominio: "Domínio", q_aplicacao: "Aplicação", nps: "Indicação" };
-const EV_ORDEM = ["nps", "q_conteudo", "q_material", "q_clareza", "q_dominio", "q_aplicacao"];
-
-/* Eventos — anexar CSV do Make Forms. Lido como UTF-8. As respostas são escala
-   1-5 em texto ("5 — Definitivamente sim") — pegamos o 1º dígito. Casa colunas
-   pelo nome (satisfacao_geral, recomendacao, …). Evento/treinador vêm à parte;
-   a data sai de "Submitted At". Grava fonte='evento' (escala 1-5, sem converter). */
-function FormAvaliacaoEvento({ onSalvo }) {
-  const [texto, setTexto] = useState("");
-  const [arquivo, setArquivo] = useState("");
-  const [evento, setEvento] = useState("");
-  const [treinador, setTreinador] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState(null);
-  const previa = useMemo(() => (texto.trim() ? parseCSVEvento(texto) : null), [texto]);
-  const achou = !!(previa && previa.encontradas.length);
-  const pronto = !!(achou && evento.trim() && treinador.trim());
-
-  const aoAnexar = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setArquivo(file.name); setErro(null);
-    const r = new FileReader();
-    r.onload = () => setTexto(String(r.result ?? ""));
-    r.onerror = () => setErro("Não consegui ler o arquivo.");
-    r.readAsText(file, "UTF-8"); // força UTF-8: o CSV vem UTF-8 e o default pode virar latin-1
-  };
-  const salvar = async () => {
-    setSalvando(true); setErro(null);
-    try {
-      await salvarAvaliacao({
-        fonte: "evento", curso: evento.trim(), treinador: treinador.trim(),
-        data_curso: previa.data_curso, comentario: previa.comentario,
-        respondentes: previa.respondentes, ...previa.medias,
-      });
-      onSalvo();
-    } catch (e) { setErro(e.message || "Falha ao gravar."); setSalvando(false); }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, padding: "16px", borderRadius: 10, border: `1px dashed ${C.cardLine}`, cursor: "pointer", color: C.muted, fontSize: 13, fontWeight: 600 }}>
-        <Upload size={16} /> {arquivo || "Escolher CSV do Make Forms"}
-        <input type="file" accept=".csv,text/csv" onChange={aoAnexar} style={{ display: "none" }} />
-      </label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div><label style={labelAv}>Nome do evento</label><input style={inputAv} value={evento} onChange={(e) => setEvento(e.target.value)} /></div>
-        <div><label style={labelAv}>Treinador(a)</label><input style={inputAv} value={treinador} onChange={(e) => setTreinador(e.target.value)} /></div>
-      </div>
-      {previa && (
-        <div style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${C.cardLine}`, borderRadius: 10, padding: 12 }}>
-          {achou ? (
-            <>
-              <div style={{ fontSize: 10.5, fontWeight: 800, color: C.dim, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 8 }}>
-                Prévia · {previa.respondentes} respondentes · escala 1–5 · {previa.data_curso ? `data ${dataCurta(previa.data_curso)}` : "sem data"}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {EV_ORDEM.filter((c) => previa.medias[c] != null).map((c) => (
-                  <div key={c} style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 9.5, color: C.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{EV_ROTULO[c]}</div>
-                    <div style={{ fontFamily: GROTESK, fontSize: 15, fontWeight: 700, color: c === "nps" ? C.up : C.text }}>{nota1(previa.medias[c])}</div>
-                  </div>
-                ))}
-              </div>
-              {previa.medias.nps == null && <div style={{ marginTop: 8, fontSize: 11.5, color: C.warn }}>Não achei a coluna “recomendacao” (indicação). Confira o CSV.</div>}
-            </>
-          ) : (
-            <div style={{ fontSize: 12, color: C.warn }}>Nenhuma coluna reconhecida (satisfacao_geral, recomendacao…). Confira se é o CSV do Make Forms.</div>
-          )}
-        </div>
-      )}
-      {erro && <div style={{ fontSize: 12, color: C.down }}>{erro}</div>}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <BotaoSalvar onClick={salvar} disabled={!pronto} salvando={salvando}>Gravar avaliação</BotaoSalvar>
-      </div>
-    </div>
-  );
-}
-
-/* Edição das anotações do maestro (grava em maestro_anotacao por aluno_id=CPF). */
 function FormMaestro({ maestro, cargoInicial, onSalvo }) {
   const [apelido, setApelido] = useState(maestro.como_gosta_ser_chamado ?? "");
   const [empresa, setEmpresa] = useState(maestro.empresa ?? "");
@@ -3871,33 +3631,6 @@ function FormMaestro({ maestro, cargoInicial, onSalvo }) {
 
 /* Lista de avaliações por curso/evento. `comTreinador`: no GGB mostra a nota
    do treinador ao lado da indicação (alunos); em eventos ela não existe. */
-function ListaAvaliacao({ linhas, comTreinador }) {
-  return (
-    <div>
-      {linhas.map((r, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "9px 20px", borderBottom: `1px solid ${C.hair}` }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.curso}>{r.curso}</div>
-            <div style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.treinador || "—"} · {numero(r.respondentes)} resp.</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-            <span style={{ textAlign: "right", width: 62 }}>
-              <div style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: C.up }}>{nota1(r.media_indicacao)}</div>
-              <div style={{ fontSize: 9, color: C.dim }}>indicação</div>
-            </span>
-            {comTreinador && (
-              <span style={{ textAlign: "right", width: 62 }}>
-                <div style={{ fontFamily: GROTESK, fontSize: 14, fontWeight: 700, color: r.media_nota_treinador != null ? C.gold : C.faint }}>{r.media_nota_treinador != null ? nota1(r.media_nota_treinador) : "—"}</div>
-                <div style={{ fontSize: 9, color: C.dim }}>treinador</div>
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ============ RETENÇÃO (entrada manual) ============ */
 // Desfecho da ligação de retenção: pendente (aguarda), retido (sucesso),
 // cancelado. Os valores gravados são minúsculos — mesma string que as views
@@ -4935,8 +4668,6 @@ function HubPedagogico() {
   const maestros = usePedagogicoMaestrosCompleto();
   const maestrosKpis = usePedagogicoMaestrosKpis();
   const anotacoes = usePedagogicoMaestroAnotacoes();
-  const avaliacao = usePedagogicoAvaliacao();
-  const avaliacaoKpis = usePedagogicoAvaliacaoKpis();
   const retencaoCasos = usePedagogicoRetencaoCasos();
   const retencao = usePedagogicoRetencao();
   const retencaoMotivos = usePedagogicoRetencaoMotivos();
@@ -4947,12 +4678,11 @@ function HubPedagogico() {
   const [toast, setToast] = useState(null);       // feedback de escrita (some sozinho)
   const [verReativar, setVerReativar] = useState(false);
   const [statusMaestro, setStatusMaestro] = useState("todos");
-  const [modalAv, setModalAv] = useState(null);       // 'ggb' | 'evento' | null
   const [maestroEdit, setMaestroEdit] = useState(null); // maestro sendo editado
   const [retEdit, setRetEdit] = useState(null);         // caso de retenção ('novo' | caso | null)
 
   // Após gravar: recarrega as views afetadas e fecha o modal.
-  const aposSalvar = () => { qc.invalidateQueries(); setModalAv(null); setMaestroEdit(null); setRetEdit(null); };
+  const aposSalvar = () => { qc.invalidateQueries(); setMaestroEdit(null); setRetEdit(null); };
   // cargo não vem na view _completo — pré-preenche do maestro_anotacao cru.
   const cargoPorCpf = useMemo(() => {
     const m = new Map();
@@ -5016,15 +4746,6 @@ function HubPedagogico() {
   }, [maestros.data]);
   const mk = maestrosKpis.data?.[0] ?? {};
   const temMaestros = (maestros.data?.length ?? 0) > 0;
-
-  // Avaliações separadas por fonte; KPIs (contagens) por fonte.
-  const avGGB = useMemo(() => (avaliacao.data ?? []).filter((r) => r.fonte === "ggb"), [avaliacao.data]);
-  const avEvento = useMemo(() => (avaliacao.data ?? []).filter((r) => r.fonte === "evento"), [avaliacao.data]);
-  const avKpi = useMemo(() => {
-    const m = new Map();
-    for (const r of avaliacaoKpis.data ?? []) m.set(r.fonte, r);
-    return m;
-  }, [avaliacaoKpis.data]);
 
   // Retenção: casos recentes primeiro; motivos por frequência (retidos+cancel).
   const casos = useMemo(() =>
@@ -5143,37 +4864,6 @@ function HubPedagogico() {
         </Bloco>
       </div>
 
-      {/* ---- Avaliações (GGB colado + Eventos por CSV) ---- */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <Star size={15} style={{ color: C.gold, flexShrink: 0 }} />
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: C.bright }}>Avaliações</span>
-          <span style={{ fontSize: 11, color: C.faint }}>indicação dos alunos · nota do treinador</span>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => setModalAv("ggb")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
-            <Plus size={13} /> Colar notas GGB
-          </button>
-          <button onClick={() => setModalAv("evento")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.cardLine}`, borderRadius: 9, padding: "7px 12px", cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>
-            <Upload size={13} /> Anexar CSV de evento
-          </button>
-        </div>
-      </div>
-      <div className="pedBot" style={{ marginBottom: 12 }}>
-        <Bloco titulo="GGB" canto={`indicação + treinador · ${numero(avGGB.length)} curso(s)`} sem altura={230}>
-          <Estado carregando={avaliacao.isLoading} erro={avaliacao.error} vazio={!avGGB.length}
-            vazioTitulo="Sem avaliações GGB" vazioDica='Use "Colar notas GGB" para registrar a primeira.'>
-            <ListaAvaliacao linhas={avGGB} comTreinador />
-          </Estado>
-        </Bloco>
-        <Bloco titulo="Eventos" canto={`indicação · escala 1–5 · ${numero(avEvento.length)} evento(s)`} sem altura={230}>
-          <Estado carregando={avaliacao.isLoading} erro={avaliacao.error} vazio={!avEvento.length}
-            vazioTitulo="Sem avaliações de evento" vazioDica='Use "Anexar CSV de evento" para registrar.'>
-            <ListaAvaliacao linhas={avEvento} comTreinador={false} />
-          </Estado>
-        </Bloco>
-      </div>
-
       {/* ---- Retenção (entrada manual: ligações de win-back) ---- */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -5272,16 +4962,6 @@ function HubPedagogico() {
       <RodapeIntegracoes fontes={["salesforce"]} />
 
       {/* ---- Modais de entrada (gravam nas tabelas; RLS gate pedagógico) ---- */}
-      {modalAv === "ggb" && (
-        <ModalCentro titulo="Avaliação GGB — colar respostas" largura={640} onFechar={() => setModalAv(null)}>
-          <FormAvaliacaoGGB onSalvo={aposSalvar} />
-        </ModalCentro>
-      )}
-      {modalAv === "evento" && (
-        <ModalCentro titulo="Avaliação de evento — anexar CSV" onFechar={() => setModalAv(null)}>
-          <FormAvaliacaoEvento onSalvo={aposSalvar} />
-        </ModalCentro>
-      )}
       {maestroEdit && (
         <ModalCentro titulo="Editar maestro" onFechar={() => setMaestroEdit(null)}>
           <FormMaestro maestro={maestroEdit} cargoInicial={cargoPorCpf.get(String(maestroEdit.cpf)) ?? ""} onSalvo={aposSalvar} />

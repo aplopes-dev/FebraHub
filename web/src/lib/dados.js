@@ -406,13 +406,6 @@ export const usePedagogicoMaestrosKpis = () =>
 // aqui o form de edição pré-preenche esse campo. RLS libera só ao pedagógico.
 export const usePedagogicoMaestroAnotacoes = () =>
   useView("maestro_anotacao", { ordem: ["aluno_id"] });
-// Avaliações (GGB + eventos): uma linha por curso/evento com as médias já
-// calculadas — media_indicacao (alunos), media_nota_treinador (só GGB) e
-// media_qualidade. Os KPIs trazem contagens por fonte.
-export const usePedagogicoAvaliacao = () =>
-  useView("vw_pedagogico_avaliacao", { ordem: ["fonte", "curso"] });
-export const usePedagogicoAvaliacaoKpis = () =>
-  useView("vw_pedagogico_avaliacao_kpis", { ordem: ["fonte"] });
 // Retenção (entrada manual): casos crus (fato_retencao), o resumo
 // (vw_pedagogico_retencao: total_casos/retidos/cancelados/taxa) e os motivos
 // (vw_pedagogico_retencao_motivos: motivo, retidos vs cancelados).
@@ -432,14 +425,10 @@ export const usePedagogicoPainel = () =>
 export const usePedagogicoAusentes = () =>
   useView("vw_pedagogico_ausentes", { ordem: ["aluno_id", "curso", "turma"] });
 
-/* ESCRITA (exceção sancionada ao "front só lê view"): as tabelas
-   fato_avaliacao e maestro_anotacao têm policies de INSERT/UPDATE com
-   pode_ver('pedagogico'). A gravação vai com o JWT da sessão; a RLS barra
-   quem não for do setor. Erros sobem pro form tratar. */
-export async function salvarAvaliacao(registro) {
-  const { error } = await supabase.from("fato_avaliacao").insert(registro);
-  if (error) throw new Error(error.message);
-}
+/* ESCRITA (exceção sancionada ao "front só lê view"): a tabela
+   maestro_anotacao tem policy de INSERT/UPDATE com pode_ver('pedagogico').
+   A gravação vai com o JWT da sessão; a RLS barra quem não for do setor.
+   Erros sobem pro form tratar. */
 export async function salvarMaestroAnotacao(anotacao) {
   const { error } = await supabase.from("maestro_anotacao").upsert(anotacao, { onConflict: "aluno_id" });
   if (error) throw new Error(error.message);
