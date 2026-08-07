@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, createContext, useContext } from 
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import Avaliacao from "./Rotas/Avaliacao.jsx";
+import { isHomologacao } from "./lib/ambiente.js";
 import {
   TrendingUp, Wallet, Megaphone, GraduationCap, ShoppingBag, CalendarDays,
   LayoutDashboard, Lock, Mail, AlertTriangle, Package, LogOut, Power,
@@ -6241,6 +6242,32 @@ function App() {
   return <Shell perfil={perfil.data} />;
 }
 
+// Faixa fixa que só aparece em homologação — nunca some com o CSS, nunca
+// depende de alguém lembrar de tirar antes de publicar. Some sozinha quando
+// VITE_APP_ENV não é "homologacao" (o default de produção).
+function FaixaHomologacao() {
+  useEffect(() => {
+    document.title = `[HOMOLOG] ${document.title}`;
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex, nofollow";
+    document.head.appendChild(meta);
+    return () => document.head.removeChild(meta);
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 99999,
+      height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+      gap: 6, background: C.warn, color: "#1A1400",
+      fontFamily: SANS, fontSize: 11.5, fontWeight: 800, letterSpacing: ".4px",
+    }}>
+      <ShieldAlert size={13} />
+      AMBIENTE DE HOMOLOGAÇÃO — dados de teste, não use para decisão real
+    </div>
+  );
+}
+
 // A rota pública /e/:token vira QR code impresso, então precisa de URL de
 // verdade. É a ÚNICA tela usada por gente de fora da Febracis: fica FORA do
 // portal — sem auth, sem QueryClient, sem Shell (sidebar/topbar). Todo o
@@ -6253,14 +6280,17 @@ function RotaAvaliacao() {
 export default function Root() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/e/:token" element={<RotaAvaliacao />} />
-        <Route path="*" element={
-          <QueryClientProvider client={qc}>
-            <App />
-          </QueryClientProvider>
-        } />
-      </Routes>
+      {isHomologacao && <FaixaHomologacao />}
+      <div style={isHomologacao ? { paddingTop: 26 } : undefined}>
+        <Routes>
+          <Route path="/e/:token" element={<RotaAvaliacao />} />
+          <Route path="*" element={
+            <QueryClientProvider client={qc}>
+              <App />
+            </QueryClientProvider>
+          } />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }

@@ -11,3 +11,14 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Homologação vive num site Netlify à parte (branch "homolog"), com suas
+# próprias env vars (VITE_SUPABASE_URL/ANON_KEY apontando pro projeto Supabase
+# de staging). Este bloco é só um fallback caso alguém rode um branch deploy
+# de "homolog" dentro do site de produção por engano — a faixa de aviso liga
+# de qualquer jeito. Ver docs/HOMOLOGACAO.md.
+[context.homolog.environment]
+  VITE_APP_ENV = "homologacao"
+
+[context.production.environment]
+  VITE_APP_ENV = "producao"
