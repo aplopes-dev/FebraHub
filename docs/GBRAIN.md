@@ -136,3 +136,16 @@ docker exec febrahub_ollama ollama list
 Os repositórios de cada fonte vivem em `/brain/<fonte>` dentro do container
 (volume `febrahub_brain_repos`) — é o "system of record" do gbrain; o Postgres
 é índice derivado.
+
+## Consolidação dos dados do sistema
+
+Além dos documentos enviados à mão, a API publica diariamente (horário
+configurável em Configurações → Memória institucional):
+
+- indicadores do Hub Executivo (uma página por setor);
+- retratos densos das views (comercial, financeiro, marketing, pedagógico,
+  loja/estoque, eventos, CRM, diretoria);
+- organograma.
+
+Áudio vira texto via Whisper (mesma chave OpenAI do motor de resposta) em
+`POST /brain/midia`. PDF/MD/TXT/CSV continuam sendo lidos no navegador.

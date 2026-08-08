@@ -18,7 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, FileText, ImagePlus, Loader2, Send, Trash2, X } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { PINTURA_OURO, PINTURA_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
 import { ErroApi } from "@/services/api/client";
 import { contasSocial, publicarPostagem } from "@/services/api/social";
 import { C, alfaDe } from "@/lib/tema";
@@ -296,10 +296,10 @@ export function AbaPublicar({ aoPublicado }: { aoPublicado: () => void }) {
             disabled={!podeEnviar}
             onClick={() => publicar.mutate()}
             style={{
-              display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px",
-              borderRadius: 10, cursor: podeEnviar ? "pointer" : "not-allowed",
-              ...(podeEnviar ? PINTURA_OURO : PINTURA_OURO_OFF),
-              fontSize: 13, fontWeight: 800,
+              ...(podeEnviar ? BOTAO_OURO : BOTAO_OURO_OFF),
+              padding: "10px 18px",
+              fontSize: 13,
+              cursor: podeEnviar ? "pointer" : "not-allowed",
             }}
           >
             {publicar.isPending ? <Loader2 size={14} className="girar" /> : <Send size={14} />}

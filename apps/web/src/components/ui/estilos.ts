@@ -8,11 +8,7 @@ import { C, SANS, SOBRE_OURO_2, alfa } from "@/lib/tema";
    Está aqui porque cinco telas o redeclararam chapado, cada uma por conta
    própria: `background: C.gold`. Chapado ao lado do gradiente lê como botão
    DESABILITADO, e a diferença só aparece quando as duas telas ficam abertas
-   lado a lado — que é exatamente quando ninguém está olhando para isso.
-
-   Só a PINTURA mora aqui. Tamanho (padding, fonte, raio) continua de cada
-   tela: um botão de barra de ferramentas e um de rodapé de modal têm pesos
-   diferentes de propósito. */
+   lado a lado — que é exatamente quando ninguém está olhando para isso. */
 export const PINTURA_OURO: CSSProperties = {
   background: `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`,
   color: SOBRE_OURO_2,
@@ -25,6 +21,49 @@ export const PINTURA_OURO_OFF: CSSProperties = {
   color: C.faint,
   border: "none",
 };
+
+/* Forma padrão do CTA (pílula). Telas podem sobrescrever só o padding/fonte
+   se o contexto pedir — a pintura e o raio ficam iguais em todo o sistema. */
+export const BOTAO_BASE: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  padding: "8px 16px",
+  borderRadius: 999,
+  fontFamily: SANS,
+  fontSize: 12.5,
+  fontWeight: 800,
+  cursor: "pointer",
+  lineHeight: 1.2,
+};
+
+/** CTA primário pronto — gradiente dourado + texto escuro. */
+export const BOTAO_OURO: CSSProperties = {
+  ...BOTAO_BASE,
+  ...PINTURA_OURO,
+};
+
+/** CTA primário desabilitado / incompleto — mesma família, sem virar “cinza de borda”. */
+export const BOTAO_OURO_OFF: CSSProperties = {
+  ...BOTAO_BASE,
+  ...PINTURA_OURO_OFF,
+  cursor: "default",
+};
+
+/** Ação secundária (Cancelar, Fechar fluxo). Nunca usar em CTA principal. */
+export const BOTAO_SECUNDARIO: CSSProperties = {
+  ...BOTAO_BASE,
+  background: alfa("sup", 0.05),
+  color: C.muted,
+  border: `1px solid ${C.cardLine}`,
+  fontWeight: 700,
+};
+
+/** Escolhe ouro ou ouro apagado conforme o botão está pronto. */
+export function botaoOuroOuOff(pronto: boolean): CSSProperties {
+  return pronto ? BOTAO_OURO : BOTAO_OURO_OFF;
+}
 
 /** Item de lista dentro de um Popover (seletores de ano/mês/produto). */
 export const itemPop = (ativo: boolean): CSSProperties => ({

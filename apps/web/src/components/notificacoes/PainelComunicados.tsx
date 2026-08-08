@@ -14,7 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
 import { CHAVE_NOTIFICACOES } from "@/hooks/notificacoes";
 import {
   destinosNotificacao,
@@ -23,7 +23,7 @@ import {
 } from "@/services/api/notificacoes";
 import { ErroApi } from "@/services/api/client";
 import { HUBS } from "@/lib/hubs";
-import { C, SANS, alfa } from "@/lib/tema";
+import { C, alfa } from "@/lib/tema";
 import type {
   ComunicadoEnviado,
   DestinoNotificacao,
@@ -206,7 +206,7 @@ export function PainelComunicados() {
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <button onClick={enviar} disabled={!pronto || enviando} style={pronto ? botaoOuro : botaoNeutro}>
+          <button onClick={enviar} disabled={!pronto || enviando} style={pronto && !enviando ? BOTAO_OURO : BOTAO_OURO_OFF}>
             {enviando ? <Loader2 size={13} className="girar" /> : <Send size={13} />} Enviar
           </button>
         </div>
@@ -249,10 +249,3 @@ export function PainelComunicados() {
   );
 }
 
-const botaoBase = {
-  display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
-  borderRadius: 9, fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-} as const;
-
-const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
-const botaoNeutro = { ...botaoBase, background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}` };

@@ -10,7 +10,8 @@ import { SecaoTitulo } from "@/components/ui/SecaoTitulo";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import { pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
 import { hubInicial } from "@/lib/hubs";
-import { C, SANS, SOBRE_OURO_2, alfa, alfaDe } from "@/lib/tema";
+import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO } from "@/components/ui/estilos";
+import { C, alfa, alfaDe } from "@/lib/tema";
 import {
   desconectarIntegracao,
   listarIntegracoes,
@@ -316,17 +317,15 @@ function Botao({
   Icone: LucideIcon;
   children: React.ReactNode;
 }) {
-  const fundo = primario ? `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})` : alfa("sup", 0.06);
-  const cor = primario ? SOBRE_OURO_2 : perigo ? C.down : C.muted;
+  const base = primario
+    ? (ocupado ? BOTAO_OURO_OFF : BOTAO_OURO)
+    : {
+        ...BOTAO_SECUNDARIO,
+        color: perigo ? C.down : C.muted,
+        ...(ocupado ? { color: C.faint, cursor: "default" as const } : null),
+      };
   return (
-    <button onClick={onClick} disabled={ocupado} style={{
-      display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 15px",
-      borderRadius: 10, fontFamily: SANS, fontSize: 12.5, fontWeight: 800,
-      border: primario ? "none" : `1px solid ${C.cardLine}`,
-      background: ocupado ? alfa("sup", 0.08) : fundo,
-      color: ocupado ? C.faint : cor,
-      cursor: ocupado ? "default" : "pointer",
-    }}>
+    <button onClick={onClick} disabled={ocupado} style={{ ...base, padding: "9px 16px" }}>
       <Icone size={14} className={ocupado ? "girar" : undefined} /> {children}
     </button>
   );

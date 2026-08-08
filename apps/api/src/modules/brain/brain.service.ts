@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 import type { UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { podeVer } from '../../common/guards/setor.guard';
 import { cifrar, decifrar } from '../agentes/agentes.service';
 import { permissoesEfetivas } from '../permissoes/efetivas';
+import { BrainAgenteService } from './brain-agente.service';
 import { GbrainCliente } from './gbrain.cliente';
-import { SinteseService } from './sintese.service';
 
 /**
  * A fonte que todo mundo lê. Existe para o que não é de setor nenhum —
@@ -58,7 +58,8 @@ export class BrainService {
     private readonly prisma: PrismaService,
     private readonly gbrain: GbrainCliente,
     private readonly config: ConfigService,
-    private readonly sintese: SinteseService,
+    @Inject(forwardRef(() => BrainAgenteService))
+    private readonly agente: BrainAgenteService,
   ) {}
 
   /**
@@ -81,13 +82,42 @@ export class BrainService {
   async estado() {
     const ok = await this.gbrain.saudavel();
     if (!ok) return { disponivel: false, fontes: [] as { id: string; paginas: number | null }[] };
-    const fontes: { id: string; pages?: number }[] = await this.gbrain.fontes().catch(() => []);
+
+    // O /admin/api/sources do gbrain não traz `pages`. Contamos via list_pages
+    // com a credencial de serviço (lê todas as fontes).
+    const contagens = new Map<string, number>();
+    try {
+      const credencial = await this.credencialDeServico(FONTE_GERAL);
+      let offset = 0;
+      for (let pagina = 0; pagina < 30; pagina++) {
+        const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'list_pages', {
+          limit: 100,
+          offset,
+          sort: 'updated_asc',
+        });
+        const linhas = comoLista(corpoDaOperacao(bruto));
+        if (!linhas.length) break;
+        for (const l of linhas) {
+          const fonte =
+            typeof l.source_id === 'string' && l.source_id
+              ? String(l.source_id)
+              : fonteDoSlug(String(l.slug ?? ''));
+          if (!(TODAS_FONTES as readonly string[]).includes(fonte)) continue;
+          contagens.set(fonte, (contagens.get(fonte) ?? 0) + 1);
+        }
+        if (linhas.length < 100) break;
+        offset += 100;
+      }
+    } catch (e) {
+      this.logger.warn(`brain: contagem de páginas falhou — ${(e as Error).message}`);
+    }
+
     return {
       disponivel: true,
-      fontes: TODAS_FONTES.map((id) => {
-        const achada = fontes.find((f) => f.id === id);
-        return { id, paginas: achada?.pages ?? null };
-      }),
+      fontes: TODAS_FONTES.map((id) => ({
+        id,
+        paginas: contagens.has(id) ? (contagens.get(id) as number) : contagens.size ? 0 : null,
+      })),
     };
   }
 
@@ -96,73 +126,75 @@ export class BrainService {
     // `search` devolve um ARRAY de SearchResult direto — não um envelope
     // `{results}`. E o SearchResult não carrega a fonte: ela sai do prefixo do
     // slug, que é como escrevemos toda página (`<fonte>/<nome>`).
-    const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'search', {
+    // `search` é o caminho estável no MCP; se vier vazio, tenta `query` (híbrido).
+    const brutoSearch = await this.gbrain.operacao<ConteudoMcp>(credencial, 'search', {
       query: consulta,
       limit: Math.min(50, Math.max(1, limite)),
     });
-    const linhas = comoLista(corpoDaOperacao(bruto));
+    let linhas = comoLista(corpoDaOperacao(brutoSearch));
+    if (!linhas.length) {
+      try {
+        const brutoQuery = await this.gbrain.operacao<ConteudoMcp>(credencial, 'query', {
+          question: consulta,
+          limit: Math.min(50, Math.max(1, limite)),
+        });
+        linhas = comoLista(corpoDaOperacao(brutoQuery));
+      } catch {
+        /* search já era o melhor esforço */
+      }
+    }
     return linhas.map((l) => {
       const slug = String(l.slug ?? '');
       return {
         slug,
         titulo: String(l.title ?? l.titulo ?? slug ?? 'Sem título'),
-        trecho: String(l.chunk_text ?? l.snippet ?? l.excerpt ?? '').slice(0, 600),
+        trecho: String(l.chunk_text ?? l.snippet ?? l.excerpt ?? l.content ?? '').slice(0, 1800),
         fonte: fonteDoSlug(slug),
         score: typeof l.score === 'number' ? l.score : null,
       };
     });
   }
 
+  /** Lê a página inteira (markdown) — o agente usa quando o trecho da busca é curto. */
+  async lerPagina(usuario: UsuarioLogado, slug: string): Promise<ResultadoBusca | null> {
+    const credencial = await this.credencialDe(usuario);
+    for (const ferramenta of ['get_page', 'get'] as const) {
+      try {
+        const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, ferramenta, { slug });
+        const corpo = corpoDaOperacao(bruto) as Record<string, unknown>;
+        // `get` não existe no MCP; `get_page` devolve compiled_truth (não content).
+        if ((corpo as { error?: string }).error) continue;
+        const titulo = String(corpo.title ?? corpo.titulo ?? slug);
+        const conteudo = String(
+          corpo.compiled_truth ??
+            corpo.content ??
+            corpo.body ??
+            corpo.markdown ??
+            corpo.timeline ??
+            '',
+        );
+        if (!conteudo.trim()) continue;
+        return {
+          slug,
+          titulo,
+          // Modal de registro e o agente precisam do corpo quase inteiro.
+          trecho: conteudo.slice(0, 40_000),
+          fonte: fonteDoSlug(slug),
+          score: null,
+        };
+      } catch {
+        /* tenta o próximo nome de ferramenta */
+      }
+    }
+    return null;
+  }
+
   /**
-   * Resposta sintetizada com citações.
-   *
-   * Dois motores, e o rápido é o padrão:
-   *
-   *   com chave de provedor -> a busca do gbrain traz os trechos (já
-   *     recortados pela credencial da pessoa) e QUEM ESCREVE é a nossa API,
-   *     com o prompt em português (ver SinteseService). Leva segundos.
-   *
-   *   sem chave -> cai no `think` do gbrain sobre o modelo local da VPS.
-   *     Funciona e não custa nada, mas leva de 100 a 145 segundos em CPU e a
-   *     qualidade de um modelo de 3B aparece na resposta.
-   *
-   * Nos dois caminhos o modelo só enxerga o que a pessoa poderia ler: as
-   * páginas vêm da credencial dela, nunca de uma consulta ampla filtrada
-   * depois.
+   * Resposta via agente: várias consultas à memória, leitura de página se
+   * preciso, e redação natural sem achismo (ver BrainAgenteService).
    */
   async perguntar(usuario: UsuarioLogado, pergunta: string) {
-    if (await this.sintese.temProvedor()) {
-      const trechos = await this.buscar(usuario, pergunta, 10);
-      if (!trechos.length) {
-        return {
-          resposta:
-            'Não encontrei nada na memória institucional sobre isso — dentro das fontes que você alcança.',
-          citacoes: [],
-          lacunas: [],
-        };
-      }
-      const r = await this.sintese.responder(pergunta, trechos);
-      return { resposta: r.resposta, citacoes: r.citacoes, lacunas: [] };
-    }
-
-    // Sem provedor: o `think` do gbrain. `query` NÃO serve — ela é a variante
-    // completa da busca e devolve páginas, não texto.
-    const credencial = await this.credencialDe(usuario);
-    const bruto = await this.gbrain.operacao<ConteudoMcp>(credencial, 'think', {
-      question: pergunta,
-    });
-    const dados = corpoDaOperacao(bruto) as Record<string, unknown> | null;
-    const citacoes = Array.isArray(dados?.citations)
-      ? (dados!.citations as Record<string, unknown>[]).map((c) => {
-          const slug = String(c.page_slug ?? c.slug ?? '');
-          return { slug, titulo: String(c.title ?? slug), fonte: fonteDoSlug(slug) };
-        })
-      : [];
-    return {
-      resposta: String(dados?.answer ?? '').trim(),
-      citacoes: citacoes.filter((c, i, todas) => c.slug && todas.findIndex((o) => o.slug === c.slug) === i),
-      lacunas: Array.isArray(dados?.gaps) ? (dados!.gaps as unknown[]).map(String).filter(Boolean) : [],
-    };
+    return this.agente.responder(usuario, pergunta);
   }
 
   /**

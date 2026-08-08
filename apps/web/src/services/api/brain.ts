@@ -1,16 +1,23 @@
 /* Memória institucional — /api/brain. */
 
 import { api } from "./client";
-import type { ConfigBrain, EstadoBrain, FontesBrain, ResultadoBrain, RespostaBrain } from "@/types/brain";
+import type {
+  ConfigBrain,
+  ConsolidacaoBrain,
+  EstadoBrain,
+  FontesBrain,
+  ResultadoBrain,
+  RespostaBrain,
+} from "@/types/brain";
 
 export const fontesBrain = (): Promise<FontesBrain> => api.get("/brain/fontes");
 
 export const buscarNoBrain = (consulta: string, limite = 12): Promise<ResultadoBrain[]> =>
   api.get("/brain/buscar", { parametros: { consulta, limite } });
 
-/** Síntese com citações. Timeout maior: quem responde é um LLM. */
+/** Síntese com citações. Timeout largo: Ollama em CPU pode passar de 2 min. */
 export const perguntarAoBrain = (pergunta: string): Promise<RespostaBrain> =>
-  api.post("/brain/perguntar", { pergunta }, { timeout: 120_000 });
+  api.post("/brain/perguntar", { pergunta }, { timeout: 300_000 });
 
 /** `origem` é o nome do arquivo, quando a página veio de um documento — vira
  *  assinatura no rodapé da página, para a citação dizer de onde saiu.
@@ -21,6 +28,12 @@ export const registrarNoBrain = (
   origem?: string,
 ): Promise<{ slug: string; fonte: string }> =>
   api.post("/brain/paginas", { titulo, conteudo, origem }, { timeout: 180_000 });
+
+/** Conteúdo completo de um registro (para o modal de citação). */
+export const lerPaginaBrain = (
+  slug: string,
+): Promise<{ slug: string; titulo: string; fonte: string; conteudo: string }> =>
+  api.get("/brain/pagina", { parametros: { slug } });
 
 export const estadoBrain = (): Promise<EstadoBrain> => api.get("/brain/estado");
 
@@ -43,3 +56,18 @@ export const salvarConfigBrain = (dados: {
   chaveOpenai?: string | null;
   modelo?: string;
 }): Promise<ConfigBrain> => api.put("/brain/configuracao", dados);
+
+export const consolidacaoBrain = (): Promise<ConsolidacaoBrain> => api.get("/brain/consolidacao");
+
+export const salvarConsolidacaoBrain = (dados: {
+  ativa?: boolean;
+  hora?: string;
+  fuso?: string;
+}): Promise<ConsolidacaoBrain> => api.put("/brain/consolidacao", dados);
+
+/** Áudio → Whisper na API → página na memória do setor. */
+export const enviarAudioBrain = (arquivo: File): Promise<{ slug: string; fonte: string }> => {
+  const form = new FormData();
+  form.append("arquivo", arquivo, arquivo.name);
+  return api.enviarArquivo("/brain/midia", form, 300_000);
+};

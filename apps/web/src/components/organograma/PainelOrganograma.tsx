@@ -11,8 +11,9 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { JetBrains_Mono } from "next/font/google";
 import { Bot, Briefcase, ListTree, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
-import { C, GROTESK, SOBRE_OURO_2, alfaDe } from "@/lib/tema";
+import { C, GROTESK, alfaDe } from "@/lib/tema";
 import { BotaoSalvar } from "@/components/ui/BotaoSalvar";
+import { BOTAO_OURO } from "@/components/ui/estilos";
 import { HUBS } from "@/lib/hubs";
 import {
   orgAtualizarMembro,
@@ -190,10 +191,9 @@ export function PainelOrganograma() {
         <button
           onClick={abrirNovo}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px",
-            borderRadius: 8, border: "none", cursor: "pointer", fontFamily: GROTESK,
-            fontSize: 12.5, fontWeight: 800, color: SOBRE_OURO_2,
-            background: `linear-gradient(90deg, ${C.goldTop}, ${C.goldBase})`,
+            ...BOTAO_OURO,
+            fontFamily: GROTESK,
+            padding: "7px 16px",
           }}
         >
           <Plus size={14} strokeWidth={2.6} /> Adicionar membro

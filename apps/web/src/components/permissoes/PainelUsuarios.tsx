@@ -15,7 +15,7 @@ import { useState } from "react";
 import { Copy, KeyRound, Loader2, Plus, UserPlus } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { useAcoesUsuarios, usePerfisAcesso, useUsuariosAdmin } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
 import { HUBS } from "@/lib/hubs";
@@ -117,11 +117,11 @@ export function PainelUsuarios() {
             </code>
             <button
               onClick={() => void navigator.clipboard?.writeText(senhaGerada.senha)}
-              style={botaoNeutro}
+              style={BOTAO_SECUNDARIO}
             >
               <Copy size={12} /> Copiar
             </button>
-            <button onClick={() => setSenhaGerada(null)} style={botaoNeutro}>Já anotei</button>
+            <button onClick={() => setSenhaGerada(null)} style={BOTAO_SECUNDARIO}>Já anotei</button>
           </div>
         </div>
       )}
@@ -181,11 +181,15 @@ export function PainelUsuarios() {
               <button
                 onClick={criarConta}
                 disabled={criar.isPending || form.nome.trim().length < 3 || !form.email.includes("@")}
-                style={botaoOuro}
+                style={
+                  criar.isPending || form.nome.trim().length < 3 || !form.email.includes("@")
+                    ? BOTAO_OURO_OFF
+                    : BOTAO_OURO
+                }
               >
                 {criar.isPending ? <Loader2 size={13} className="girar" /> : <Plus size={13} />} Criar conta
               </button>
-              <button onClick={() => setNovo(false)} style={botaoNeutro}>Cancelar</button>
+              <button onClick={() => setNovo(false)} style={BOTAO_SECUNDARIO}>Cancelar</button>
             </div>
           </div>
         )}
@@ -248,12 +252,12 @@ export function PainelUsuarios() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <button onClick={() => gerarSenha(u)} style={botaoNeutro} title="Gerar senha temporária">
+                  <button onClick={() => gerarSenha(u)} style={BOTAO_SECUNDARIO} title="Gerar senha temporária">
                     <KeyRound size={12} /> Senha
                   </button>
                   <button
                     onClick={() => salvarCampo(u, { ativo: !u.ativo })}
-                    style={u.ativo ? botaoNeutro : botaoOuro}
+                    style={u.ativo ? BOTAO_SECUNDARIO : BOTAO_OURO}
                     title={u.ativo ? "Desativar a conta e encerrar as sessões" : "Reativar a conta"}
                   >
                     {u.ativo ? "Desativar" : "Reativar"}
@@ -267,14 +271,6 @@ export function PainelUsuarios() {
     </>
   );
 }
-
-const botaoBase = {
-  display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
-  borderRadius: 9, fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
-} as const;
-
-const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
-const botaoNeutro = { ...botaoBase, background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}` };
 
 const etiqueta = {
   padding: "1px 6px", borderRadius: 20, fontSize: 9, fontWeight: 800,

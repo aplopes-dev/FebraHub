@@ -7,7 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Lock, Mail, ShieldAlert } from "lucide-react";
 import { CHAVE_SESSAO } from "@/hooks/auth";
 import { entrar } from "@/services/api/auth";
-import { C, FUNDO_APP, GROTESK, SANS, SOBRE_OURO, alfa } from "@/lib/tema";
+import { BOTAO_OURO, BOTAO_OURO_OFF } from "@/components/ui/estilos";
+import { C, FUNDO_APP, GROTESK, SANS, alfa } from "@/lib/tema";
 
 /* ============ LOGIN ============ */
 
@@ -95,11 +96,8 @@ export function Login() {
 
           <button onClick={submeter} disabled={indo || !email || !senha}
             style={{
-              width: "100%", padding: "12px", fontSize: 13.5, fontWeight: 800, borderRadius: 10,
-              background: `linear-gradient(150deg, ${C.goldTop}, ${C.goldBase})`, color: SOBRE_OURO,
-              border: "none", cursor: indo ? "default" : "pointer",
-              opacity: indo || !email || !senha ? 0.45 : 1, fontFamily: SANS,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              ...(indo || !email || !senha ? BOTAO_OURO_OFF : BOTAO_OURO),
+              width: "100%", padding: "12px", fontSize: 13.5,
             }}>
             {indo ? <Loader2 size={15} className="girar" /> : <>Entrar <ArrowRight size={15} /></>}
           </button>

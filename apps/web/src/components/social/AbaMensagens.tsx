@@ -19,7 +19,7 @@ import { Estado } from "@/components/ui/Estado";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { listarConversas, listarMensagens, responderConversa } from "@/services/api/social";
-import { PINTURA_OURO, PINTURA_OURO_OFF } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF } from "@/components/ui/estilos";
 import { C, alfaDe } from "@/lib/tema";
 import type { Conversa } from "@/types/social";
 import { Aviso, SeloRede, desde, estadoDe, quando } from "./comum";
@@ -160,9 +160,9 @@ export function AbaMensagens() {
                       disabled={!resposta.trim() || enviar.isPending}
                       onClick={() => enviar.mutate()}
                       style={{
-                        display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 15px",
-                        borderRadius: 10, fontSize: 12.5, fontWeight: 800,
-                        ...(resposta.trim() && !enviar.isPending ? PINTURA_OURO : PINTURA_OURO_OFF),
+                        ...(resposta.trim() && !enviar.isPending ? BOTAO_OURO : BOTAO_OURO_OFF),
+                        padding: "10px 16px",
+                        fontSize: 12.5,
                         cursor: resposta.trim() && !enviar.isPending ? "pointer" : "not-allowed",
                       }}
                     >

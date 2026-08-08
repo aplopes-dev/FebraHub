@@ -8,7 +8,7 @@
 
 import type { ReactNode } from "react";
 import { KeyRound, Loader2, Share2 } from "lucide-react";
-import { PINTURA_OURO } from "@/components/ui/estilos";
+import { BOTAO_OURO } from "@/components/ui/estilos";
 import { C, alfa } from "@/lib/tema";
 
 export function SemChave({
@@ -61,9 +61,10 @@ export function SemChave({
           onClick={aoConfigurar}
           className="fh-toque"
           style={{
-            marginTop: 20, display: "inline-flex", alignItems: "center", gap: 7,
-            padding: "10px 18px", borderRadius: 10, cursor: "pointer",
-            ...PINTURA_OURO, fontSize: 13, fontWeight: 800,
+            ...BOTAO_OURO,
+            marginTop: 20,
+            padding: "10px 18px",
+            fontSize: 13,
           }}
         >
           <KeyRound size={14} />

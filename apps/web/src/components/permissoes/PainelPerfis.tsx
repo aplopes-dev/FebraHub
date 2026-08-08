@@ -16,7 +16,7 @@ import { Estado } from "@/components/ui/Estado";
 import { useAcoesPerfis, useCatalogoPermissoes, usePerfisAcesso } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
 import { C, SANS, alfa } from "@/lib/tema";
-import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import type { PerfilAcesso } from "@/types/permissoes";
 
 const mesmaLista = (a: readonly string[], b: readonly string[]): boolean =>
@@ -158,10 +158,14 @@ export function PainelPerfis() {
                 maxLength={240}
               />
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <button onClick={criarPerfil} disabled={criar.isPending || nomeNovo.trim().length < 3} style={botaoOuro}>
+                <button
+                  onClick={criarPerfil}
+                  disabled={criar.isPending || nomeNovo.trim().length < 3}
+                  style={criar.isPending || nomeNovo.trim().length < 3 ? BOTAO_OURO_OFF : BOTAO_OURO}
+                >
                   {criar.isPending ? <Loader2 size={13} className="girar" /> : <Plus size={13} />} Criar
                 </button>
-                <button onClick={() => setCriando(false)} style={botaoNeutro}>Cancelar</button>
+                <button onClick={() => setCriando(false)} style={BOTAO_SECUNDARIO}>Cancelar</button>
               </div>
             </div>
           )}
@@ -220,7 +224,11 @@ export function PainelPerfis() {
                 <button onClick={() => excluirPerfil(selecionado)} style={botaoPerigo}>
                   <Trash2 size={12} /> Excluir
                 </button>
-                <button onClick={salvar} disabled={!sujo || atualizar.isPending} style={sujo ? botaoOuro : botaoNeutro}>
+                <button
+                  onClick={salvar}
+                  disabled={!sujo || atualizar.isPending}
+                  style={sujo && !atualizar.isPending ? BOTAO_OURO : BOTAO_OURO_OFF}
+                >
                   {atualizar.isPending ? <Loader2 size={13} className="girar" /> : null}
                   {sujo ? "Salvar" : "Salvo"}
                 </button>
@@ -313,22 +321,11 @@ export function PainelPerfis() {
   );
 }
 
-const botaoBase = {
-  display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
-  borderRadius: 9, fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
-} as const;
-
-const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
-
-const botaoNeutro = {
-  ...botaoBase,
-  background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}`,
-};
-
 const botaoPerigo = {
-  ...botaoBase,
+  display: "inline-flex", alignItems: "center", gap: 6,
   background: "none", color: C.down, border: "none", padding: 0,
-};
+  fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer",
+} as const;
 
 const etiquetaSistema = {
   display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px",

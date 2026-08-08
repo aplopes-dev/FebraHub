@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Loader2, PlugZap, Save, Trash2 } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { PINTURA_OURO, PINTURA_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { configSocial, contasSocial, salvarConfigSocial, testarZernio } from "@/services/api/social";
@@ -178,10 +178,10 @@ export function AbaConfiguracao() {
                 disabled={salvar.isPending}
                 onClick={() => salvar.mutate()}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px",
-                  borderRadius: 10, cursor: salvar.isPending ? "wait" : "pointer",
-                  ...(salvar.isPending ? PINTURA_OURO_OFF : PINTURA_OURO),
-                  fontSize: 12.5, fontWeight: 800,
+                  ...(salvar.isPending ? BOTAO_OURO_OFF : BOTAO_OURO),
+                  padding: "9px 16px",
+                  fontSize: 12.5,
+                  cursor: salvar.isPending ? "wait" : "pointer",
                 }}
               >
                 {salvar.isPending ? <Loader2 size={13} className="girar" /> : <Save size={13} />}
@@ -196,10 +196,9 @@ export function AbaConfiguracao() {
                     disabled={testar.isPending}
                     onClick={() => testar.mutate()}
                     style={{
-                      display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px",
-                      borderRadius: 10, cursor: testar.isPending ? "wait" : "pointer",
-                      border: `1px solid ${C.cardLine}`, background: "transparent",
-                      color: C.muted, fontSize: 12.5, fontWeight: 700,
+                      ...BOTAO_SECUNDARIO,
+                      padding: "9px 14px",
+                      cursor: testar.isPending ? "wait" : "pointer",
                     }}
                   >
                     {testar.isPending ? <Loader2 size={13} className="girar" /> : <PlugZap size={13} />}

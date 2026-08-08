@@ -2,8 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Check, Loader2 } from "lucide-react";
-import { SANS } from "@/lib/tema";
-import { PINTURA_OURO, PINTURA_OURO_OFF } from "./estilos";
+import { BOTAO_OURO, BOTAO_OURO_OFF } from "./estilos";
 
 // Botão primário/erro reutilizado nos modais.
 export function BotaoSalvar({
@@ -17,10 +16,9 @@ export function BotaoSalvar({
   const parado = disabled || salvando;
   return (
     <button onClick={onClick} disabled={parado} style={{
-      display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10,
-      ...(parado ? PINTURA_OURO_OFF : PINTURA_OURO),
-      fontWeight: 800, fontSize: 13, fontFamily: SANS,
-      cursor: parado ? "default" : "pointer",
+      ...(parado ? BOTAO_OURO_OFF : BOTAO_OURO),
+      padding: "9px 18px",
+      fontSize: 13,
     }}>
       {salvando ? <Loader2 size={14} className="girar" /> : <Check size={14} />} {children}
     </button>

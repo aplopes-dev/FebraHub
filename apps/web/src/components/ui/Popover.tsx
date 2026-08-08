@@ -6,12 +6,14 @@ import { C } from "@/lib/tema";
 /* Popover ancorado — o pai precisa ser position:relative. O backdrop fixo
    captura o clique fora pra fechar. */
 export function Popover({
-  aberto, onFechar, children, largura = 150,
+  aberto, onFechar, children, largura = 150, maxHeight = 264, padding = 4,
 }: {
   aberto: boolean;
   onFechar: () => void;
   children: ReactNode;
   largura?: number;
+  maxHeight?: number | string;
+  padding?: number;
 }) {
   if (!aberto) return null;
   return (
@@ -20,7 +22,8 @@ export function Popover({
       <div className="rolagem" style={{
         position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 41,
         background: "var(--pop-fundo)", border: `1px solid ${C.cardLine}`, borderRadius: 10,
-        padding: 4, minWidth: largura, maxHeight: 264, overflowY: "auto",
+        padding, minWidth: largura, maxWidth: `min(${largura}px, calc(100vw - 24px))`,
+        maxHeight, overflowY: "auto",
         boxShadow: "var(--sombra-popover)",
       }}>
         {children}

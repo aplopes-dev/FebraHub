@@ -172,8 +172,14 @@ model BrainConfig {
   id            String   @id @default("brain")
   /// AES-256-GCM. Nulo = sem provedor pago: a sintese cai no modelo local.
   chaveOpenai   String?  @map("chave_openai")
-  /// Modelo de sintese. gpt-4o-mini e o padrao por custo-beneficio.
-  modelo        String   @default("gpt-4o-mini")
+  /// Modelo de sintese. gpt-5.6-luna e o padrao (qualidade/custo).
+  modelo        String   @default("gpt-5.6-luna")
+  /// Cron diario ligado? Desligar congela a republicacao automatica.
+  consolidacaoAtiva Boolean @default(true) @map("consolidacao_ativa")
+  /// Horario local HH:MM (America/Bahia por padrao). Vira cron `M H * * *`.
+  consolidacaoHora  String  @default("04:05") @map("consolidacao_hora")
+  consolidacaoFuso  String  @default("America/Bahia") @map("consolidacao_fuso")
+  ultimaConsolidacaoEm DateTime? @map("ultima_consolidacao_em") @db.Timestamptz(6)
   atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
   atualizadoPor String?  @map("atualizado_por") @db.Uuid
 

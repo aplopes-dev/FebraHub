@@ -11,32 +11,51 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Bot, CornerDownLeft, Loader2, Sparkles } from "lucide-react";
+import { Bot, CornerDownLeft, Loader2, MessageCircle, Sparkles } from "lucide-react";
+import { RespostaBrainView } from "@/components/brain/RespostaBrainView";
+import { BotaoPrimario } from "@/components/ui/BotaoPrimario";
 import { Popover } from "@/components/ui/Popover";
 import { perguntarAoBrain } from "@/services/api/brain";
 import { ErroApi } from "@/services/api/client";
 import { C, SANS, alfa } from "@/lib/tema";
 import type { RespostaBrain } from "@/types/brain";
 
+const SUGESTOES = [
+  "Qual é a política de desconto?",
+  "Como está o comercial neste mês?",
+  "Quem lidera o ranking de vendas?",
+];
+
 export function PerguntaRapida() {
   const [aberto, setAberto] = useState(false);
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState<RespostaBrain | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [ultimaPergunta, setUltimaPergunta] = useState("");
 
   const perguntar = useMutation({
-    mutationFn: () => perguntarAoBrain(pergunta.trim()),
+    mutationFn: (texto: string) => perguntarAoBrain(texto),
     onSuccess: (r) => {
       setResposta(r);
       setErro(null);
     },
     onError: (e: unknown) =>
-      setErro(e instanceof ErroApi ? e.mensagem : "A memória institucional não respondeu."),
+      setErro(e instanceof ErroApi ? e.mensagem : "Não consegui consultar a memória agora. Tente de novo em instantes."),
   });
 
   const pronta = pergunta.trim().length >= 5;
-  const enviar = () => {
-    if (pronta && !perguntar.isPending) perguntar.mutate();
+  const enviar = (texto = pergunta.trim()) => {
+    const t = texto.trim();
+    if (t.length < 5 || perguntar.isPending) return;
+    setUltimaPergunta(t);
+    setPergunta(t);
+    setResposta(null);
+    setErro(null);
+    perguntar.mutate(t);
+  };
+
+  const fechar = () => {
+    setAberto(false);
   };
 
   return (
@@ -58,83 +77,116 @@ export function PerguntaRapida() {
         <Bot size={17} />
       </button>
 
-      <Popover aberto={aberto} onFechar={() => setAberto(false)} largura={400}>
-        <div style={{ padding: "8px 10px 10px", borderBottom: `1px solid ${C.hair}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <Sparkles size={13} style={{ color: C.gold }} />
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.bright }}>
-              Memória institucional
+      <Popover aberto={aberto} onFechar={fechar} largura={440} maxHeight="min(78vh, 640px)" padding={0}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: `1px solid ${C.hair}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              width: 28, height: 28, borderRadius: 8, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              background: alfa("gold", 0.14), color: C.gold,
+            }}>
+              <MessageCircle size={14} />
             </span>
-          </div>
-          <div style={{ fontSize: 11, color: C.faint, marginTop: 3, lineHeight: 1.45 }}>
-            Pergunte sobre o que a empresa já registrou. A resposta vem com as fontes citadas.
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.bright, lineHeight: 1.2 }}>
+                Memória institucional
+              </div>
+              <div style={{ fontSize: 11, color: C.faint, marginTop: 2, lineHeight: 1.35 }}>
+                Pergunte em português — a resposta vem explicada, com o que foi consultado.
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style={{ padding: 10 }}>
+        <div style={{ padding: "12px 14px 14px" }}>
+          {!resposta && !perguntar.isPending && !erro && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {SUGESTOES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => enviar(s)}
+                  style={{
+                    fontSize: 11, fontWeight: 600, fontFamily: SANS,
+                    padding: "5px 9px", borderRadius: 8, cursor: "pointer",
+                    border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.04),
+                    color: C.muted, textAlign: "left",
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
           <textarea
             autoFocus
             value={pergunta}
             maxLength={600}
             onChange={(e) => setPergunta(e.target.value)}
             onKeyDown={(e) => {
-              // Enter envia; Shift+Enter quebra linha. Numa caixa de pergunta
-              // curta, exigir clique no botão só atrasa.
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 enviar();
               }
             }}
-            placeholder="Qual é a política de desconto? Como fechamos o mês no comercial?"
+            placeholder="Ex.: Qual é a política de cancelamento de matrícula?"
             style={{
-              width: "100%", minHeight: 62, resize: "vertical",
+              width: "100%", minHeight: 68, resize: "vertical",
               background: alfa("sup", 0.04), border: `1px solid ${C.cardLine}`,
-              borderRadius: 9, padding: "9px 11px", color: C.text,
-              fontFamily: SANS, fontSize: 12.5, lineHeight: 1.5,
+              borderRadius: 10, padding: "10px 12px", color: C.text,
+              fontFamily: SANS, fontSize: 13, lineHeight: 1.5,
             }}
           />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
             <span style={{ fontSize: 10.5, color: C.dim, display: "flex", alignItems: "center", gap: 4, fontWeight: 700 }}>
               <CornerDownLeft size={11} /> Enter envia
             </span>
-            <button
-              onClick={enviar}
-              disabled={!pronta || perguntar.isPending}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px",
-                borderRadius: 8, fontFamily: SANS, fontSize: 12, fontWeight: 700,
-                cursor: pronta ? "pointer" : "default",
-                background: pronta ? C.gold : alfa("sup", 0.05),
-                color: pronta ? "var(--sobre-ouro)" : C.muted,
-                border: `1px solid ${pronta ? C.gold : C.cardLine}`,
-              }}
+            <BotaoPrimario
+              onClick={() => enviar()}
+              pronto={pronta}
+              carregando={perguntar.isPending}
+              style={{ padding: "7px 16px", fontSize: 12.5 }}
             >
-              {perguntar.isPending ? <Loader2 size={12} className="girar" /> : <Sparkles size={12} />}
-              {perguntar.isPending ? "Pensando…" : "Perguntar"}
-            </button>
+              {!perguntar.isPending && <Sparkles size={12} />}
+              {perguntar.isPending ? "Consultando…" : "Perguntar"}
+            </BotaoPrimario>
           </div>
 
-          {erro && (
-            <div style={{ marginTop: 10, fontSize: 11.5, color: C.down, lineHeight: 1.45 }}>{erro}</div>
+          {perguntar.isPending && (
+            <div style={{
+              marginTop: 14, padding: "14px 12px", borderRadius: 10,
+              border: `1px solid ${C.hair}`, background: alfa("sup", 0.03),
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <Loader2 size={16} className="girar" style={{ color: C.gold }} />
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright }}>Lendo a memória…</div>
+                <div style={{ fontSize: 11.5, color: C.faint, marginTop: 2 }}>
+                  Estou reunindo o que a empresa já registrou sobre isso.
+                </div>
+              </div>
+            </div>
           )}
 
-          {resposta && !erro && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.hair}` }}>
-              <div style={{ fontSize: 12.5, color: C.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                {resposta.resposta || "A memória ainda não tem material para responder isto."}
-              </div>
-              {resposta.citacoes.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                  {resposta.citacoes.map((c, i) => (
-                    <span key={`${c.slug}-${i}`} style={{
-                      fontSize: 10.5, padding: "3px 8px", borderRadius: 7,
-                      border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.04), color: C.muted,
-                    }}>
-                      {c.titulo || c.slug}
-                    </span>
-                  ))}
+          {erro && (
+            <div style={{
+              marginTop: 12, padding: "10px 12px", borderRadius: 9,
+              border: `1px solid ${alfa("down", 0.35)}`, background: alfa("down", 0.08),
+              fontSize: 12.5, color: C.down, lineHeight: 1.5,
+            }}>
+              {erro}
+            </div>
+          )}
+
+          {resposta && !erro && !perguntar.isPending && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.hair}` }}>
+              {ultimaPergunta && (
+                <div style={{ fontSize: 11.5, color: C.dim, marginBottom: 8, lineHeight: 1.4 }}>
+                  Sobre: <span style={{ color: C.muted, fontWeight: 600 }}>{ultimaPergunta}</span>
                 </div>
               )}
+              <RespostaBrainView resposta={resposta} compacto />
             </div>
           )}
         </div>

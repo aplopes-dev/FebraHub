@@ -19,7 +19,7 @@ export function Bloco({ titulo, canto, children, sem, altura }: BlocoProps) {
   return (
     <div style={{
       background: C.card, border: `1px solid ${C.cardLine}`, borderRadius: 16,
-      overflow: "hidden", marginBottom: 20,
+      overflow: "hidden", marginBottom: 14,
       display: "flex", flexDirection: "column", minHeight: 0,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 20px", borderBottom: `1px solid ${C.hair}`, flexShrink: 0 }}>

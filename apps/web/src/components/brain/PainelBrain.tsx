@@ -1,51 +1,44 @@
 "use client";
 
 /* ============ MEMÓRIA INSTITUCIONAL (GBrain) ============
-   Três blocos: perguntar (resposta sintetizada com citações), buscar
-   (páginas cruas, ranqueadas) e registrar (grava na fonte do próprio setor).
+   Consulta em destaque; registro e administração em modais — tela enxuta. */
 
-   O recorte de acesso não é decidido aqui. Cada pessoa tem uma credencial
-   própria no gbrain, com as fontes dos setores dela — a tela só MOSTRA quais
-   são, para ninguém achar que a memória está vazia quando na verdade a
-   pergunta caiu num setor que ela não alcança. */
-
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Cpu, Database, FileText, Key, Loader2, PenLine, RefreshCw, Search, Sparkles, Upload, X, Zap } from "lucide-react";
+import {
+  BookOpen, Cpu, Database, FileText, Key, Loader2, PenLine, RefreshCw,
+  Search, Settings2, Sparkles, Upload, X, Zap,
+} from "lucide-react";
+import { RespostaBrainView } from "@/components/brain/RespostaBrainView";
+import { ResultadosBuscaView } from "@/components/brain/ResultadosBuscaView";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
-import { PINTURA_OURO, inputAv, labelAv } from "@/components/ui/estilos";
+import { ModalCentro } from "@/components/ui/ModalCentro";
+import { BotaoPrimario } from "@/components/ui/BotaoPrimario";
+import { BOTAO_OURO, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
+import { rotuloFonte } from "@/lib/brain/fontes";
+import { ACEITA, extrairTexto, type DocumentoExtraido } from "@/lib/brain/extrair-texto";
+import { C, alfa } from "@/lib/tema";
 import { ErroApi } from "@/services/api/client";
 import {
   buscarNoBrain,
+  consolidacaoBrain,
   estadoBrain,
+  enviarAudioBrain,
   fontesBrain,
   perguntarAoBrain,
   registrarNoBrain,
   revalidarAcessosBrain,
   salvarConfigBrain,
+  salvarConsolidacaoBrain,
   sincronizarDadosBrain,
   configBrain,
 } from "@/services/api/brain";
-import { ACEITA, extrairTexto, type DocumentoExtraido } from "@/lib/brain/extrair-texto";
-import { C, SANS, alfa } from "@/lib/tema";
 import { MODELOS_SINTESE } from "@/types/brain";
 import type { RespostaBrain, ResultadoBrain } from "@/types/brain";
 
-const NOME_FONTE: Record<string, string> = {
-  geral: "Geral",
-  comercial: "Comercial",
-  financeiro: "Financeiro",
-  marketing: "Marketing",
-  pedagogico: "Pedagógico",
-  eventos: "Eventos",
-  loja: "Loja",
-  estoque: "Estoque",
-  crm: "CRM",
-};
-
-const rotulo = (f: string) => NOME_FONTE[f] ?? f;
+type ModalAdmin = null | "motor" | "agenda" | "estado" | "registrar";
 
 export function PainelBrain() {
   const qc = useQueryClient();
@@ -60,7 +53,21 @@ export function PainelBrain() {
     enabled: podeAdministrar,
     staleTime: 60_000,
   });
+  const config = useQuery({
+    queryKey: ["brain-config"],
+    queryFn: configBrain,
+    enabled: podeAdministrar,
+    staleTime: 60_000,
+  });
+  const consol = useQuery({
+    queryKey: ["brain-consolidacao"],
+    queryFn: consolidacaoBrain,
+    enabled: podeAdministrar,
+    staleTime: 60_000,
+  });
 
+  const [aba, setAba] = useState<"perguntar" | "buscar">("perguntar");
+  const [modal, setModal] = useState<ModalAdmin>(null);
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState<RespostaBrain | null>(null);
   const [termo, setTermo] = useState("");
@@ -70,9 +77,8 @@ export function PainelBrain() {
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
   const [chave, setChave] = useState("");
   const [modelo, setModelo] = useState(MODELOS_SINTESE[0].id);
-  // Fila de documentos já lidos e ainda não enviados. O texto sai do arquivo
-  // NO NAVEGADOR (ver lib/brain/extrair-texto) — a API recebe texto, nunca o
-  // binário.
+  const [horaConsol, setHoraConsol] = useState("04:05");
+  const [consolAtiva, setConsolAtiva] = useState(true);
   const [fila, setFila] = useState<DocumentoExtraido[]>([]);
   const [lendo, setLendo] = useState(false);
   const [arrastando, setArrastando] = useState(false);
@@ -84,60 +90,112 @@ export function PainelBrain() {
       texto: e instanceof ErroApi ? e.mensagem : "A memória institucional não respondeu.",
     });
 
+  useEffect(() => {
+    if (!consol.data) return;
+    setHoraConsol(consol.data.hora);
+    setConsolAtiva(consol.data.ativa);
+  }, [consol.data]);
+
+  useEffect(() => {
+    if (config.data?.modelo) setModelo(config.data.modelo);
+  }, [config.data?.modelo]);
+
   const perguntar = useMutation({
     mutationFn: () => perguntarAoBrain(pergunta.trim()),
-    onSuccess: (r) => {
-      setResposta(r);
-      setAviso(null);
-    },
+    onSuccess: (r) => { setResposta(r); setAviso(null); },
     onError: falhou,
   });
 
   const buscar = useMutation({
     mutationFn: () => buscarNoBrain(termo.trim()),
-    onSuccess: (r) => {
-      setAchados(r);
-      setAviso(null);
-    },
+    onSuccess: (r) => { setAchados(r); setAviso(null); },
     onError: falhou,
   });
 
   const registrar = useMutation({
     mutationFn: () => registrarNoBrain(titulo.trim(), conteudo.trim()),
     onSuccess: (r) => {
-      setAviso({ erro: false, texto: `Registrado em ${rotulo(r.fonte)} como ${r.slug}.` });
+      setAviso({ erro: false, texto: `Pronto — registrei em ${rotuloFonte(r.fonte)}.` });
       setTitulo("");
       setConteudo("");
+      setModal(null);
     },
     onError: falhou,
   });
 
-  /** Um documento = uma página. Enviar em lote sequencialmente e não em
-   *  paralelo: cada envio gera embeddings, e o modelo é local. */
   const enviarFila = useMutation({
     mutationFn: async () => {
       const enviados: string[] = [];
       for (const doc of fila) {
-        const r = await registrarNoBrain(doc.titulo, doc.texto, doc.origem);
-        enviados.push(`${doc.origem} → ${rotulo(r.fonte)}`);
+        if (doc.ehAudio && doc.arquivo) {
+          const r = await enviarAudioBrain(doc.arquivo);
+          enviados.push(`${doc.origem} (áudio) → ${rotuloFonte(r.fonte)}`);
+        } else {
+          const r = await registrarNoBrain(doc.titulo, doc.texto, doc.origem);
+          enviados.push(`${doc.origem} → ${rotuloFonte(r.fonte)}`);
+        }
       }
       return enviados;
     },
     onSuccess: (enviados) => {
       setFila([]);
-      setAviso({ erro: false, texto: `${enviados.length} documento(s) na memória: ${enviados.join("; ")}.` });
+      setAviso({ erro: false, texto: `${enviados.length} item(ns) na memória: ${enviados.join("; ")}.` });
+      setModal(null);
     },
     onError: falhou,
   });
 
   const sincronizar = useMutation({
     mutationFn: sincronizarDadosBrain,
-    onSuccess: (r) =>
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: ["brain-estado"] });
+      void qc.invalidateQueries({ queryKey: ["brain-consolidacao"] });
       setAviso({
         erro: false,
         texto: r.publicadas
-          ? `${r.publicadas} página(s) de indicadores publicada(s) na memória.`
+          ? `${r.publicadas} página(s) de dados publicada(s) na memória.`
           : (r.motivo ?? "Nada a publicar."),
+      });
+    },
+    onError: falhou,
+  });
+
+  const salvarConfig = useMutation({
+    mutationFn: (dados: { chaveOpenai?: string | null; modelo?: string }) => salvarConfigBrain(dados),
+    onSuccess: (r) => {
+      setChave("");
+      void qc.invalidateQueries({ queryKey: ["brain-config"] });
+      setAviso({
+        erro: false,
+        texto: r.temChave
+          ? `Respostas pela OpenAI (${r.modelo}).`
+          : "Chave removida. As respostas voltam ao modelo local da VPS.",
+      });
+    },
+    onError: falhou,
+  });
+
+  const salvarConsol = useMutation({
+    mutationFn: () => salvarConsolidacaoBrain({ ativa: consolAtiva, hora: horaConsol }),
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: ["brain-consolidacao"] });
+      setAviso({
+        erro: false,
+        texto: r.ativa
+          ? `Consolidação diária às ${r.hora} (${r.fuso}).`
+          : "Consolidação automática desligada.",
+      });
+      setModal(null);
+    },
+    onError: falhou,
+  });
+
+  const revalidar = useMutation({
+    mutationFn: revalidarAcessosBrain,
+    onSuccess: (r) =>
+      setAviso({
+        erro: false,
+        texto: `${r.conferidos} credencial(is) conferida(s), ${r.ajustados} ajustada(s).`,
       }),
     onError: falhou,
   });
@@ -159,43 +217,11 @@ export function PainelBrain() {
     if (entrada.current) entrada.current.value = "";
   };
 
-  const config = useQuery({
-    queryKey: ["brain-config"],
-    queryFn: configBrain,
-    enabled: podeAdministrar,
-    staleTime: 60_000,
-  });
-
-  const salvarConfig = useMutation({
-    mutationFn: (dados: { chaveOpenai?: string | null; modelo?: string }) => salvarConfigBrain(dados),
-    onSuccess: (r) => {
-      setChave("");
-      void qc.invalidateQueries({ queryKey: ["brain-config"] });
-      setAviso({
-        erro: false,
-        texto: r.temChave
-          ? `Respostas pela OpenAI (${r.modelo}) — devem sair em segundos.`
-          : "Chave removida. As respostas voltam ao modelo local da VPS (grátis, porém lento).",
-      });
-    },
-    onError: falhou,
-  });
-
-  const revalidar = useMutation({
-    mutationFn: revalidarAcessosBrain,
-    onSuccess: (r) =>
-      setAviso({
-        erro: false,
-        texto: `${r.conferidos} credencial(is) conferida(s), ${r.ajustados} ajustada(s).`,
-      }),
-    onError: falhou,
-  });
-
   return (
     <>
       {aviso && (
         <div style={{
-          marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+          marginBottom: 10, padding: "8px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
           border: `1px solid ${aviso.erro ? alfa("down", 0.4) : alfa("up", 0.4)}`,
           background: aviso.erro ? alfa("down", 0.09) : alfa("up", 0.09),
           color: aviso.erro ? C.down : C.up,
@@ -204,131 +230,140 @@ export function PainelBrain() {
         </div>
       )}
 
-      {/* O alcance, dito antes de qualquer resposta: sem isto, "não achei
-          nada" é indistinguível de "isso é de um setor que você não vê". */}
+      {/* Faixa compacta: alcance + ações */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap",
-        marginBottom: 18, padding: "10px 14px", borderRadius: 10,
+        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        marginBottom: 12, padding: "8px 10px", borderRadius: 9,
         border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.03),
       }}>
-        <BookOpen size={14} style={{ color: C.gold }} />
-        <span style={{ fontSize: 12, color: C.faint }}>Você consulta:</span>
+        <BookOpen size={13} style={{ color: C.gold }} />
+        <span style={{ fontSize: 11.5, color: C.faint }}>Você consulta</span>
         {(fontes.data?.leitura ?? []).map((f) => (
           <span key={f} style={{
-            fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+            fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6,
             background: alfa("gold", 0.12), color: C.gold,
           }}>
-            {rotulo(f)}
+            {rotuloFonte(f)}
           </span>
         ))}
-        {podeEscrever && fontes.data && (
-          <span style={{ fontSize: 11.5, color: C.dim, marginLeft: "auto", fontWeight: 700 }}>
-            registra em {rotulo(fontes.data.escrita)}
-          </span>
+        <span style={{ flex: 1 }} />
+        {podeEscrever && (
+          <button type="button" onClick={() => setModal("registrar")} style={chipAcao}>
+            <PenLine size={12} /> Registrar
+          </button>
+        )}
+        {podeAdministrar && (
+          <>
+            <button type="button" onClick={() => setModal("motor")} style={chipAcao} title="Motor de resposta">
+              <Settings2 size={12} /> Motor
+            </button>
+            <button type="button" onClick={() => setModal("agenda")} style={chipAcao}>
+              Agenda
+            </button>
+            <button type="button" onClick={() => setModal("estado")} style={chipAcao}>
+              <Database size={12} /> Estado
+            </button>
+          </>
         )}
       </div>
 
-      <Bloco titulo="Perguntar" canto="Resposta sintetizada, com as fontes citadas">
-        <textarea
-          style={{ ...inputAv, minHeight: 70, resize: "vertical" as const, lineHeight: 1.5 }}
-          value={pergunta}
-          maxLength={600}
-          onChange={(e) => setPergunta(e.target.value)}
-          placeholder="O que eu preciso saber antes da reunião de fechamento do mês?"
-        />
-        <div style={{ marginTop: 12 }}>
-          <button
-            onClick={() => perguntar.mutate()}
-            disabled={perguntar.isPending || pergunta.trim().length < 5}
-            style={pergunta.trim().length >= 5 ? botaoOuro : botaoNeutro}
-          >
-            {perguntar.isPending ? <Loader2 size={13} className="girar" /> : <Sparkles size={13} />}
-            {perguntar.isPending ? "Pensando…" : "Perguntar"}
-          </button>
-        </div>
-
-        {resposta && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.hair}` }}>
-            <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-              {resposta.resposta || "A memória não encontrou material para responder isto."}
+      <Bloco
+        titulo="Consultar a memória"
+        canto={
+          <div style={{ display: "flex", gap: 4 }}>
+            {(["perguntar", "buscar"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setAba(id)}
+                style={{
+                  ...abaToggle,
+                  ...(aba === id ? abaToggleAtiva : null),
+                }}
+              >
+                {id === "perguntar" ? <Sparkles size={12} /> : <Search size={12} />}
+                {id === "perguntar" ? "Perguntar" : "Buscar"}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {aba === "perguntar" ? (
+          <>
+            <textarea
+              style={{ ...inputAv, minHeight: 64, resize: "vertical" as const, lineHeight: 1.5 }}
+              value={pergunta}
+              maxLength={600}
+              onChange={(e) => setPergunta(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && pergunta.trim().length >= 5) {
+                  e.preventDefault();
+                  perguntar.mutate();
+                }
+              }}
+              placeholder="Pergunte em português, como falaria numa reunião…"
+            />
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+              <BotaoPrimario
+                onClick={() => perguntar.mutate()}
+                pronto={pergunta.trim().length >= 5}
+                carregando={perguntar.isPending}
+              >
+                {!perguntar.isPending && <Sparkles size={13} />}
+                {perguntar.isPending ? "Consultando…" : "Perguntar"}
+              </BotaoPrimario>
             </div>
-            {resposta.citacoes.length > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <div style={labelAv}>Fontes citadas</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                  {resposta.citacoes.map((c, i) => (
-                    <span key={`${c.slug}-${i}`} style={{
-                      fontSize: 11.5, padding: "4px 9px", borderRadius: 8,
-                      border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.04), color: C.muted,
-                    }}>
-                      {c.titulo || c.slug}
-                      <span style={{ color: C.dim, fontWeight: 700 }}> · {rotulo(c.fonte)}</span>
-                    </span>
-                  ))}
-                </div>
+            {perguntar.isPending && (
+              <div style={{ marginTop: 12, fontSize: 12.5, color: C.faint }}>
+                Lendo o que a empresa já registrou…
               </div>
             )}
-          </div>
-        )}
-      </Bloco>
-
-      <Bloco titulo="Buscar" canto="As páginas em si, ranqueadas">
-        <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-          <input
-            style={{ ...inputAv, flex: 1, minWidth: 200 }}
-            value={termo}
-            maxLength={400}
-            onChange={(e) => setTermo(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && termo.trim().length >= 2) buscar.mutate();
-            }}
-            placeholder="matrícula, cancelamento, política de desconto…"
-          />
-          <button
-            onClick={() => buscar.mutate()}
-            disabled={buscar.isPending || termo.trim().length < 2}
-            style={termo.trim().length >= 2 ? botaoOuro : botaoNeutro}
-          >
-            {buscar.isPending ? <Loader2 size={13} className="girar" /> : <Search size={13} />} Buscar
-          </button>
-        </div>
-
-        {achados && (
-          <div style={{ marginTop: 16 }}>
-            <Estado vazio={achados.length === 0}
-              vazioTitulo="Nada encontrado"
-              vazioDica="Ou a memória ainda não tem material sobre isto, ou o assunto vive num setor fora do seu alcance.">
-              <div style={{ display: "grid", gap: 10 }}>
-                {achados.map((a) => (
-                  <div key={a.slug} style={{
-                    padding: "11px 13px", borderRadius: 10,
-                    border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.03),
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>{a.titulo}</span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".4px",
-                        padding: "1px 7px", borderRadius: 20, background: alfa("gold", 0.12), color: C.gold,
-                      }}>
-                        {rotulo(a.fonte)}
-                      </span>
-                    </div>
-                    {a.trecho && (
-                      <div style={{ fontSize: 12, color: C.faint, marginTop: 5, lineHeight: 1.5 }}>{a.trecho}</div>
-                    )}
-                    <div style={{ fontSize: 10.5, color: C.dim, marginTop: 5, fontWeight: 700 }}>{a.slug}</div>
-                  </div>
-                ))}
+            {resposta && !perguntar.isPending && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.hair}` }}>
+                <RespostaBrainView resposta={resposta} />
               </div>
-            </Estado>
-          </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                style={{ ...inputAv, flex: 1, minWidth: 180 }}
+                value={termo}
+                maxLength={400}
+                onChange={(e) => setTermo(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && termo.trim().length >= 2) buscar.mutate();
+                }}
+                placeholder="Palavra-chave: desconto, matrícula, ranking…"
+              />
+              <BotaoPrimario
+                onClick={() => buscar.mutate()}
+                pronto={termo.trim().length >= 2}
+                carregando={buscar.isPending}
+              >
+                {!buscar.isPending && <Search size={13} />}
+                {buscar.isPending ? "Buscando…" : "Buscar"}
+              </BotaoPrimario>
+            </div>
+            {achados && (
+              <div style={{ marginTop: 12 }}>
+                <ResultadosBuscaView achados={achados} />
+              </div>
+            )}
+          </>
         )}
       </Bloco>
 
-      {podeEscrever && (
-        <Bloco titulo="Registrar conhecimento" canto={fontes.data ? `Vai para ${rotulo(fontes.data.escrita)}` : undefined}>
-          {/* Documento primeiro: é o caminho mais usado. Quem vai digitar
-              direto rola e usa os campos abaixo. */}
+      {/* —— Modais —— */}
+      {modal === "registrar" && podeEscrever && (
+        <ModalCentro titulo="Registrar na memória" onFechar={() => setModal(null)} largura={560}>
+          <p style={{ fontSize: 12.5, color: C.faint, margin: "0 0 12px", lineHeight: 1.5 }}>
+            O conteúdo vai para{" "}
+            <strong style={{ color: C.muted }}>{rotuloFonte(fontes.data?.escrita ?? "geral")}</strong>
+            {" "}e passa a responder perguntas de quem alcança essa área.
+          </p>
+
           <div
             onDragOver={(e) => { e.preventDefault(); setArrastando(true); }}
             onDragLeave={() => setArrastando(false)}
@@ -339,71 +374,52 @@ export function PainelBrain() {
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") entrada.current?.click(); }}
             style={{
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              gap: 6, padding: "22px 16px", borderRadius: 12, cursor: "pointer", textAlign: "center",
+              gap: 4, padding: "16px 12px", borderRadius: 10, cursor: "pointer", textAlign: "center",
               border: `1.5px dashed ${arrastando ? C.gold : C.cardLine}`,
               background: arrastando ? alfa("gold", 0.08) : alfa("sup", 0.03),
-              transition: "background .15s ease, border-color .15s ease",
             }}
           >
-            {lendo ? <Loader2 size={18} className="girar" style={{ color: C.gold }} /> : <Upload size={18} style={{ color: C.gold }} />}
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.bright }}>
-              {lendo ? "Lendo o documento…" : "Arraste documentos aqui ou clique para escolher"}
+            {lendo ? <Loader2 size={16} className="girar" style={{ color: C.gold }} /> : <Upload size={16} style={{ color: C.gold }} />}
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.bright }}>
+              {lendo ? "Preparando…" : "Arraste PDF, texto ou áudio"}
             </div>
-            <div style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.45, maxWidth: 460 }}>
-              PDF, Markdown, TXT ou CSV. O texto é extraído no seu navegador e só ele viaja —
-              o arquivo em si não sai do seu computador.
-            </div>
-            <input
-              ref={entrada}
-              type="file"
-              accept={ACEITA}
-              multiple
-              onChange={(e) => void receber(e.target.files)}
-              style={{ display: "none" }}
-            />
+            <div style={{ fontSize: 11, color: C.faint }}>Áudio usa Whisper (chave OpenAI)</div>
+            <input ref={entrada} type="file" accept={ACEITA} multiple
+              onChange={(e) => void receber(e.target.files)} style={{ display: "none" }} />
           </div>
 
           {fila.length > 0 && (
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 12 }}>
               <div style={labelAv}>Prontos para enviar</div>
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 {fila.map((doc, i) => (
                   <div key={`${doc.origem}-${i}`} style={{
-                    display: "flex", alignItems: "center", gap: 9, padding: "9px 11px",
-                    borderRadius: 9, border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.03),
+                    display: "flex", alignItems: "center", gap: 8, padding: "7px 9px",
+                    borderRadius: 8, border: `1px solid ${C.cardLine}`, background: alfa("sup", 0.03),
                   }}>
-                    <FileText size={14} style={{ color: C.gold, flexShrink: 0 }} />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {doc.origem}
-                      </span>
-                      <span style={{ display: "block", fontSize: 11, color: C.faint, marginTop: 2 }}>
-                        {doc.texto.length.toLocaleString("pt-BR")} caracteres de texto
-                      </span>
+                    <FileText size={13} style={{ color: C.gold, flexShrink: 0 }} />
+                    <span style={{ minWidth: 0, flex: 1, fontSize: 12, fontWeight: 700, color: C.bright, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {doc.origem}{doc.ehAudio ? " · áudio" : ""}
                     </span>
-                    <button
-                      onClick={() => setFila((atual) => atual.filter((_, j) => j !== i))}
-                      aria-label={`Tirar ${doc.origem} da fila`}
-                      title="Tirar da fila"
-                      style={{ background: "none", border: "none", cursor: "pointer", color: C.dim, padding: 2 }}
-                    >
+                    <button type="button" onClick={() => setFila((a) => a.filter((_, j) => j !== i))}
+                      aria-label="Tirar da fila" style={{ background: "none", border: "none", cursor: "pointer", color: C.dim, padding: 2 }}>
                       <X size={13} />
                     </button>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 12 }}>
-                <button onClick={() => enviarFila.mutate()} disabled={enviarFila.isPending} style={botaoOuro}>
-                  {enviarFila.isPending ? <Loader2 size={13} className="girar" /> : <Upload size={13} />}
-                  {enviarFila.isPending ? "Indexando…" : `Enviar ${fila.length} documento(s)`}
-                </button>
+              <div style={{ marginTop: 10 }}>
+                <BotaoPrimario onClick={() => enviarFila.mutate()} carregando={enviarFila.isPending}>
+                  {!enviarFila.isPending && <Upload size={13} />}
+                  Enviar {fila.length}
+                </BotaoPrimario>
               </div>
             </div>
           )}
 
           <div style={{
-            display: "flex", alignItems: "center", gap: 10, margin: "20px 0 14px",
-            fontSize: 11, color: C.dim, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px",
+            display: "flex", alignItems: "center", gap: 8, margin: "16px 0 10px",
+            fontSize: 10.5, color: C.dim, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px",
           }}>
             <span style={{ flex: 1, height: 1, background: C.hair }} />
             ou escreva
@@ -413,151 +429,137 @@ export function PainelBrain() {
           <label style={labelAv} htmlFor="brain-titulo">Título</label>
           <input id="brain-titulo" style={inputAv} value={titulo} maxLength={160}
             onChange={(e) => setTitulo(e.target.value)} placeholder="Política de cancelamento de matrícula" />
-          <label style={{ ...labelAv, marginTop: 12 }} htmlFor="brain-conteudo">Conteúdo</label>
+          <label style={{ ...labelAv, marginTop: 10 }} htmlFor="brain-conteudo">Conteúdo</label>
           <textarea
             id="brain-conteudo"
-            style={{ ...inputAv, minHeight: 150, resize: "vertical" as const, lineHeight: 1.55 }}
+            style={{ ...inputAv, minHeight: 120, resize: "vertical" as const, lineHeight: 1.5 }}
             value={conteudo}
             maxLength={20_000}
             onChange={(e) => setConteudo(e.target.value)}
-            placeholder="Markdown. O que ficar aqui passa a responder as perguntas de quem alcança este setor."
+            placeholder="Explique o que a equipe precisa saber…"
           />
           <div style={{ marginTop: 12 }}>
-            <button
+            <BotaoPrimario
               onClick={() => registrar.mutate()}
-              disabled={registrar.isPending || titulo.trim().length < 3 || conteudo.trim().length < 10}
-              style={titulo.trim().length >= 3 && conteudo.trim().length >= 10 ? botaoOuro : botaoNeutro}
+              pronto={titulo.trim().length >= 3 && conteudo.trim().length >= 10}
+              carregando={registrar.isPending}
             >
-              {registrar.isPending ? <Loader2 size={13} className="girar" /> : <PenLine size={13} />} Registrar
-            </button>
+              {!registrar.isPending && <PenLine size={13} />} Registrar
+            </BotaoPrimario>
           </div>
-        </Bloco>
+        </ModalCentro>
       )}
 
-      {podeAdministrar && (
-        <Bloco
-          titulo="Motor de resposta"
-          canto={
-            config.data && (
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800,
-                padding: "3px 9px", borderRadius: 20,
-                background: config.data.provedor === "openai" ? alfa("up", 0.13) : alfa("warn", 0.13),
-                color: config.data.provedor === "openai" ? C.up : C.warn,
-              }}>
-                {config.data.provedor === "openai" ? <Zap size={11} /> : <Cpu size={11} />}
-                {config.data.provedor === "openai" ? "OpenAI" : "Modelo local"}
-              </span>
-            )
-          }
-        >
-          <p style={{ fontSize: 12.5, color: C.faint, lineHeight: 1.6, marginBottom: 16 }}>
-            Quem <strong style={{ color: C.muted }}>encontra</strong> as páginas é a busca da própria VPS —
-            isso não muda e não custa nada. Quem <strong style={{ color: C.muted }}>escreve a resposta</strong> é
-            um modelo de linguagem: sem chave, roda o modelo local da VPS, que leva de 1 a 3 minutos por
-            pergunta; com a chave da OpenAI, a resposta sai em segundos e custa frações de centavo por
-            pergunta. Os documentos continuam sendo indexados localmente — a chave é usada só na hora de
-            redigir a resposta.
-          </p>
-
-          <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
-            <div>
-              <label style={labelAv} htmlFor="brain-chave">
-                Chave da OpenAI {config.data?.temChave && "(uma já está gravada)"}
-              </label>
-              <input
-                id="brain-chave"
-                type="password"
-                autoComplete="off"
-                style={inputAv}
-                value={chave}
-                maxLength={200}
-                onChange={(e) => setChave(e.target.value)}
-                placeholder={config.data?.temChave ? "•••••••••• — digite para substituir" : "sk-..."}
-              />
-              <div style={{ fontSize: 11, color: C.dim, marginTop: 5, lineHeight: 1.45 }}>
-                Guardada cifrada no banco do FebraHub. Não volta para esta tela nem aparece em log.
-              </div>
-            </div>
-            <div>
-              <label style={labelAv} htmlFor="brain-modelo">Modelo</label>
-              <select
-                id="brain-modelo"
-                style={inputAv}
-                value={config.data?.modelo ?? modelo}
-                onChange={(e) => {
-                  setModelo(e.target.value);
-                  salvarConfig.mutate({ modelo: e.target.value });
-                }}
-              >
-                {MODELOS_SINTESE.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nome} — {m.nota}</option>
-                ))}
-              </select>
-            </div>
+      {modal === "motor" && podeAdministrar && (
+        <ModalCentro titulo="Motor de resposta" onFechar={() => setModal(null)} largura={480}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800,
+            padding: "3px 9px", borderRadius: 6, marginBottom: 12,
+            background: config.data?.provedor === "openai" ? alfa("up", 0.13) : alfa("warn", 0.13),
+            color: config.data?.provedor === "openai" ? C.up : C.warn,
+          }}>
+            {config.data?.provedor === "openai" ? <Zap size={11} /> : <Cpu size={11} />}
+            {config.data?.provedor === "openai" ? "OpenAI" : "Modelo local"}
           </div>
-
+          <p style={{ fontSize: 12.5, color: C.faint, lineHeight: 1.55, margin: "0 0 14px" }}>
+            A busca nas páginas é local e gratuita. O modelo só redige a resposta em português claro.
+            Com chave OpenAI a resposta sai em segundos; sem chave, usa o modelo da VPS (mais lento).
+          </p>
+          <label style={labelAv} htmlFor="brain-chave">
+            Chave da OpenAI {config.data?.temChave && "(já gravada)"}
+          </label>
+          <input
+            id="brain-chave" type="password" autoComplete="off" style={inputAv}
+            value={chave} maxLength={200}
+            onChange={(e) => setChave(e.target.value)}
+            placeholder={config.data?.temChave ? "•••••••• — digite para substituir" : "sk-..."}
+          />
+          <label style={{ ...labelAv, marginTop: 12 }} htmlFor="brain-modelo">Modelo</label>
+          <select
+            id="brain-modelo"
+            style={inputAv}
+            value={modelo}
+            onChange={(e) => {
+              setModelo(e.target.value);
+              salvarConfig.mutate({ modelo: e.target.value });
+            }}
+          >
+            {MODELOS_SINTESE.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome} — {m.nota}</option>
+            ))}
+          </select>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-            <button
+            <BotaoPrimario
               onClick={() => salvarConfig.mutate({ chaveOpenai: chave.trim(), modelo })}
-              disabled={salvarConfig.isPending || chave.trim().length < 20}
-              style={chave.trim().length >= 20 ? botaoOuro : botaoNeutro}
+              pronto={chave.trim().length >= 20}
+              carregando={salvarConfig.isPending}
             >
-              {salvarConfig.isPending ? <Loader2 size={13} className="girar" /> : <Key size={13} />} Salvar chave
-            </button>
+              {!salvarConfig.isPending && <Key size={13} />} Salvar chave
+            </BotaoPrimario>
             {config.data?.temChave && (
-              <button
+              <BotaoPrimario
+                variante="secundario"
                 onClick={() => salvarConfig.mutate({ chaveOpenai: null })}
                 disabled={salvarConfig.isPending}
-                style={botaoNeutro}
               >
                 Remover chave
-              </button>
+              </BotaoPrimario>
             )}
           </div>
-        </Bloco>
+        </ModalCentro>
       )}
 
-      {podeAdministrar && (
-        <Bloco
-          titulo="Estado da memória"
-          canto={
-            <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
-              <button
-                onClick={() => sincronizar.mutate()}
-                disabled={sincronizar.isPending}
-                title="Publica os indicadores do Hub Executivo como páginas da memória"
-                style={{
-                  display: "flex", alignItems: "center", gap: 5, background: "none", border: "none",
-                  cursor: "pointer", color: C.gold, fontFamily: SANS, fontSize: 11.5, fontWeight: 700, padding: 0,
-                }}
-              >
-                {sincronizar.isPending ? <Loader2 size={12} className="girar" /> : <RefreshCw size={12} />}
-                Publicar indicadores
-              </button>
-              <button
-                onClick={() => revalidar.mutate()}
-                disabled={revalidar.isPending}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5, background: "none", border: "none",
-                  cursor: "pointer", color: C.gold, fontFamily: SANS, fontSize: 11.5, fontWeight: 700, padding: 0,
-                }}
-              >
-                {revalidar.isPending ? <Loader2 size={12} className="girar" /> : null} Revalidar acessos
-              </button>
-            </span>
-          }
-        >
+      {modal === "agenda" && podeAdministrar && (
+        <ModalCentro titulo="Consolidação diária" onFechar={() => setModal(null)} largura={420}>
+          <p style={{ fontSize: 12.5, color: C.faint, lineHeight: 1.55, margin: "0 0 12px" }}>
+            Todo dia, neste horário ({consol.data?.fuso ?? "America/Bahia"}), os indicadores do sistema
+            são republicados na memória para as perguntas sobre números terem material atualizado.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end" }}>
+            <div>
+              <label style={labelAv} htmlFor="brain-hora-consol">Horário</label>
+              <input id="brain-hora-consol" type="time" style={{ ...inputAv, width: 130 }}
+                value={horaConsol} onChange={(e) => setHoraConsol(e.target.value)} />
+            </div>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 7, fontSize: 12.5,
+              color: C.muted, fontWeight: 700, cursor: "pointer", paddingBottom: 8,
+            }}>
+              <input type="checkbox" checked={consolAtiva}
+                onChange={(e) => setConsolAtiva(e.target.checked)} />
+              Ativa
+            </label>
+            <BotaoPrimario onClick={() => salvarConsol.mutate()} carregando={salvarConsol.isPending}>
+              Salvar
+            </BotaoPrimario>
+          </div>
+          {consol.data?.ultimaConsolidacaoEm && (
+            <div style={{ fontSize: 11.5, color: C.dim, marginTop: 10 }}>
+              Última: {new Date(consol.data.ultimaConsolidacaoEm).toLocaleString("pt-BR")}
+            </div>
+          )}
+        </ModalCentro>
+      )}
+
+      {modal === "estado" && podeAdministrar && (
+        <ModalCentro titulo="Estado da memória" onFechar={() => setModal(null)} largura={420}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <BotaoPrimario onClick={() => sincronizar.mutate()} carregando={sincronizar.isPending}>
+              {!sincronizar.isPending && <RefreshCw size={13} />}
+              Publicar indicadores
+            </BotaoPrimario>
+            <BotaoPrimario
+              variante="secundario"
+              onClick={() => revalidar.mutate()}
+              carregando={revalidar.isPending}
+            >
+              Revalidar acessos
+            </BotaoPrimario>
+          </div>
           <Estado carregando={estado.isLoading} erro={estado.error}>
             {estado.data && !estado.data.disponivel && (
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <Database size={15} style={{ color: C.down, marginTop: 2 }} />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.bright }}>Serviço fora do ar</div>
-                  <div style={{ fontSize: 12, color: C.faint, marginTop: 3, lineHeight: 1.5 }}>
-                    O container do GBrain não respondeu. As consultas ficam indisponíveis até ele voltar.
-                  </div>
-                </div>
+              <div style={{ fontSize: 12.5, color: C.down, lineHeight: 1.5 }}>
+                Serviço fora do ar — consultas indisponíveis até o GBrain voltar.
               </div>
             )}
             {estado.data?.disponivel && (
@@ -565,27 +567,44 @@ export function PainelBrain() {
                 {estado.data.fontes.map((f) => (
                   <div key={f.id} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "8px 10px", borderRadius: 8,
+                    padding: "7px 8px", borderRadius: 7,
                   }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.muted }}>{rotulo(f.id)}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.muted }}>{rotuloFonte(f.id)}</span>
                     <span style={{ fontSize: 12, color: C.faint }}>
-                      {f.paginas === null ? "—" : `${f.paginas} página(s)`}
+                      {f.paginas === null
+                        ? "sem contagem"
+                        : f.paginas === 0
+                          ? "vazio"
+                          : `${f.paginas} ${f.paginas === 1 ? "registro" : "registros"}`}
                     </span>
                   </div>
                 ))}
               </div>
             )}
           </Estado>
-        </Bloco>
+        </ModalCentro>
       )}
     </>
   );
 }
 
-const botaoBase = {
-  display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
-  borderRadius: 9, fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+const chipAcao = {
+  ...BOTAO_OURO,
+  padding: "5px 12px",
+  fontSize: 11.5,
+  gap: 5,
 } as const;
 
-const botaoOuro = { ...botaoBase, ...PINTURA_OURO };
-const botaoNeutro = { ...botaoBase, background: alfa("sup", 0.05), color: C.muted, border: `1px solid ${C.cardLine}` };
+const abaToggle = {
+  ...BOTAO_SECUNDARIO,
+  padding: "5px 11px",
+  fontSize: 11.5,
+  gap: 5,
+} as const;
+
+const abaToggleAtiva = {
+  ...BOTAO_OURO,
+  padding: "5px 11px",
+  fontSize: 11.5,
+  gap: 5,
+} as const;

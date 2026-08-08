@@ -36,7 +36,17 @@ export interface ConfigBrain {
   atualizadoEm: string;
 }
 
+/** Agenda da consolidação diária (dados do sistema → memória). */
+export interface ConsolidacaoBrain {
+  ativa: boolean;
+  hora: string;
+  fuso: string;
+  cron: string;
+  ultimaConsolidacaoEm: string | null;
+}
+
 export const MODELOS_SINTESE: { id: string; nome: string; nota: string }[] = [
-  { id: "gpt-4o-mini", nome: "GPT-4o mini", nota: "Rápido e barato — o padrão" },
-  { id: "gpt-5.2", nome: "GPT-5.2", nota: "Melhor qualidade, custa mais" },
+  { id: "gpt-5.6-luna", nome: "GPT-5.6 Luna", nota: "Padrão — inteligente, rápido e econômico" },
+  { id: "gpt-4o-mini", nome: "GPT-4o mini", nota: "Alternativa leve" },
+  { id: "gpt-5.2", nome: "GPT-5.2", nota: "Geração anterior, mais cara" },
 ];

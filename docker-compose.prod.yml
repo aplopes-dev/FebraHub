@@ -54,8 +54,10 @@ services:
       - minio_dados:/data
     # Só em 127.0.0.1: quem alcança de fora é o Nginx do host, que termina o
     # TLS. O console (9001) continua sem publicação nenhuma.
+    # Porta 9022 (não 9014, padrão do prod de febracis.aplopes.com): 9014 já
+    # está em uso por outro projeto nesta VPS (vehiclelm_minio).
     ports:
-      - '127.0.0.1:9014:9000'
+      - '127.0.0.1:9022:9000'
     networks: [interna]
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']

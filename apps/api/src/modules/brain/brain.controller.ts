@@ -6,13 +6,36 @@
  * cada pessoa é a credencial OAuth provisionada para ela — as permissões
  * abaixo decidem só o que ela pode FAZER.
  */
-import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Post,
+  Put,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { FastifyRequest } from 'fastify';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import { BrainDadosService } from './brain-dados.service';
+import { BrainMidiaService } from './brain-midia.service';
 import { BrainService } from './brain.service';
 import { SinteseService } from './sintese.service';
 
@@ -44,7 +67,7 @@ class PerguntaDto {
 
 /** Modelos aceitos. Lista curta de propósito: cada um foi escolhido por
  *  custo-benefício, e campo livre convidaria a digitar id inexistente. */
-export const MODELOS_SINTESE = ['gpt-4o-mini', 'gpt-5.2'] as const;
+export const MODELOS_SINTESE = ['gpt-5.6-luna', 'gpt-4o-mini', 'gpt-5.2'] as const;
 
 class ConfiguracaoDto {
   /**
@@ -89,6 +112,23 @@ class PaginaDto {
   origem?: string;
 }
 
+class ConsolidacaoDto {
+  @IsOptional()
+  @IsBoolean()
+  ativa?: boolean;
+
+  /** HH:MM no fuso gravado (padrão America/Bahia). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{1,2}:\d{2}$/, { message: 'Use HH:MM' })
+  hora?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  fuso?: string;
+}
+
 @ApiTags('brain')
 @Controller('brain')
 export class BrainController {
@@ -96,6 +136,7 @@ export class BrainController {
     private readonly brain: BrainService,
     private readonly dados: BrainDadosService,
     private readonly sintese: SinteseService,
+    private readonly midias: BrainMidiaService,
   ) {}
 
   @Get('fontes')
@@ -120,6 +161,38 @@ export class BrainController {
     return this.brain.perguntar(u, dto.pergunta);
   }
 
+  @Get('pagina')
+  @ExigePermissao('brain.ver')
+  @ApiOperation({
+    summary: 'Lê o conteúdo completo de um registro da memória (por slug)',
+    description: 'Só devolve páginas das fontes que a sessão alcança.',
+  })
+  async lerPagina(
+    @Usuario() u: UsuarioLogado,
+    @Query('slug') slug: string,
+  ) {
+    const limpo = (slug ?? '').trim();
+    if (limpo.length < 3 || limpo.length > 200 || limpo.includes('..')) {
+      throw new BadRequestException({
+        codigo: 'SLUG_INVALIDO',
+        message: 'Identificador do registro inválido.',
+      });
+    }
+    const pagina = await this.brain.lerPagina(u, limpo);
+    if (!pagina) {
+      throw new NotFoundException({
+        codigo: 'PAGINA_NAO_ENCONTRADA',
+        message: 'Registro não encontrado na memória (ou fora do seu alcance).',
+      });
+    }
+    return {
+      slug: pagina.slug,
+      titulo: pagina.titulo,
+      fonte: pagina.fonte,
+      conteudo: pagina.trecho,
+    };
+  }
+
   @Post('paginas')
   @ExigePermissao('brain.enviar')
   @ApiOperation({
@@ -136,14 +209,58 @@ export class BrainController {
   @Post('sincronizar-dados')
   @ExigePermissao('brain.gerenciar')
   @ApiOperation({
-    summary: 'Publica os indicadores do sistema na memória, um resumo por setor',
+    summary: 'Publica os indicadores e retratos do sistema na memória',
     description:
-      'O gbrain só sabe o que foi escrito nele. Isto lê o Hub Executivo e ' +
-      'escreve uma página por setor na fonte correspondente, para a memória ' +
-      'responder sobre os NÚMEROS do mês e não só sobre os documentos.',
+      'Lê Hub Executivo + views de comercial/financeiro/marketing/pedagógico/' +
+      'loja/eventos/CRM/diretoria e escreve páginas por setor. Também roda no cron.',
   })
   sincronizarDados(@Usuario() u: UsuarioLogado) {
     return this.dados.sincronizar(u);
+  }
+
+  @Get('consolidacao')
+  @ExigePermissao('brain.gerenciar')
+  @ApiOperation({ summary: 'Horário e estado da consolidação diária automática' })
+  lerConsolidacao() {
+    return this.dados.agendaAtual();
+  }
+
+  @Put('consolidacao')
+  @ExigePermissao('brain.gerenciar')
+  @ApiOperation({ summary: 'Define se/quando a memória reindexa os dados do dia' })
+  salvarConsolidacao(@Usuario() u: UsuarioLogado, @Body() dto: ConsolidacaoDto) {
+    return this.dados.salvarAgenda(dto, u.id);
+  }
+
+  @Post('midia')
+  @ExigePermissao('brain.enviar')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Envia áudio: transcreve (Whisper) e registra na memória do setor',
+    description:
+      'Campo `arquivo` (multipart). Requer chave OpenAI na configuração do brain. ' +
+      'Documentos texto/PDF continuam sendo lidos no navegador via POST /brain/paginas.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { arquivo: { type: 'string', format: 'binary' } },
+    },
+  })
+  async enviarMidia(@Req() req: FastifyRequest, @Usuario() u: UsuarioLogado) {
+    const parte = await (
+      req as unknown as { file: () => Promise<{ filename: string; mimetype: string; toBuffer: () => Promise<Buffer> } | undefined> }
+    ).file();
+    if (!parte) {
+      throw new BadRequestException({ codigo: 'SEM_ARQUIVO', message: 'Envie um arquivo de áudio.' });
+    }
+    const conteudo = await parte.toBuffer();
+    const extraido = await this.midias.transcrever({
+      nome: parte.filename || 'audio.mp3',
+      mime: parte.mimetype || 'audio/mpeg',
+      conteudo,
+    });
+    return this.brain.registrar(u, extraido.titulo, extraido.texto, extraido.origem);
   }
 
   @Get('configuracao')
