@@ -99,7 +99,7 @@ export function TelaIndicador({ codigo }: { codigo: string }) {
               <h1 style={{ fontSize: "var(--h1)", fontWeight: 800, color: C.bright, letterSpacing: "-.3px" }}>
                 {card.nome}
               </h1>
-              <span className="fh-exec-badge">
+              <span className="fh-exec-badge" style={{ color: corStatus(card.status.nivel) }}>
                 {card.status.rotulo}
               </span>
               <span style={{ fontSize: 11, color: C.faint, fontWeight: 700 }}>{card.setorNome}</span>

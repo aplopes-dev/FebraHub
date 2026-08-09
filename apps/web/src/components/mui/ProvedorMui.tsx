@@ -57,7 +57,7 @@ const ESCURO = {
 /** Tinta sobre fundo dourado — o dourado é identidade e não muda de tema. */
 const SOBRE_OURO = "#100C04";
 
-/* Tags do sistema: degradê cinza + texto escuro (sem cor semântica por status). */
+/* Tags: degradê cinza + texto semântico (verde/vermelho/âmbar) ou escuro neutro. */
 const CHIP_TAG = {
   text: "#2a2620",
   border: "rgba(23, 20, 14, 0.12)",
@@ -69,12 +69,22 @@ const CHIP_TAG = {
 
 type ChipTone = "success" | "error" | "warning" | "info" | "primary" | "secondary";
 
-/** Chip padronizado — o tone da prop é ignorado na pintura (só mantém a API). */
-function statusChipSx(_tone: ChipTone) {
+const CHIP_TEXT: Record<ChipTone, { light: string; dark: string }> = {
+  success: { light: "#1f6b45", dark: "#6dcc9a" },
+  error: { light: "#9b2c2c", dark: "#f0a0a0" },
+  warning: { light: "#8a5a12", dark: "#e0b56a" },
+  info: { light: CHIP_TAG.text, dark: CHIP_TAG.textDark },
+  primary: { light: CHIP_TAG.text, dark: CHIP_TAG.textDark },
+  secondary: { light: CHIP_TAG.text, dark: CHIP_TAG.textDark },
+};
+
+/** Chip padronizado — fundo cinza; cor do texto segue o tone. */
+function statusChipSx(tone: ChipTone) {
+  const ink = CHIP_TEXT[tone];
   return {
     backgroundImage: CHIP_TAG.gradient,
     backgroundColor: "transparent",
-    color: CHIP_TAG.text,
+    color: ink.light,
     borderColor: CHIP_TAG.border,
     "&.MuiChip-outlined": {
       backgroundImage: CHIP_TAG.gradient,
@@ -87,7 +97,7 @@ function statusChipSx(_tone: ChipTone) {
     '[data-tema-mui="dark"] &': {
       backgroundImage: CHIP_TAG.gradientDark,
       backgroundColor: "transparent",
-      color: CHIP_TAG.textDark,
+      color: ink.dark,
       borderColor: CHIP_TAG.borderDark,
       "&.MuiChip-outlined": {
         backgroundImage: CHIP_TAG.gradientDark,

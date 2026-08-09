@@ -993,9 +993,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   border-color: rgb(var(--gold-rgb) / 0.28);
 }
 
-/* Tag/status do sistema: degradê cinza + texto escuro (sem cor semântica). */
+/* Tag/status: fundo cinza em degradê; a COR DO TEXTO vem do componente
+   (verde/vermelho/âmbar). Neutro = texto escuro padrão daqui. */
 .fh-tag,
-.fh-exec-badge {
+.fh-exec-badge,
+.fh-exec-flash-badge {
   display: inline-block;
   font-size: 9.5px;
   font-weight: 800;
@@ -1009,15 +1011,22 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   color: var(--bright);
   background: linear-gradient(180deg, rgb(var(--sup-rgb) / 0.10), rgb(var(--sup-rgb) / 0.18));
 }
+.fh-exec-flash-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+}
 :root[data-tema="escuro"] .fh-tag,
-:root[data-tema="escuro"] .fh-exec-badge {
+:root[data-tema="escuro"] .fh-exec-badge,
+:root[data-tema="escuro"] .fh-exec-flash-badge {
   color: #ebe4d8;
   border-color: rgb(255 255 255 / 0.10);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema]) .fh-tag,
-  :root:not([data-tema]) .fh-exec-badge {
+  :root:not([data-tema]) .fh-exec-badge,
+  :root:not([data-tema]) .fh-exec-flash-badge {
     color: #ebe4d8;
     border-color: rgb(255 255 255 / 0.10);
     background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
@@ -1133,10 +1142,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 }
 .fh-exec-flash-topo {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;
-}
-.fh-exec-flash-badge {
-  display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px;
-  border: 1px solid; font-size: 10px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
 }
 .fh-exec-flash-titulo {
   margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.3px;
@@ -1463,17 +1468,29 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-exec-ano-meta {
   margin-top: 8px; font-size: 10.5px; color: var(--faint); font-weight: 700;
 }
+/* Percentuais: mesmo padrão de tag (degradê cinza + texto up/down). */
 .fh-exec-ano-delta {
   display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 800; border: 1px solid transparent;
+  font-size: 10.5px; font-weight: 800;
+  border: 1px solid rgb(var(--sup-rgb) / 0.12);
+  color: var(--bright);
+  background: linear-gradient(180deg, rgb(var(--sup-rgb) / 0.10), rgb(var(--sup-rgb) / 0.18));
 }
-.fh-exec-ano-delta-up {
-  color: var(--up); background: rgb(var(--up-rgb) / 0.12); border-color: rgb(var(--up-rgb) / 0.28);
+.fh-exec-ano-delta-up { color: var(--up); }
+.fh-exec-ano-delta-down { color: var(--down); }
+.fh-exec-ano-delta-neutro { color: var(--faint); }
+:root[data-tema="escuro"] .fh-exec-ano-delta {
+  border-color: rgb(255 255 255 / 0.10);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
 }
-.fh-exec-ano-delta-down {
-  color: var(--down); background: rgb(var(--down-rgb) / 0.12); border-color: rgb(var(--down-rgb) / 0.28);
+:root[data-tema="escuro"] .fh-exec-ano-delta-neutro { color: #ebe4d8; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema]) .fh-exec-ano-delta {
+    border-color: rgb(255 255 255 / 0.10);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
+  }
+  :root:not([data-tema]) .fh-exec-ano-delta-neutro { color: #ebe4d8; }
 }
-.fh-exec-ano-delta-neutro { color: var(--faint); background: rgb(var(--sup-rgb) / 0.05); }
 
 .fh-exec-ano-detalhe {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

@@ -935,13 +935,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/crm/DrawerCliente.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "0c31ad2007cc1b6ee962ee0fab5454b2",
+    "mtime": 1786281819.4579701,
+    "ast_hash": "f52a0d6b5fe58b064f0246675b55aee5",
     "semantic_hash": ""
   },
   "apps/web/src/components/crm/DrawerNegocio.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "b6e8f78ce890d92ad7d538c1243b4dd7",
+    "mtime": 1786281812.4690292,
+    "ast_hash": "9fb372a12324e7e4e3c5aede44560fbc",
     "semantic_hash": ""
   },
   "apps/web/src/components/crm/HubCrm.tsx": {
@@ -955,8 +955,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/crm/ListaClientes.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "4e54b4e7a7c411e1ea9d08a6b51b3b87",
+    "mtime": 1786281811.0170414,
+    "ast_hash": "41b7a5d7d5f48993ec8aa67a3a31f790",
     "semantic_hash": ""
   },
   "apps/web/src/components/crm/TarefasCrm.tsx": {
@@ -970,18 +970,18 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/AlertasDestaques.tsx": {
-    "mtime": 1786274123.3275628,
-    "ast_hash": "dc0e8b1985eb3f2a39f7ef7ef7374695",
+    "mtime": 1786282577.8255484,
+    "ast_hash": "b3ffa25e02d5b850395f808a8fbd576d",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/BlocosSetores.tsx": {
-    "mtime": 1786274143.4723752,
-    "ast_hash": "c8efec4f06685e55bb17f063e5eb4732",
+    "mtime": 1786282526.6698558,
+    "ast_hash": "e6cfa4c2b8f621a2ff8a01fd9c286792",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/CardIndicador.tsx": {
-    "mtime": 1786274128.136518,
-    "ast_hash": "74975730eaf316699b6a8a7c1b65b5e9",
+    "mtime": 1786282525.2578642,
+    "ast_hash": "da9e64149f26e94ae117398a95a52cb7",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/ConsolidadoAnual.tsx": {
@@ -1005,8 +1005,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/TelaIndicador.tsx": {
-    "mtime": 1786133631.6525862,
-    "ast_hash": "8d36edb2675d109c7376c48058f0a0e0",
+    "mtime": 1786282527.1508532,
+    "ast_hash": "d7258913e6eab5de5e3ba6d10829c73c",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/TelaMetas.tsx": {
@@ -1245,13 +1245,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/hubs/pedagogico/LinhaMaestro.tsx": {
-    "mtime": 1786133631.6595862,
-    "ast_hash": "6b052c16fed56ce98933a9385274c865",
+    "mtime": 1786281832.248862,
+    "ast_hash": "95911fad339c53d29b274a9b4a81689b",
     "semantic_hash": ""
   },
   "apps/web/src/components/hubs/pedagogico/LinhaRetencao.tsx": {
-    "mtime": 1786133631.6595862,
-    "ast_hash": "73dd52b302a3323c6345e1edc210c68d",
+    "mtime": 1786281849.3847175,
+    "ast_hash": "c3b3d39b80571e1538ac1fc178b73fc9",
     "semantic_hash": ""
   },
   "apps/web/src/components/hubs/pedagogico/ListaAvaliacao.tsx": {
@@ -1280,8 +1280,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/mui/ProvedorMui.tsx": {
-    "mtime": 1786133631.6595862,
-    "ast_hash": "d41abd17f465e20fe7899351ce38739b",
+    "mtime": 1786282642.4131465,
+    "ast_hash": "7c63db25746ec81e41f138476590943e",
     "semantic_hash": ""
   },
   "apps/web/src/components/notificacoes/PainelComunicados.tsx": {
@@ -1415,8 +1415,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/social/comum.tsx": {
-    "mtime": 1786133631.6635861,
-    "ast_hash": "7c578f0e666aba2f9ab9d03a3d8cc821",
+    "mtime": 1786281821.6379519,
+    "ast_hash": "6a1bcf88d8dd6c009dcdcf66ee9b8d49",
     "semantic_hash": ""
   },
   "apps/web/src/components/tasks/create-task-dialog.tsx": {
@@ -2975,13 +2975,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/IndicadoresPorSetor.tsx": {
-    "mtime": 1786274140.8723993,
-    "ast_hash": "f7adef2893b6e96cdc6a54ee7772a0e2",
+    "mtime": 1786282527.0898535,
+    "ast_hash": "9c5c900d29bae0c303ab1390adb06fef",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/ResumoCasa.tsx": {
-    "mtime": 1786241257.8504164,
-    "ast_hash": "98074a3812efb784b58b81b296529084",
+    "mtime": 1786282524.8758664,
+    "ast_hash": "aa042fbf3c8261c9218205e0d2bc6686",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/ExecMedia.tsx": {
@@ -3120,8 +3120,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/cadastros/TabelaCrud.tsx": {
-    "mtime": 1786276871.8525546,
-    "ast_hash": "82959e364f3b63da950889df34d93bf0",
+    "mtime": 1786281849.4057171,
+    "ast_hash": "5efb9526b6e803539e63b53a8e9acb86",
     "semantic_hash": ""
   },
   "apps/web/src/components/cadastros/loja/CrudFaturamentoCurso.tsx": {

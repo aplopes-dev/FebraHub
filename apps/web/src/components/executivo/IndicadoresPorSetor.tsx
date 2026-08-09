@@ -77,7 +77,7 @@ export function IndicadoresPorSetor({
                     {bloco.nome}
                   </h3>
                   {bloco.alertas > 0 && (
-                    <span className="fh-exec-badge">
+                    <span className="fh-exec-badge" style={{ color: C.down }}>
                       {bloco.alertas} {bloco.alertas === 1 ? "alerta" : "alertas"}
                     </span>
                   )}

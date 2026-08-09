@@ -34,7 +34,7 @@ export function BlocosSetores({
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <h3 style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>{s.nome}</h3>
                 {s.alertas > 0 && (
-                  <span className="fh-exec-badge">
+                  <span className="fh-exec-badge" style={{ color: C.down }}>
                     {s.alertas} {s.alertas === 1 ? "alerta" : "alertas"}
                   </span>
                 )}

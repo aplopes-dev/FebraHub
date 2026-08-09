@@ -102,7 +102,7 @@ export function CardExecutivo({
         <span style={{ fontSize: 11.5, color: C.muted, fontWeight: 700, letterSpacing: ".2px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={card.nome}>
           {card.curto}
         </span>
-        <span className="fh-exec-badge">
+        <span className="fh-exec-badge" style={{ color: cor }}>
           {card.status.rotulo}
         </span>
       </div>

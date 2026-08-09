@@ -45,7 +45,7 @@ function CardAlertaHero({ a, href }: { a: Alerta; href: string }) {
   return (
     <Link href={href} className="fh-exec-flash fh-exec-flash-down fh-exec-reveal" style={{ animationDelay: "60ms" }}>
       <div className="fh-exec-flash-topo">
-        <span className="fh-exec-flash-badge" style={{ color: cor, background: alfaDe(cor, 0.16), borderColor: alfaDe(cor, 0.35) }}>
+        <span className="fh-exec-flash-badge" style={{ color: cor }}>
           {a.nivel === "vermelho" ? "Crítico" : "Atenção"}
         </span>
         <span className="fh-exec-lista-setor">{a.setorNome}</span>
@@ -98,7 +98,7 @@ function CardDestaqueHero({ d, href }: { d: Destaque; href: string }) {
   return (
     <Link href={href} className="fh-exec-flash fh-exec-flash-up fh-exec-reveal" style={{ animationDelay: "60ms" }}>
       <div className="fh-exec-flash-topo">
-        <span className="fh-exec-flash-badge" style={{ color: C.up, background: alfaDe(C.up, 0.14), borderColor: alfaDe(C.up, 0.3) }}>
+        <span className="fh-exec-flash-badge" style={{ color: C.up }}>
           Avanço
         </span>
         <span className="fh-exec-lista-setor">{d.setorNome}</span>
