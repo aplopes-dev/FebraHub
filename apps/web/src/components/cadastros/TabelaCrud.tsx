@@ -6,21 +6,9 @@ import { C, SANS, alfa } from "@/lib/tema";
 import type { ColunaCrud } from "./tipos";
 
 export function BadgeOrigem({ origem }: { origem?: string | null }) {
-  const cadastro = origem === "cadastro";
   return (
-    <span style={{
-      display: "inline-block",
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: ".04em",
-      textTransform: "uppercase",
-      padding: "2px 7px",
-      borderRadius: 999,
-      background: cadastro ? alfa("gold", 0.14) : alfa("sup", 0.06),
-      color: cadastro ? C.gold : C.faint,
-      border: `1px solid ${cadastro ? alfa("gold", 0.35) : C.cardLine}`,
-    }}>
-      {cadastro ? "cadastro" : "planilha"}
+    <span className="fh-tag">
+      {origem === "cadastro" ? "cadastro" : "planilha"}
     </span>
   );
 }

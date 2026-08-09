@@ -187,16 +187,9 @@ const ROTULO_STATUS: Record<string, string> = {
 export const rotuloStatus = (s: string): string => ROTULO_STATUS[s] ?? s;
 export const corStatusSocial = (s: string): string => COR_STATUS[s] ?? C.muted;
 
-export function Selo({ texto, cor, titulo }: { texto: string; cor: string; titulo?: string }) {
+export function Selo({ texto, cor: _cor, titulo }: { texto: string; cor: string; titulo?: string }) {
   return (
-    <span
-      title={titulo}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px",
-        borderRadius: 999, fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap",
-        color: cor, background: alfaDe(cor, 0.12), border: `1px solid ${alfaDe(cor, 0.35)}`,
-      }}
-    >
+    <span title={titulo} className="fh-tag" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5 }}>
       {texto}
     </span>
   );

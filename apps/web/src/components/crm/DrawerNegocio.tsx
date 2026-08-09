@@ -85,11 +85,7 @@ export function DrawerNegocio({
           {d && (
             <div style={{ display: "grid", gap: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span className="fh-exec-badge" style={{
-                  color: d.etapa.cor ?? C.muted,
-                  background: alfaDe(d.etapa.cor ?? C.muted, 0.12),
-                  borderColor: alfaDe(d.etapa.cor ?? C.muted, 0.35),
-                }}>
+                <span className="fh-exec-badge">
                   {d.etapa.nome}{d.fechadoEm ? ` · fechado ${dataHora(d.fechadoEm)}` : ""}
                 </span>
                 <span style={{ fontFamily: GROTESK, fontSize: 20, fontWeight: 700, color: C.gold }}>

@@ -97,14 +97,7 @@ function AncoraCard({
         <span className="fh-exec-ancora-label" title={card.nome}>
           {card.curto}
         </span>
-        <span
-          className="fh-exec-badge"
-          style={{
-            color: cor,
-            background: alfaDe(cor, 0.14),
-            borderColor: alfaDe(cor, 0.28),
-          }}
-        >
+        <span className="fh-exec-badge">
           {card.status.rotulo}
         </span>
       </div>

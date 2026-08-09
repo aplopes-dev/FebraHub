@@ -93,11 +93,7 @@ export function ListaClientes({ aoAbrir }: { aoAbrir: (id: string) => void }) {
                         <div style={{ fontSize: 10.5, color: C.faint }}>{c.segmento ?? (c.tipoPessoa === "pf" ? "Pessoa física" : "")}</div>
                       </td>
                       <td>
-                        <span className="fh-exec-badge" style={{
-                          color: COR_ESTAGIO[c.estagio],
-                          background: alfaDe(COR_ESTAGIO[c.estagio], 0.12),
-                          borderColor: alfaDe(COR_ESTAGIO[c.estagio], 0.3),
-                        }}>
+                        <span className="fh-exec-badge">
                           {ESTAGIO_LABELS[c.estagio]}
                         </span>
                       </td>

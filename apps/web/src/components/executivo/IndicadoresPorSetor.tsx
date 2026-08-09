@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { C, alfaDe } from "@/lib/tema";
+import { C } from "@/lib/tema";
 import { HUBS } from "@/lib/hubs";
 import type { BlocoSetor, CardIndicador, ModoComparacao } from "@/types/executivo";
 import { CardExecutivo } from "./CardIndicador";
@@ -77,14 +77,7 @@ export function IndicadoresPorSetor({
                     {bloco.nome}
                   </h3>
                   {bloco.alertas > 0 && (
-                    <span
-                      className="fh-exec-badge"
-                      style={{
-                        color: C.warn,
-                        background: alfaDe(C.warn, 0.14),
-                        borderColor: alfaDe(C.warn, 0.28),
-                      }}
-                    >
+                    <span className="fh-exec-badge">
                       {bloco.alertas} {bloco.alertas === 1 ? "alerta" : "alertas"}
                     </span>
                   )}

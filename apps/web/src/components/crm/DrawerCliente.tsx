@@ -108,12 +108,7 @@ export function DrawerCliente({
                           {centavos(n.valorCentavos)}
                         </span>
                       </div>
-                      <span className="fh-exec-badge" style={{
-                        marginTop: 4,
-                        color: n.etapa.cor ?? C.muted,
-                        background: alfaDe(n.etapa.cor ?? C.muted, 0.12),
-                        borderColor: alfaDe(n.etapa.cor ?? C.muted, 0.3),
-                      }}>
+                      <span className="fh-exec-badge" style={{ marginTop: 4 }}>
                         {n.etapa.nome}
                       </span>
                     </button>

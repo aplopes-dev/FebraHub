@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { C, GROTESK, alfaDe } from "@/lib/tema";
+import { C, GROTESK } from "@/lib/tema";
 import { HUBS } from "@/lib/hubs";
 import type { BlocoSetor, CardIndicador } from "@/types/executivo";
 import { valorFmt } from "./formatos";
@@ -34,7 +34,7 @@ export function BlocosSetores({
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <h3 style={{ fontSize: 13, fontWeight: 800, color: C.bright }}>{s.nome}</h3>
                 {s.alertas > 0 && (
-                  <span className="fh-exec-badge" style={{ color: C.warn, background: alfaDe(C.warn, 0.12), borderColor: alfaDe(C.warn, 0.25) }}>
+                  <span className="fh-exec-badge">
                     {s.alertas} {s.alertas === 1 ? "alerta" : "alertas"}
                   </span>
                 )}

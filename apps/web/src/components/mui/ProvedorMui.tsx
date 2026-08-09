@@ -57,49 +57,42 @@ const ESCURO = {
 /** Tinta sobre fundo dourado — o dourado é identidade e não muda de tema. */
 const SOBRE_OURO = "#100C04";
 
-/* Tokens de chip pastel (fundo suave + texto colorido) — papel do
-   STATUS/status-colors da origem, com as cores do FebraHub. */
-const STATUS = {
-  success: { main: CLARO.up, darkMain: ESCURO.up, soft: "rgba(23, 120, 74, 0.12)" },
-  error: { main: CLARO.down, darkMain: ESCURO.down, soft: "rgba(192, 57, 43, 0.12)" },
-  warning: { main: CLARO.warn, darkMain: ESCURO.warn, soft: "rgba(138, 100, 16, 0.14)" },
-  info: { main: CLARO.azul, darkMain: ESCURO.azul, soft: "rgba(42, 111, 181, 0.12)" },
-  neutral: { main: CLARO.textoSuave, soft: "rgba(23, 20, 14, 0.07)" },
+/* Tags do sistema: degradê cinza + texto escuro (sem cor semântica por status). */
+const CHIP_TAG = {
+  text: "#2a2620",
+  border: "rgba(23, 20, 14, 0.12)",
+  gradient: "linear-gradient(180deg, rgba(23, 20, 14, 0.08), rgba(23, 20, 14, 0.16))",
+  textDark: "#ebe4d8",
+  borderDark: "rgba(255, 255, 255, 0.10)",
+  gradientDark: "linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05))",
 } as const;
 
 type ChipTone = "success" | "error" | "warning" | "info" | "primary" | "secondary";
 
-const CHIP_TONE: Record<ChipTone, { soft: string; text: string }> = {
-  success: { soft: STATUS.success.soft, text: STATUS.success.main },
-  error: { soft: STATUS.error.soft, text: STATUS.error.main },
-  warning: { soft: STATUS.warning.soft, text: STATUS.warning.main },
-  info: { soft: STATUS.info.soft, text: STATUS.info.main },
-  primary: { soft: STATUS.neutral.soft, text: "var(--mui-palette-primary-main)" },
-  secondary: { soft: STATUS.neutral.soft, text: "var(--mui-palette-secondary-main)" },
-};
-
-/** Chip pastel (o mesmo statusChipSx da origem, com o seletor de tema local). */
-function statusChipSx(tone: ChipTone) {
-  const token = CHIP_TONE[tone];
-  const paletteVar = `var(--mui-palette-${tone}-main)`;
+/** Chip padronizado — o tone da prop é ignorado na pintura (só mantém a API). */
+function statusChipSx(_tone: ChipTone) {
   return {
-    backgroundColor: token.soft,
-    color: token.text,
-    borderColor: "transparent",
+    backgroundImage: CHIP_TAG.gradient,
+    backgroundColor: "transparent",
+    color: CHIP_TAG.text,
+    borderColor: CHIP_TAG.border,
     "&.MuiChip-outlined": {
-      backgroundColor: token.soft,
-      borderColor: "transparent",
+      backgroundImage: CHIP_TAG.gradient,
+      backgroundColor: "transparent",
+      borderColor: CHIP_TAG.border,
     },
     "& .MuiChip-icon, & .MuiChip-deleteIcon": {
       color: "inherit",
     },
-    // No escuro o pastel claro estoura — color-mix sobre o token do esquema.
     '[data-tema-mui="dark"] &': {
-      backgroundColor: `color-mix(in srgb, ${paletteVar} 18%, transparent)`,
-      color: paletteVar,
+      backgroundImage: CHIP_TAG.gradientDark,
+      backgroundColor: "transparent",
+      color: CHIP_TAG.textDark,
+      borderColor: CHIP_TAG.borderDark,
       "&.MuiChip-outlined": {
-        backgroundColor: `color-mix(in srgb, ${paletteVar} 18%, transparent)`,
-        borderColor: "transparent",
+        backgroundImage: CHIP_TAG.gradientDark,
+        backgroundColor: "transparent",
+        borderColor: CHIP_TAG.borderDark,
       },
     },
   } as const;
@@ -402,25 +395,7 @@ const temaMui = createTheme(
           colorInfo: statusChipSx("info"),
           colorPrimary: statusChipSx("primary"),
           colorSecondary: statusChipSx("secondary"),
-          colorDefault: {
-            backgroundColor: STATUS.neutral.soft,
-            color: STATUS.neutral.main,
-            borderColor: "transparent",
-            "&.MuiChip-outlined": {
-              backgroundColor: STATUS.neutral.soft,
-              borderColor: "transparent",
-            },
-            '[data-tema-mui="dark"] &': {
-              backgroundColor:
-                "color-mix(in srgb, var(--mui-palette-text-secondary) 18%, transparent)",
-              color: "var(--mui-palette-text-secondary)",
-              "&.MuiChip-outlined": {
-                backgroundColor:
-                  "color-mix(in srgb, var(--mui-palette-text-secondary) 18%, transparent)",
-                borderColor: "transparent",
-              },
-            },
-          },
+          colorDefault: statusChipSx("primary"),
         },
       },
     },

@@ -993,10 +993,35 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   border-color: rgb(var(--gold-rgb) / 0.28);
 }
 
+/* Tag/status do sistema: degradê cinza + texto escuro (sem cor semântica). */
+.fh-tag,
 .fh-exec-badge {
-  display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .3px;
-  text-transform: uppercase; padding: 3px 7px; border-radius: 999px;
-  border: 1px solid; white-space: nowrap; flex-shrink: 0;
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--sup-rgb) / 0.12);
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--bright);
+  background: linear-gradient(180deg, rgb(var(--sup-rgb) / 0.10), rgb(var(--sup-rgb) / 0.18));
+}
+:root[data-tema="escuro"] .fh-tag,
+:root[data-tema="escuro"] .fh-exec-badge {
+  color: #ebe4d8;
+  border-color: rgb(255 255 255 / 0.10);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema]) .fh-tag,
+  :root:not([data-tema]) .fh-exec-badge {
+    color: #ebe4d8;
+    border-color: rgb(255 255 255 / 0.10);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.05));
+  }
 }
 
 .fh-exec-chip {
