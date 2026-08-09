@@ -73,7 +73,7 @@ export function SemChave({
       ) : (
         <p style={{ fontSize: 12, color: C.faint, marginTop: 18, lineHeight: 1.6 }}>
           Seu perfil não inclui a permissão de configurar a integração. Peça a alguém da diretoria ou
-          de TI — em <strong style={{ color: C.muted }}>Redes sociais → Configuração</strong>.
+          de TI — em <strong style={{ color: C.muted }}>Configurações → Redes sociais</strong>.
         </p>
       )}
     </div>

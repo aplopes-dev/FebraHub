@@ -9,7 +9,7 @@ import { ArrowUpRight } from "lucide-react";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
 import { HUBS } from "@/lib/hubs";
 import type { BlocoSetor, CardIndicador } from "@/types/executivo";
-import { corStatus, valorFmt } from "./formatos";
+import { valorFmt } from "./formatos";
 
 export function BlocosSetores({
   setores,
@@ -28,8 +28,6 @@ export function BlocosSetores({
           .map((c) => porCodigo.get(c))
           .filter((c): c is CardIndicador => !!c);
         const hubOperacional = HUBS.find((h) => h.key === s.setor);
-        const corQualidade =
-          s.qualidade === "ok" ? C.up : s.qualidade === "atencao" ? C.warn : C.down;
         return (
           <section key={s.setor} className="fh-exec-setor" aria-label={`Setor ${s.nome}`}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
@@ -41,15 +39,11 @@ export function BlocosSetores({
                   </span>
                 )}
               </div>
-              <span title={`Qualidade das fontes: ${s.qualidade}`}
-                style={{ width: 8, height: 8, borderRadius: "50%", background: corQualidade, flexShrink: 0 }} />
             </div>
 
             <div style={{ display: "grid", gap: 6 }}>
               {doSetor.map((c) => (
-                <Link key={c.codigo} href={linkIndicador(c.codigo)} className="fh-exec-mini">
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: corStatus(c.status.nivel), flexShrink: 0 }}
-                    title={c.status.rotulo} />
+                <Link key={c.codigo} href={linkIndicador(c.codigo)} className="fh-exec-mini" title={c.status.rotulo}>
                   <span style={{ fontSize: 11.5, color: C.muted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                     {c.curto}
                   </span>

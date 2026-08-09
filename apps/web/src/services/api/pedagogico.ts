@@ -1,28 +1,90 @@
 import { api } from "./client";
+import type { ListaCrud } from "@/components/cadastros/tipos";
 import type { AnotacaoParaGravar, AvaliacaoParaGravar, RetencaoParaGravar } from "@/types/views";
 
-/* ============================================================
-   ESCRITA (exceção sancionada ao "front só lê view")
+export type AvaliacaoCurso = {
+  id: number;
+  fonte: string | null;
+  curso: string | null;
+  treinador: string | null;
+  data_curso: string | null;
+  turma: string | null;
+  respondentes: number | null;
+  q_conteudo: number | null;
+  q_clareza: number | null;
+  q_material: number | null;
+  q_aplicacao: number | null;
+  q_dominio: number | null;
+  q_pontualidade: number | null;
+  q_duvidas: number | null;
+  nps: number | null;
+  nota_treinador: number | null;
+  comentario: string | null;
+  criado_em: string | null;
+};
 
-   As tabelas fato_avaliacao, maestro_anotacao e fato_retencao são
-   alimentadas à mão pelo pedagógico. A gravação vai com o cookie de sessão;
-   a API barra quem não for do setor (403), exatamente como as policies de
-   INSERT/UPDATE com `pode_ver('pedagogico')` faziam. Erros sobem pro form
-   tratar — nada é engolido aqui.
-   ============================================================ */
+export type AvaliacaoEventoRow = {
+  id: number;
+  evento: string | null;
+  data_evento: string | null;
+  nota_indicacao: number | null;
+  comentario: string | null;
+  respostas: string | null;
+  resposta_id: string | null;
+  criado_em: string | null;
+};
+
+function qs(params: Record<string, string | number | undefined>) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== "") sp.set(k, String(v));
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
 
 export async function salvarAvaliacao(registro: AvaliacaoParaGravar): Promise<void> {
   await api.post<void>("/pedagogico/avaliacoes", registro);
 }
 
-/** Upsert por `aluno_id` (= CPF do maestro): o PUT é idempotente, então
- *  editar duas vezes a mesma ficha não cria duas linhas. */
+export async function listarAvaliacoes(pagina: number, filtro: Record<string, string> = {}) {
+  return api.get<ListaCrud<AvaliacaoCurso>>(
+    `/pedagogico/avaliacoes${qs({ pagina, fonte: "ggb", ...filtro })}`,
+  );
+}
+
+export async function atualizarAvaliacao(id: number, body: Record<string, unknown>) {
+  return api.put(`/pedagogico/avaliacoes/${id}`, body);
+}
+
+export async function apagarAvaliacao(id: number) {
+  return api.delete(`/pedagogico/avaliacoes/${id}`);
+}
+
+export async function listarAvaliacoesEvento(pagina: number, filtro: Record<string, string> = {}) {
+  const resto = { ...filtro };
+  delete resto.mes;
+  return api.get<ListaCrud<AvaliacaoEventoRow>>(
+    `/pedagogico/avaliacoes-evento${qs({ pagina, ...resto })}`,
+  );
+}
+
+export async function salvarAvaliacaoEvento(body: Record<string, unknown>) {
+  return api.post("/pedagogico/avaliacoes-evento", body);
+}
+
+export async function atualizarAvaliacaoEvento(id: number, body: Record<string, unknown>) {
+  return api.put(`/pedagogico/avaliacoes-evento/${id}`, body);
+}
+
+export async function apagarAvaliacaoEvento(id: number) {
+  return api.delete(`/pedagogico/avaliacoes-evento/${id}`);
+}
+
 export async function salvarMaestroAnotacao(anotacao: AnotacaoParaGravar): Promise<void> {
   await api.put<void>(`/pedagogico/maestros/${encodeURIComponent(anotacao.aluno_id)}/anotacao`, anotacao);
 }
 
-/** Sem `id` insere um caso novo; com `id` atualiza (ex.: mudar o desfecho de
- *  'pendente' para 'retido'/'cancelado' depois da ligação). */
 export async function salvarRetencao(registro: RetencaoParaGravar): Promise<void> {
   const { id, ...campos } = registro;
   if (id != null) await api.put<void>(`/pedagogico/retencao/${id}`, campos);

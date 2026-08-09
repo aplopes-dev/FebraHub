@@ -11,6 +11,7 @@ import { BrainModule } from './modules/brain/brain.module';
 import { DadosModule } from './modules/dados/dados.module';
 import { ArquivosModule } from './modules/arquivos/arquivos.module';
 import { PedagogicoModule } from './modules/pedagogico/pedagogico.module';
+import { LojaCadastrosModule } from './modules/loja-cadastros/loja-cadastros.module';
 import { AgentesModule } from './modules/agentes/agentes.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { ExecutivoModule } from './modules/executivo/executivo.module';
@@ -74,6 +75,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     ExecutivoModule,
     ArquivosModule,
     PedagogicoModule,
+    LojaCadastrosModule,
     IngestModule,
     IntegracoesModule,
     TerritorialModule,

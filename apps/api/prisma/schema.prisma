@@ -855,7 +855,7 @@ model FatoParticipante {
 }
 
 model FatoAvaliacaoEvento {
-  id            BigInt    @id
+  id            BigInt    @id @default(autoincrement())
   evento        String?
   dataEvento    DateTime? @map("data_evento") @db.Date
   notaIndicacao Int?      @map("nota_indicacao")
@@ -1055,7 +1055,7 @@ model FatoLojaEstoque {
 }
 
 model FatoLojaCurso {
-  id           BigInt    @id
+  id           BigInt    @id @default(autoincrement())
   mesRef       DateTime? @map("mes_ref") @db.Date
   ano          Int?
   mesNome      String?   @map("mes_nome")
@@ -1072,12 +1072,14 @@ model FatoLojaCurso {
   alunos       Int?
   ticketMedio  Decimal?  @map("ticket_medio") @db.Decimal
   atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  /// 'planilha' (ETL) ou 'cadastro' (CRUD) — sync não sobrescreve cadastro.
+  origemDado   String    @default("planilha") @map("origem_dado")
 
   @@map("fato_loja_curso")
 }
 
 model FatoLojaReceitaExtra {
-  id           BigInt    @id
+  id           BigInt    @id @default(autoincrement())
   fonte        String?
   dataVenda    DateTime? @map("data_venda") @db.Date
   mesRef       DateTime? @map("mes_ref") @db.Date
@@ -1090,6 +1092,7 @@ model FatoLojaReceitaExtra {
   observacao   String?
   chaveOrigem  String?   @map("chave_origem")
   atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  origemDado   String    @default("planilha") @map("origem_dado")
 
   @@map("fato_loja_receita_extra")
 }
@@ -1104,6 +1107,7 @@ model FatoLojaFechamento {
   metaMaster   Decimal?  @map("meta_master") @db.Decimal
   detalhe      String?
   atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  origemDado   String    @default("planilha") @map("origem_dado")
 
   @@map("fato_loja_fechamento")
 }
@@ -1116,6 +1120,7 @@ model FatoLojaMetaMes {
   basica       Decimal?  @db.Decimal
   minima       Decimal?  @db.Decimal
   atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  origemDado   String    @default("planilha") @map("origem_dado")
 
   @@map("fato_loja_meta_mes")
 }
@@ -1128,6 +1133,7 @@ model FatoLojaMetaCurso {
   metaTotal    Decimal?  @map("meta_total") @db.Decimal
   alunos       Int?
   atualizadoEm DateTime? @map("atualizado_em") @db.Timestamptz(6)
+  origemDado   String    @default("planilha") @map("origem_dado")
 
   @@id([mesRef, curso])
   @@map("fato_loja_meta_curso")

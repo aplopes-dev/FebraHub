@@ -9,6 +9,7 @@
    queda que nunca houve. */
 
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ExternalLink, PenSquare } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
@@ -17,13 +18,15 @@ import { C, alfaDe } from "@/lib/tema";
 import type { ContaSocial, PontoSerie } from "@/types/social";
 import { Cartao, GRADE_CARTOES, compacto, corRede, estadoDe, iconeRede, inteiro, nomeRede } from "./comum";
 
-export function AbaVisao({ aoPublicar }: { aoPublicar: () => void }) {
+export function AbaVisao({ aoPublicar }: { aoPublicar?: () => void }) {
+  const router = useRouter();
   const visao = useQuery({
     queryKey: ["social-visao"],
     queryFn: visaoGeralSocial,
     staleTime: 60_000,
   });
   const v = visao.data;
+  const irPublicar = aoPublicar ?? (() => router.push("/marketing/publicar"));
 
   const contas = v?.contas ?? [];
   const total = v?.totalSeguidores ?? null;
@@ -69,7 +72,7 @@ export function AbaVisao({ aoPublicar }: { aoPublicar: () => void }) {
         canto={
           <button
             type="button"
-            onClick={aoPublicar}
+            onClick={irPublicar}
             className="fh-toque"
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px",

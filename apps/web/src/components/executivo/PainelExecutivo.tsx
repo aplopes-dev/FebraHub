@@ -27,13 +27,17 @@ import {
 import { urlExportarResumo } from "@/services/api/executivo";
 import type { CardIndicador, PreferenciasHub } from "@/types/executivo";
 import { AlertasDestaques } from "./AlertasDestaques";
-import { BlocosSetores } from "./BlocosSetores";
-import { CardExecutivo } from "./CardIndicador";
 import { ConsolidadoAnual } from "./ConsolidadoAnual";
+import { ExecMedia } from "./ExecMedia";
 import { FiltrosExecutivo } from "./FiltrosExecutivo";
+import { IndicadoresPorSetor } from "./IndicadoresPorSetor";
+import { ResumoCasa } from "./ResumoCasa";
 import { RitmoMeta } from "./RitmoMeta";
 import { dataBr, mesLabel } from "./formatos";
 import { useRitmoMeta } from "@/hooks/executivo";
+
+const HERO_POSTER = "/executivo/exec-hero.png";
+const HERO_VIDEO = "/executivo/exec-hero.mp4";
 
 const botaoAcao: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px",
@@ -95,8 +99,48 @@ export function PainelExecutivo() {
 
   const fontesComProblema = d?.fontes.filter((f) => f.status !== "ok") ?? [];
 
+  const vermelhos = d?.alertas.filter((a) => a.nivel === "vermelho").length ?? 0;
+
   return (
     <div className="fh-exec">
+      <section className="fh-exec-hero" aria-label="Abertura do Hub Executivo">
+        <ExecMedia className="fh-exec-hero-media" posterSrc={HERO_POSTER} videoSrc={HERO_VIDEO} />
+        <div className="fh-exec-hero-veil" />
+        <div className="fh-exec-hero-shine" aria-hidden />
+        <div className="fh-exec-hero-conteudo">
+          <p className="fh-exec-kicker fh-exec-reveal">Hub Executivo · Febracis</p>
+          <h1 className="fh-exec-hero-titulo fh-exec-reveal" style={{ animationDelay: "80ms" }}>
+            O retrato da operação<br />
+            <span>consolidado</span>
+          </h1>
+          <p className="fh-exec-hero-sub fh-exec-reveal" style={{ animationDelay: "140ms" }}>
+            {d
+              ? "Âncoras da casa, alertas reais e ritmo da meta — sem ruído."
+              : "Carregando o pulso da operação…"}
+          </p>
+          {d && (
+            <div className="fh-exec-hero-chips fh-exec-reveal" style={{ animationDelay: "200ms" }}>
+              <span className="fh-exec-pill">{mesLabel(d.referencia.mes)}</span>
+              <span className="fh-exec-pill">
+                {d.referencia.parcial
+                  ? `Dia ${d.referencia.diaAtual}/${d.referencia.diasNoMes}`
+                  : "Mês fechado"}
+              </span>
+              <span className={`fh-exec-pill${vermelhos > 0 ? " fh-exec-pill-alerta" : ""}`}>
+                {d.alertas.length > 0
+                  ? `${d.alertas.length} atenção${vermelhos ? ` · ${vermelhos} crítico${vermelhos > 1 ? "s" : ""}` : ""}`
+                  : "Sem alertas críticos"}
+              </span>
+              <span className="fh-exec-pill">
+                {fontesComProblema.length > 0
+                  ? `${fontesComProblema.length} fonte${fontesComProblema.length > 1 ? "s" : ""} pendente${fontesComProblema.length > 1 ? "s" : ""}`
+                  : "Fontes em dia"}
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* -------- topo: período, comparação e ações -------- */}
       <div className="fh-exec-topo">
         {d && (
@@ -180,58 +224,67 @@ export function PainelExecutivo() {
               />
             )}
 
-            {/* -------- cards da visão geral -------- */}
-            <div className="fh-exec-grid">
-              {cardsVisao.map((c) => (
-                <CardExecutivo key={c.codigo} card={c} modo={filtros.comparar} href={filtros.linkIndicador(c.codigo)} />
-              ))}
-            </div>
-            {cardsVisao.length === 0 && (
-              <div className="fh-exec-vazio">Todos os cards estão ocultos — reative em “Personalizar”.</div>
-            )}
+            {/* -------- 1. resumo da casa (âncoras) -------- */}
+            <ResumoCasa
+              cards={d.cards}
+              modo={filtros.comparar}
+              linkIndicador={filtros.linkIndicador}
+            />
 
-            {/* -------- ritmo da meta -------- */}
-            {codigoRitmo && (
-              <Bloco
-                titulo="Ritmo da meta"
-                canto={
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <select value={codigoRitmo} onChange={(e) => setRitmoEscolhido(e.target.value)}
-                      className="fh-exec-select" aria-label="Indicador do ritmo">
-                      {candidatosRitmo.map((c) => (
-                        <option key={c.codigo} value={c.codigo}>{c.curto}</option>
-                      ))}
-                    </select>
-                  </span>
-                }
-              >
-                <Estado carregando={ritmo.isLoading} erro={ritmo.error} vazio={!ritmo.data}>
-                  {ritmo.data && cardRitmo && (
-                    <>
-                      {ritmo.data.meta == null && (
-                        <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 8 }}>
-                          Sem meta definida para {mesLabel(ritmo.data.mes)} — o gráfico mostra o realizado e a projeção.
-                          {admin && (
-                            <> Cadastre em <Link href="/executivo/metas" style={{ color: C.gold, fontWeight: 800 }}>Metas</Link>.</>
-                          )}
-                        </div>
-                      )}
-                      <RitmoMeta dados={ritmo.data} unidade={cardRitmo.unidade} />
-                    </>
-                  )}
-                </Estado>
-              </Bloco>
-            )}
-
-            {/* -------- atenção e avanços -------- */}
+            {/* -------- 2. atenção e avanços -------- */}
             <SecaoTitulo titulo="Atenção e avanços" canto="regras sobre números reais — nada é gerado por IA" />
             <AlertasDestaques alertas={d.alertas} destaques={d.destaques} linkIndicador={filtros.linkIndicador} />
 
-            {/* -------- setores -------- */}
-            <SecaoTitulo titulo="Setores" canto="status, valor do período e caminho para o detalhe" />
-            <BlocosSetores setores={d.setores} cards={d.cards} linkIndicador={filtros.linkIndicador} />
+            {/* -------- 3. indicadores por setor -------- */}
+            <SecaoTitulo
+              titulo="Indicadores por setor"
+              canto="visão geral agrupada — Personalizar altera o que aparece aqui"
+            />
+            <IndicadoresPorSetor
+              setores={d.setores}
+              cards={cardsVisao}
+              modo={filtros.comparar}
+              linkIndicador={filtros.linkIndicador}
+            />
 
-            {/* -------- consolidado anual -------- */}
+            {/* -------- 4. ritmo da meta -------- */}
+            {codigoRitmo && (
+              <div style={{ marginTop: 26 }}>
+                <Bloco
+                  titulo="Ritmo da meta"
+                  canto={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <select value={codigoRitmo} onChange={(e) => setRitmoEscolhido(e.target.value)}
+                        className="fh-exec-select" aria-label="Indicador do ritmo">
+                        {candidatosRitmo.map((c) => (
+                          <option key={c.codigo} value={c.codigo}>{c.curto}</option>
+                        ))}
+                      </select>
+                    </span>
+                  }
+                >
+                  <Estado carregando={ritmo.isLoading} erro={ritmo.error} vazio={!ritmo.data}>
+                    {ritmo.data && cardRitmo && (
+                      <>
+                        {ritmo.data.meta == null && (
+                          <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 8 }}>
+                            Sem meta definida para {mesLabel(ritmo.data.mes)} — o gráfico mostra o realizado e a projeção.
+                            {admin && (
+                              <> Cadastre em <Link href="/executivo/metas" style={{ color: C.gold, fontWeight: 800 }}>Metas</Link>.</>
+                            )}
+                          </div>
+                        )}
+                        <div className="fh-exec-ritmo-shell">
+                          <RitmoMeta dados={ritmo.data} unidade={cardRitmo.unidade} />
+                        </div>
+                      </>
+                    )}
+                  </Estado>
+                </Bloco>
+              </div>
+            )}
+
+            {/* -------- 5. consolidado anual -------- */}
             <div style={{ marginTop: 26 }}>
               <ConsolidadoAnual candidatos={candidatosRitmo.concat(d.cards.filter((c) => c.tipo === "fluxo" && c.razao))} />
             </div>
@@ -240,10 +293,6 @@ export function PainelExecutivo() {
             <div className="fh-exec-fontes">
               {d.fontes.map((f) => (
                 <span key={f.fonte} title={f.rotulo}>
-                  <span style={{
-                    display: "inline-block", width: 7, height: 7, borderRadius: "50%", marginRight: 5,
-                    background: f.status === "ok" ? C.up : f.status === "erro" ? C.down : C.warn,
-                  }} />
                   {f.nome} · {f.rotulo}
                 </span>
               ))}

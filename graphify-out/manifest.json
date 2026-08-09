@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "apps/api/package.json": {
-    "mtime": 1786133631.6035867,
-    "ast_hash": "b6772246c3e69080b14e1ed81bff70ae",
+    "mtime": 1786242003.0176048,
+    "ast_hash": "fac0d0822902f0bf949c9d4a627959e1",
     "semantic_hash": ""
   },
   "apps/api/prisma/migrations/00000000000000_init/migration.sql": {
@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/app.module.ts": {
-    "mtime": 1786133631.6085865,
-    "ast_hash": "41d83733941b6cb538d62381682faac3",
+    "mtime": 1786276791.1281974,
+    "ast_hash": "1801884bdd3e3cd039542d93684f034b",
     "semantic_hash": ""
   },
   "apps/api/src/common/decorators/usuario.decorator.ts": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/modules/ingest/ingest.service.ts": {
-    "mtime": 1786133631.6155865,
-    "ast_hash": "571c1e1b239e9f5eb80805cbb0a31e80",
+    "mtime": 1786276810.5000436,
+    "ast_hash": "d459915be1cd993cb9f7bf268ee65c1d",
     "semantic_hash": ""
   },
   "apps/api/src/modules/integracoes/integracoes.controller.ts": {
@@ -460,13 +460,13 @@
     "semantic_hash": ""
   },
   "apps/api/src/modules/pedagogico/dto/pedagogico.dto.ts": {
-    "mtime": 1786133631.6185865,
-    "ast_hash": "afb285da1c8ca1738394eda681ce28fa",
+    "mtime": 1786276821.9709523,
+    "ast_hash": "29f8cd5ed0e97d44a9b2859d2aa53463",
     "semantic_hash": ""
   },
   "apps/api/src/modules/pedagogico/pedagogico.controller.ts": {
-    "mtime": 1786133631.6185865,
-    "ast_hash": "af6171a6a0fd150980d4cb5b1b972f40",
+    "mtime": 1786276842.6277878,
+    "ast_hash": "12af037b3fad655584de41ba46a0f704",
     "semantic_hash": ""
   },
   "apps/api/src/modules/pedagogico/pedagogico.module.ts": {
@@ -475,8 +475,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/modules/pedagogico/pedagogico.service.ts": {
-    "mtime": 1786133631.6185865,
-    "ast_hash": "173dcbb893fb171c2713ca5fd3b934e5",
+    "mtime": 1786276837.736827,
+    "ast_hash": "461ebe896cb35b5549a4b499524bd0b0",
     "semantic_hash": ""
   },
   "apps/api/src/modules/permissoes/catalogo.ts": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "apps/web/package.json": {
-    "mtime": 1786133631.6215866,
-    "ast_hash": "1f14842b111bcbc05a05668cc4731650",
+    "mtime": 1786240568.2400696,
+    "ast_hash": "11f37175cb018ee233187764a03caca1",
     "semantic_hash": ""
   },
   "apps/web/postcss.config.mjs": {
@@ -705,8 +705,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/(app)/integracoes/page.tsx": {
-    "mtime": 1786226215.783286,
-    "ast_hash": "61d278767119d05cb5ce0d2a63890054",
+    "mtime": 1786226275.6777806,
+    "ast_hash": "dbc48e121a1fed6b0539e35844c7e4a8",
     "semantic_hash": ""
   },
   "apps/web/src/app/(app)/integracoes/whatsapp/page.tsx": {
@@ -725,8 +725,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/(app)/social/page.tsx": {
-    "mtime": 1786133631.6445863,
-    "ast_hash": "9091b851dc7a4b6c1c90a23c0783a853",
+    "mtime": 1786278582.281424,
+    "ast_hash": "9ee3bdd1d14269a72455ca12dc700f91",
     "semantic_hash": ""
   },
   "apps/web/src/app/(app)/territorial/page.tsx": {
@@ -775,8 +775,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/brain/PainelBrain.tsx": {
-    "mtime": 1786226162.184738,
-    "ast_hash": "ffe1d491f41527badaa86a43bc051b85",
+    "mtime": 1786226277.285767,
+    "ast_hash": "7bc80945c981f7ce6e27280229084bc3",
     "semantic_hash": ""
   },
   "apps/web/src/components/brain/PerguntaRapida.tsx": {
@@ -970,23 +970,23 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/AlertasDestaques.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "962710ff2ca1a0ecd441458548e10e5a",
+    "mtime": 1786274123.3275628,
+    "ast_hash": "dc0e8b1985eb3f2a39f7ef7ef7374695",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/BlocosSetores.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "0b63e7fd3682945c2e4c5736c0f4526d",
+    "mtime": 1786274143.4723752,
+    "ast_hash": "c8efec4f06685e55bb17f063e5eb4732",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/CardIndicador.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "92782cd59d2e84448213bce0ef704acf",
+    "mtime": 1786274128.136518,
+    "ast_hash": "74975730eaf316699b6a8a7c1b65b5e9",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/ConsolidadoAnual.tsx": {
-    "mtime": 1786133631.6515863,
-    "ast_hash": "61d120cd91c9c2825190e3b0f86f8704",
+    "mtime": 1786241257.8494165,
+    "ast_hash": "a94eac28226baa98db067d98cc15b217",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/FiltrosExecutivo.tsx": {
@@ -995,13 +995,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/PainelExecutivo.tsx": {
-    "mtime": 1786133631.6525862,
-    "ast_hash": "7ce9bcb72fb01dc2f1e7c1f2ba534039",
+    "mtime": 1786274130.280498,
+    "ast_hash": "f587d1bc40b2a6eec69bae4930796736",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/RitmoMeta.tsx": {
-    "mtime": 1786133631.6525862,
-    "ast_hash": "a00b461502d2e20136b784a154d354bc",
+    "mtime": 1786241257.8504164,
+    "ast_hash": "f6e0e8db996a9da6e38ce5108f453da1",
     "semantic_hash": ""
   },
   "apps/web/src/components/executivo/TelaIndicador.tsx": {
@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/shell/Shell.tsx": {
-    "mtime": 1786133631.6635861,
-    "ast_hash": "5da68ac4f2c78f6867fa260458bbd282",
+    "mtime": 1786276603.6686728,
+    "ast_hash": "28b228835fb44159f1f70b1f505179c4",
     "semantic_hash": ""
   },
   "apps/web/src/components/shell/TelaCarregando.tsx": {
@@ -1395,23 +1395,23 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/social/AbaPublicar.tsx": {
-    "mtime": 1786226220.4732466,
-    "ast_hash": "c3c95f5d0db3c5951654e4b3985f0055",
+    "mtime": 1786277801.7819839,
+    "ast_hash": "f56a1d3189e52445c627ec69922f963f",
     "semantic_hash": ""
   },
   "apps/web/src/components/social/AbaVisao.tsx": {
-    "mtime": 1786133631.6635861,
-    "ast_hash": "639cd11068a7853d7999c72c0eec9d19",
+    "mtime": 1786277803.6139688,
+    "ast_hash": "a74afe8ea938dfb4e1c348000f08e4b6",
     "semantic_hash": ""
   },
   "apps/web/src/components/social/PainelSocial.tsx": {
-    "mtime": 1786133631.6635861,
-    "ast_hash": "322c951cc54a17f023995faf29d42b14",
+    "mtime": 1786277790.0600803,
+    "ast_hash": "b274d39fe302df62e9794e4083492b59",
     "semantic_hash": ""
   },
   "apps/web/src/components/social/SemChave.tsx": {
-    "mtime": 1786226222.5842288,
-    "ast_hash": "c8ce2bd912a9392fb31e68033bb7def7",
+    "mtime": 1786278583.5534134,
+    "ast_hash": "a0bea3d4a8a431c4116cdc6752f335fb",
     "semantic_hash": ""
   },
   "apps/web/src/components/social/comum.tsx": {
@@ -1820,8 +1820,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/menu.ts": {
-    "mtime": 1786133631.670586,
-    "ast_hash": "042f077a1813eba22622e4e6a773febb",
+    "mtime": 1786278484.6512518,
+    "ast_hash": "b134eae8bb7a64e5441555eb75f8c16d",
     "semantic_hash": ""
   },
   "apps/web/src/lib/neural-layout.ts": {
@@ -1960,8 +1960,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/services/api/pedagogico.ts": {
-    "mtime": 1786133631.6735861,
-    "ast_hash": "0423a51d987810473b15685d8e71031d",
+    "mtime": 1786277215.759781,
+    "ast_hash": "f238518443d86581d43a90552f9e099f",
     "semantic_hash": ""
   },
   "apps/web/src/services/api/permissoes.ts": {
@@ -2972,6 +2972,236 @@
   "apps/web/src/components/ui/BotaoPrimario.tsx": {
     "mtime": 1786226060.1135972,
     "ast_hash": "8a1c4a74c6d9237598d6f828ca1a387e",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/IndicadoresPorSetor.tsx": {
+    "mtime": 1786274140.8723993,
+    "ast_hash": "f7adef2893b6e96cdc6a54ee7772a0e2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/ResumoCasa.tsx": {
+    "mtime": 1786241257.8504164,
+    "ast_hash": "98074a3812efb784b58b81b296529084",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/ExecMedia.tsx": {
+    "mtime": 1786241257.8444166,
+    "ast_hash": "c3843131a630ed553c4cbb2618891f13",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-alert-panel.png": {
+    "mtime": 1786236504.6810956,
+    "ast_hash": "53cd0c78e89e005ed20837413edb566c",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-card-texture.png": {
+    "mtime": 1786236503.2511072,
+    "ast_hash": "b218018ae2dcb693c12696802fb4fdb2",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-hero.png": {
+    "mtime": 1786236501.173124,
+    "ast_hash": "cb3c2d7a61b9e607b6ddad673a05a18c",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-setor-strip.png": {
+    "mtime": 1786236506.7380788,
+    "ast_hash": "edb1df1c85e243e9341a450e237050e3",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-alert.mp4": {
+    "mtime": 1786236696.4355338,
+    "ast_hash": "9cf7586ae122e45d2b9583adac4ffef4",
+    "semantic_hash": ""
+  },
+  "apps/web/public/executivo/exec-hero.mp4": {
+    "mtime": 1786236715.4083788,
+    "ast_hash": "7d21227afa84d846dca375130e16b4aa",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/graficos/GraficoAnosBarras.tsx": {
+    "mtime": 1786241257.8504164,
+    "ast_hash": "c475fc6d49b838ebe69a3ea148b762cc",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/graficos/GraficoEvolucaoAnual.tsx": {
+    "mtime": 1786241257.8504164,
+    "ast_hash": "0c20292c4d72da56f29fe26f51762e2a",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/graficos/GraficoRitmoMeta.tsx": {
+    "mtime": 1786241257.8444166,
+    "ast_hash": "f03e49cec2fac0641f29c08178af1e6e",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/executivo/graficos/TooltipExec.tsx": {
+    "mtime": 1786241257.8504164,
+    "ast_hash": "c5e254888d2f15f8cf1cc657bc8af1eb",
+    "semantic_hash": ""
+  },
+  "apps/api/prisma/seed-metas.ts": {
+    "mtime": 1786242236.8485708,
+    "ast_hash": "f448ab64aaa48c4701fefeb08c451fec",
+    "semantic_hash": ""
+  },
+  "apps/api/prisma/migrations/00000000000023_loja_origem_dado/migration.sql": {
+    "mtime": 1786276611.1946142,
+    "ast_hash": "86db47c082769503cd46873326e1b488",
+    "semantic_hash": ""
+  },
+  "apps/api/src/modules/loja-cadastros/dto/loja-cadastros.dto.ts": {
+    "mtime": 1786276724.260727,
+    "ast_hash": "a95ccf3f5bcb2b8c5d4257d9d2305f99",
+    "semantic_hash": ""
+  },
+  "apps/api/src/modules/loja-cadastros/loja-cadastros.controller.ts": {
+    "mtime": 1786276788.178221,
+    "ast_hash": "a8f1e49aef5e423e1a7835e89089e34f",
+    "semantic_hash": ""
+  },
+  "apps/api/src/modules/loja-cadastros/loja-cadastros.module.ts": {
+    "mtime": 1786276788.2552204,
+    "ast_hash": "c8d4e0c2f414b857bd498a5a035fb977",
+    "semantic_hash": ""
+  },
+  "apps/api/src/modules/loja-cadastros/loja-cadastros.service.ts": {
+    "mtime": 1786276790.9081993,
+    "ast_hash": "03e2efc0c4403e463efed0b9237784d7",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/loja/cadastros/faturamento-curso/page.tsx": {
+    "mtime": 1786276969.5567718,
+    "ast_hash": "59d292849c9e0f73fcf8670e4358ad6e",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/loja/cadastros/fechamento/page.tsx": {
+    "mtime": 1786276970.6107633,
+    "ast_hash": "2918279b3988d635ae86b98d6f8d1418",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/loja/cadastros/metas-curso/page.tsx": {
+    "mtime": 1786276968.7427783,
+    "ast_hash": "8e823551cc99e198b602e15a01db5116",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/loja/cadastros/metas-mes/page.tsx": {
+    "mtime": 1786276968.3757813,
+    "ast_hash": "e95c48629f0fb0c4d9896976b2791fe8",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/loja/cadastros/receitas-extras/page.tsx": {
+    "mtime": 1786276970.0677676,
+    "ast_hash": "c98749bbb3cd1ee384ff5449a0ed4650",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/pedagogico/cadastros/avaliacoes-evento/page.tsx": {
+    "mtime": 1786276972.500748,
+    "ast_hash": "56bf8907015984ccd39643b6fe0898f7",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/pedagogico/cadastros/avaliacoes/page.tsx": {
+    "mtime": 1786276971.9437525,
+    "ast_hash": "79200e0474d92ae30542cefa690d4391",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/auth/GuardaSetor.tsx": {
+    "mtime": 1786276852.3317106,
+    "ast_hash": "6e52f7fffdbe9384472498328bcd05f2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/FormCrud.tsx": {
+    "mtime": 1786277214.3317926,
+    "ast_hash": "a7d926751bdabc27ccc6033a5c3be6a5",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/PaginaCrud.tsx": {
+    "mtime": 1786276891.1134007,
+    "ast_hash": "95159efa9b190a970ff0a13784f337b9",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/TabelaCrud.tsx": {
+    "mtime": 1786276871.8525546,
+    "ast_hash": "82959e364f3b63da950889df34d93bf0",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/loja/CrudFaturamentoCurso.tsx": {
+    "mtime": 1786276933.1370642,
+    "ast_hash": "c36d6c95179f3064a03211fef3cf89ad",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/loja/CrudFechamento.tsx": {
+    "mtime": 1786276941.6359959,
+    "ast_hash": "19088d3130f1354c7794ad6a07994093",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/loja/CrudMetasCurso.tsx": {
+    "mtime": 1786276927.5101092,
+    "ast_hash": "9508c9c121915eaa9326f23b147f1008",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/loja/CrudMetasMes.tsx": {
+    "mtime": 1786276923.6151404,
+    "ast_hash": "bc1323a35ad0bc612de94b0859df7be2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/loja/CrudReceitasExtras.tsx": {
+    "mtime": 1786276936.895034,
+    "ast_hash": "513bb04b11f4f3cfd46f893933bb1e72",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/pedagogico/CrudAvaliacoes.tsx": {
+    "mtime": 1786277215.012787,
+    "ast_hash": "af7d65dabbdc2f41474a1af10519e0d3",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/pedagogico/CrudAvaliacoesEvento.tsx": {
+    "mtime": 1786276958.7188587,
+    "ast_hash": "021cc06e91f1c0905a2467c1aa064f06",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/cadastros/tipos.ts": {
+    "mtime": 1786276854.6216922,
+    "ast_hash": "3b8860ce01f5b20cbf0e8ff5d639fa4e",
+    "semantic_hash": ""
+  },
+  "apps/web/src/services/api/loja-cadastros.ts": {
+    "mtime": 1786276902.2343118,
+    "ast_hash": "8cfc4daa4db6ed51c4fb79ab2373fd26",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/marketing/campanhas-redes/page.tsx": {
+    "mtime": 1786277923.4329824,
+    "ast_hash": "8bc0a8ea6cd8aa0720a2edea977bab29",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/marketing/mensagens/page.tsx": {
+    "mtime": 1786277923.4319825,
+    "ast_hash": "9ca49606399f7091f48fe949801d2c0a",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/marketing/postagens/page.tsx": {
+    "mtime": 1786277921.9159951,
+    "ast_hash": "7ede5228c0e5d37857e875a7d2921e61",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/marketing/publicar/page.tsx": {
+    "mtime": 1786277918.5530226,
+    "ast_hash": "09de598d97cf77cae5bfaa836b34ffb2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/marketing/visao-geral/page.tsx": {
+    "mtime": 1786277917.185034,
+    "ast_hash": "4d11d77190a116689b8a71fb4a320ef0",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/social/GuardaSocial.tsx": {
+    "mtime": 1786278584.4534056,
+    "ast_hash": "cedb1d879c89b626625bd6d33bc143cc",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/(app)/configuracoes/redes-sociais/page.tsx": {
+    "mtime": 1786278582.1994247,
+    "ast_hash": "fc444f3be398079ad0208e99c8aa0734",
     "semantic_hash": ""
   }
 }

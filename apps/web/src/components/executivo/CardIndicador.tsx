@@ -189,14 +189,8 @@ export function CardExecutivo({
       )}
 
       {/* Qualidade do dado */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-        <span
-          style={{
-            width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-            background: card.qualidade.nivel === "ok" ? C.up : card.qualidade.nivel === "atencao" ? C.warn : C.down,
-          }}
-        />
-        <span style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${card.qualidade.fonteRotulo}: ${card.qualidade.rotulo}`}>
+      <div style={{ marginTop: 8 }}>
+        <span style={{ fontSize: 10.5, color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }} title={`${card.qualidade.fonteRotulo}: ${card.qualidade.rotulo}`}>
           {card.qualidade.fonteRotulo} · {card.qualidade.rotulo}
         </span>
       </div>

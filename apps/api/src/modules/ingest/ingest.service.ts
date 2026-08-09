@@ -42,6 +42,16 @@ const TABELAS_INGESTAO: Record<string, string[]> = {
 
 const LOTE_MAX = 2000;
 
+/** Tabelas da Loja com coluna origem_dado: CRUD marca 'cadastro' e o sync
+ *  não sobrescreve nem apaga essas linhas (cadastro > planilha). */
+const TABELAS_ORIGEM_DADO = new Set([
+  'fato_loja_curso',
+  'fato_loja_receita_extra',
+  'fato_loja_fechamento',
+  'fato_loja_meta_mes',
+  'fato_loja_meta_curso',
+]);
+
 /**
  * Teto do recorte de data do `remover`. A trava de 120 dias do
  * salesforce_email_sync.py continua lá, mas ela roda no cliente: quem tem o
@@ -108,9 +118,13 @@ export class IngestService {
       });
     }
 
-    const listaCols = Prisma.join(colunas.map(ident), ', ');
+    // ETL nunca mexe em origem_dado — se mandar, ignoramos (default planilha
+    // no INSERT; UPDATE em linha de cadastro fica bloqueado pelo WHERE).
+    const colunasSemOrigem = colunas.filter((c) => c !== 'origem_dado');
+    const listaCols = Prisma.join(colunasSemOrigem.map(ident), ', ');
     const listaConf = Prisma.join(chaves.map(ident), ', ');
-    const atualiza = colunas.filter((c) => !chaves.includes(c));
+    const atualiza = colunasSemOrigem.filter((c) => !chaves.includes(c));
+    const protegeCadastro = TABELAS_ORIGEM_DADO.has(tabela) && gravaveis.has('origem_dado');
 
     // Uma transação para o lote inteiro: meia carga é pior do que carga
     // nenhuma, porque some sem ninguém perceber.
@@ -122,7 +136,7 @@ export class IngestService {
         // numeric implicitamente em prepared statement (erro 42804). O tipo
         // vem do catálogo, nunca do cliente, então pode entrar como raw.
         const valores = Prisma.join(
-          colunas.map((c) => {
+          colunasSemOrigem.map((c) => {
             const bruto = linha[c] ?? null;
             // jsonb precisa chegar como string JSON, não como objeto JS.
             const v =
@@ -134,12 +148,20 @@ export class IngestService {
           }),
           ', ',
         );
-        const set = atualiza.length
-          ? Prisma.sql`DO UPDATE SET ${Prisma.join(
-              atualiza.map((c) => Prisma.sql`${ident(c)} = EXCLUDED.${ident(c)}`),
-              ', ',
-            )}`
-          : Prisma.sql`DO NOTHING`;
+        let set: Prisma.Sql;
+        if (!atualiza.length) {
+          set = Prisma.sql`DO NOTHING`;
+        } else if (protegeCadastro) {
+          set = Prisma.sql`DO UPDATE SET ${Prisma.join(
+            atualiza.map((c) => Prisma.sql`${ident(c)} = EXCLUDED.${ident(c)}`),
+            ', ',
+          )} WHERE public.${ident(tabela)}.origem_dado IS DISTINCT FROM 'cadastro'`;
+        } else {
+          set = Prisma.sql`DO UPDATE SET ${Prisma.join(
+            atualiza.map((c) => Prisma.sql`${ident(c)} = EXCLUDED.${ident(c)}`),
+            ', ',
+          )}`;
+        }
         n += await tx.$executeRaw`
           INSERT INTO public.${ident(tabela)} (${listaCols})
           VALUES (${valores})
@@ -210,14 +232,26 @@ export class IngestService {
     // de 120 dias tem dezenas de milhares de chaves e estouraria o limite de
     // parâmetros do protocolo estendido.
     const valores = JSON.stringify(dto.valores.map((v) => String(v)));
-    const removidas = await this.prisma.$executeRaw`
-      DELETE FROM public.${ident(tabela)}
-       WHERE ${ident(dto.janela.coluna)} >= ${dto.janela.de}::date
-         AND ${ident(dto.janela.coluna)} <= ${dto.janela.ate}::date
-         AND (${ident(dto.chave)})::text NOT IN (
-               SELECT v FROM jsonb_array_elements_text(${valores}::jsonb) AS v
-             )
-    `;
+    const protegeCadastro =
+      TABELAS_ORIGEM_DADO.has(tabela) && colunas.has('origem_dado');
+    const removidas = protegeCadastro
+      ? await this.prisma.$executeRaw`
+          DELETE FROM public.${ident(tabela)}
+           WHERE ${ident(dto.janela.coluna)} >= ${dto.janela.de}::date
+             AND ${ident(dto.janela.coluna)} <= ${dto.janela.ate}::date
+             AND origem_dado IS DISTINCT FROM 'cadastro'
+             AND (${ident(dto.chave)})::text NOT IN (
+                   SELECT v FROM jsonb_array_elements_text(${valores}::jsonb) AS v
+                 )
+        `
+      : await this.prisma.$executeRaw`
+          DELETE FROM public.${ident(tabela)}
+           WHERE ${ident(dto.janela.coluna)} >= ${dto.janela.de}::date
+             AND ${ident(dto.janela.coluna)} <= ${dto.janela.ate}::date
+             AND (${ident(dto.chave)})::text NOT IN (
+                   SELECT v FROM jsonb_array_elements_text(${valores}::jsonb) AS v
+                 )
+        `;
     this.logger.log(
       `${tabela}: ${removidas} removidas na janela ${dto.janela.de}..${dto.janela.ate}`,
     );

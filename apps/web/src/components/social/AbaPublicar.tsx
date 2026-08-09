@@ -45,7 +45,7 @@ const LIMITE_REDE: Record<string, number> = {
 
 type Modo = "agora" | "agendar" | "rascunho";
 
-export function AbaPublicar({ aoPublicado }: { aoPublicado: () => void }) {
+export function AbaPublicar({ aoPublicado }: { aoPublicado?: () => void }) {
   const qc = useQueryClient();
   const contas = useQuery({ queryKey: ["social-contas"], queryFn: contasSocial, staleTime: 5 * 60_000 });
 
@@ -103,7 +103,7 @@ export function AbaPublicar({ aoPublicado }: { aoPublicado: () => void }) {
               ? `Agendado para ${new Date(quando).toLocaleString("pt-BR")}.`
               : "Rascunho salvo.",
       });
-      if (modo === "agora") setTimeout(aoPublicado, 900);
+      if (modo === "agora" && aoPublicado) setTimeout(aoPublicado, 900);
     },
     onError: (e: unknown) =>
       setAviso({

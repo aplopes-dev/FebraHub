@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
   IsInt,
@@ -16,6 +16,34 @@ const texto = () => Transform(({ value }) => {
   const s = typeof value === 'string' ? value.trim() : value;
   return s === '' ? null : s;
 });
+
+export class AvaliacaoListaQuery {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pagina?: number = 1;
+
+  @ApiPropertyOptional({ default: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  por_pagina?: number = 50;
+
+  @ApiPropertyOptional({ enum: ['ggb', 'evento'] })
+  @IsOptional()
+  @IsIn(['ggb', 'evento'])
+  fonte?: 'ggb' | 'evento';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  curso?: string;
+}
 
 export class AvaliacaoDto {
   @ApiProperty({ enum: ['ggb', 'evento'] })
@@ -69,6 +97,47 @@ export class AvaliacaoDto {
   @MaxLength(20_000)
   @texto()
   comentario?: string | null;
+}
+
+export class AvaliacaoEventoDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(200)
+  @texto()
+  evento!: string;
+
+  @ApiPropertyOptional({ example: '2026-07-15' })
+  @IsOptional()
+  @IsISO8601()
+  data_evento?: string | null;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  nota_indicacao?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000)
+  @texto()
+  comentario?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50_000)
+  @texto()
+  respostas?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @texto()
+  resposta_id?: string | null;
 }
 
 export class MaestroAnotacaoDto {

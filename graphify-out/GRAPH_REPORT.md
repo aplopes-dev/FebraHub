@@ -1,16 +1,16 @@
-# Graph Report - FebraHub  (2026-08-08)
+# Graph Report - FebraHub  (2026-08-09)
 
 ## Corpus Check
-- 581 files · ~478,187 words
+- 621 files · ~660,980 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7855 nodes · 18470 edges · 411 communities (170 shown, 241 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 250 edges (avg confidence: 0.72)
+- 8093 nodes · 19296 edges · 372 communities (185 shown, 187 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 252 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fd06ee28`
+- Built from commit: `d61431e0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -249,189 +249,150 @@
 - LocalTilingPatternCache
 - Overflow
 - Packets
-- PageRange
+- Overflow
 - PatternCS
-- Range
+- PageRange
 - Record
-- RegionalImageCache
+- Range
 - Relevant
-- Rename
+- RegionalImageCache
 - SignatureNamespace
-- SignatureWidgetAnnotation
+- Rename
 - Solid
 - StylesheetNamespace
 - SubjectDN
-- TrueTypeCompiled
+- SignatureWidgetAnnotation
 - UnknownNamespace
 - ValidateApprovalSignatures
+- TrueTypeCompiled
 - Variables
-- Window
 - xdp_Xdp
 - XdpNamespace
 - brain-entrypoint.sh
 - argon2
-- class-validator
+- Window
 - @fastify/compress
 - @fastify/cookie
-- @fastify/static
+- @nestjs/config
 - minio
 - @nestjs/common
-- @nestjs/config
 - @prisma/client
-- reflect-metadata
+- @prisma/client
+- AddSilentPrint
 - eslint.config.mjs
 - next.config.ts
 - next-env.d.ts
-- d3-scale
-- @deck.gl/layers
-- @emotion/styled
-- lucide-react
-- maplibre-gl
-- @mui/material
-- opus-recorder
-- react
-- @tanstack/react-query
-- @tanstack/react-table
-- zod
-- ADBE_JSDebugger
-- AddSilentPrint
 - AddViewerPreferences
 - AdobeExtensionLevel
 - Agent
+- lucide-react
+- maplibre-gl
+- @mui/material
+- AlwaysEmbed
+- react
 - Amd
+- @tanstack/react-table
 - Attributes
 - AutoSave
 - Base
 - Bookend
 - Cache
-- CaretAnnotation
-- Certificate
-- CFFCharset
 - CFFEncoding
-- Cmd
-- CompressLogicalStructure
-- Config
-- config_Encrypt
+- Change
+- Common
+- config_Message
+- config_Template
+- ConnectionSet
+- Creator
+- CurrentPage
+- DataHandler
+- DatePatterns
+- DateTimeSymbols
+- DefaultAppearanceEvaluator
+- Destination
+- Driver
+- EffectiveInputPolicy
 - config_Message
 - config_Picture
-- Contour
-- CurrencySymbols
+- Embed
+- EncryptionMethod
 - Data
-- Day
-- Debug
-- DefaultAppearanceEvaluator
-- Desc
+- FormatError
+- GroupParent
+- HuffmanLine
+- Interactive
 - DigestMethod
-- DocumentAssembly
+- JpegError
 - DynamicRender
 - EffectiveInputPolicy
-- EncryptionMethod
+- JpxError
 - Enforce
 - EOIMarkerError
-- Era
-- EraNames
-- ExcludeNS
-- FlipLabel
-- Format
-- FormatError
-- FormFieldFilling
-- HuffmanLine
-- IfEmpty
-- IncrementalMerge
-- Interactive
-- Jog
-- JpegError
-- JpxError
 - Layout
-- Level
-- Li
+- EraNames
 - LinkAnnotation
 - Locale
-- locale_set_LocaleSet
-- LocaleSet
-- MapElement
-- MediumInfo
-- MeridiemNames
-- MissingDataException
-- Mode
-- ModifyAnnots
-- Month
-- MsgId
-- NullCipher
-- NullStream
-- NumberOfCopies
-- NumberTree
-- Ol
-- OpenAction
 - locale_set_Locale
-- locale_set_LocaleSet
-- Pagination
-- LocalImageCache
-- Part
-- Log
-- Permissions
-- PlaintextMetadata
-- PolygonAnnotation
-- Present
-- NumberOfCopies
-- PrintHighQuality
-- Overprint
-- Level
-- LocalColorSpaceCache
-- Reason
-- MapElement
+- LocaleSet
 - Messaging
-- ScriptModel
+- MsgId
+- Name
 - NameAttr
-- Severity
-- SilentPrint
-- SoapAction
-- SoapAddress
-- StartPage
-- StringObject
-- Stylesheet
-- PaginationOverride
+- NumberPatterns
+- NumberTree
+- Option10
+- Output
+- OutputBin
+- OutputXSL
+- Overprint
 - Part
-- PolygonAnnotation
-- SuppressBanner
-- TimePatterns
-- StrikeOutAnnotation
+- PasswordException
+- Pdf
+- Pdfa
+- PickTrayByPDFSize
+- PlaintextMetadata
+- Presence
+- PrintScaling
 - ps
-- RefElement
-- ScriptModel
-- UnderlineAnnotation
-- SilentPrint
+- Reason
+- RenderPolicy
+- RootElement
+- RunScripts
 - SquigglyAnnotation
 - StartNode
-- SubmitFormat
+- StartPage
+- StringObject
+- SubmitUrl
 - SubsetBelow
+- Sup
+- Tagged
 - Threshold
-- Trace
-- Traversal
+- ToolTip
 - TypeFaces
-- Ul
-- UnknownErrorException
-- Uri
-- tailwind.config.ts
-- INDICE.md
 - ValidationMessaging
+- Version
 - ViewerPreferences
 - WebClient
 - Whitespace
-- WsdlAddress
-- WsdlConnection
+- Xdc
+- XmlConnection
+- XRefParseException
+- XsdConnection
+- Zpl
+- tailwind.config.ts
+- INDICE.md
 
 ## God Nodes (most connected - your core abstractions)
-1. `UsuarioLogado` - 163 edges
+1. `UsuarioLogado` - 199 edges
 2. `warn()` - 162 edges
 3. `ConfigNamespace` - 141 edges
-4. `TemplateNamespace` - 115 edges
-5. `alfa()` - 112 edges
-6. `C` - 109 edges
+4. `C` - 117 edges
+5. `TemplateNamespace` - 115 edges
+6. `alfa()` - 113 edges
 7. `shadow()` - 99 edges
 8. `WorkerTask` - 89 edges
 9. `getStringOption()` - 86 edges
-10. `MessageHandler` - 75 edges
+10. `alfaDe()` - 79 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `useAuth()` --indirect_call--> `usuario()`  [INFERRED]
@@ -448,155 +409,159 @@
 ## Import Cycles
 - None detected.
 
-## Communities (411 total, 241 thin omitted)
+## Communities (372 total, 187 thin omitted)
 
 ### Community 0 - "pdf.worker.min.mjs"
-Cohesion: 0.01
-Nodes (268): aa, AbortException, ac, Acrobat, Acrobat7, ADBE_JSConsole, ADBE_JSDebugger, addState() (+260 more)
+Cohesion: 0.00
+Nodes (297): aa, AbortException, ac, Acrobat7, ADBE_JSConsole, ADBE_JSDebugger, addState(), AdjustData (+289 more)
 
 ### Community 1 - "warn"
 Cohesion: 0.03
-Nodes (18): AppearanceStreamEvaluator, Catalog, collectActions(), createValidAbsoluteUrl(), DecodingContext, FeatureTest, fetchDest(), fetchRemoteDest() (+10 more)
+Nodes (14): AppearanceStreamEvaluator, Catalog, clearGlobalCaches(), ColorSpaceUtils, DecodingContext, FeatureTest, fetchDest(), fonts_Glyph (+6 more)
 
 ### Community 2 - "hubs.ts"
-Cohesion: 0.03
-Nodes (162): FormMaestro(), FormRetencao(), PontoPresenca, HubPedagogico(), LinhaRetencao(), LinhaRankingCurso, Desfecho, desfechoInfo() (+154 more)
+Cohesion: 0.04
+Nodes (112): Consulta, buscarView(), comercialCarinhas(), comercialCursosPorConsultora(), comercialFunil(), comercialGeralMensal(), comercialMatriculasFaturamento(), comercialRankingCategoria() (+104 more)
 
 ### Community 4 - ".checkAndRepair"
-Cohesion: 0.04
-Nodes (109): FiltroTravado(), OpcaoSegmento, Segmentado(), SeletorCategoria(), ToggleVisao(), VisaoPodio, FormAvaliacaoEvento(), FormAvaliacaoGGB() (+101 more)
+Cohesion: 0.07
+Nodes (48): BarrasCategoria(), LinhaCategoria, Donut(), SegmentoDonut, CaixaCard(), abreviaForma(), HubFinanceiro(), corPendencia() (+40 more)
 
 ### Community 5 - "schemas.ts"
 Cohesion: 0.02
 Nodes (120): ActivityEvent, ActivityEventSchema, AgentCron, AgentCronSchema, AgentMessage, AgentMessageRole, AgentMessageRoleSchema, AgentMessageSchema (+112 more)
 
 ### Community 6 - "HubMarketing.tsx"
-Cohesion: 0.04
-Nodes (54): Usuario, PermissaoGuard, temPermissao(), Injectable, podeVer(), SetorGuard, Injectable, EditarConversaDto (+46 more)
+Cohesion: 0.14
+Nodes (7): SocialConfigService, Injectable, SocialModule, Module, ErroZernio, Injectable, ZernioCliente
 
 ### Community 7 - "getStringOption"
 Cohesion: 0.02
-Nodes (51): AppearanceFilter, BatchOutput, Bind, Calculate, Certificates, Compress, Connect, CurrencySymbol (+43 more)
+Nodes (56): AppearanceFilter, Barcode, BatchOutput, Bind, Calculate, Certificates, Compress, Connect (+48 more)
 
 ### Community 8 - "PrismaService"
-Cohesion: 0.21
-Nodes (13): ExigePermissao(), BrainController, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags, Controller (+5 more)
+Cohesion: 0.07
+Nodes (45): ARGON, main(), prisma, semear(), semearPerfis(), senhaTemporaria(), USUARIOS, UsuarioSemente (+37 more)
 
 ### Community 9 - "executivo.service.ts"
-Cohesion: 0.09
-Nodes (41): Setor, fmtPct(), fmtValor(), gerarAlertas(), Regras, Comparacoes, Direcao, NivelStatus (+33 more)
+Cohesion: 0.05
+Nodes (84): anoCorrente(), arredondarMeta(), FORCE, janelaHistorica(), main(), media(), mesAtualBahia(), normalizarMes() (+76 more)
 
 ### Community 10 - "alfaDe"
 Cohesion: 0.05
-Nodes (77): AlertasDestaques(), BlocosSetores(), CardExecutivo(), comparacaoDe(), LinhaComparacao(), ROTULO_MODO, ConsolidadoAnual(), Variacao() (+69 more)
+Nodes (70): campos, colunas, campos, colunas, campos, colunas, campos, colunas (+62 more)
 
 ### Community 12 - "tema.ts"
-Cohesion: 0.16
-Nodes (18): CampoEvento, CampoGGB, CSV_EVENTO_MAP, dataISO(), EV_ORDEM, EV_ROTULO, GGB_CAMPOS, GGB_ROTULO (+10 more)
+Cohesion: 0.05
+Nodes (20): addCachedImageOps(), fetchBinaryData(), getEncoding(), getStandardFontName(), getTilingPatternIR(), getTransformMatrix(), getXfaFontDict(), getXfaFontName() (+12 more)
 
 ### Community 13 - "WorkerTask"
-Cohesion: 0.06
-Nodes (18): addCachedImageOps(), fetchBinaryData(), generateFont(), getFamilyName(), getFontSubstitution(), getStandardFontName(), getTilingPatternIR(), getXfaFontDict() (+10 more)
+Cohesion: 0.05
+Nodes (63): PerguntaRapida(), SUGESTOES, BotaoGravarAudio(), botaoIcone(), formatoTempo(), PlayerAudio(), tipoSuportado(), SeletorAno() (+55 more)
 
 ### Community 14 - "FebraHub.jsx"
 Cohesion: 0.03
-Nodes (76): App(), BarrasEvolucao(), C, CardTopConsultoras(), CategoriaCtx, CHIP_STATUS, compacto(), COR_STATUS_MAESTRIA (+68 more)
+Nodes (69): App(), BarrasEvolucao(), C, CategoriaCtx, CHIP_STATUS, compacto(), COR_STATUS_MAESTRIA, corChipStatus() (+61 more)
 
 ### Community 15 - "PartialEvaluator"
-Cohesion: 0.05
-Nodes (6): Annotation, lookupNormalRect(), NameOrNumberTree, PopupAnnotation, StructTreePage, XmlObject
+Cohesion: 0.15
+Nodes (21): CHAVE_AGENTES, useAgentesDisponiveis(), useConversasAgentes(), useCriarConversaAgentes(), useEditarConversaAgentes(), useEnviarAnexosAgentes(), useEnviarMensagemAgentes(), useEventosAgentes() (+13 more)
 
 ### Community 16 - "useSessao"
-Cohesion: 0.06
-Nodes (61): PaginaCrm(), conteudoDe(), PaginaHub(), PaginaKanbanConversas(), PaginaConversasAgentes(), PaginaAgentes(), CHAVE, COR (+53 more)
+Cohesion: 0.23
+Nodes (22): PaginaCrm(), conteudoDe(), PaginaHub(), PaginaKanbanConversas(), PaginaConversasAgentes(), PaginaAgentes(), LayoutApp(), Raiz() (+14 more)
 
 ### Community 17 - "AbaPostagens.tsx"
-Cohesion: 0.05
-Nodes (104): Conexao(), PainelWhatsApp(), ROTULO, dataHora(), botaoPerigo, etiquetaSistema, AbaCampanhas(), diasAtras() (+96 more)
+Cohesion: 0.07
+Nodes (58): AbaCampanhas(), diasAtras(), hoje(), LinhaCampanha(), PERIODOS, REDES_ANUNCIO, AbaConfiguracao(), AbaMensagens() (+50 more)
 
 ### Community 18 - "permissoes.service.ts"
-Cohesion: 0.05
-Nodes (50): CATALOGO_PERMISSOES, CONHECIDAS, DefinicaoPermissao, GrupoPermissoes, HUBS, normalizarPermissoes(), permissaoDoSetor(), permissaoExiste() (+42 more)
+Cohesion: 0.11
+Nodes (6): PaginaLogin(), GuardaPermissao(), TelaCarregando(), GuardaSocial(), PainelSocial(), configSocial()
 
 ### Community 19 - ".success"
-Cohesion: 0.04
-Nodes (47): applyAssist(), ariaLabel(), Caption, CheckButton, checkDimensions(), computeBbox(), ContentArea, Corner (+39 more)
+Cohesion: 0.05
+Nodes (43): applyAssist(), ariaLabel(), Caption, CheckButton, checkDimensions(), computeBbox(), ContentArea, Corner (+35 more)
 
 ### Community 20 - ".createDocumentHandler"
-Cohesion: 0.06
-Nodes (74): SeletorAno(), SeletorMes(), SeletorPeriodo(), ProdutoMkt, SeletorProduto(), LinhaCategoria, SegmentoDonut, abreviaForma() (+66 more)
+Cohesion: 0.07
+Nodes (55): Conexao(), ROTULO, PontoSpark, Spark(), HubEventos(), botaoPerigo, etiquetaSistema, mesmaLista() (+47 more)
 
 ### Community 21 - "AgentesService"
-Cohesion: 0.07
-Nodes (20): AgentesManifestoController, Controller, AgentesEventos, EventoAgentes, Injectable, AgentesModule, Module, AgentesService (+12 more)
+Cohesion: 0.06
+Nodes (26): AgentesManifestoController, Controller, AgentesEventos, EventoAgentes, Injectable, AgentesModule, Module, AgentesService (+18 more)
 
 ### Community 22 - "whatsapp.service.ts"
-Cohesion: 0.06
-Nodes (36): UsuarioLogado, ExigeSetor(), AgentesController, ApiConsumes, ApiOperation, ApiTags, Delete, Get (+28 more)
+Cohesion: 0.04
+Nodes (39): qrcode, StorageModule, Global, Module, BaileysManager, carregarBaileys(), EventoStatusMensagem, mapearAck() (+31 more)
 
 ### Community 23 - "crm.ts"
 Cohesion: 0.08
-Nodes (50): DrawerCliente(), DrawerNegocio(), centavos(), dataCurta(), paraCentavos(), ABAS, CorpoCrm(), HubCrm() (+42 more)
+Nodes (50): PainelWhatsApp(), DrawerCliente(), DrawerNegocio(), centavos(), dataCurta(), dataHora(), paraCentavos(), ABAS (+42 more)
 
 ### Community 24 - "prisma.service.ts"
-Cohesion: 0.05
-Nodes (48): Publica(), extrairToken(), seguroIgual(), SessaoGuard, Injectable, carregarConfiguracao(), Configuracao, lerSameSite() (+40 more)
+Cohesion: 0.21
+Nodes (9): DadosController, ApiOkResponse, ApiOperation, ApiParam, ApiTags, Controller, Get, Param (+1 more)
 
 ### Community 25 - "usuario.decorator.ts"
-Cohesion: 0.06
-Nodes (11): n(), AnnotationFactory, createDataNode(), getNewAnnotationsMap(), isDict(), isRefsEqual(), JpxImage, NetworkPdfManager (+3 more)
+Cohesion: 0.05
+Nodes (15): Dict, ErrorFont, escapeString(), FakeUnicodeFont, FreeTextAnnotation, getPdfColor(), HighlightAnnotation, InkAnnotation (+7 more)
 
 ### Community 26 - ".push"
-Cohesion: 0.22
-Nodes (8): distribuicaoIntraMes, mesDe(), somaAteDia(), somarMeses(), ExecutivoService, normalizarMes(), Injectable, DefinicaoIndicador
+Cohesion: 0.07
+Nodes (31): ttlMs(), agenteDe(), AuthController, ipDe(), ApiOperation, ApiTags, Controller, Get (+23 more)
 
 ### Community 27 - "create-task-dialog.tsx"
 Cohesion: 0.05
-Nodes (53): CreateTaskDialogBody(), CreateTaskDialogProps, CreateTaskPayload, DUE_PRESETS, DuePreset, fieldSx, PRIORIDADE_OPTIONS, TIPO_OPTIONS (+45 more)
+Nodes (49): CreateTaskDialogBody(), CreateTaskDialogProps, CreateTaskPayload, DUE_PRESETS, DuePreset, fieldSx, PRIORIDADE_OPTIONS, TIPO_OPTIONS (+41 more)
 
 ### Community 28 - "getInteger"
 Cohesion: 0.03
-Nodes (29): Arc, Barcode, Break, BreakAfter, BreakBefore, ChoiceList, Comb, config_Area (+21 more)
+Nodes (27): Arc, Break, BreakAfter, BreakBefore, ChoiceList, Color, Comb, config_Area (+19 more)
 
 ### Community 29 - "customer.ts"
-Cohesion: 0.04
-Nodes (55): AddGroupParticipantsDialogBody(), AddGroupParticipantsDialogProps, digitsOnly(), parsePhones(), ParticipantTab, SelectedParticipant, AudioPlayer(), AudioPlayerProps (+47 more)
+Cohesion: 0.08
+Nodes (31): AddGroupParticipantsDialogBody(), AddGroupParticipantsDialogProps, digitsOnly(), parsePhones(), ParticipantTab, SelectedParticipant, AssignConversationDialogBody(), AudioPlayer() (+23 more)
 
 ### Community 30 - "dados.js"
 Cohesion: 0.06
-Nodes (76): abreviaForma(), ehSemVinculo(), fmtPct(), HubExecutivo(), HubFinanceiro(), HubLoja(), HubPedagogico(), inadimplenciaResumo() (+68 more)
+Nodes (70): abreviaForma(), ehSemVinculo(), HubComercial(), HubFinanceiro(), HubLoja(), HubPedagogico(), noPeriodo(), porHorizonte() (+62 more)
 
 ### Community 31 - "UsuarioLogado"
-Cohesion: 0.08
-Nodes (17): Req, CrmController, ApiOperation, ApiTags, Controller, Delete, Get, HttpCode (+9 more)
+Cohesion: 0.06
+Nodes (35): UsuarioLogado, ExigeSetor(), AgentesController, ApiConsumes, ApiExcludeEndpoint, ApiOperation, ApiTags, Delete (+27 more)
 
 ### Community 32 - "IntegracoesService"
 Cohesion: 0.06
-Nodes (40): escapar(), exigirFonte(), IntegracoesController, mensagem(), pagina(), ApiExcludeEndpoint, ApiOperation, ApiParam (+32 more)
+Nodes (38): exigirFonte(), IntegracoesController, mensagem(), ApiExcludeEndpoint, ApiOperation, ApiParam, ApiTags, Controller (+30 more)
+
+### Community 33 - ".i"
+Cohesion: 0.06
+Nodes (27): amendFallbackToUnicode(), applyStandardFontGlyphMap(), buildToFontChar(), createCmapTable(), createNameTable(), createOS2Table(), createPostscriptName(), createPostTable() (+19 more)
 
 ### Community 34 - "HubFinanceiro.tsx"
-Cohesion: 0.04
-Nodes (20): assert(), compileCharString(), compileGlyf(), CompositeGlyph, getFloat214(), getSubroutineBias(), GlyfTable, Glyph (+12 more)
+Cohesion: 0.06
+Nodes (8): CFFCompiler, CFFDict, CFFOffsetTracker, CFFParser, CFFPrivateDict, CFFTopDict, GlobalImageCache, parseIndex()
 
 ### Community 35 - "._getAppearance"
-Cohesion: 0.04
-Nodes (24): ButtonWidgetAnnotation, ChoiceWidgetAnnotation, decodeString(), Dict, ErrorFont, escapeString(), FakeUnicodeFont, FreeTextAnnotation (+16 more)
+Cohesion: 0.05
+Nodes (20): adjustMapping(), AnnotationFactory, ButtonWidgetAnnotation, ChoiceWidgetAnnotation, collectActions(), _collectJS(), fetchRemoteDest(), FileSpec (+12 more)
 
 ### Community 36 - "KnowledgeGraph.tsx"
-Cohesion: 0.05
-Nodes (71): GraphDirectory(), agoLabel(), CAT, EDGE_COLOR, fixedLabel(), FOCUS_WHEEL, hashStr(), HEX_PTS_CACHE (+63 more)
+Cohesion: 0.06
+Nodes (53): GraphDirectory(), agoLabel(), CAT, EDGE_COLOR, fixedLabel(), FOCUS_WHEEL, hashStr(), HEX_PTS_CACHE (+45 more)
 
 ### Community 37 - "teams-widget.tsx"
-Cohesion: 0.06
-Nodes (52): chatDoodleSx, AGENT_NAME_COLORS, agentNameColor(), AttachmentChip(), AttachmentThumb(), ComposerProps, dayLongFormatter, dayShortFormatter (+44 more)
+Cohesion: 0.08
+Nodes (7): CipherTransform, EvaluatorPreprocessor, info(), parseDefaultAppearance(), PDFFunction, PDFFunctionFactory, toNumberArray()
 
 ### Community 38 - "StorageService"
 Cohesion: 0.06
-Nodes (30): ApiQuery, ArquivosController, MultipartFile, ApiBody, ApiConsumes, ApiOperation, ApiTags, Controller (+22 more)
+Nodes (27): ApiQuery, ArquivosController, ApiBody, ApiConsumes, ApiOperation, ApiTags, Controller, Delete (+19 more)
 
 ### Community 39 - "app.module.ts"
-Cohesion: 0.04
-Nodes (49): AppModule, Module, ExcecaoGlobalFilter, LimiteGuard, Injectable, DatabaseModule, Global, Module (+41 more)
+Cohesion: 0.09
+Nodes (36): FaturamentoCursoDto, FechamentoDto, MetaCursoDto, MetaMesDto, PaginacaoQuery, ReceitaExtraDto, texto(), ApiProperty (+28 more)
 
 ### Community 40 - "getRelevant"
 Cohesion: 0.04
@@ -604,111 +569,111 @@ Nodes (14): addHTML(), Area, Border, createLine(), ExclGroup, flushHTML(), getAv
 
 ### Community 41 - "convert-actions-dialogs.tsx"
 Cohesion: 0.07
-Nodes (37): CheckboxCard(), CheckboxCardProps, ConversasDialogActions(), ConversasDialogContent(), ConversasDialogHeader(), conversasDialogPaperSx, conversasFieldSx, CurrencyTextField() (+29 more)
+Nodes (38): CheckboxCard(), CheckboxCardProps, ConversasDialogActions(), ConversasDialogContent(), ConversasDialogHeader(), conversasDialogPaperSx, conversasFieldSx, CurrencyTextField() (+30 more)
 
 ### Community 42 - ".getObj"
 Cohesion: 0.07
-Nodes (42): CHAVE_AGENTES, useAcaoConversaAgentes(), useAgentesDisponiveis(), useConversasAgentes(), useCriarConversaAgentes(), useEditarConversaAgentes(), useEnviarAnexosAgentes(), useEnviarMensagemAgentes() (+34 more)
+Nodes (8): BooleanElement, DateElement, DateTime, Decimal, Float, Integer, Time, valueToHtml()
 
 ### Community 43 - "encoderWorker.min.js"
 Cohesion: 0.06
 Nodes (23): abort(), abortOnCannotGrowMemory(), addOnPostRun(), addOnPreRun(), addRunDependency(), assert(), callRuntimeCallbacks(), createWasm() (+15 more)
 
 ### Community 44 - "knowledge-graph.ts"
-Cohesion: 0.07
-Nodes (47): COR_SETOR, DadosGrafoOrganograma, GROUP_COLOR, GROUP_ICON, AgentHarnessCard(), GraphHumanDetailCard(), SopTaskDetailCard(), agoLabel() (+39 more)
+Cohesion: 0.09
+Nodes (40): FormCrud(), DadosGrafoOrganograma, GROUP_COLOR, GROUP_ICON, agoLabel(), NeuralDetail(), prettify(), hashStr() (+32 more)
 
 ### Community 45 - "XMLParserBase"
 Cohesion: 0.06
 Nodes (7): DatasetReader, DatasetXMLParser, MetadataParser, SimpleDOMNode, SimpleXMLParser, XFAParser, XMLParserBase
 
 ### Community 46 - "NotificacoesService"
-Cohesion: 0.06
-Nodes (30): NotificacoesController, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get, HttpCode (+22 more)
+Cohesion: 0.07
+Nodes (26): NotificacoesController, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get, HttpCode (+18 more)
+
+### Community 47 - "XFAObject"
+Cohesion: 0.04
+Nodes (3): Builder, XFAObject, XFAObjectArray
 
 ### Community 48 - "RemoverDto"
 Cohesion: 0.08
-Nodes (32): ApiExcludeController, RotaEtl(), JanelaDto, RemoverDto, StatusIntegracaoDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize (+24 more)
+Nodes (34): ApiExcludeController, RotaEtl(), JanelaDto, RemoverDto, StatusIntegracaoDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize (+26 more)
 
 ### Community 49 - "client.ts"
-Cohesion: 0.17
-Nodes (22): calcularComparacoes(), Comparacao, compararCom(), Confianca, consolidadoAnual(), cv(), diasNoMes(), diasUteisAte() (+14 more)
+Cohesion: 0.29
+Nodes (4): _a, Button, fixURL(), recoverJsURL()
+
+### Community 50 - "FontInfo"
+Cohesion: 0.07
+Nodes (3): CssFontInfo, FontInfo, SystemFontInfo
 
 ### Community 51 - "parseCMap"
-Cohesion: 0.15
-Nodes (17): buildComponentData(), decodeScan(), findNextFileMarker(), getBlockBufferOffset(), Jbig2Image, prepareComponents(), processSegment(), processSegments() (+9 more)
+Cohesion: 0.11
+Nodes (18): buildComponentData(), decodeScan(), findNextFileMarker(), getBlockBufferOffset(), Jbig2Image, Jbig2Stream, prepareComponents(), processSegment() (+10 more)
 
 ### Community 52 - "canais.ts"
-Cohesion: 0.08
-Nodes (54): isFinishedStatus(), ConversationListItem(), Props, StatusFilter, TeamsConversationsCenter(), THREAD_ACTION_SX, TeamsKanbanBoard(), CARD_BUTTON_SX (+46 more)
+Cohesion: 0.12
+Nodes (37): TeamsConversationsCenter(), TeamsWidget(), useAcaoConversaAgentes(), cancelTeamsConversation(), closeTeamsConversation(), createTeamsConversation(), disconnectTeams(), fetchTeamsAgents() (+29 more)
 
 ### Community 53 - "conversations-view.tsx"
-Cohesion: 0.09
-Nodes (32): ThreadFeedback, ConversationsView(), SCOPE_TITLES, CollapsedRail(), CollapsedRailProps, readStoredBoolean(), readStoredNumber(), ResizeHandle() (+24 more)
+Cohesion: 0.08
+Nodes (35): ConversationFiltersState, ConversationSidebarProps, INITIAL_CONVERSATION_FILTERS, SCOPE_ITEMS, STATUS_ITEMS, ConversationsView(), SCOPE_TITLES, ForwardPicker() (+27 more)
 
 ### Community 54 - "conversation-thread.tsx"
-Cohesion: 0.09
-Nodes (36): ConversationContextPanel(), ConversationContextPanelProps, GroupParticipantsSection(), localInputToIso(), toBrazilianLocalPhone(), ConversationList(), ConversationListProps, STATUS_DOT_COLORS (+28 more)
+Cohesion: 0.12
+Nodes (24): ConversationContextPanel(), ConversationContextPanelProps, GroupParticipantsSection(), localInputToIso(), toBrazilianLocalPhone(), ConversationContact, ContactCardEntry(), Can() (+16 more)
 
 ### Community 55 - "AtualizarMembroDto"
 Cohesion: 0.08
 Nodes (26): OrganogramaController, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get, Param (+18 more)
 
 ### Community 56 - ".toString"
-Cohesion: 0.08
-Nodes (5): Ref, RefSet, RefSetCache, StructElementNode, utf8StringToString()
+Cohesion: 0.05
+Nodes (7): Ref, RefSet, RefSetCache, StructElementNode, validateCSSFont(), validateFontName(), XmlObject
 
 ### Community 57 - "PainelBrain.tsx"
 Cohesion: 0.08
 Nodes (50): comNegrito(), MarkdownLeve(), ConteudoRegistro(), ehLinhaMetrica(), extrairMetricas(), GradeMetricas(), limparCabecalhoDuplicado(), ModalRegistroBrain() (+42 more)
 
-### Community 58 - "seed.ts"
-Cohesion: 0.06
-Nodes (35): ARGON, main(), prisma, semear(), semearPerfis(), senhaTemporaria(), USUARIOS, UsuarioSemente (+27 more)
-
 ### Community 59 - "AvaliacaoDto"
-Cohesion: 0.12
-Nodes (24): AvaliacaoDto, MaestroAnotacaoDto, RetencaoDto, texto(), ApiProperty, ApiPropertyOptional, IsIn, IsInt (+16 more)
+Cohesion: 0.15
+Nodes (18): BrainDadosService, competenciaLegivel(), contextoDeServico(), cronDaHora(), horaNoFuso(), MESES, mesLabel(), moeda() (+10 more)
 
 ### Community 60 - "febrahub_cliente.py"
 Cohesion: 0.10
 Nodes (35): achatar(), carregar_env(), _chamar(), _credenciais(), data(), diagnostico(), gravar_token(), inteiro() (+27 more)
 
 ### Community 61 - "dependencies"
-Cohesion: 0.04
-Nodes (53): dependencies, argon2, baileys, class-transformer, class-validator, fastify, @fastify/compress, @fastify/cookie (+45 more)
+Cohesion: 0.06
+Nodes (35): dependencies, argon2, baileys, class-validator, fastify, @fastify/compress, @fastify/multipart, @nestjs/common (+27 more)
 
 ### Community 62 - ".parse"
-Cohesion: 0.24
-Nodes (3): CFFParser, CFFPrivateDict, parseIndex()
+Cohesion: 0.12
+Nodes (19): CreateDealDialogBody(), mapearFunil(), pipelinesQueryKey, TIPO_ETAPA, usePipelinesQuery(), mapearTarefa(), useCreateTaskMutation(), ApiError (+11 more)
 
 ### Community 64 - "conversation-context-panel.tsx"
-Cohesion: 0.27
-Nodes (11): Can(), CanByActionProps, CanByPermissionProps, CanProps, ehDoCatalogo(), PERMISSOES_INDISPONIVEIS, POR_RECURSO, PREFIXOS (+3 more)
+Cohesion: 0.06
+Nodes (69): FiltroTravado(), Estilo, LinhaEvolucao(), PontoEvolucao, Segmento, CardComCursos(), CardPodio(), ItemPodio (+61 more)
 
 ### Community 65 - "KnowledgeDetail.tsx"
-Cohesion: 0.10
-Nodes (19): ACTIVE_STAGES, AgentLite, ClientLite, ClientRosterCard(), DeptLite, isActiveClient(), MemoryNoteCard(), ToolDetailCard() (+11 more)
+Cohesion: 0.09
+Nodes (22): ACTIVE_STAGES, AgentHarnessCard(), AgentLite, ClientLite, ClientRosterCard(), DeptLite, GraphHumanDetailCard(), isActiveClient() (+14 more)
 
 ### Community 66 - "CompanyFiltersDto"
-Cohesion: 0.14
-Nodes (23): CitiesQueryDto, IsIn, IsOptional, COMPANY_STATUSES, CompanyFiltersDto, CONNECTION_TYPES, ConnectionsQueryDto, DOCUMENT_TYPES (+15 more)
-
-### Community 67 - "conversation.ts"
-Cohesion: 0.16
-Nodes (5): SocialConfigService, Injectable, SocialModule, Module, ErroZernio
+Cohesion: 0.12
+Nodes (26): CANONICAL_ORDER, COMPANY_STATUSES, CompanyFiltersDto, CONNECTION_TYPES, ConnectionsQueryDto, DOCUMENT_TYPES, ExportCompaniesDto, ListCompaniesDto (+18 more)
 
 ### Community 68 - "PainelComunicados.tsx"
-Cohesion: 0.14
-Nodes (26): CHAVE_DESTINOS, CHAVE_HISTORICO, DESTINOS, PainelComunicados(), TIPOS, COR, ICONE, quando() (+18 more)
+Cohesion: 0.07
+Nodes (43): CHAVE_DESTINOS, CHAVE_HISTORICO, DESTINOS, PainelComunicados(), TIPOS, COR, ICONE, quando() (+35 more)
 
 ### Community 69 - "tipos.ts"
 Cohesion: 0.10
 Nodes (27): MODOS_TAMANHO, MapaTerritorialProps, EstadoTerritorial, NicheId, CitySummary, CompanyConnection, CompanyContact, CompanyPartner (+19 more)
 
 ### Community 70 - "http-client.ts"
-Cohesion: 0.10
-Nodes (32): arquivosPorStorageKey, Config, INDISPONIVEL(), mapearConversa(), mapearMensagem(), mensagemPorProviderId, midiaMetaPorMensagem, nomeDoContato() (+24 more)
+Cohesion: 0.06
+Nodes (47): arquivosPorStorageKey, Config, INDISPONIVEL(), mapearConversa(), mapearMensagem(), mensagemPorProviderId, midiaMetaPorMensagem, nomeDoContato() (+39 more)
 
 ### Community 71 - "devDependencies"
 Cohesion: 0.06
@@ -719,12 +684,16 @@ Cohesion: 0.07
 Nodes (30): compilerOptions, allowSyntheticDefaultImports, baseUrl, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames (+22 more)
 
 ### Community 73 - "Annotation"
-Cohesion: 0.10
-Nodes (23): PerguntaRapida(), SUGESTOES, BotaoPrimario(), useSessaoViva(), api, avisarLogout(), BASE, comTravaEntreAbas() (+15 more)
+Cohesion: 0.15
+Nodes (10): adjustWidths(), Ascii85Stream, getFontFileType(), int16(), isTrueTypeCollectionFile(), isWhiteSpace(), isWinNameRecord(), Parser (+2 more)
+
+### Community 74 - ".a"
+Cohesion: 0.07
+Nodes (26): ExigePermissao(), BrainController, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags, Controller (+18 more)
 
 ### Community 75 - "auth-context.tsx"
 Cohesion: 0.07
-Nodes (31): AuthContextValue, ORGANIZACAO_FEBRAHUB, AssignConversationDialogBody(), AssignConversationDialogProps, useUsuariosAtribuiveis(), membersQueryKey, useMembersQuery(), agentesUsuarios() (+23 more)
+Nodes (29): AuthContextValue, ORGANIZACAO_FEBRAHUB, useUsuariosAtribuiveis(), membersQueryKey, useMembersQuery(), agentesUsuarios(), LoginInput, LoginResponse (+21 more)
 
 ### Community 76 - "package.json"
 Cohesion: 0.06
@@ -732,43 +701,43 @@ Nodes (30): react-router-dom, @supabase/supabase-js, @tailwindcss/vite, vite, @v
 
 ### Community 77 - "teams-api.ts"
 Cohesion: 0.17
-Nodes (12): SocialController, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get, Param (+4 more)
+Nodes (11): SocialController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Param, Post (+3 more)
 
 ### Community 78 - "compilerOptions"
 Cohesion: 0.07
 Nodes (29): compilerOptions, allowJs, esModuleInterop, forceConsistentCasingInFileNames, incremental, isolatedModules, jsx, lib (+21 more)
 
 ### Community 79 - "ExecutivoController"
-Cohesion: 0.05
-Nodes (17): bytesToString(), decrypt(), findBlock(), FlateStream, getFontFileType(), isHexDigit(), isSpecial(), isTrueTypeCollectionFile() (+9 more)
+Cohesion: 0.07
+Nodes (33): useAddCustomerActivityMutation(), ESTAGIO_PARA_DESTINO, ESTAGIO_PARA_ORIGEM, customerQueryKey(), ESTAGIO_PARA_ORIGEM, mapearClienteDetalhe(), useCustomerQuery(), crmCliente() (+25 more)
 
 ### Community 80 - ".constructor"
-Cohesion: 0.12
-Nodes (5): Binder, clearGlobalCaches(), createText(), searchNode(), Template
+Cohesion: 0.28
+Nodes (9): MetaDto, PreferenciasDto, IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength (+1 more)
 
 ### Community 81 - "TeamsConversationsCenter"
-Cohesion: 0.17
-Nodes (3): addChildren(), ChunkedStreamManager, ObjectLoader
+Cohesion: 0.06
+Nodes (24): addChildren(), buildHuffmanTable(), bytesToString(), ChunkedStreamManager, computeIDs(), encodeToXmlString(), escapePDFName(), FontRendererFactory (+16 more)
 
 ### Community 82 - "Transform"
 Cohesion: 0.19
 Nodes (24): AnaliseDto, CampanhasDto, ConfiguracaoDto, ConversasDto, DestinoDto, ListarPostagensDto, MensagensDto, MidiaDto (+16 more)
 
 ### Community 83 - "valueToHtml"
-Cohesion: 0.06
-Nodes (9): BooleanElement, DateElement, DateTime, Decimal, Float, Integer, Text, Time (+1 more)
+Cohesion: 0.05
+Nodes (62): chatDoodleSx, isInternalUrl(), renderInline(), renderLink(), RichText(), AGENT_NAME_COLORS, agentNameColor(), AttachmentChip() (+54 more)
 
 ### Community 84 - "message-bubble.tsx"
-Cohesion: 0.08
-Nodes (25): formatFileSize(), formatMessageTime(), isPdfMessage(), isInternalHref(), LinkifiedText(), LinkifiedTextProps, normalizeHref(), trimTrailingPunctuation() (+17 more)
+Cohesion: 0.53
+Nodes (5): isInternalHref(), LinkifiedText(), LinkifiedTextProps, normalizeHref(), trimTrailingPunctuation()
 
 ### Community 85 - "permissoes.ts"
-Cohesion: 0.12
-Nodes (33): mesmaLista(), PainelPerfis(), dataCurta(), etiqueta, PainelUsuarios(), PAPEIS, SETORES, CHAVE_CATALOGO (+25 more)
+Cohesion: 0.15
+Nodes (25): CHAVE_CATALOGO, CHAVE_PERFIS, CHAVE_USUARIOS, useAcoesPerfis(), useAcoesUsuarios(), useCatalogoPermissoes(), useUsuariosAdmin(), atualizarPerfil() (+17 more)
 
 ### Community 86 - "social.service.ts"
-Cohesion: 0.13
-Nodes (18): AnaliseCrua, CampanhaCrua, ContaCrua, ConversaCrua, diasAtras(), hoje(), medida(), MensagemCrua (+10 more)
+Cohesion: 0.12
+Nodes (19): AnaliseCrua, CampanhaCrua, ContaCrua, ConversaCrua, diasAtras(), hoje(), medida(), MensagemCrua (+11 more)
 
 ### Community 87 - "FiltrosTerritorial.tsx"
 Cohesion: 0.11
@@ -779,16 +748,20 @@ Cohesion: 0.06
 Nodes (13): AstArgument, AstBinaryOperation, AstLiteral, AstMin, AstVariable, AstVariableDefinition, buildAddOperation(), buildMinOperation() (+5 more)
 
 ### Community 89 - "unreachable"
-Cohesion: 0.11
-Nodes (5): BaseShading, BaseStream, Pattern, RadialAxialShading, unreachable()
+Cohesion: 0.05
+Nodes (10): AstNode, BaseLocalCache, BasePdfManager, BaseShading, BaseStream, ColorSpace, Pattern, PatternCS (+2 more)
 
 ### Community 90 - ".parse"
-Cohesion: 0.08
-Nodes (10): CmykICCBasedCS, fetchSync(), getUint8ArrayMemory0(), IccColorSpace, JpegStream, passArray8ToWasm0(), t, __wbg_finalize_init() (+2 more)
+Cohesion: 0.04
+Nodes (27): n(), Binder, CmykICCBasedCS, createDataNode(), createText(), createValidAbsoluteUrl(), decodeString(), fetchSync() (+19 more)
+
+### Community 92 - "ExigePermissao"
+Cohesion: 0.12
+Nodes (23): SemPerfil(), Shell(), useMenu(), useSessaoViva(), PAGINA_INTEGRACOES, comPermissao(), ContextoMenu, doSetor() (+15 more)
 
 ### Community 93 - "SocialController"
-Cohesion: 0.04
-Nodes (53): chaveDe(), cifrar(), decifrar(), BrainAgenteService, expandirConsultas(), formatarAcervo(), MESES, SETORES_PALAVRA (+45 more)
+Cohesion: 0.06
+Nodes (28): cifrar(), BrainAgenteService, expandirConsultas(), formatarAcervo(), MESES, SETORES_PALAVRA, Inject, Injectable (+20 more)
 
 ### Community 94 - "devDependencies"
 Cohesion: 0.08
@@ -796,43 +769,47 @@ Nodes (25): devDependencies, autoprefixer, eslint, eslint-config-next, @eslint/e
 
 ### Community 95 - "ProvedorMui.tsx"
 Cohesion: 0.10
-Nodes (18): manrope, metadata, spaceGrotesk, viewport, Providers(), CHIP_TONE, ChipTone, CLARO (+10 more)
+Nodes (19): manrope, metadata, spaceGrotesk, viewport, Providers(), CHIP_TONE, ChipTone, CLARO (+11 more)
 
 ### Community 96 - "TextMeasure"
-Cohesion: 0.12
-Nodes (5): B, _i, layoutText(), P, TextMeasure
+Cohesion: 0.08
+Nodes (8): B, Br, _i, Jo, layoutText(), P, TextMeasure, XhtmlObject
 
 ### Community 97 - "PainelOrganograma.tsx"
-Cohesion: 0.15
-Nodes (20): adaptarOrganograma(), BrainGraphView(), KnowledgeGraph, CHAVE, estiloCampo, fonteMono, Formulario, nomeDoSetor() (+12 more)
+Cohesion: 0.14
+Nodes (21): adaptarOrganograma(), COR_SETOR, BrainGraphView(), KnowledgeGraph, CHAVE, estiloCampo, fonteMono, Formulario (+13 more)
 
 ### Community 98 - "HubExecutivo"
-Cohesion: 0.16
-Nodes (6): qrcode, BaileysManager, carregarBaileys(), mapearAck(), Injectable, qrcode
+Cohesion: 0.17
+Nodes (17): TeamsKanbanBoard(), CARD_BUTTON_SX, CARD_TAG_SX, Props, TeamsKanbanCard(), EventoAgentes, TeamsEventPayload, traduzir() (+9 more)
 
 ### Community 99 - "Page"
-Cohesion: 0.12
-Nodes (9): buildHuffmanTable(), _collectJS(), computeIDs(), getIndexes(), incrementalUpdate(), isName(), StructTreeRoot, updateXFA() (+1 more)
+Cohesion: 0.03
+Nodes (19): assert(), CompositeGlyph, convertCidString(), Font, generateFont(), getFamilyName(), getFontSubstitution(), getNewAnnotationsMap() (+11 more)
 
 ### Community 100 - "MapaTerritorial.tsx"
 Cohesion: 0.13
 Nodes (16): CamadasMapa(), Fase, IntroTerritorial(), MapaTerritorial(), UFS_FOCO, useTemaMapa(), boundsOfPoints(), LngLatBounds (+8 more)
 
 ### Community 101 - "memory-core.ts"
-Cohesion: 0.18
-Nodes (12): HubComercial(), noPeriodo(), rotuloCat(), SeletorCategoria(), useCategoria(), useComercialCarinhas(), useComercialCursosPorConsultora(), useComercialGeralMensal() (+4 more)
+Cohesion: 0.11
+Nodes (21): assignLinkClusters(), BrainGraphSlice, cameraRect(), CameraState, distillMemoryGraph(), forceLayout(), frameOn(), hashId() (+13 more)
 
 ### Community 102 - "numero"
-Cohesion: 0.09
-Nodes (28): BarrasCategoria(), CaixaCard(), CanaisVenda(), CardComCursos(), CardPodio(), corNivel(), corStatus(), dataCurta() (+20 more)
+Cohesion: 0.11
+Nodes (23): BarrasCategoria(), CaixaCard(), CanaisVenda(), CardComCursos(), CardPodio(), corNivel(), FonteBreakdown(), FunilConversao() (+15 more)
 
 ### Community 103 - "crm.controller.ts"
 Cohesion: 0.29
 Nodes (21): AtividadeDto, ClienteDto, ClienteParcialDto, ConcluirDto, ContatoDto, ListaClientesQuery, MoverDto, NegocioDto (+13 more)
 
 ### Community 104 - "dependencies"
-Cohesion: 0.10
-Nodes (21): dependencies, d3-scale, @deck.gl/core, @deck.gl/mapbox, @emotion/react, exceljs, jspdf-autotable, @mui/icons-material (+13 more)
+Cohesion: 0.09
+Nodes (23): dependencies, d3-scale, @deck.gl/core, @deck.gl/layers, @emotion/react, @emotion/styled, exceljs, @mui/icons-material (+15 more)
+
+### Community 105 - "DecodeStream"
+Cohesion: 0.09
+Nodes (34): ConversationList(), ConversationListProps, STATUS_DOT_COLORS, ConversationThread(), ConversationThreadProps, STATUS_CHIP_COLORS, ThreadFeedback, buildMessagePreview() (+26 more)
 
 ### Community 106 - "TabelaEmpresas.tsx"
 Cohesion: 0.22
@@ -846,29 +823,37 @@ Nodes (19): 1. Salesforce (`salesforce_email_sync.py`) — a mais importante, 2.
 Cohesion: 0.18
 Nodes (19): Texto limpo, ou None. '-' e '?' são jeitos de escrever 'vazio' na planilha., txt(), baixar_csv_mais_recente(), buscar_os_dois(), carga_incremental(), checar_fail_loud(), decodar(), email_l() (+11 more)
 
+### Community 109 - "HubMarketing"
+Cohesion: 0.04
+Nodes (97): AlertasDestaques(), CardAlertaHero(), CardDestaqueHero(), LinhaDestaque(), metricDoTitulo(), BlocosSetores(), CardExecutivo(), comparacaoDe() (+89 more)
+
 ### Community 110 - "ResultadoEvento"
-Cohesion: 0.19
-Nodes (14): dataBR(), estadoLink(), FormEvento(), ListaEventos(), ResultadoEvento(), rotuloTipoEvento(), TIPOS_EVENTO, criarEvento() (+6 more)
+Cohesion: 0.12
+Nodes (20): corNps(), corStatusCarteira(), dataBR(), DecisaoCarteira(), estadoLink(), FormEvento(), ListaEventos(), ResultadoEvento() (+12 more)
 
 ### Community 111 - "SocialService"
-Cohesion: 0.15
-Nodes (13): ComposerSendMediaPayload, formatDuration(), MEDIA_MAX_BYTES, MediaDraft, MessageComposer(), MessageComposerProps, PICKER_ACCEPT, ReplyDraft (+5 more)
+Cohesion: 0.21
+Nodes (15): Cmd, createBuiltInCMap(), expectInt(), expectString(), extendCMap(), isCmd(), parseBfChar(), parseBfRange() (+7 more)
 
 ### Community 112 - "PainelTerritorial.tsx"
 Cohesion: 0.20
 Nodes (16): jspdf, baixar(), Coluna, COLUNAS, exportarCsv(), exportarPdf(), exportarXlsx(), descreverFiltros() (+8 more)
 
 ### Community 113 - "calculateSHA512"
-Cohesion: 0.06
-Nodes (20): AESBaseCipher, ARCFourCipher, calculateMD5(), calculateSHA384(), calculateSHA512(), ch(), CipherTransform, CipherTransformFactory (+12 more)
+Cohesion: 0.12
+Nodes (15): calculateSHA384(), calculateSHA512(), ch(), F, isArrayEqual(), littleSigma(), littleSigmaPrime(), maj() (+7 more)
 
 ### Community 114 - ".constructor"
-Cohesion: 0.15
-Nodes (13): ContextCache, decodeBitmap(), decodeIAID(), decodeInteger(), decodeMMRBitmap(), decodeRefinement(), decodeTextRegion(), getCustomHuffmanTable() (+5 more)
+Cohesion: 0.19
+Nodes (15): ExecutivoController, primeiroDiaDoMesAtual(), ApiOperation, ApiTags, Controller, Get, HttpCode, Param (+7 more)
 
 ### Community 115 - ".onSymbolDictionary"
-Cohesion: 0.16
-Nodes (29): useAuth(), ConversationThread(), ConversationThreadProps, STATUS_CHIP_COLORS, buildMessagePreview(), groupMessagesByDay(), isForwardableMessage(), ConversationMessagesData (+21 more)
+Cohesion: 0.07
+Nodes (45): MediaViewerKind, MediaViewerModal(), MediaViewerModalProps, DocumentCard(), ConversationMessagesData, conversationMessagesKey(), conversationMessagesPrefix, getMessageFromCache() (+37 more)
+
+### Community 116 - "parsers.ts"
+Cohesion: 0.09
+Nodes (33): AvaliacaoDto, AvaliacaoEventoDto, AvaliacaoListaQuery, MaestroAnotacaoDto, RetencaoDto, texto(), ApiProperty, ApiPropertyOptional (+25 more)
 
 ### Community 117 - "nichos.ts"
 Cohesion: 0.18
@@ -879,28 +864,36 @@ Cohesion: 0.23
 Nodes (18): aluguel(), brincar(), cabecalho(), cel(), chave(), credencial(), data_abrev(), data_br() (+10 more)
 
 ### Community 119 - "TerritorialController"
-Cohesion: 0.12
-Nodes (14): CANONICAL_ORDER, TerritorialController, ApiOkResponse, ApiOperation, ApiParam, ApiTags, Controller, Get (+6 more)
+Cohesion: 0.21
+Nodes (5): decrypt(), isHexDigit(), isSpecial(), PostScriptLexer, Type1Parser
 
 ### Community 120 - ".ensureBuffer"
-Cohesion: 0.05
-Nodes (9): AsciiHexStream, CCITTFaxStream, DecodeStream, DecryptStream, Jbig2Stream, JpxStream, LZWStream, PredictorStream (+1 more)
+Cohesion: 0.08
+Nodes (17): decodeBitmap(), decodeIAID(), decodeInteger(), decodeMMRBitmap(), decodeRefinement(), decodeTextRegion(), getB(), getCustomHuffmanTable() (+9 more)
 
 ### Community 122 - "territorial.ts"
 Cohesion: 0.20
 Nodes (17): boolDe(), chave(), CHAVES_FILTRO, DOCS_VALIDOS, filtrosDe(), intDe(), lerLocal(), listaDe() (+9 more)
 
 ### Community 123 - "ZernioCliente"
-Cohesion: 0.18
-Nodes (8): numero(), SocialService, texto(), Injectable, ContaSocial, Conversa, Mensagem, VisaoGeral
+Cohesion: 0.17
+Nodes (9): numero(), SocialService, texto(), Injectable, ContaSocial, Conversa, Mensagem, PaginaPostagens (+1 more)
 
 ### Community 124 - "TerritorialService"
-Cohesion: 0.67
-Nodes (5): BotaoGravarAudio(), botaoIcone(), formatoTempo(), PlayerAudio(), tipoSuportado()
+Cohesion: 0.12
+Nodes (3): DecodeStream, DecryptStream, StreamsSequenceStream
 
 ### Community 125 - ".process"
-Cohesion: 0.10
-Nodes (16): Cmd, createBuiltInCMap(), expectInt(), expectString(), extendCMap(), isCmd(), parseBfChar(), parseBfRange() (+8 more)
+Cohesion: 0.25
+Nodes (9): TerritorialController, ApiOkResponse, ApiOperation, ApiParam, ApiTags, Controller, Get, Param (+1 more)
+
+### Community 126 - "CFFCompiler"
+Cohesion: 0.14
+Nodes (6): GuardaSetor(), CrudFaturamentoCurso(), CrudFechamento(), CrudMetasCurso(), CrudMetasMes(), CrudReceitasExtras()
+
+### Community 128 - ".readBits"
+Cohesion: 0.31
+Nodes (3): find(), FontFinder, text_FontInfo
 
 ### Community 129 - "ConsultaDto"
 Cohesion: 0.22
@@ -935,28 +928,32 @@ Cohesion: 0.15
 Nodes (13): jest, collectCoverageFrom, coverageDirectory, moduleFileExtensions, rootDir, testEnvironment, testRegex, transform (+5 more)
 
 ### Community 140 - "TeamsWidget"
-Cohesion: 0.11
-Nodes (4): ColorSpaceUtils, getB(), MeshShading, MeshStreamReader
+Cohesion: 0.26
+Nodes (4): calculateMD5(), CipherTransformFactory, StringStream, stringToBytes()
 
 ### Community 141 - "Util"
-Cohesion: 0.07
-Nodes (19): encodeToXmlString(), escapePDFName(), EvaluatorPreprocessor, getPdfColorArray(), getQuadPoints(), getRgbColor(), info(), isNumberArray() (+11 more)
+Cohesion: 0.09
+Nodes (7): convertBlackAndWhiteToRGBA(), convertToRGBA(), ImageResizer, PDFImage, PDFWorkerStream, PDFWorkerStreamRangeReader, resizeImageMask()
 
 ### Community 142 - "use-ability.ts"
-Cohesion: 0.19
-Nodes (4): convertBlackAndWhiteToRGBA(), convertToRGBA(), PDFImage, resizeImageMask()
+Cohesion: 0.07
+Nodes (28): XFAFactory, agrupar(), CAT_SEM_BOTAO(), chaveMes(), HubMarketing(), intervaloDe(), iso(), itemPop() (+20 more)
 
 ### Community 143 - "scripts"
-Cohesion: 0.11
-Nodes (17): name, prisma, seed, private, scripts, build, dev, lint (+9 more)
+Cohesion: 0.15
+Nodes (13): scripts, build, dev, lint, prisma:generate, prisma:migrate, prisma:migrate:dev, seed (+5 more)
 
 ### Community 145 - "BasePdfManager"
-Cohesion: 0.22
-Nodes (14): ExecutivoController, primeiroDiaDoMesAtual(), ApiOperation, ApiTags, Controller, Get, HttpCode, Param (+6 more)
+Cohesion: 0.06
+Nodes (51): OpcaoSegmento, Segmentado(), FormMaestro(), FormRetencao(), PontoPresenca, HubPedagogico(), LinhaRetencao(), LinhaRankingCurso (+43 more)
 
 ### Community 146 - "IdentityCMap"
-Cohesion: 0.19
-Nodes (6): addHex(), BinaryCMapReader, BinaryCMapStream, hexToInt(), hexToStr(), incHex()
+Cohesion: 0.10
+Nodes (7): addHex(), BinaryCMapReader, BinaryCMapStream, hexToInt(), hexToStr(), IdentityCMap, incHex()
+
+### Community 147 - "Commands"
+Cohesion: 0.23
+Nodes (12): CHAVE, COR, dataHora(), distancia(), PaginaIntegracoes(), ROTULO, desconectarIntegracao(), Integracao (+4 more)
 
 ### Community 149 - "Dívidas conhecidas"
 Cohesion: 0.17
@@ -966,9 +963,21 @@ Nodes (12): 🟢 10. Não existe IA, 🔴 1. Inadimplência não é confiável, 
 Cohesion: 0.17
 Nodes (11): 1. PostgreSQL com pgvector, em banco PRÓPRIO, 2. Container próprio, com Bun, 3. Uma fonte por setor — e é assim que a permissão vale, 4. Permissões novas, 5. Embeddings e síntese LOCAIS (Ollama), sem chave de provedor, 6. Nada exposto para fora, As decisões, Consolidação dos dados do sistema (+3 more)
 
+### Community 151 - "EditarConversaWaDto"
+Cohesion: 0.20
+Nodes (10): ACTION_LENSES, ALL_LENSES, ENTITY_LENSES, FUNCTION_LENSES, Lens, LensContext, LensGroup, LensNode (+2 more)
+
 ### Community 152 - "package.json"
 Cohesion: 0.18
 Nodes (10): name, private, scripts, build, dev, lint, start, typecheck (+2 more)
+
+### Community 154 - "GlobalImageCache"
+Cohesion: 0.20
+Nodes (11): EditarConversaWaDto, EnviarDto, IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength (+3 more)
+
+### Community 155 - "NullOptimizer"
+Cohesion: 0.27
+Nodes (9): calculate_sha256_ch(), calculate_sha256_littleSigma(), calculate_sha256_littleSigmaPrime(), calculate_sha256_maj(), calculate_sha256_sigma(), calculate_sha256_sigmaPrime(), calculateSHA256(), PDF17 (+1 more)
 
 ### Community 156 - "O que os dados revelaram"
 Cohesion: 0.18
@@ -983,8 +992,8 @@ Cohesion: 0.38
 Nodes (10): buscar(), buscar_extrato(), _cred(), diagnosticar(), meses(), montar(), Any, Extrato bancario. Sem paginacao, sem month — vem tudo (~170 linhas). (+2 more)
 
 ### Community 159 - "calculateSHA256"
-Cohesion: 0.27
-Nodes (9): calculate_sha256_ch(), calculate_sha256_littleSigma(), calculate_sha256_littleSigmaPrime(), calculate_sha256_maj(), calculate_sha256_sigma(), calculate_sha256_sigmaPrime(), calculateSHA256(), PDF17 (+1 more)
+Cohesion: 0.09
+Nodes (6): AsciiHexStream, CCITTFaxStream, JpxStream, LZWStream, PredictorStream, RunLengthStream
 
 ### Community 161 - "life-map.ts"
 Cohesion: 0.22
@@ -995,24 +1004,24 @@ Cohesion: 0.33
 Nodes (9): get(), insights_mes(), main(), meses(), montar(), FebraHub · meta_sync.py Puxa gasto/alcance por anúncio da Marketing API e grava, Token do banco se houver; senão o do .env.      Nesta ordem porque o do banco é, Puxa insights por anúncio no intervalo, paginando. (+1 more)
 
 ### Community 163 - "MetaDto"
-Cohesion: 0.12
-Nodes (5): XhtmlNamespace, { chromium }, HUBS, medir(), TELAS
+Cohesion: 0.19
+Nodes (14): EditarConversaDto, MensagemDto, MoverConversaDto, NovaConversaDto, PairDto, ArrayMaxSize, IsArray, IsIn (+6 more)
 
 ### Community 164 - "SocialConfigService"
+Cohesion: 0.15
+Nodes (13): ComposerSendMediaPayload, formatDuration(), MEDIA_MAX_BYTES, MediaDraft, MessageComposer(), MessageComposerProps, PICKER_ACCEPT, ReplyDraft (+5 more)
+
+### Community 167 - "Kpi.tsx"
 Cohesion: 0.07
-Nodes (28): ConversationFiltersState, ConversationSidebarProps, INITIAL_CONVERSATION_FILTERS, SCOPE_ITEMS, STATUS_ITEMS, groupReactions(), MessageReactions(), MessageReactionsProps (+20 more)
+Nodes (27): devDependencies, typescript, engines, node, prisma, typescript, name, packageManager (+19 more)
 
 ### Community 168 - "Hub Executivo"
 Cohesion: 0.22
 Nodes (8): As regras que não se quebram, Cache e atualização, Fontes e vivacidade (o que o badge de qualidade mostra), Hub Executivo, Limitações conhecidas (por falta de dado, não de código), Metas, Onde as coisas moram, Rotas
 
 ### Community 170 - "FontFinder"
-Cohesion: 0.07
-Nodes (28): XFAFactory, agrupar(), CAT_SEM_BOTAO(), chaveMes(), HubMarketing(), intervaloDe(), iso(), itemPop() (+20 more)
-
-### Community 176 - "teamsAttachmentUrl"
-Cohesion: 0.70
-Nodes (4): isInternalUrl(), renderInline(), renderLink(), RichText()
+Cohesion: 0.12
+Nodes (5): XhtmlNamespace, { chromium }, HUBS, medir(), TELAS
 
 ### Community 177 - "Recorder"
 Cohesion: 0.25
@@ -1042,9 +1051,9 @@ Nodes (7): Path, copiar(), escapar(), main(), psql(), COPY ... FROM STDIN lendo 
 Cohesion: 0.36
 Nodes (7): main(), nome_campo(), nome_modelo(), Devolve (tipo, atributos)., fato_pagamento_base -> FatoPagamentoBase, data_pagamento -> dataPagamento, tipo_prisma()
 
-### Community 184 - ".[zs]"
-Cohesion: 0.29
-Nodes (4): _a, Button, fixURL(), recoverJsURL()
+### Community 186 - "ColorSpace"
+Cohesion: 0.50
+Nodes (3): ensurePdfjsWorker(), PdfThumbnailInner(), PdfThumbnailProps
 
 ### Community 187 - "sheets_metas_sync.py"
 Cohesion: 0.48
@@ -1058,13 +1067,9 @@ Nodes (7): Documentação, Estrutura, FebraHub, O método `--diagnostico` — us
 Cohesion: 0.33
 Nodes (5): collection, compilerOptions, deleteOutDir, $schema, sourceRoot
 
-### Community 190 - "package.json"
-Cohesion: 0.14
-Nodes (14): CreateDealDialogBody(), mapearFunil(), pipelinesQueryKey, TIPO_ETAPA, usePipelinesQuery(), ApiError, crmFunis(), ApiErrorBody (+6 more)
-
-### Community 193 - "AESBaseCipher"
+### Community 191 - ".preferencias"
 Cohesion: 0.20
-Nodes (10): ACTION_LENSES, ALL_LENSES, ENTITY_LENSES, FUNCTION_LENSES, Lens, LensContext, LensGroup, LensNode (+2 more)
+Nodes (3): TerritorialService, toApiCompany(), Injectable
 
 ### Community 199 - "contaazul_pagar_sync.py"
 Cohesion: 0.60
@@ -1082,13 +1087,9 @@ Nodes (5): diagnosticar(), listar_eventos(), Any, sincronizar(), sympla_get()
 Cohesion: 0.73
 Nodes (5): contar(), main(), ordem_de(), req(), token_de_usuario()
 
-### Community 204 - "CFFDict"
-Cohesion: 0.54
-Nodes (6): corPendencia(), FaixaPendencias(), corDias(), TabelaConfirmacoes(), dataDDMM(), emNDias()
-
-### Community 207 - "GlyphHeader"
-Cohesion: 0.06
-Nodes (25): adjustMapping(), amendFallbackToUnicode(), buildToFontChar(), convertCidString(), createCmapTable(), createNameTable(), createOS2Table(), createPostTable() (+17 more)
+### Community 203 - "ARCFourCipher"
+Cohesion: 0.33
+Nodes (7): absorverInfoSessao(), ComInfoSessao, entrar(), sessaoAtual(), guardarTtlAcesso(), marcarSessaoRenovada(), Sessao
 
 ### Community 208 - "deploy.sh script"
 Cohesion: 0.50
@@ -1098,33 +1099,53 @@ Nodes (3): backup.sh script, esperar_saudavel(), deploy.sh script
 Cohesion: 0.60
 Nodes (3): cod(), e2e.sh script, t()
 
+### Community 213 - "EvalState"
+Cohesion: 0.09
+Nodes (24): CardTopConsultoras(), corStatus(), dataCurta(), desfechoInfo(), fmtPct(), HubExecutivo(), inadimplenciaResumo(), isoDia() (+16 more)
+
 ### Community 219 - "sync.sh"
 Cohesion: 0.83
 Nodes (3): executar(), registrar(), sync.sh script
 
+### Community 220 - "CitiesQueryDto"
+Cohesion: 0.33
+Nodes (5): name, prisma, seed, private, version
+
+### Community 223 - "BaseLocalCache"
+Cohesion: 0.06
+Nodes (9): Commands, compileCharString(), CompiledFont, compileGlyf(), getFloat214(), lookupCmap(), readInt16(), StateManager (+1 more)
+
+### Community 226 - "Datasets"
+Cohesion: 0.67
+Nodes (3): CitiesQueryDto, IsIn, IsOptional
+
+### Community 258 - "@fastify/cookie"
+Cohesion: 0.40
+Nodes (5): groupReactions(), MessageReactions(), MessageReactionsProps, ReactionGroup, ChatMessageReaction
+
 ### Community 260 - "minio"
-Cohesion: 0.28
-Nodes (9): MetaDto, PreferenciasDto, IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength (+1 more)
+Cohesion: 0.03
+Nodes (79): AppModule, Module, Publica(), Usuario, ExcecaoGlobalFilter, LimiteGuard, Injectable, PermissaoGuard (+71 more)
 
 ## Knowledge Gaps
-- **1066 isolated node(s):** `$schema`, `collection`, `sourceRoot`, `deleteOutDir`, `name` (+1061 more)
+- **1089 isolated node(s):** `$schema`, `collection`, `sourceRoot`, `deleteOutDir`, `name` (+1084 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **241 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **187 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `n()` connect `usuario.decorator.ts` to `Page`, `PainelComunicados.tsx`, `KnowledgeGraph.tsx`, `convert-actions-dialogs.tsx`, `tema.ts`, `.constructor`, `TeamsConversationsCenter`, `AbaPostagens.tsx`, `PainelTerritorial.tsx`, `FiltrosTerritorial.tsx`, `.parse`, `create-task-dialog.tsx`, `SocialController`, `CFFCompiler`?**
-  _High betweenness centrality (0.116) - this node is a cross-community bridge._
-- **Why does `Body` connect `UsuarioLogado` to `pdf.worker.min.mjs`, `PrismaService`, `teams-api.ts`, `NotificacoesService`, `RemoverDto`, `BasePdfManager`, `permissoes.service.ts`, `whatsapp.service.ts`, `AtualizarMembroDto`, `prisma.service.ts`, `AvaliacaoDto`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
-- **Why does `UsuarioLogado` connect `whatsapp.service.ts` to `CFFStrings`, `StorageService`, `HubMarketing.tsx`, `app.module.ts`, `PrismaService`, `crm.controller.ts`, `executivo.service.ts`, `teams-api.ts`, `NotificacoesService`, `BasePdfManager`, `permissoes.service.ts`, `Transform`, `AgentesService`, `prisma.service.ts`, `.push`, `AvaliacaoDto`, `SocialController`, `UsuarioLogado`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `Body` connect `UsuarioLogado` to `pdf.worker.min.mjs`, `app.module.ts`, `.a`, `teams-api.ts`, `NotificacoesService`, `RemoverDto`, `.constructor`, `parsers.ts`, `whatsapp.service.ts`, `AtualizarMembroDto`, `.push`?**
+  _High betweenness centrality (0.104) - this node is a cross-community bridge._
+- **Why does `UsuarioLogado` connect `UsuarioLogado` to `minio`, `StorageService`, `crm.controller.ts`, `app.module.ts`, `executivo.service.ts`, `.a`, `PrismaService`, `teams-api.ts`, `NotificacoesService`, `.constructor`, `Transform`, `parsers.ts`, `AgentesService`, `whatsapp.service.ts`, `prisma.service.ts`, `.push`, `AvaliacaoDto`, `SocialController`?**
+  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+- **Why does `n()` connect `.parse` to `warn`, `HubFinanceiro.tsx`, `Page`, `._getAppearance`, `PainelComunicados.tsx`, `KnowledgeGraph.tsx`, `memory-core.ts`, `create-task-dialog.tsx`, `convert-actions-dialogs.tsx`, `alfaDe`, `tema.ts`, `PainelTerritorial.tsx`, `TeamsConversationsCenter`, `.createDocumentHandler`, `FiltrosTerritorial.tsx`, `AvaliacaoDto`, `SocialController`?**
+  _High betweenness centrality (0.094) - this node is a cross-community bridge._
 - **What connects `$schema`, `collection`, `sourceRoot` to the rest of the system?**
-  _1066 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1089 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `pdf.worker.min.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.005601383511118593 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.004683337629973361 - nodes in this community are weakly interconnected._
 - **Should `warn` be split into smaller, more focused modules?**
-  _Cohesion score 0.03259452411994785 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.028445006321112517 - nodes in this community are weakly interconnected._
 - **Should `hubs.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.028700094098669176 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0418001525553013 - nodes in this community are weakly interconnected._

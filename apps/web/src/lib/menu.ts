@@ -1,24 +1,17 @@
 import {
-  Bell, BookOpen, Bot, LayoutDashboard, MapPinned, MessageCircle, Network, Share2, ShieldCheck, Users,
+  Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
+  Plug, Settings2, ShieldCheck, Users,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
 
-/* ============ MENU CENTRALIZADO ============
-   Uma única estrutura tipada decide o que aparece na sidebar, para quem, e
-   qual item está ativo. Antes, cada item comparava a rota do seu jeito — o
-   "Fontes de dados" olhava só o 1º segmento e acendia em QUALQUER rota de
-   /integracoes, junto com o filho verdadeiro (dois irmãos ativos ao mesmo
-   tempo). Aqui a regra é uma só: casa por segmento inteiro e, entre os que
-   casam, vence o href mais longo — a rota mais específica prevalece, e só
-   existe UM ativo por vez. */
+/* ============ MENU DUAL (rail + submenu) ============
+   Primário = ícone no rail. Filhos = links no painel de submenu.
+   Ativo: entre todos os filhos visíveis, vence o href mais longo. */
 
 export interface ContextoMenu {
   admin: boolean;
-  /** Setores do cadastro MAIS os que o perfil de acesso concede. */
   setores: readonly string[];
-  /** Tem ao menos uma das permissões? Vem de `pode()` (hooks/auth), a mesma
-   *  regra do PermissaoGuard da API. */
   pode: (...permissoes: string[]) => boolean;
 }
 
@@ -26,121 +19,322 @@ export interface ItemMenu {
   id: string;
   label: string;
   href: string;
-  Icone: LucideIcon;
-  /** Título e subtítulo do cabeçalho da página quando este item está ativo. */
+  Icone?: LucideIcon;
   titulo?: string;
   desc?: string;
   visivel: (ctx: ContextoMenu) => boolean;
 }
 
-export interface GrupoMenu {
+/** Grupo do rail (ícone) com filhos no submenu. */
+export interface MenuPrimario {
   id: string;
-  titulo: (ctx: ContextoMenu) => string;
-  itens: readonly ItemMenu[];
+  label: string;
+  Icone: LucideIcon;
+  filhos: readonly ItemMenu[];
+  visivel: (ctx: ContextoMenu) => boolean;
 }
 
-/* Cada item declara a PERMISSÃO que o abre — a mesma que a API exige na rota
-   correspondente. Antes o critério era `admin`, e só existiam dois níveis:
-   diretoria ou o próprio hub. Agora "quem vê o Territorial" é uma decisão de
-   perfil, editável na tela de Perfis de acesso, sem tocar neste arquivo. */
 const comPermissao = (...permissoes: string[]) => (ctx: ContextoMenu) => ctx.pode(...permissoes);
-/** Hub setorial: vale o setor do cadastro OU a permissão do perfil. É o
- *  espelho de podeVer() no backend. */
 const doSetor = (setor: string) => (ctx: ContextoMenu) =>
   ctx.admin || ctx.setores.includes(setor);
 
-export const GRUPOS_MENU: readonly GrupoMenu[] = [
+function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): ItemMenu[] {
+  const base: ItemMenu[] = [
+    {
+      id: `${key}-resumo`,
+      label: "Resumo",
+      href: `/${key}`,
+      Icone,
+      titulo: nome,
+      desc,
+      visivel: doSetor(key),
+    },
+  ];
+
+  if (key === "loja") {
+    base.push(
+      {
+        id: "loja-metas-mes",
+        label: "Metas mensais",
+        href: "/loja/cadastros/metas-mes",
+        titulo: "Metas mensais da loja",
+        desc: "Mínima, básica e máster por mês — substitui a planilha de metas",
+        visivel: doSetor("loja"),
+      },
+      {
+        id: "loja-metas-curso",
+        label: "Metas por curso",
+        href: "/loja/cadastros/metas-curso",
+        titulo: "Metas por curso",
+        desc: "Meta de produtos e curso por mês",
+        visivel: doSetor("loja"),
+      },
+      {
+        id: "loja-faturamento-curso",
+        label: "Faturamento por curso",
+        href: "/loja/cadastros/faturamento-curso",
+        titulo: "Faturamento por curso",
+        desc: "Performance da loja durante o curso",
+        visivel: doSetor("loja"),
+      },
+      {
+        id: "loja-receitas-extras",
+        label: "Receitas extras",
+        href: "/loja/cadastros/receitas-extras",
+        titulo: "Receitas extras",
+        desc: "Premium, aluguel e Sentido de Brincar",
+        visivel: doSetor("loja"),
+      },
+      {
+        id: "loja-fechamento",
+        label: "Fechamento",
+        href: "/loja/cadastros/fechamento",
+        titulo: "Fechamento mensal",
+        desc: "Faturamento e metas batidas do mês",
+        visivel: doSetor("loja"),
+      },
+    );
+  }
+
+  if (key === "pedagogico") {
+    base.push(
+      {
+        id: "ped-avaliacoes",
+        label: "Avaliações de curso",
+        href: "/pedagogico/cadastros/avaliacoes",
+        titulo: "Avaliações de curso",
+        desc: "Notas GGB — cadastro nativo no lugar de colar planilha",
+        visivel: doSetor("pedagogico"),
+      },
+      {
+        id: "ped-avaliacoes-evento",
+        label: "Avaliações de evento",
+        href: "/pedagogico/cadastros/avaliacoes-evento",
+        titulo: "Avaliações de evento",
+        desc: "Pesquisas de evento — cadastro e importação",
+        visivel: doSetor("pedagogico"),
+      },
+    );
+  }
+
+  if (key === "marketing") {
+    base.push(
+      {
+        id: "mkt-visao-geral",
+        label: "Visão geral",
+        href: "/marketing/visao-geral",
+        titulo: "Redes sociais — visão geral",
+        desc: "Contas, alcance e fila das redes oficiais",
+        visivel: comPermissao("social.ver"),
+      },
+      {
+        id: "mkt-publicar",
+        label: "Publicar",
+        href: "/marketing/publicar",
+        titulo: "Publicar nas redes",
+        desc: "Criar e agendar postagens",
+        visivel: comPermissao("social.publicar"),
+      },
+      {
+        id: "mkt-postagens",
+        label: "Postagens e análise",
+        href: "/marketing/postagens",
+        titulo: "Postagens e análise",
+        desc: "Histórico e desempenho do que saiu",
+        visivel: comPermissao("social.ver"),
+      },
+      {
+        id: "mkt-mensagens",
+        label: "Mensagens",
+        href: "/marketing/mensagens",
+        titulo: "Mensagens das redes",
+        desc: "Caixa de entrada e respostas",
+        visivel: comPermissao("social.ver"),
+      },
+      {
+        id: "mkt-campanhas-redes",
+        label: "Campanhas",
+        href: "/marketing/campanhas-redes",
+        titulo: "Campanhas das redes",
+        desc: "Investimento e resultado das campanhas sociais",
+        visivel: comPermissao("social.ver"),
+      },
+    );
+  }
+
+  return base;
+}
+
+export const MENU_PRIMARIO: readonly MenuPrimario[] = [
   {
     id: "paineis",
-    titulo: () => "Painéis",
-    itens: [
-      { id: "executivo", label: "Hub Executivo", href: "/executivo", Icone: LayoutDashboard,
-        visivel: comPermissao("executivo.ver") },
-      // Porte do hub.aplopes.com.
-      { id: "territorial", label: "Inteligência Territorial", href: "/territorial", Icone: MapPinned,
-        desc: "Mapa de empresas e conexões do território", visivel: comPermissao("territorial.ver") },
-      // Roda radial no estilo do /brain do Founder OS: setores (menos CRM),
-      // funções, funcionários e agentes de IA — editável na própria tela.
-      { id: "organograma", label: "Organograma", href: "/organograma", Icone: Network,
-        desc: "Setores, funções, funcionários e agentes de IA", visivel: comPermissao("organograma.ver") },
-      // Zernio: publicação, mensagens diretas e campanhas pagas. Fica em
-      // Painéis (e não em Integrações) porque o dia a dia da tela é
-      // acompanhar e publicar — configurar é uma aba dentro dela.
-      { id: "social", label: "Redes sociais", href: "/social", Icone: Share2,
-        desc: "Publicação, mensagens e campanhas das redes oficiais",
-        visivel: comPermissao("social.ver") },
+    label: "Painéis",
+    Icone: LayoutDashboard,
+    visivel: (ctx) =>
+      ctx.pode("executivo.ver") ||
+      ctx.pode("territorial.ver") ||
+      ctx.pode("organograma.ver"),
+    filhos: [
+      {
+        id: "executivo",
+        label: "Hub Executivo",
+        href: "/executivo",
+        titulo: "Hub Executivo",
+        visivel: comPermissao("executivo.ver"),
+      },
+      {
+        id: "territorial",
+        label: "Inteligência Territorial",
+        href: "/territorial",
+        desc: "Mapa de empresas e conexões do território",
+        visivel: comPermissao("territorial.ver"),
+      },
+      {
+        id: "organograma",
+        label: "Organograma",
+        href: "/organograma",
+        desc: "Setores, funções, funcionários e agentes de IA",
+        visivel: comPermissao("organograma.ver"),
+      },
     ],
   },
-  {
-    // O título segue o ALCANCE, não o papel: quem enxerga um hub tem "Seu
-    // hub"; quem enxerga vários tem "Setores". Antes dependia de ser admin,
-    // e um perfil com vários `setor.*.ver` via oito hubs sob "Seu hub".
-    id: "setores",
-    titulo: (ctx) => (ctx.setores.filter((s) => s !== "geral").length > 1 ? "Setores" : "Seu hub"),
-    itens: HUBS.map((h) => ({
-      id: h.key, label: h.nome, href: `/${h.key}`, Icone: h.Icone, desc: h.desc,
-      visivel: doSetor(h.key),
-    })),
-  },
+  ...HUBS.map((h) => ({
+    id: h.key,
+    label: h.nome,
+    Icone: h.Icone,
+    visivel:
+      h.key === "marketing"
+        ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver")
+        : doSetor(h.key),
+    filhos: filhosHub(h.key, h.nome, h.Icone, h.desc),
+  })),
   {
     id: "integracoes",
-    titulo: () => "Integrações",
-    itens: [
-      { id: "fontes", label: "Fontes de dados", href: "/integracoes",
-        Icone: PAGINA_INTEGRACOES.Icone, titulo: PAGINA_INTEGRACOES.nome,
-        desc: PAGINA_INTEGRACOES.desc, visivel: comPermissao("integracoes.ver", "integracoes.gerenciar") },
-      { id: "whatsapp", label: "WhatsApp", href: "/integracoes/whatsapp", Icone: MessageCircle,
-        desc: "Conexão do número e sessão do WhatsApp", visivel: comPermissao("whatsapp.gerenciar") },
-      // Conversas e Kanban NÃO têm item próprio (decisão do Rafael, 02/08):
-      // o acesso é pelos cards da tela de Agentes de IA. Como as rotas são
-      // filhas de /integracoes/agentes, o matcher por prefixo mantém o item
-      // "Agentes de IA" aceso nelas — e o cabeçalho usa o título delas.
-      { id: "agentes", label: "Agentes de IA", href: "/integracoes/agentes", Icone: Bot,
+    label: "Integrações",
+    Icone: Plug,
+    visivel: (ctx) =>
+      ctx.pode("integracoes.ver", "integracoes.gerenciar") ||
+      ctx.pode("whatsapp.gerenciar") ||
+      ctx.pode("agentes.gerenciar") ||
+      ctx.setores.includes("crm"),
+    filhos: [
+      {
+        id: "fontes",
+        label: "Fontes de dados",
+        href: "/integracoes",
+        Icone: PAGINA_INTEGRACOES.Icone,
+        titulo: PAGINA_INTEGRACOES.nome,
+        desc: PAGINA_INTEGRACOES.desc,
+        visivel: comPermissao("integracoes.ver", "integracoes.gerenciar"),
+      },
+      {
+        id: "whatsapp",
+        label: "WhatsApp",
+        href: "/integracoes/whatsapp",
+        Icone: MessageCircle,
+        desc: "Conexão do número e sessão do WhatsApp",
+        visivel: comPermissao("whatsapp.gerenciar"),
+      },
+      {
+        id: "agentes",
+        label: "Agentes de IA",
+        href: "/integracoes/agentes",
+        Icone: Bot,
         desc: "Pareamento com a plataforma Aplopes AI",
-        visivel: (ctx) => ctx.pode("agentes.gerenciar") || ctx.setores.includes("crm") },
+        visivel: (ctx) => ctx.pode("agentes.gerenciar") || ctx.setores.includes("crm"),
+      },
     ],
   },
   {
     id: "configuracoes",
-    titulo: () => "Configurações",
-    itens: [
-      // GBrain: a memória institucional. Fica em Configurações e não em
-      // Painéis porque não é um painel de BI — é onde se consulta e se
-      // registra o que a empresa sabe.
-      { id: "brain", label: "Memória institucional", href: "/configuracoes/brain", Icone: BookOpen,
+    label: "Configurações",
+    Icone: Settings2,
+    visivel: (ctx) =>
+      ctx.pode("brain.ver") ||
+      ctx.pode("perfis.gerenciar") ||
+      ctx.pode("usuarios.gerenciar") ||
+      ctx.pode("notificacoes.enviar") ||
+      ctx.pode("social.ver", "social.gerenciar"),
+    filhos: [
+      {
+        id: "brain",
+        label: "Memória institucional",
+        href: "/configuracoes/brain",
+        Icone: BookOpen,
         desc: "Busca, respostas com citação e registro do que a empresa sabe",
-        visivel: comPermissao("brain.ver") },
-      { id: "perfis", label: "Perfis de acesso", href: "/configuracoes/perfis", Icone: ShieldCheck,
-        desc: "O que cada perfil pode abrir e alterar", visivel: comPermissao("perfis.gerenciar") },
-      { id: "usuarios", label: "Usuários", href: "/configuracoes/usuarios", Icone: Users,
-        desc: "Quem entra, com qual perfil e em quais setores", visivel: comPermissao("usuarios.gerenciar") },
-      { id: "comunicados", label: "Notificações", href: "/configuracoes/notificacoes", Icone: Bell,
-        desc: "Comunicados enviados para o hub", visivel: comPermissao("notificacoes.enviar") },
+        visivel: comPermissao("brain.ver"),
+      },
+      {
+        id: "perfis",
+        label: "Perfis de acesso",
+        href: "/configuracoes/perfis",
+        Icone: ShieldCheck,
+        desc: "O que cada perfil pode abrir e alterar",
+        visivel: comPermissao("perfis.gerenciar"),
+      },
+      {
+        id: "usuarios",
+        label: "Usuários",
+        href: "/configuracoes/usuarios",
+        Icone: Users,
+        desc: "Quem entra, com qual perfil e em quais setores",
+        visivel: comPermissao("usuarios.gerenciar"),
+      },
+      {
+        id: "comunicados",
+        label: "Notificações",
+        href: "/configuracoes/notificacoes",
+        Icone: Bell,
+        desc: "Comunicados enviados para o hub",
+        visivel: comPermissao("notificacoes.enviar"),
+      },
+      {
+        id: "redes-sociais-config",
+        label: "Redes sociais",
+        href: "/configuracoes/redes-sociais",
+        titulo: "Redes sociais",
+        desc: "API key e integração com o Zernio",
+        visivel: comPermissao("social.ver", "social.gerenciar"),
+      },
     ],
   },
 ];
 
-/** Títulos das rotas filhas sem item de menu (cabeçalho e topbar mobile). */
+/** Compat: grupos flat (alguns testes/código legado). */
+export const GRUPOS_MENU = MENU_PRIMARIO.map((p) => ({
+  id: p.id,
+  titulo: () => p.label,
+  itens: p.filhos,
+}));
+
 const TITULOS_FILHAS: { prefixo: string; titulo: string; desc: string }[] = [
-  { prefixo: "/integracoes/agentes/conversas/kanban", titulo: "Kanban de conversas", desc: "Conversas dos agentes por etapa — o movimento espelha a plataforma" },
-  { prefixo: "/integracoes/agentes/conversas", titulo: "Conversas", desc: "Atendimento com os agentes de IA" },
+  {
+    prefixo: "/integracoes/agentes/conversas/kanban",
+    titulo: "Kanban de conversas",
+    desc: "Conversas dos agentes por etapa — o movimento espelha a plataforma",
+  },
+  {
+    prefixo: "/integracoes/agentes/conversas",
+    titulo: "Conversas",
+    desc: "Atendimento com os agentes de IA",
+  },
+  {
+    prefixo: "/executivo/metas",
+    titulo: "Metas",
+    desc: "Cadastro e revisão de metas do Hub Executivo",
+  },
 ];
 
 export function tituloDaRota(caminho: string): { titulo: string; desc: string } | undefined {
   return TITULOS_FILHAS.find((t) => caminho === t.prefixo || caminho.startsWith(`${t.prefixo}/`));
 }
 
-/** Itens visíveis para o perfil, achatados na ordem dos grupos. */
 export function itensVisiveis(ctx: ContextoMenu): ItemMenu[] {
-  return GRUPOS_MENU.flatMap((g) => g.itens.filter((i) => i.visivel(ctx)));
+  return MENU_PRIMARIO.flatMap((p) =>
+    p.visivel(ctx) ? p.filhos.filter((i) => i.visivel(ctx)) : [],
+  );
 }
 
-/**
- * O ÚNICO item ativo para o caminho atual: casa por segmento inteiro
- * (`/integracoes` não casa `/integracoes-x`, e `/integracoes/whatsapp` não
- * acende o pai) e, entre os que casam, vence o href mais longo. Query string
- * não participa — `usePathname` já vem sem ela.
- */
 export function idItemAtivo(caminho: string, itens: readonly ItemMenu[]): string | null {
   const alvo = caminho.length > 1 ? caminho.replace(/\/+$/, "") : caminho;
   let melhor: ItemMenu | null = null;
@@ -153,5 +347,16 @@ export function idItemAtivo(caminho: string, itens: readonly ItemMenu[]): string
 
 export function itemPorId(id: string | null): ItemMenu | undefined {
   if (!id) return undefined;
-  return GRUPOS_MENU.flatMap((g) => g.itens).find((i) => i.id === id);
+  return MENU_PRIMARIO.flatMap((p) => p.filhos).find((i) => i.id === id);
+}
+
+export function primarioDoItem(itemId: string | null): MenuPrimario | undefined {
+  if (!itemId) return undefined;
+  return MENU_PRIMARIO.find((p) => p.filhos.some((f) => f.id === itemId));
+}
+
+export function primarioPorCaminho(caminho: string, ctx: ContextoMenu): MenuPrimario | undefined {
+  const filhos = itensVisiveis(ctx);
+  const id = idItemAtivo(caminho, filhos);
+  return primarioDoItem(id) ?? MENU_PRIMARIO.find((p) => p.visivel(ctx));
 }
