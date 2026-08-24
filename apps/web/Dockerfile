@@ -28,6 +28,13 @@ ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# API_INTERNAL_URL é lida pelo next.config.ts em BUILD-TIME para gerar os
+# rewrites. Em standalone o config não existe em runtime — os rewrites ficam
+# compilados no routes-manifest.json. Sem este ARG/ENV o bloco de rewrites
+# retorna [] e /api/* nunca chega na API NestJS.
+ARG API_INTERNAL_URL=http://api:3261
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
+
 WORKDIR /app/apps/web
 RUN npx next build
 
