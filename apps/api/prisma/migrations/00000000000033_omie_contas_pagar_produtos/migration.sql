@@ -19,8 +19,9 @@
 --   Tabelas de CARGA (fato_*), no mesmo modelo das outras: chave vinda da
 --   origem, colunas achatadas, sem RLS complexa. A escrita passa pela rota
 --   /ingest (token de máquina), então cada tabela é registrada em
---   TABELAS_INGESTAO (ingest.service.ts). GRANT select para authenticated,
---   como as demais fato_loja_*.
+--   TABELAS_INGESTAO (ingest.service.ts). Sem GRANT explícito: o banco do
+--   Prisma tem um único papel (febrahub), dono de tudo — o papel Supabase
+--   `authenticated` não existe aqui (as antigas db/*.sql eram do Supabase).
 --
 -- IDEMPOTENTE: só cria o que não existe; roda de novo sem erro.
 -- ============================================================================
@@ -59,7 +60,6 @@ CREATE TABLE IF NOT EXISTS public.fato_omie_contas_pagar (
   data_alteracao       date,                        -- info.dAlt
   atualizado_em        timestamptz DEFAULT now()
 );
-GRANT SELECT ON public.fato_omie_contas_pagar TO authenticated;
 CREATE INDEX IF NOT EXISTS ix_omie_cp_vencimento ON public.fato_omie_contas_pagar (data_vencimento);
 CREATE INDEX IF NOT EXISTS ix_omie_cp_pagamento  ON public.fato_omie_contas_pagar (data_pagamento);
 CREATE INDEX IF NOT EXISTS ix_omie_cp_status     ON public.fato_omie_contas_pagar (status);
@@ -98,7 +98,6 @@ CREATE TABLE IF NOT EXISTS public.fato_omie_produto (
   data_alteracao    date,                           -- info.dAlt
   atualizado_em     timestamptz DEFAULT now()
 );
-GRANT SELECT ON public.fato_omie_produto TO authenticated;
 CREATE INDEX IF NOT EXISTS ix_omie_prod_codigo  ON public.fato_omie_produto (codigo);
 CREATE INDEX IF NOT EXISTS ix_omie_prod_familia ON public.fato_omie_produto (familia_id);
 CREATE INDEX IF NOT EXISTS ix_omie_prod_ativo   ON public.fato_omie_produto (inativo);
@@ -135,7 +134,6 @@ SELECT
 FROM public.fato_omie_contas_pagar
 WHERE data_pagamento IS NULL
 GROUP BY 1 ORDER BY 1;
-GRANT SELECT ON public.vw_omie_a_pagar_horizonte TO authenticated;
 
 -- Despesa por categoria (para onde vai o dinheiro)
 DROP VIEW IF EXISTS public.vw_omie_despesa_categoria CASCADE;
@@ -148,7 +146,6 @@ SELECT
   sum(valor) FILTER (WHERE data_pagamento IS NULL)       AS em_aberto
 FROM public.fato_omie_contas_pagar
 GROUP BY 1 ORDER BY 3 DESC;
-GRANT SELECT ON public.vw_omie_despesa_categoria TO authenticated;
 
 -- Despesa paga por mês
 DROP VIEW IF EXISTS public.vw_omie_pago_mensal CASCADE;
@@ -160,7 +157,6 @@ SELECT
 FROM public.fato_omie_contas_pagar
 WHERE data_pagamento IS NOT NULL
 GROUP BY 1 ORDER BY 1;
-GRANT SELECT ON public.vw_omie_pago_mensal TO authenticated;
 
 -- Catálogo x posição de estoque (dimensão + saldo + valor imobilizado)
 DROP VIEW IF EXISTS public.vw_omie_estoque_produto CASCADE;
@@ -189,4 +185,3 @@ FROM public.fato_omie_produto p
 LEFT JOIN public.fato_loja_estoque e ON e.produto_id = p.produto_id
 WHERE NOT coalesce(p.inativo, false)
 ORDER BY p.descricao;
-GRANT SELECT ON public.vw_omie_estoque_produto TO authenticated;
