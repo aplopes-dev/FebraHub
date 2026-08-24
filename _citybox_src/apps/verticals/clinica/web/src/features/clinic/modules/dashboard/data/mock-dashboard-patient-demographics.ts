@@ -1,0 +1,152 @@
+import type { DashboardDemographicPatient } from '../types/clinic-dashboard';
+
+export const GENDER_COLORS = {
+  female: '#db2777',
+  male: '#2563eb',
+  uninformed: '#94a3b8',
+} as const;
+
+/** Fixture demográfico com idades espalhadas (null e 100+). */
+export const MOCK_DASHBOARD_DEMOGRAPHIC_PATIENTS: DashboardDemographicPatient[] =
+  [
+    {
+      id: 'dem-001',
+      name: 'Ana Carolina Silva',
+      phone: '73999990001',
+      birthDate: '1995-03-12',
+      gender: 'female',
+    },
+    {
+      id: 'dem-002',
+      name: 'Bruno Henrique Santos',
+      phone: '73999990002',
+      birthDate: '1988-07-20',
+      gender: 'male',
+    },
+    {
+      id: 'dem-003',
+      name: 'Carla Mendes Rocha',
+      phone: '73999990003',
+      birthDate: '2001-11-02',
+      gender: 'female',
+    },
+    {
+      id: 'dem-004',
+      name: 'Daniel Oliveira Costa',
+      phone: '73999990004',
+      birthDate: '1975-01-30',
+      gender: 'male',
+    },
+    {
+      id: 'dem-005',
+      name: 'Elena Ferreira Souza',
+      phone: '73999990005',
+      birthDate: null,
+      gender: 'female',
+    },
+    {
+      id: 'dem-006',
+      name: 'Fábio Nunes Lima',
+      phone: '73999990006',
+      birthDate: '2010-05-14',
+      gender: 'male',
+    },
+    {
+      id: 'dem-007',
+      name: 'Gabriela Martins Rocha',
+      phone: '73999990007',
+      birthDate: '1962-09-08',
+      gender: 'female',
+    },
+    {
+      id: 'dem-008',
+      name: 'Henrique Barbosa Nunes',
+      phone: '73999990008',
+      birthDate: '1990-12-25',
+      gender: 'male',
+    },
+    {
+      id: 'dem-009',
+      name: 'Isabela Teixeira Dias',
+      phone: '73999990009',
+      birthDate: '2018-02-01',
+      gender: 'female',
+    },
+    {
+      id: 'dem-010',
+      name: 'João Pedro Almeida',
+      phone: '73999990010',
+      birthDate: '1924-06-15',
+      gender: 'male',
+    },
+    {
+      id: 'dem-011',
+      name: 'Karina Lopes Mendes',
+      phone: '73999990011',
+      birthDate: null,
+      gender: 'uninformed',
+    },
+    {
+      id: 'dem-012',
+      name: 'Lucas Vinícius Prado',
+      phone: '73999990012',
+      birthDate: '1999-04-18',
+      gender: 'male',
+    },
+    {
+      id: 'dem-013',
+      name: 'Mariana Costa Freitas',
+      phone: '73999990013',
+      birthDate: '1982-08-22',
+      gender: 'female',
+    },
+    {
+      id: 'dem-014',
+      name: 'Nicolas Andrade Reis',
+      phone: '73999990014',
+      birthDate: '2005-10-10',
+      gender: 'male',
+    },
+    {
+      id: 'dem-015',
+      name: 'Olívia Santos Pires',
+      phone: '73999990015',
+      birthDate: '1955-03-03',
+      gender: 'female',
+    },
+    {
+      id: 'dem-016',
+      name: 'Paulo Eduardo Ramos',
+      phone: '73999990016',
+      birthDate: '1940-01-01',
+      gender: 'male',
+    },
+    {
+      id: 'dem-017',
+      name: 'Queila Barbosa Dias',
+      phone: '73999990017',
+      birthDate: '1995-07-01',
+      gender: 'female',
+    },
+    {
+      id: 'dem-018',
+      name: 'Rafael Souza Melo',
+      phone: '73999990018',
+      birthDate: null,
+      gender: 'uninformed',
+    },
+    {
+      id: 'dem-019',
+      name: 'Sofia Lima Borges',
+      phone: '73999990019',
+      birthDate: '2015-09-09',
+      gender: 'female',
+    },
+    {
+      id: 'dem-020',
+      name: 'Tiago Ribeiro Pinto',
+      phone: '73999990020',
+      birthDate: '1970-11-11',
+      gender: 'male',
+    },
+  ];

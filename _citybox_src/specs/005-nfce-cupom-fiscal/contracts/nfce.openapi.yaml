@@ -1,0 +1,261 @@
+openapi: 3.1.0
+info:
+  title: Cupom fiscal eletrônico (NFC-e, modelo 65)
+  version: 1.0.0
+  description: |
+    Emissão de cupom fiscal ao consumidor final pela SEFAZ-BA.
+
+    **NFC-e não é NF-e simplificada.** Numeração, série, leiaute e regras são próprios; o
+    que compartilha com a NF-e é o transporte — mesmo schema, mesmo webservice.
+
+    Todas as rotas exigem `X-Company-Id`, validado no servidor contra a participação do
+    usuário autenticado na loja (mesmo mecanismo da feature 004).
+
+servers:
+  - url: http://localhost:3116
+    description: Local
+
+tags:
+  - name: nfce
+    description: Cupom fiscal (NFC-e, modelo 65)
+
+paths:
+  /api/v1/nfce:
+    post:
+      tags: [nfce]
+      summary: Emitir cupom fiscal
+      description: |
+        Emite a NFC-e junto à SEFAZ-BA.
+
+        **Recusa antes de reservar numeração** quando o ambiente é produção não habilitado,
+        o CSC não está configurado, ou o valor ultrapassa o limite para consumidor não
+        identificado. Número reservado e não usado exige inutilização junto ao órgão — por
+        isso a ordem importa.
+
+        Com a SEFAZ indisponível, emite em **contingência**: devolve `201` com
+        `emissionType: CONTINGENCY`, e o cupom é transmitido depois, na ordem de emissão.
+      operationId: issueNfce
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueNfceRequest'
+      responses:
+        '201':
+          description: Cupom autorizado — normal ou em contingência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NfceResponse'
+        '422':
+          $ref: '#/components/responses/Rejected'
+        '424':
+          description: Ambiente de produção não habilitado, ou CSC não configurado.
+
+  /api/v1/nfce/{id}:
+    get:
+      tags: [nfce]
+      summary: Consultar cupom
+      operationId: getNfce
+      parameters:
+        - $ref: '#/components/parameters/FiscalDocumentId'
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Situação atual do cupom.
+        '404':
+          description: Inexistente, ou de outro emitente.
+
+  /api/v1/nfce/{id}/cancel:
+    post:
+      tags: [nfce]
+      summary: Cancelar cupom
+      description: |
+        Dentro do prazo legal. Fora dele, `422` informando o prazo.
+
+        Não existe substituição de cupom — o caminho é cancelar e reemitir.
+      operationId: cancelNfce
+      parameters:
+        - $ref: '#/components/parameters/FiscalDocumentId'
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Cancelamento autorizado.
+        '422':
+          $ref: '#/components/responses/Rejected'
+
+  /api/v1/nfce/inutilize:
+    post:
+      tags: [nfce]
+      summary: Inutilizar faixa de numeração
+      description: Para numeração reservada e não utilizada.
+      operationId: inutilizeNfce
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Inutilização registrada.
+
+  /api/v1/nfce/{id}/danfce:
+    get:
+      tags: [nfce]
+      summary: Documento auxiliar do cupom
+      description: |
+        Dois leiautes do **mesmo** cupom, com os mesmos dados (SC-007):
+
+        - `bobina` (padrão) — 80 mm, para a impressora térmica do balcão
+        - `a4` — para envio digital ao consumidor
+
+        Em homologação sai com marca d’água. Cupom emitido em contingência é identificado
+        como tal; cupom cancelado sai marcado como cancelado.
+      operationId: getDanfce
+      parameters:
+        - $ref: '#/components/parameters/FiscalDocumentId'
+        - $ref: '#/components/parameters/CompanyId'
+        - name: formato
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [bobina, a4]
+            default: bobina
+      responses:
+        '200':
+          description: PDF do cupom.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '422':
+          description: Cupom não autorizado — não há documento auxiliar.
+
+components:
+  parameters:
+    CompanyId:
+      name: X-Company-Id
+      in: header
+      required: true
+      description: |
+        Emitente em nome de quem se solicita. Validado no servidor contra a participação do
+        usuário autenticado na loja — informar o UUID de outra empresa responde 404.
+      schema:
+        type: string
+        format: uuid
+
+    FiscalDocumentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Rejected:
+      description: |
+        Recusa com razão explícita. Rejeição da SEFAZ carrega o código oficial, para que o
+        sistema consumidor reaja a cada caso em vez de tratar tudo como erro genérico.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+
+  schemas:
+    IssueNfceRequest:
+      type: object
+      required: [sourceSystem, externalReference, idempotencyKey, items, payments]
+      properties:
+        sourceSystem:
+          type: string
+          description: Quem originou a venda — ERP ou PDV.
+        externalReference:
+          type: string
+        idempotencyKey:
+          type: string
+          description: |
+            Protege contra emissão duplicada por clique duplo ou reprocessamento. O caixa
+            não pode gerar dois cupons pela mesma venda.
+        environment:
+          type: string
+          enum: [HOMOLOGATION, PRODUCTION]
+        consumer:
+          $ref: '#/components/schemas/Consumer'
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+        payments:
+          type: array
+          minItems: 1
+          description: |
+            **Obrigatório** — sem forma de pagamento o cupom não é válido. Admite mais de
+            uma: parte em cartão e resto em dinheiro é rotina no varejo.
+          items:
+            $ref: '#/components/schemas/Payment'
+
+    Consumer:
+      type: object
+      description: |
+        **Opcional.** Informar CPF é direito do consumidor, não obrigação — venda sem
+        identificação é o caso comum no balcão. Acima do limite estadual, porém, a venda
+        deixa de caber em cupom e exige NF-e com destinatário identificado.
+      properties:
+        documentType:
+          type: string
+          enum: [CPF, CNPJ]
+        document:
+          type: string
+        name:
+          type: string
+
+    Payment:
+      type: object
+      required: [method, amount]
+      properties:
+        method:
+          type: string
+          description: Dinheiro, cartão, PIX…
+        amount:
+          type: number
+        changeAmount:
+          type: number
+          description: Troco. Só se aplica a pagamento em dinheiro.
+
+    NfceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        accessKey:
+          type: string
+          description: 44 dígitos.
+        protocol:
+          type: string
+        emissionType:
+          type: string
+          enum: [NORMAL, CONTINGENCY]
+          description: |
+            `CONTINGENCY` significa que a SEFAZ estava indisponível: o cupom vale, foi
+            entregue ao consumidor e será transmitido depois. O documento impresso
+            identifica a condição.
+        qrCode:
+          type: string
+          description: |
+            Conteúdo do QR Code — texto, não imagem. É o mesmo que vai no XML transmitido;
+            a imagem impressa deriva dele, nunca o contrário.

@@ -1,0 +1,36 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.3-management-alpine
+    container_name: citybox_rabbitmq
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-citybox}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-citybox}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-citybox}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - citybox_rabbitmq_data:/var/lib/rabbitmq
+      # definitions.json inclui fila payments.orders (citybox.payment.#).
+      # Se a fila não existir após upgrade, recrie o container ou importe definitions.
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./config/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks:
+      - citybox-platform
+
+volumes:
+  citybox_rabbitmq_data:
+    name: citybox_rabbitmq_data
+
+networks:
+  citybox-platform:
+    name: citybox-platform
+    external: true

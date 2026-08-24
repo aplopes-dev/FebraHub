@@ -1,0 +1,782 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum MerchantStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ProviderAccountStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ProviderType {
+  ASAAS
+  PAGBANK
+  INFINITE_PAY
+  STONE
+  STUB
+}
+
+enum EnvironmentType {
+  SANDBOX
+  PRODUCTION
+}
+
+enum ChargeStatus {
+  DRAFT
+  CREATED
+  PENDING
+  WAITING_PAYMENT
+  AUTHORIZED
+  PAID
+  CONFIRMED
+  RECEIVED
+  OVERDUE
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGEBACK
+  DISPUTED
+  FAILED
+  ERROR
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  PAID
+  CONFIRMED
+  AVAILABLE
+  SETTLED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGEBACK
+}
+
+enum ConsumerWebhookStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ProviderWebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum InternalWebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+enum ProviderRequestStatus {
+  SUCCESS
+  ERROR
+  TIMEOUT
+}
+
+enum IdempotencyKeyStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ReconciliationBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReconciliationItemStatus {
+  PENDING
+  MATCHED
+  PARTIALLY_MATCHED
+  DIVERGENT
+  MANUAL_REVIEW
+  RECONCILED
+}
+
+enum ReconciliationImportSource {
+  BANK_STATEMENT
+  PROVIDER_EXTRACT
+  MANUAL
+}
+
+enum SettlementStatus {
+  PENDING
+  AVAILABLE
+  SETTLED
+  FAILED
+}
+
+enum PaymentEntryType {
+  CAPTURE
+  FEE
+  NET
+  REFUND
+  ADJUSTMENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  OVERDUE
+  TRIAL
+  EXPIRED
+  PENDING
+}
+
+enum BillingCycle {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUALLY
+  YEARLY
+}
+
+enum SubscriptionCycleStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  SKIPPED
+}
+
+enum SplitType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SplitStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TransferStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Tenant {
+  id        String       @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  name      String
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  merchants                  Merchant[]
+  providerAccounts           ProviderAccount[]
+  paymentCustomers           PaymentCustomer[]
+  charges                    Charge[]
+  providerRequests           ProviderRequest[]
+  internalWebhookDeliveries  InternalWebhookDelivery[]
+  idempotencyKeys            IdempotencyKey[]
+  auditLogs                  AuditLog[]
+  consumerWebhooks           ConsumerWebhook[]
+  paymentEntries             PaymentEntry[]
+  settlements                Settlement[]
+  reconciliationBatches      ReconciliationBatch[]
+  reconciliationItems        ReconciliationItem[]
+  subscriptions              Subscription[]
+  splits                     Split[]
+  transfers                  Transfer[]
+
+  @@map("tenants")
+}
+
+model Merchant {
+  id          String         @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId    String @db.Uuid @map("tenant_id")
+  legalName   String         @map("legal_name")
+  tradeName   String?        @map("trade_name")
+  cpfCnpj     String         @map("cpf_cnpj")
+  email       String?
+  phone       String?
+  addressJson Json?          @map("address_json")
+  status      MerchantStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerAccounts ProviderAccount[]
+  paymentCustomers PaymentCustomer[]
+  charges          Charge[]
+  subscriptions    Subscription[]
+  transfers        Transfer[]
+
+  @@index([tenantId])
+  @@map("merchants")
+}
+
+model ProviderAccount {
+  id                     String                @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId               String @db.Uuid @map("tenant_id")
+  merchantId             String @db.Uuid @map("merchant_id")
+  provider               ProviderType
+  environment            EnvironmentType
+  credentialsEncrypted   String                @map("credentials_encrypted") @db.Text
+  webhookSecretEncrypted String?               @map("webhook_secret_encrypted") @db.Text
+  status                 ProviderAccountStatus @default(PENDING)
+  isDefault              Boolean               @default(false) @map("is_default")
+  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  providerCustomers    ProviderCustomer[]
+  charges              Charge[]
+  providerWebhookEvents ProviderWebhookEvent[]
+  subscriptions        Subscription[]
+
+  @@index([tenantId, merchantId])
+  @@map("provider_accounts")
+}
+
+model PaymentCustomer {
+  id          String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId    String @db.Uuid @map("tenant_id")
+  merchantId  String @db.Uuid @map("merchant_id")
+  name        String
+  cpfCnpj     String   @map("cpf_cnpj")
+  email       String?
+  phone       String?
+  addressJson Json?    @map("address_json")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  merchant          Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  providerCustomers ProviderCustomer[]
+  subscriptions     Subscription[]
+
+  @@unique([tenantId, merchantId, cpfCnpj])
+  @@index([tenantId, merchantId])
+  @@map("payment_customers")
+}
+
+model ProviderCustomer {
+  id                 String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  customerId         String @db.Uuid @map("customer_id")
+  providerAccountId  String @db.Uuid @map("provider_account_id")
+  providerCustomerId String   @map("provider_customer_id")
+  rawPayload         Json?    @map("raw_payload")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer        PaymentCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([providerAccountId, providerCustomerId])
+  @@map("provider_customers")
+}
+
+model Charge {
+  id                 String       @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId           String @db.Uuid @map("tenant_id")
+  merchantId         String @db.Uuid @map("merchant_id")
+  providerAccountId  String? @db.Uuid @map("provider_account_id")
+  sourceSystem       String       @map("source_system")
+  externalReference  String       @map("external_reference")
+  idempotencyKey     String?      @map("idempotency_key")
+  description        String?
+  amount             Decimal      @db.Decimal(14, 2)
+  currency           String       @default("BRL")
+  status             ChargeStatus @default(DRAFT)
+  dueDate            DateTime?    @map("due_date") @db.Timestamptz(3)
+  expiresAt          DateTime?    @map("expires_at") @db.Timestamptz(3)
+  paymentUrl         String?      @map("payment_url")
+  provider           ProviderType?
+  providerChargeId   String?      @map("provider_charge_id")
+  providerOrderId    String?      @map("provider_order_id")
+  providerPaymentId  String?      @map("provider_payment_id")
+  rawProviderPayload Json?        @map("raw_provider_payload")
+  metadataJson       Json?        @map("metadata_json")
+  subscriptionId     String? @db.Uuid @map("subscription_id")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  merchant        Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount? @relation(fields: [providerAccountId], references: [id], onDelete: SetNull)
+  subscription    Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  items           ChargeItem[]
+  paymentAttempts PaymentAttempt[]
+  payments        Payment[]
+  providerRequests ProviderRequest[]
+  paymentEntries  PaymentEntry[]
+  reconciliationItems ReconciliationItem[]
+  splits          Split[]
+
+  @@unique([tenantId, sourceSystem, externalReference])
+  @@index([tenantId, status])
+  @@index([idempotencyKey])
+  @@index([subscriptionId])
+  @@map("charges")
+}
+
+model ChargeItem {
+  id             String  @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  chargeId       String @db.Uuid @map("charge_id")
+  externalItemId String? @map("external_item_id")
+  description    String
+  quantity       Decimal @default(1) @db.Decimal(14, 4)
+  unitValue      Decimal @map("unit_value") @db.Decimal(14, 2)
+  totalValue     Decimal @map("total_value") @db.Decimal(14, 2)
+  metadataJson   Json?   @map("metadata_json")
+
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@index([chargeId])
+  @@map("charge_items")
+}
+
+model PaymentAttempt {
+  id                 String               @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  chargeId           String @db.Uuid @map("charge_id")
+  provider           ProviderType
+  paymentMethod      String               @map("payment_method")
+  status             PaymentAttemptStatus @default(PENDING)
+  amount             Decimal              @db.Decimal(14, 2)
+  installments       Int                  @default(1)
+  authorizationCode  String?              @map("authorization_code")
+  transactionId      String?              @map("transaction_id")
+  providerPaymentId  String?              @map("provider_payment_id")
+  rawProviderPayload Json?                @map("raw_provider_payload")
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@index([chargeId])
+  @@map("payment_attempts")
+}
+
+model Payment {
+  id                 String        @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  chargeId           String @db.Uuid @map("charge_id")
+  provider           ProviderType
+  paymentMethod      String        @map("payment_method")
+  status             PaymentStatus @default(PENDING)
+  grossAmount        Decimal       @map("gross_amount") @db.Decimal(14, 2)
+  feeAmount          Decimal       @default(0) @map("fee_amount") @db.Decimal(14, 2)
+  netAmount          Decimal       @map("net_amount") @db.Decimal(14, 2)
+  paidAt             DateTime?     @map("paid_at") @db.Timestamptz(3)
+  confirmedAt        DateTime?     @map("confirmed_at") @db.Timestamptz(3)
+  availableAt        DateTime?     @map("available_at") @db.Timestamptz(3)
+  settledAt          DateTime?     @map("settled_at") @db.Timestamptz(3)
+  providerPaymentId  String?       @map("provider_payment_id")
+  rawProviderPayload Json?         @map("raw_provider_payload")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  charge           Charge            @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  providerRequests ProviderRequest[]
+  refunds          Refund[]
+  paymentEntries   PaymentEntry[]
+  settlement       Settlement?
+  reconciliationItems ReconciliationItem[]
+
+  @@index([chargeId])
+  @@index([providerPaymentId])
+  @@map("payments")
+}
+
+model Refund {
+  id                 String       @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  paymentId          String @db.Uuid @map("payment_id")
+  provider           ProviderType
+  status             RefundStatus @default(PENDING)
+  amount             Decimal      @db.Decimal(14, 2)
+  reason             String?
+  providerRefundId   String?      @map("provider_refund_id")
+  requestedBy        String?      @map("requested_by")
+  requestedAt        DateTime     @default(now()) @map("requested_at") @db.Timestamptz(3)
+  processedAt        DateTime?    @map("processed_at") @db.Timestamptz(3)
+  rawProviderPayload Json?        @map("raw_provider_payload")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+model ProviderWebhookEvent {
+  id                String                    @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  provider          ProviderType
+  providerAccountId String? @db.Uuid @map("provider_account_id")
+  eventType         String                    @map("event_type")
+  eventId           String?                   @map("event_id")
+  signatureValid    Boolean                   @default(false) @map("signature_valid")
+  rawPayload        Json                      @map("raw_payload")
+  headersJson       Json?                     @map("headers_json")
+  status            ProviderWebhookEventStatus @default(RECEIVED)
+  receivedAt        DateTime                  @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt       DateTime?                 @map("processed_at") @db.Timestamptz(3)
+  errorMessage      String?                   @map("error_message") @db.Text
+
+  providerAccount ProviderAccount? @relation(fields: [providerAccountId], references: [id], onDelete: SetNull)
+
+  @@index([provider, eventId])
+  @@index([status])
+  @@map("provider_webhook_events")
+}
+
+model InternalWebhookDelivery {
+  id             String                        @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId       String @db.Uuid @map("tenant_id")
+  targetUrl      String                        @map("target_url")
+  eventType      String                        @map("event_type")
+  payloadJson    Json                          @map("payload_json")
+  signature      String?
+  status         InternalWebhookDeliveryStatus @default(PENDING)
+  attempts       Int                           @default(0)
+  lastAttemptAt  DateTime?                     @map("last_attempt_at") @db.Timestamptz(3)
+  nextRetryAt    DateTime?                     @map("next_retry_at") @db.Timestamptz(3)
+  responseStatus Int?                          @map("response_status")
+  responseBody   String?                       @map("response_body") @db.Text
+  createdAt      DateTime                      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("internal_webhook_deliveries")
+}
+
+model ProviderRequest {
+  id              String              @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId        String @db.Uuid @map("tenant_id")
+  provider        ProviderType
+  operation       String
+  chargeId        String? @db.Uuid @map("charge_id")
+  paymentId       String? @db.Uuid @map("payment_id")
+  requestPayload  Json?               @map("request_payload")
+  responsePayload Json?               @map("response_payload")
+  status          ProviderRequestStatus
+  httpStatus      Int?                @map("http_status")
+  errorMessage    String?             @map("error_message") @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge  Charge?  @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, provider])
+  @@map("provider_requests")
+}
+
+model IdempotencyKey {
+  id           String               @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId     String @db.Uuid @map("tenant_id")
+  key          String
+  sourceSystem String               @map("source_system")
+  operation    String
+  status       IdempotencyKeyStatus @default(IN_PROGRESS)
+  requestHash  String?              @map("request_hash")
+  responseJson Json?                @map("response_json")
+  expiresAt    DateTime             @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sourceSystem, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId     String? @db.Uuid @map("tenant_id")
+  actor        String?
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String? @db.Uuid @map("resource_id")
+  metadataJson Json?    @map("metadata_json")
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, resourceType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model ConsumerWebhook {
+  id              String                @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId        String @db.Uuid @map("tenant_id")
+  sourceSystem    String?               @map("source_system")
+  url             String
+  secretEncrypted String                @map("secret_encrypted") @db.Text
+  eventTypes      String[]              @default([]) @map("event_types")
+  status          ConsumerWebhookStatus @default(ACTIVE)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("consumer_webhooks")
+}
+
+model PaymentEntry {
+  id                String           @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId          String @db.Uuid @map("tenant_id")
+  paymentId         String @db.Uuid @map("payment_id")
+  chargeId          String @db.Uuid @map("charge_id")
+  provider          ProviderType
+  entryType         PaymentEntryType @map("entry_type")
+  grossAmount       Decimal          @map("gross_amount") @db.Decimal(14, 2)
+  feeAmount         Decimal          @default(0) @map("fee_amount") @db.Decimal(14, 2)
+  netAmount         Decimal          @map("net_amount") @db.Decimal(14, 2)
+  currency          String           @default("BRL")
+  providerReference String?          @map("provider_reference")
+  occurredAt        DateTime         @map("occurred_at") @db.Timestamptz(3)
+  metadataJson      Json?            @map("metadata_json")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment             Payment              @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  charge              Charge               @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  reconciliationItems ReconciliationItem[]
+
+  @@index([tenantId, paymentId])
+  @@index([chargeId])
+  @@map("payment_entries")
+}
+
+model Settlement {
+  id                   String           @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId             String @db.Uuid @map("tenant_id")
+  merchantId           String? @db.Uuid @map("merchant_id")
+  paymentId            String @db.Uuid @unique @map("payment_id")
+  status               SettlementStatus @default(PENDING)
+  grossAmount          Decimal          @map("gross_amount") @db.Decimal(14, 2)
+  feeAmount            Decimal          @default(0) @map("fee_amount") @db.Decimal(14, 2)
+  netAmount            Decimal          @map("net_amount") @db.Decimal(14, 2)
+  expectedAvailableAt  DateTime?        @map("expected_available_at") @db.Timestamptz(3)
+  availableAt          DateTime?        @map("available_at") @db.Timestamptz(3)
+  settledAt            DateTime?        @map("settled_at") @db.Timestamptz(3)
+  provider             ProviderType
+  providerSettlementId String?          @map("provider_settlement_id")
+  metadataJson         Json?            @map("metadata_json")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([expectedAvailableAt])
+  @@map("settlements")
+}
+
+model ReconciliationBatch {
+  id             String                     @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId       String @db.Uuid @map("tenant_id")
+  provider       ProviderType?
+  source         ReconciliationImportSource
+  status         ReconciliationBatchStatus  @default(PENDING)
+  fileName       String?                    @map("file_name")
+  importedBy     String?                    @map("imported_by")
+  totalItems     Int                        @default(0) @map("total_items")
+  matchedCount   Int                        @default(0) @map("matched_count")
+  divergentCount Int                        @default(0) @map("divergent_count")
+  metadataJson   Json?                      @map("metadata_json")
+  importedAt     DateTime                   @default(now()) @map("imported_at") @db.Timestamptz(3)
+  completedAt    DateTime?                  @map("completed_at") @db.Timestamptz(3)
+
+  tenant Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  ReconciliationItem[]
+
+  @@index([tenantId, status])
+  @@map("reconciliation_batches")
+}
+
+model ReconciliationItem {
+  id                String                   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  batchId           String @db.Uuid @map("batch_id")
+  tenantId          String @db.Uuid @map("tenant_id")
+  externalReference String?                  @map("external_reference")
+  providerReference String?                  @map("provider_reference")
+  amount            Decimal                  @db.Decimal(14, 2)
+  transactionDate   DateTime?                @map("transaction_date") @db.Timestamptz(3)
+  status            ReconciliationItemStatus @default(PENDING)
+  chargeId          String? @db.Uuid @map("charge_id")
+  paymentId         String? @db.Uuid @map("payment_id")
+  paymentEntryId    String? @db.Uuid @map("payment_entry_id")
+  expectedAmount    Decimal?                 @map("expected_amount") @db.Decimal(14, 2)
+  differenceAmount  Decimal?                 @map("difference_amount") @db.Decimal(14, 2)
+  matchNotes        String?                  @map("match_notes") @db.Text
+  matchedAt         DateTime?                @map("matched_at") @db.Timestamptz(3)
+  metadataJson      Json?                    @map("metadata_json")
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  batch        ReconciliationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge       Charge?             @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  payment      Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentEntry PaymentEntry?       @relation(fields: [paymentEntryId], references: [id], onDelete: SetNull)
+
+  @@index([batchId, status])
+  @@index([tenantId, externalReference])
+  @@map("reconciliation_items")
+}
+
+model Subscription {
+  id                     String             @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId               String @db.Uuid @map("tenant_id")
+  merchantId             String @db.Uuid @map("merchant_id")
+  customerId             String @db.Uuid @map("customer_id")
+  providerAccountId      String? @db.Uuid @map("provider_account_id")
+  sourceSystem           String             @map("source_system")
+  externalReference      String             @map("external_reference")
+  provider               ProviderType
+  status                 SubscriptionStatus @default(PENDING)
+  amount                 Decimal            @db.Decimal(14, 2)
+  currency               String             @default("BRL")
+  billingCycle           BillingCycle       @map("billing_cycle")
+  paymentMethod          String             @map("payment_method")
+  nextDueDate            DateTime?          @map("next_due_date") @db.Timestamptz(3)
+  providerSubscriptionId String?            @map("provider_subscription_id")
+  description            String?
+  metadataJson           Json?              @map("metadata_json")
+  rawProviderPayload     Json?              @map("raw_provider_payload")
+  cancelledAt            DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  pausedAt               DateTime?          @map("paused_at") @db.Timestamptz(3)
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  merchant        Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer        PaymentCustomer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount?  @relation(fields: [providerAccountId], references: [id], onDelete: SetNull)
+  cycles          SubscriptionCycle[]
+  charges         Charge[]
+
+  @@unique([tenantId, sourceSystem, externalReference])
+  @@index([tenantId, status])
+  @@index([providerSubscriptionId])
+  @@map("subscriptions")
+}
+
+model SubscriptionCycle {
+  id               String                  @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  subscriptionId   String @db.Uuid @map("subscription_id")
+  cycleNumber      Int                     @map("cycle_number")
+  chargeId         String? @db.Uuid @map("charge_id")
+  status           SubscriptionCycleStatus @default(PENDING)
+  amount           Decimal                 @db.Decimal(14, 2)
+  dueDate          DateTime                @map("due_date") @db.Timestamptz(3)
+  paidAt           DateTime?               @map("paid_at") @db.Timestamptz(3)
+  providerChargeId String?                 @map("provider_charge_id")
+  metadataJson     Json?                   @map("metadata_json")
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, cycleNumber])
+  @@index([subscriptionId, status])
+  @@map("subscription_cycles")
+}
+
+model Split {
+  id              String      @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId        String @db.Uuid @map("tenant_id")
+  chargeId        String @db.Uuid @map("charge_id")
+  recipientId     String @db.Uuid @map("recipient_id")
+  type            SplitType
+  amount          Decimal?    @db.Decimal(14, 2)
+  percentage      Decimal?    @db.Decimal(8, 4)
+  providerSplitId String?     @map("provider_split_id")
+  status          SplitStatus @default(PENDING)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@index([chargeId])
+  @@index([tenantId, recipientId])
+  @@map("splits")
+}
+
+model Transfer {
+  id                 String         @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  tenantId           String @db.Uuid @map("tenant_id")
+  merchantId         String @db.Uuid @map("merchant_id")
+  recipientId        String? @db.Uuid @map("recipient_id")
+  amount             Decimal        @db.Decimal(14, 2)
+  feeAmount          Decimal        @default(0) @map("fee_amount") @db.Decimal(14, 2)
+  status             TransferStatus @default(PENDING)
+  provider           ProviderType?
+  providerTransferId String?        @map("provider_transfer_id")
+  bankAccountJson    Json?          @map("bank_account_json")
+  failureReason      String?        @map("failure_reason") @db.Text
+  metadataJson       Json?          @map("metadata_json")
+  processedAt        DateTime?      @map("processed_at") @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, merchantId])
+  @@index([status])
+  @@map("transfers")
+}

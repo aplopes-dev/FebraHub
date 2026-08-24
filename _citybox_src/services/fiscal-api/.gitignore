@@ -1,0 +1,10 @@
+node_modules
+.env
+dist/
+
+# Prisma client (prisma/schema.prisma → generated/prisma)
+generated/
+
+# Amostras de DANFE/DANFSE geradas localmente para conferencia visual (T026).
+# Nao versionadas: sao binarios reproduziveis por `tests/manual/gerar-amostras.spec.ts`.
+amostras/

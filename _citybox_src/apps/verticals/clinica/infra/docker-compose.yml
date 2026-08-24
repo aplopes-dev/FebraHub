@@ -1,0 +1,113 @@
+name: clinica
+
+services:
+  api:
+    build:
+      context: ../../../..
+      dockerfile: apps/verticals/clinica/api/Dockerfile
+      args:
+        CACHEBUST: ${CACHEBUST:-unknown}
+    image: aplopes-clinica-api:latest
+    container_name: clinica_api
+    restart: unless-stopped
+    env_file:
+      - ../../../../services/platform-apps.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${CLINICA_DATABASE_URL_DOCKER}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://citybox:citybox@aplopes_rabbitmq:5672/citybox}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_CLINICA_ISSUER:-https://auth.aplopes.com/realms/citybox-clinica}
+      KEYCLOAK_CLIENT_ID: clinica-web
+      KEYCLOAK_ALLOWED_AZP: clinica-web,admin-m2m
+      KEYCLOAK_PROVISIONING_CLIENT_ID: clinica-provisioning
+      KEYCLOAK_PROVISIONING_CLIENT_SECRET: ${KEYCLOAK_CLINICA_PROVISIONING_SECRET:-clinica-provisioning-dev-secret}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-aplopes}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-aplopes-minio-dev}
+      MINIO_BUCKET: aplopes-clinica
+      PORT: 3172
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://clinica.aplopes.com,https://backoffice.aplopes.com,https://admin.aplopes.com,http://127.0.0.1:3113,http://localhost:3113}
+    ports:
+      - "127.0.0.1:3172:3172"
+    networks:
+      - aplopes-platform
+
+  # Frontend Next.js (@citybox/clinica-web) — BFF próprio + proxy /api/proxy/clinica
+  web:
+    build:
+      context: ../../../..
+      dockerfile: apps/verticals/clinica/web/Dockerfile
+      args:
+        CACHEBUST: ${CACHEBUST:-unknown}
+        NEXT_PUBLIC_KEYCLOAK_ISSUER: ${KEYCLOAK_CLINICA_ISSUER:-https://auth.aplopes.com/realms/citybox-clinica}
+        NEXT_PUBLIC_KEYCLOAK_CLIENT: clinica-web
+        NEXT_PUBLIC_BACKOFFICE_ORIGIN: ${CLINICA_ORIGIN:-https://clinica.aplopes.com}
+    image: aplopes-clinica-web:latest
+    container_name: clinica_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3113
+      HOSTNAME: "0.0.0.0"
+      CLINICA_API_URL: http://api:3172/api
+      KEYCLOAK_INTERNAL_ISSUER: http://aplopes_keycloak:8080/realms/citybox-clinica
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLINICA_WEB_SECRET:-clinica-web-dev-secret}
+    ports:
+      - "127.0.0.1:3113:3113"
+    depends_on:
+      - api
+    networks:
+      - aplopes-platform
+
+  # Consumer RabbitMQ clinic.store-setup (seed first-contact ao criar loja Clínica).
+  # Sem este serviço, citybox.store.created.v1 nunca espelha/seed no schema clinica.
+  worker:
+    image: aplopes-clinica-api:latest
+    container_name: clinica_api_worker
+    restart: unless-stopped
+    command: ["node", "dist/src/main-worker.js"]
+    env_file:
+      - ../../../../services/platform-apps.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${CLINICA_DATABASE_URL_DOCKER}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://citybox:citybox@aplopes_rabbitmq:5672/citybox}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_CLINICA_ISSUER:-https://auth.aplopes.com/realms/citybox-clinica}
+      KEYCLOAK_CLIENT_ID: clinica-web
+      KEYCLOAK_ALLOWED_AZP: clinica-web,admin-m2m
+      KEYCLOAK_PROVISIONING_CLIENT_ID: clinica-provisioning
+      KEYCLOAK_PROVISIONING_CLIENT_SECRET: ${KEYCLOAK_CLINICA_PROVISIONING_SECRET:-clinica-provisioning-dev-secret}
+      # Reforço equipe demo (CreateStore já seeda na platform-api antes do publish)
+      PLATFORM_API_URL: ${PLATFORM_API_URL:-http://aplopes_admin_api:3103}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-aplopes}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-aplopes-minio-dev}
+      MINIO_BUCKET: aplopes-clinica
+    networks:
+      - aplopes-platform
+
+  # Baileys WhatsApp (QR + envio + inbound). Volume persiste auth multi-loja.
+  whatsapp:
+    image: aplopes-clinica-api:latest
+    container_name: clinica_api_whatsapp
+    restart: unless-stopped
+    command: ["node", "dist/src/main-whatsapp.js"]
+    env_file:
+      - ../../../../services/platform-apps.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${CLINICA_DATABASE_URL_DOCKER}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://citybox:citybox@aplopes_rabbitmq:5672/citybox}
+      WHATSAPP_AUTH_DIR: /data/whatsapp
+    volumes:
+      - clinica_whatsapp_auth:/data/whatsapp
+    networks:
+      - aplopes-platform
+
+volumes:
+  clinica_whatsapp_auth:
+
+networks:
+  aplopes-platform:
+    name: aplopes-platform
+    external: true

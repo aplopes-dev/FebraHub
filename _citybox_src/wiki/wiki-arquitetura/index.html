@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki Arquitetura — Citybox</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script>
+    window.WIKI = {
+      sections: [],
+      register: function(section) { this.sections.push(section); }
+    };
+  </script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <button id="menuToggle" style="display:none;background:none;border:none;color:white;font-size:22px;padding:4px 8px;">☰</button>
+    <div class="brand-logo">🏛️</div>
+    <div class="brand-text">
+      <span class="brand-name">Arquitetura</span>
+      <span class="brand-sub">Citybox · Blueprint</span>
+    </div>
+  </div>
+
+  <button class="search-trigger" id="searchTrigger">
+    🔍 <span>Buscar seção…</span>
+    <kbd>Ctrl K</kbd>
+  </button>
+
+  <nav class="topbar-wikis" aria-label="Wikis do ecossistema">
+    <a class="topbar-wiki-link" href="/wiki-admin/">🛠️ <span>Admin</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp/">🏪 <span>ERP Base</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp-food/">🍔 <span>Food</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp-market/">🛒 <span>Market</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp-clinic/">🏥 <span>Clinic</span></a>
+    <a class="topbar-wiki-link" href="/wiki-services/">⚙️ <span>Services</span></a>
+    <a class="topbar-wiki-link" href="/wiki-marketplace/">🛍️ <span>Marketplace</span></a>
+    <a class="topbar-wiki-link active" href="/wiki-arquitetura/">🏛️ <span>Arquitetura</span></a>
+  </nav>
+
+  <div class="topbar-progress">
+    <span class="progress-text" id="progressText">0 de 10 seções aprovadas</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</header>
+
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" placeholder="Buscar em todas as seções…" autocomplete="off">
+    <span class="search-esc">Esc</span>
+  </div>
+  <div class="search-results" id="searchResults"></div>
+  <div class="search-backdrop" id="searchBackdrop"></div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-nav" id="sidebarNav"></div>
+    </div>
+  </nav>
+
+  <main class="main" id="mainContent">
+    <div class="section-content" id="section-content">
+      <div class="loading-placeholder">
+        <div class="loading-spinner"></div>
+        <span>Carregando…</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+<script src="assets/js/content/00-visao-geral.js"></script>
+<script src="assets/js/content/01-equivalencia-stack.js"></script>
+<script src="assets/js/content/02-matriz-maturidade.js"></script>
+<script src="assets/js/content/03-arquitetura-alvo.js"></script>
+<script src="assets/js/content/04-comunicacao-eventos.js"></script>
+<script src="assets/js/content/05-dados-distribuidos.js"></script>
+<script src="assets/js/content/06-saga-checkout.js"></script>
+<script src="assets/js/content/07-resiliencia-observabilidade.js"></script>
+<script src="assets/js/content/08-seguranca-devops.js"></script>
+<script src="assets/js/content/09-roadmap.js"></script>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

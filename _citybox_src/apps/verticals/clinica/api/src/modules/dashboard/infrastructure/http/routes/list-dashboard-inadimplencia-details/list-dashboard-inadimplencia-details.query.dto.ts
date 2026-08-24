@@ -1,0 +1,45 @@
+import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, Max, Min, ValidateIf } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { DashboardInadimplenciaPeriodMode } from '../../../../application/utils/dashboard-inadimplencia.types';
+
+const PERIOD_MODES: DashboardInadimplenciaPeriodMode[] = ['annual', 'monthly'];
+
+export class ListDashboardInadimplenciaDetailsQueryDto {
+  @ApiProperty({ enum: PERIOD_MODES })
+  @IsIn(PERIOD_MODES)
+  periodMode!: DashboardInadimplenciaPeriodMode;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year!: number;
+
+  @ApiPropertyOptional({ description: 'Obrigatório quando periodMode=monthly' })
+  @ValidateIf(
+    (o: ListDashboardInadimplenciaDetailsQueryDto) =>
+      o.periodMode === 'monthly',
+  )
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month?: number;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  perPage?: number;
+}

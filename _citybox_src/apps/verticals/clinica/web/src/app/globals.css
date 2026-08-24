@@ -1,0 +1,42 @@
+@import "@citybox/ui/styles";
+@config "../../tailwind.config.ts";
+
+@source "../**/*";
+@source "../../../../packages/ui/src";
+
+/* Glow sutil nas telas de autenticação (tema warm) */
+[data-theme="warm"] .erp-auth-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to top, black 0%, black 28%, transparent 72%);
+  mask-image: linear-gradient(to top, black 0%, black 28%, transparent 72%);
+}
+
+[data-theme="warm"] .erp-auth-ambient::before,
+[data-theme="warm"] .erp-auth-ambient::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);
+}
+
+[data-theme="warm"] .erp-auth-ambient::before {
+  bottom: -32%;
+  left: -12%;
+  width: min(65vw, 820px);
+  height: min(45vh, 480px);
+  background: hsl(var(--primary) / 0.35);
+  opacity: 0.45;
+}
+
+[data-theme="warm"] .erp-auth-ambient::after {
+  bottom: -28%;
+  right: -10%;
+  width: min(60vw, 760px);
+  height: min(42vh, 440px);
+  background: hsl(var(--primary) / 0.2);
+  opacity: 0.35;
+}

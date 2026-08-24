@@ -1,0 +1,33 @@
+# Overlay produção (servidor aplopes.com) — rede e volumes existentes.
+services:
+  keycloak-db:
+    container_name: aplopes_keycloak_db
+    volumes:
+      - aplopes_keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - aplopes-platform
+
+  keycloak:
+    container_name: aplopes_keycloak
+    # SEM `--import-realm`, de propósito (ADR C-16) — mesma razão do compose
+    # base: os JSONs de `import/` carregam campos que só o `sync-realm.mjs`
+    # entende (`secretEnv`, `serviceAccountRealmRoles`, …) e o importador nativo
+    # recusa campo desconhecido, **matando o boot** com "Unrecognized field".
+    # Em produção: subir o servidor e aplicar os realms com `pnpm keycloak:sync`
+    # (KEYCLOAK_URL apontando para esta instância).
+    command: start
+    networks:
+      - aplopes-platform
+
+volumes:
+  aplopes_keycloak_db_data:
+    name: aplopes_keycloak_db_data
+    external: true
+
+networks:
+  citybox-platform:
+    name: aplopes-platform
+    external: true
+  aplopes-platform:
+    name: aplopes-platform
+    external: true

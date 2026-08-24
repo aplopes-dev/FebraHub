@@ -1,0 +1,51 @@
+// FIT_IN_MOCK mantido abaixo para referência até validação em produção
+// O shape foi atualizado — shifts (array), planName (string | null), status, appointmentId
+// import type { IFitIn } from "./types";
+//
+// export const FIT_IN_MOCK: IFitIn[] = [
+//   {
+//     id: "1",
+//     patient: { id: "p1", name: "Maria Silva", phone: "(11) 99999-1111" },
+//     professional: { id: "prof1", name: "Dr. João Santos" },
+//     fitInDate: "2025-12-08",
+//     shifts: ["morning"],
+//     anyDate: false,
+//     planName: "Particular",
+//     observation: "Paciente com dor intensa no dente 36",
+//     isUrgent: true,
+//     status: "pending",
+//     appointmentId: null,
+//     category: null,
+//     createdAt: "2025-12-07",
+//   },
+//   {
+//     id: "2",
+//     patient: { id: "p2", name: "Carlos Oliveira", phone: "(11) 98888-2222" },
+//     professional: { id: "prof2", name: "Dra. Ana Costa" },
+//     fitInDate: "2025-12-10",
+//     shifts: ["afternoon"],
+//     anyDate: false,
+//     planName: "Unimed",
+//     observation: "Avaliação para implante",
+//     isUrgent: false,
+//     status: "pending",
+//     appointmentId: null,
+//     category: null,
+//     createdAt: "2025-12-05",
+//   },
+//   {
+//     id: "3",
+//     patient: { id: "p3", name: "Ana Beatriz Santos", phone: "(11) 97777-3333" },
+//     professional: { id: "prof1", name: "Dr. João Santos" },
+//     fitInDate: null,
+//     shifts: ["any"],
+//     anyDate: true,
+//     planName: "Bradesco Saúde",
+//     observation: "Limpeza e profilaxia",
+//     isUrgent: false,
+//     status: "pending",
+//     appointmentId: null,
+//     category: null,
+//     createdAt: "2025-12-06",
+//   },
+// ];

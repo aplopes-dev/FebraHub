@@ -1,0 +1,432 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/tenant"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "food", "market", "beauty", "clinic", "services"]
+}
+
+// ─── Enums (public) ───────────────────────────────────────────────────────────
+
+enum CatalogItemType {
+  FOOD
+  RETAIL
+  SERVICE
+  CLINIC
+
+  @@schema("public")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+
+  @@schema("public")
+}
+
+enum ShippingMode {
+  RADIUS
+  NEIGHBORHOOD
+  TABLE
+
+  @@schema("public")
+}
+
+enum OutboxStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+
+  @@schema("public")
+}
+
+// ─── Enums (food) ─────────────────────────────────────────────────────────────
+
+enum StoreTheme {
+  warm
+  light
+  dark
+
+  @@schema("food")
+}
+
+enum StoreBrandAccent {
+  orange
+  emerald
+  slate
+
+  @@schema("food")
+}
+
+// ─── public — commerce + administração transversal ────────────────────────────
+
+model CatalogItem {
+  id        String          @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId   String          @db.Uuid
+  type      CatalogItemType
+  name      String
+  published Boolean         @default(false)
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+  food      FoodItem?
+  retail    RetailItem?
+  beauty    BeautyServiceItem?
+  services  ServicesServiceItem?
+  clinic    ClinicItem?
+
+  @@index([storeId])
+  @@schema("public")
+}
+
+model InventoryStock {
+  id       String @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId  String @db.Uuid
+  sku      String
+  quantity Int    @default(0)
+  reserved Int    @default(0)
+
+  @@unique([storeId, sku])
+  @@schema("public")
+}
+
+model InventoryReservation {
+  id        String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId   String   @db.Uuid
+  sku       String
+  quantity  Int
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([storeId])
+  @@index([expiresAt])
+  @@schema("public")
+}
+
+model Order {
+  id        String      @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId   String      @db.Uuid
+  status    OrderStatus @default(PENDING)
+  total     Decimal     @db.Decimal(12, 2)
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+  items     OrderItem[]
+  subOrders SubOrder[]
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@schema("public")
+}
+
+model OrderItem {
+  id       String  @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  orderId  String  @db.Uuid
+  order    Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku      String
+  name     String
+  quantity Int
+  price    Decimal @db.Decimal(12, 2)
+
+  @@schema("public")
+}
+
+model SubOrder {
+  id      String      @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  orderId String      @db.Uuid
+  order   Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  storeId String      @db.Uuid
+  status  OrderStatus @default(PENDING)
+
+  @@index([storeId])
+  @@schema("public")
+}
+
+model ShippingRule {
+  id      String       @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId String       @db.Uuid
+  mode    ShippingMode
+  config  Json
+  active  Boolean      @default(true)
+
+  @@index([storeId])
+  @@schema("public")
+}
+
+model OutboxEvent {
+  id          String       @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  type        String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  publishedAt DateTime?    @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@schema("public")
+}
+
+model ProcessedEvent {
+  id          String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  eventId     String
+  consumer    String
+  processedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([eventId, consumer])
+  @@schema("public")
+}
+
+model ProjectionReadModel {
+  id        String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  key       String   @unique
+  data      Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@schema("public")
+}
+
+model MarketplaceStore {
+  id               String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId          String   @unique @db.Uuid
+  name             String
+  slug             String
+  neighborhood     String?
+  lat              Float?
+  lng              Float?
+  publishedVersion Int      @default(1)
+  sourceEventId    String?
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  @@schema("public")
+}
+
+model MarketplaceOffer {
+  id               String          @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId          String          @db.Uuid
+  itemId           String          @unique @db.Uuid
+  name             String
+  type             CatalogItemType
+  price            Decimal?        @db.Decimal(12, 2)
+  category         String?
+  published        Boolean         @default(false)
+  publishedVersion Int             @default(1)
+  sourceEventId    String?
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@index([storeId])
+  @@index([category])
+  @@schema("public")
+}
+
+model MarketplaceAvailability {
+  id               String   @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId          String   @db.Uuid
+  sku              String?
+  slotId           String?  @db.Uuid
+  available        Boolean  @default(true)
+  quantity         Int?
+  publishedVersion Int      @default(1)
+  sourceEventId    String?
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([storeId])
+  /// slotId referencia agenda vertical (beauty/clinic/services) — sem FK cross-schema por design.
+  @@schema("public")
+}
+
+model Cart {
+  id        String     @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  sessionId String     @unique
+  updatedAt DateTime   @updatedAt @db.Timestamptz(3)
+  items     CartItem[]
+
+  @@schema("public")
+}
+
+model CartItem {
+  id       String  @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  cartId   String  @db.Uuid
+  cart     Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  storeId  String  @db.Uuid
+  sku      String
+  name     String
+  quantity Int
+  price    Decimal @db.Decimal(12, 2)
+
+  @@unique([cartId, storeId, sku])
+  @@schema("public")
+}
+
+// ─── food — backoffice e extensão de catálogo ─────────────────────────────────
+
+model FoodItem {
+  catalogItemId String      @id @db.Uuid
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  calories      Int?
+
+  @@schema("food")
+}
+
+model StoreSettings {
+  id                   String           @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId              String           @unique @db.Uuid
+  theme                StoreTheme       @default(warm)
+  brandAccent          StoreBrandAccent @default(orange)
+  displayName          String?          @db.VarChar(120)
+  timezone             String           @default("America/Sao_Paulo") @db.VarChar(64)
+  locale               String           @default("pt-BR") @db.VarChar(16)
+  logoObjectKey        String?          @db.VarChar(512)
+  salonPageTitle       String?          @db.VarChar(120)
+  salonPageDescription String?          @db.VarChar(500)
+  salonZones           Json?
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@schema("food")
+}
+
+model StoreRole {
+  id          String          @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId     String          @db.Uuid
+  slug        String
+  name        String
+  permissions Json
+  isSystem    Boolean         @default(false)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  assignments StoreUserRole[]
+
+  @@unique([storeId, slug])
+  @@schema("food")
+}
+
+model StoreUserRole {
+  id          String    @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId     String    @db.Uuid
+  keycloakSub String
+  storeRoleId String    @db.Uuid
+  storeRole   StoreRole @relation(fields: [storeRoleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([storeId, keycloakSub])
+  @@index([storeId, storeRoleId])
+  @@schema("food")
+}
+
+// ─── market ───────────────────────────────────────────────────────────────────
+
+model RetailItem {
+  catalogItemId String      @id @db.Uuid
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  sku           String
+
+  @@schema("market")
+}
+
+// ─── beauty ───────────────────────────────────────────────────────────────────
+
+model BeautyServiceItem {
+  catalogItemId String      @id @db.Uuid
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  durationMin   Int         @default(30)
+
+  @@map("ServiceItem")
+  @@schema("beauty")
+}
+
+model BeautyProfessional {
+  id      String              @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId String              @db.Uuid
+  name    String
+  slots   BeautyScheduleSlot[]
+
+  @@index([storeId])
+  @@map("Professional")
+  @@schema("beauty")
+}
+
+model BeautyScheduleSlot {
+  id             String             @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  professionalId String             @db.Uuid
+  professional   BeautyProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  startAt        DateTime           @db.Timestamptz(3)
+  endAt          DateTime           @db.Timestamptz(3)
+  booked         Boolean            @default(false)
+
+  @@index([professionalId, startAt])
+  @@map("ScheduleSlot")
+  @@schema("beauty")
+}
+
+// ─── clinic ───────────────────────────────────────────────────────────────────
+
+model ClinicItem {
+  catalogItemId String      @id @db.Uuid
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  procedureCode String?
+
+  @@schema("clinic")
+}
+
+model ClinicProfessional {
+  id      String              @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId String              @db.Uuid
+  name    String
+  slots   ClinicScheduleSlot[]
+
+  @@index([storeId])
+  @@map("Professional")
+  @@schema("clinic")
+}
+
+model ClinicScheduleSlot {
+  id             String             @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  professionalId String             @db.Uuid
+  professional   ClinicProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  startAt        DateTime           @db.Timestamptz(3)
+  endAt          DateTime           @db.Timestamptz(3)
+  booked         Boolean            @default(false)
+
+  @@index([professionalId, startAt])
+  @@map("ScheduleSlot")
+  @@schema("clinic")
+}
+
+// ─── services ─────────────────────────────────────────────────────────────────
+
+model ServicesServiceItem {
+  catalogItemId String      @id @db.Uuid
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  durationMin   Int         @default(30)
+
+  @@map("ServiceItem")
+  @@schema("services")
+}
+
+model ServicesProfessional {
+  id      String                @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  storeId String                @db.Uuid
+  name    String
+  slots   ServicesScheduleSlot[]
+
+  @@index([storeId])
+  @@map("Professional")
+  @@schema("services")
+}
+
+model ServicesScheduleSlot {
+  id             String               @id @default(dbgenerated("citybox_uuid_v7()")) @db.Uuid
+  professionalId String               @db.Uuid
+  professional   ServicesProfessional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  startAt        DateTime             @db.Timestamptz(3)
+  endAt          DateTime             @db.Timestamptz(3)
+  booked         Boolean              @default(false)
+
+  @@index([professionalId, startAt])
+  @@map("ScheduleSlot")
+  @@schema("services")
+}

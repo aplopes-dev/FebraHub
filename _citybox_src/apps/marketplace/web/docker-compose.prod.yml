@@ -1,0 +1,14 @@
+# Marketplace web — SPA. Servida em citybox.com.br pelo nginx do host → 127.0.0.1:3110.
+# VITE_API_MODE=live no .env.production fala com /api (proxy do host ou do nginx interno).
+services:
+  marketplace-web:
+    build:
+      context: .
+      target: production
+    image: citybox-marketplace-web:latest
+    container_name: citybox_marketplace_web
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:3110:80"

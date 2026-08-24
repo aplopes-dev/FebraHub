@@ -51,6 +51,9 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     sistema: false,
     permissoes: [
       'compras.ver', 'compras.solicitar', 'compras.operar', 'compras.aprovar',
+      'pdv.ver', 'pdv.operar', 'pdv.gerenciar',
+      'loja.produtos.ver', 'loja.produtos.gerenciar',
+      'financeiro.erp.ver', 'financeiro.gerenciar',
       'processos.ver',
       'processos.validar',
       'processos.implantacao',
@@ -78,6 +81,9 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     sistema: false,
     permissoes: [
       'compras.ver', 'compras.solicitar', 'compras.operar', 'compras.aprovar',
+      'pdv.ver', 'pdv.operar',
+      'loja.produtos.ver', 'loja.produtos.gerenciar',
+      'financeiro.erp.ver',
       'processos.ver',
       'processos.mapear',
       'processos.validar',

@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": true,
+  "redirects": [
+    { "source": "/", "destination": "/wiki-admin/", "type": 302 }
+  ]
+}

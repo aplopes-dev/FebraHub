@@ -50,6 +50,28 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     ],
   },
   {
+    id: 'pdv', nome: 'PDV — Ponto de Venda', descricao: 'Frente de caixa interna: abrir/fechar caixa, vender e acompanhar.',
+    permissoes: [
+      { id: 'pdv.ver', nome: 'Acompanhar o PDV', descricao: 'Ver vendas, indicadores e sessões de caixa.' },
+      { id: 'pdv.operar', nome: 'Operar o caixa', descricao: 'Abrir/fechar caixa, sangria/reforço e registrar vendas.' },
+      { id: 'pdv.gerenciar', nome: 'Gerenciar o PDV', descricao: 'Cancelar vendas e administrar terminais.' },
+    ],
+  },
+  {
+    id: 'loja-catalogo', nome: 'Loja — Catálogo e Estoque', descricao: 'Produtos, categorias e estoque operacional da Loja (LOJA/DEPÓSITO), base do PDV e do Cardápio Digital.',
+    permissoes: [
+      { id: 'loja.produtos.ver', nome: 'Consultar o catálogo', descricao: 'Ver produtos, categorias, saldos e movimentações de estoque.' },
+      { id: 'loja.produtos.gerenciar', nome: 'Gerenciar o catálogo', descricao: 'Criar/editar produtos e categorias, ajustar e transferir estoque entre LOJA e DEPÓSITO.' },
+    ],
+  },
+  {
+    id: 'financeiro-erp', nome: 'Financeiro ERP', descricao: 'Contas a pagar/receber, DRE, contas bancárias e centros de custo.',
+    permissoes: [
+      { id: 'financeiro.erp.ver', nome: 'Consultar o financeiro', descricao: 'Ver lançamentos, DRE, saldos e indicadores.' },
+      { id: 'financeiro.gerenciar', nome: 'Lançar e liquidar', descricao: 'Criar lançamentos, dar baixa e manter os cadastros de apoio.' },
+    ],
+  },
+  {
     id: 'processos',
     nome: 'Central de Processos',
     descricao: 'Mapeamento, validação, publicação e implantação do ERP.',

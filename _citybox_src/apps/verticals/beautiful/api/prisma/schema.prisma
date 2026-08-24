@@ -1,0 +1,532 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["beautiful"]
+}
+
+// ==========================================
+// 0. TENANCY + MEMBERSHIP (Etapa 4 Fase E)
+// ==========================================
+enum OrganizationStatus {
+  active
+  suspended
+
+  @@schema("beautiful")
+}
+
+enum StoreStatus {
+  active
+  inactive
+
+  @@schema("beautiful")
+}
+
+enum MemberStatus {
+  active
+  disabled
+
+  @@schema("beautiful")
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  COLLABORATOR
+
+  @@schema("beautiful")
+}
+
+model Organization {
+  id        String             @id @default(uuid())
+  name      String
+  status    OrganizationStatus @default(active)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  stores  Store[]
+  members Member[]
+
+  @@index([status])
+  @@map("organizations")
+  @@schema("beautiful")
+}
+
+/// Unidade operacional. O `id` é o `storeId` da platform (criado via admin /
+/// store-setup) e usado no restante do domínio.
+model Store {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  name           String
+  status         StoreStatus @default(active)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      StoreMember[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("stores")
+  @@schema("beautiful")
+}
+
+model Member {
+  id               String                 @id @default(uuid())
+  organizationId   String                 @map("organization_id")
+  keycloakSub      String                 @unique @map("keycloak_sub")
+  username         String                 @unique
+  email            String?
+  firstName        String                 @map("first_name")
+  lastName         String                 @map("last_name")
+  /// Contato operacional (WhatsApp / telefone) — única fonte de verdade.
+  phone            String?
+  status           MemberStatus           @default(active)
+  organizationRole OrganizationMemberRole @default(COLLABORATOR) @map("organization_role")
+  hasPassword      Boolean                @default(false) @map("has_password")
+  provisionalExpiresAt DateTime?          @map("provisional_expires_at")
+  disabledAt       DateTime?              @map("disabled_at")
+  deletedAt        DateTime?              @map("deleted_at")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  storeMembers    StoreMember[]
+  memberServices  MemberService[]
+  workIntervals   MemberWorkInterval[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("members")
+  @@schema("beautiful")
+}
+
+model StoreMember {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  memberId    String   @map("member_id")
+  /// Papéis lean: owner | profissional | recepcao
+  role        String
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  store  Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, memberId])
+  @@index([storeId])
+  @@index([memberId])
+  @@map("store_members")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 1. SERVICES (Catálogo de Serviços)
+// ==========================================
+model Service {
+  id              String   @id @default(uuid())
+  storeId         String   @map("store_id")
+  name            String
+  categories      String[] @default([])
+  durationMinutes Int      @map("duration_minutes")
+  price           Float
+  description     String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  memberServices      MemberService[]
+  appointmentServices AppointmentService[]
+
+  @@index([storeId])
+  @@map("services")
+  @@schema("beautiful")
+}
+
+/// M2M Member ↔ Service (escrita via Member.serviceIds). `professionalIds` nos GETs
+/// de serviço é projeção somente leitura dos memberIds vinculados.
+model MemberService {
+  memberId  String @map("member_id")
+  serviceId String @map("service_id")
+
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, serviceId])
+  @@index([serviceId])
+  @@map("member_services")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 3. PRODUCTS (Estoque de Produtos de Consumo)
+// ==========================================
+model Product {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  name             String
+  sku              String?
+  unitOfMeasure    String   @map("unit_of_measure")
+  stockQuantity    Int      @default(0) @map("stock_quantity")
+  minStockQuantity Int      @default(0) @map("min_stock_quantity")
+  costPrice        Float?   @map("cost_price")
+  description      String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  stockMovements StockMovement[]
+
+  @@unique([storeId, sku])
+  @@index([storeId])
+  @@map("products")
+  @@schema("beautiful")
+}
+
+enum StockMovementType {
+  IN
+  OUT
+
+  @@schema("beautiful")
+}
+
+model StockMovement {
+  id        String            @id @default(uuid())
+  productId String            @map("product_id")
+  type      StockMovementType
+  quantity  Int
+  note      String?
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@map("stock_movements")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 4. CLIENTS (Cadastro lean — nome + telefone + categoria opcional)
+// ==========================================
+model ClientCategory {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  name        String
+  /** Hex `#rrggbb` (livre; UI usa seletor de saturação). */
+  colorId     String   @default("#3b82f6") @map("color_id") @db.VarChar(7)
+  isProtected Boolean @default(false) @map("is_protected")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  clients Client[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("client_categories")
+  @@schema("beautiful")
+}
+
+model Client {
+  id         String   @id @default(uuid())
+  storeId    String   @map("store_id")
+  name       String
+  phone      String
+  categoryId String?  @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  category         ClientCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  appointments     Appointment[]
+  financialEntries FinancialEntry[]
+
+  @@index([storeId])
+  @@index([storeId, name])
+  @@index([storeId, phone])
+  @@index([categoryId])
+  @@map("clients")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 4.1 STORE SETTINGS (singleton do estabelecimento)
+// ==========================================
+model StoreSettings {
+  id                 String   @id @default(uuid())
+  storeId            String   @unique @map("store_id")
+  name               String   @default("Meu estabelecimento")
+  themeId            String   @default("purple") @map("theme_id") @db.VarChar(32)
+  cnpj               String?
+  communicationsName String?  @map("communications_name")
+  responsible        String?
+  email              String?
+  phone              String?
+  mobile             String?
+  cep                String?
+  street             String?
+  number             String?
+  complement         String?
+  neighborhood       String?
+  city               String?
+  state              String?  @db.VarChar(2)
+  logoObjectKey      String?  @map("logo_object_key")
+  logoMimeType       String?  @map("logo_mime_type")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workIntervals StoreWorkInterval[]
+
+  @@map("store_settings")
+  @@schema("beautiful")
+}
+
+/// Horário de funcionamento do estabelecimento: N faixas por dia da semana
+/// (almoço = buraco entre intervalos), mesmo modelo de MemberWorkInterval.
+model StoreWorkInterval {
+  id              String  @id @default(uuid())
+  storeSettingsId String  @map("store_settings_id")
+  weekday         Weekday
+  startTime       String  @map("start_time") @db.VarChar(5)
+  endTime         String  @map("end_time") @db.VarChar(5)
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  storeSettings StoreSettings @relation(fields: [storeSettingsId], references: [id], onDelete: Cascade)
+
+  @@index([storeSettingsId, weekday])
+  @@map("store_work_intervals")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 4.2 APPOINTMENT CATEGORIES (categoria de agendamento)
+// ==========================================
+model AppointmentCategory {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  /** Hex `#rrggbb` (livre; UI usa seletor de saturação). */
+  color     String   @default("#3b82f6") @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  appointments Appointment[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("appointment_categories")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 5. APPOINTMENTS (Agenda)
+// ==========================================
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@schema("beautiful")
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  storeId     String            @map("store_id")
+  clientId    String            @map("client_id")
+  categoryId  String?           @map("category_id")
+  clientNotes String?           @map("client_notes")
+  startAt     DateTime          @map("start_at")
+  endAt       DateTime          @map("end_at")
+  status      AppointmentStatus @default(SCHEDULED)
+  totalPrice  Float             @map("total_price")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  client              Client               @relation(fields: [clientId], references: [id])
+  category            AppointmentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  appointmentServices AppointmentService[]
+  financialEntry      FinancialEntry?
+
+  @@index([storeId])
+  @@index([storeId, startAt, endAt])
+  @@index([clientId])
+  @@index([categoryId])
+  @@index([status])
+  @@map("appointments")
+  @@schema("beautiful")
+}
+
+/// Linha de serviço do atendimento. `professionalId` = `Member.id` (soft-ref,
+/// padrão Clínica — sem FK para permitir histórico se o membro for soft-deleted).
+model AppointmentService {
+  id             String   @id @default(uuid())
+  appointmentId  String   @map("appointment_id")
+  professionalId String   @map("professional_id")
+  serviceId      String   @map("service_id")
+  price          Float
+  duration       Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id])
+
+  @@unique([appointmentId, serviceId, professionalId])
+  @@index([professionalId])
+  @@index([serviceId])
+  @@map("appointment_services")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 6. MEMBER WORK SCHEDULE (intervalos semanais)
+// ==========================================
+enum Weekday {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+
+  @@schema("beautiful")
+}
+
+model MemberWorkInterval {
+  id        String  @id @default(uuid())
+  memberId  String  @map("member_id")
+  weekday   Weekday
+  startTime String  @map("start_time") @db.VarChar(5)
+  endTime   String  @map("end_time") @db.VarChar(5)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, weekday])
+  @@map("member_work_intervals")
+  @@schema("beautiful")
+}
+
+/// Dedupe de eventos `citybox.store.*` (outbox at-least-once do admin-api).
+model ProcessedEvent {
+  eventId     String   @id @map("event_id")
+  type        String
+  aggregateId String   @map("aggregate_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([aggregateId])
+  @@map("processed_events")
+  @@schema("beautiful")
+}
+
+// ==========================================
+// 7. FINANCIAL LEDGER (contas / categorias / lançamentos)
+// ==========================================
+enum FinancialEntryType {
+  income
+  expense
+
+  @@schema("beautiful")
+}
+
+enum FinancialEntryStatus {
+  pending
+  paid
+  received
+  cancelled
+
+  @@schema("beautiful")
+}
+
+enum FinancialEntrySource {
+  manual
+  appointment_complete
+
+  @@schema("beautiful")
+}
+
+enum FinancialCategoryKind {
+  income
+  expense
+
+  @@schema("beautiful")
+}
+
+model FinancialAccount {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  type      String   @default("checking")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  entries FinancialEntry[]
+
+  @@index([storeId])
+  @@index([storeId, isActive])
+  @@map("financial_accounts")
+  @@schema("beautiful")
+}
+
+model FinancialCategory {
+  id        String                @id @default(uuid())
+  storeId   String                @map("store_id")
+  kind      FinancialCategoryKind
+  name      String
+  color     String                @default("")
+  createdAt DateTime              @default(now()) @map("created_at")
+  updatedAt DateTime              @updatedAt @map("updated_at")
+
+  expenseEntries FinancialEntry[] @relation("ExpenseCategoryEntries")
+  incomeEntries  FinancialEntry[] @relation("IncomeCategoryEntries")
+
+  @@index([storeId])
+  @@index([storeId, kind])
+  @@map("financial_categories")
+  @@schema("beautiful")
+}
+
+model FinancialEntry {
+  id                String               @id @default(uuid())
+  storeId           String               @map("store_id")
+  type              FinancialEntryType
+  status            FinancialEntryStatus @default(pending)
+  source            FinancialEntrySource
+  description       String
+  valueCents        Int                  @map("value_cents")
+  dueDate           DateTime             @map("due_date") @db.Date
+  paidAt            DateTime?            @map("paid_at") @db.Date
+  paidValueCents    Int?                 @map("paid_value_cents")
+  paymentMethod     String?              @map("payment_method")
+  paymentType       String?              @map("payment_type")
+  observation       String?              @db.Text
+  accountId         String?              @map("account_id")
+  expenseCategoryId String?              @map("expense_category_id")
+  incomeCategoryId  String?              @map("income_category_id")
+  clientId          String?              @map("client_id")
+  appointmentId     String?              @unique @map("appointment_id")
+  installmentNumber Int?                 @map("installment_number")
+  totalInstallments Int?                 @map("total_installments")
+  recurrenceGroupId String?              @map("recurrence_group_id")
+  receiveDetail     Json?                @map("receive_detail")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  client          Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  appointment     Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  account         FinancialAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  expenseCategory FinancialCategory? @relation("ExpenseCategoryEntries", fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  incomeCategory  FinancialCategory? @relation("IncomeCategoryEntries", fields: [incomeCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, dueDate])
+  @@index([storeId, type, status])
+  @@index([storeId, clientId])
+  @@index([storeId, recurrenceGroupId])
+  @@map("financial_entries")
+  @@schema("beautiful")
+}

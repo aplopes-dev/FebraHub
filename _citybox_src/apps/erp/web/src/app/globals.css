@@ -1,0 +1,13 @@
+@import "@citybox/ui/styles";
+@config "../../tailwind.config.ts";
+
+@source "../**/*";
+@source "../../../../../packages/ui/src";
+
+@import "../styles/comercio-theme.css";
+
+/* Tokens de marca do comércio — utilitários Tailwind (bg-brand-ink, text-brand-ink, …) */
+@theme inline {
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-foreground: var(--brand-ink-foreground);
+}

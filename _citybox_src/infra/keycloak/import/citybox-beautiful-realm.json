@@ -1,0 +1,97 @@
+{
+  "realm": "citybox-beautiful",
+  "displayName": "Citybox Beautiful",
+  "enabled": true,
+  "loginTheme": "citybox",
+  "accountTheme": "citybox",
+  "emailTheme": "citybox",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "pt"
+  ],
+  "defaultLocale": "pt",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespan": 1800,
+  "passwordPolicy": "length(10) and notUsername and notEmail",
+  "roles": {
+    "realm": [
+      {
+        "name": "platform.admin",
+        "description": "Chamador de plataforma (admin-api via M2M). Atribuída EXCLUSIVAMENTE ao service account admin-m2m — nunca a usuário humano. Substitui as roles platform_admin / platform_admin_client do realm compartilhado."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "beautiful-web",
+      "name": "Beautiful — app do lojista",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:3115/auth/callback",
+        "http://127.0.0.1:3115/auth/sso",
+        "http://localhost:3115/auth/callback",
+        "http://localhost:3115/auth/sso",
+        "https://salao.aplopes.com/auth/callback",
+        "https://salao.aplopes.com/auth/sso",
+        "https://beautiful.citybox.com/auth/callback",
+        "https://beautiful.citybox.com/auth/sso"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:3115",
+        "http://localhost:3115",
+        "https://salao.aplopes.com",
+        "https://beautiful.citybox.com"
+      ],
+      "attributes": {
+        "use.refresh.tokens": "true"
+      },
+      "secretEnv": "KEYCLOAK_BEAUTIFUL_WEB_SECRET"
+    },
+    {
+      "clientId": "beautiful-provisioning",
+      "name": "Beautiful — service account de provisionamento",
+      "description": "Usada pela beautiful-api para criar/gerenciar membros. manage-users LIMITADO a este realm.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "serviceAccountClientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      },
+      "secretEnv": "KEYCLOAK_BEAUTIFUL_PROVISIONING_SECRET"
+    },
+    {
+      "clientId": "admin-m2m",
+      "name": "Citybox admin — chamador M2M",
+      "description": "Credencial que o admin-api usa para chamar a beautiful-api. NÃO tem manage-users: só a role platform.admin.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "serviceAccountRealmRoles": [
+        "platform.admin"
+      ],
+      "secretEnv": "KEYCLOAK_BEAUTIFUL_M2M_CLIENT_SECRET"
+    }
+  ]
+}

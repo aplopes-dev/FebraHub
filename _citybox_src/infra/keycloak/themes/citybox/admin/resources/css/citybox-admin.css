@@ -1,0 +1,57 @@
+/*
+ * Admin Console v2 — tema warm Citybox (realm master)
+ */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --pf-v5-global--primary-color--100: hsl(var(--citybox-primary));
+  --pf-v5-global--primary-color--200: hsl(24 95% 46%);
+  --pf-v5-global--active-color--100: hsl(var(--citybox-primary));
+  --pf-v5-global--link--Color: hsl(24 95% 46%);
+  --pf-v5-global--BackgroundColor--100: hsl(var(--citybox-bg));
+  --pf-v5-global--BackgroundColor--200: hsl(var(--citybox-card));
+  --pf-v5-global--FontFamily--text: 'Instrument Sans', system-ui, sans-serif;
+  --pf-v5-global--FontFamily--heading: 'Fraunces', Georgia, serif;
+}
+
+body,
+#app {
+  font-family: var(--pf-v5-global--FontFamily--text);
+}
+
+.pf-v5-c-masthead,
+.pf-v5-c-page__header {
+  background: hsl(var(--citybox-shell));
+  color: hsl(42 15% 88%);
+}
+
+.pf-v5-c-masthead .pf-v5-c-button,
+.pf-v5-c-masthead .pf-v5-c-menu-toggle {
+  color: hsl(42 15% 88%);
+}
+
+.pf-v5-c-page__sidebar {
+  --pf-v5-c-page__sidebar--BackgroundColor: hsl(var(--citybox-shell));
+}
+
+.pf-v5-c-nav__link.pf-m-current {
+  border-inline-start-color: hsl(var(--citybox-primary));
+  background: hsl(24 95% 53% / 0.12);
+}
+
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: hsl(var(--citybox-primary));
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: hsl(24 95% 46%);
+  border-radius: 0.5rem;
+}
+
+.pf-v5-c-card {
+  border-radius: 0.875rem;
+  border: 1px solid hsl(42 14% 86% / 0.85);
+  box-shadow: 0 8px 24px hsl(222 28% 11% / 0.05);
+}
+
+.keycloak__loading-container {
+  color: hsl(var(--citybox-ink)) !important;
+  background-color: hsl(var(--citybox-bg)) !important;
+}

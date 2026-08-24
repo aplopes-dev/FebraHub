@@ -1,0 +1,886 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["imoveis"]
+}
+
+// ---------------------------------------------------------------------------
+// Leads (CRM) — espelha ContactLeadDetail do imoveis-web
+// Enums em snake_case (Prisma); HTTP/UI usam kebab-case via mapper.
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  new
+  negotiating
+  scheduled_visit
+  closed_won
+  cancelled
+
+  @@schema("imoveis")
+}
+
+enum LeadSource {
+  walk_in
+  website
+  referral
+  social
+  ads
+  whatsapp
+
+  @@schema("imoveis")
+}
+
+enum LeadPurpose {
+  buying
+  renting
+  selling
+
+  @@schema("imoveis")
+}
+
+/// Intenção de pagamento na qualificação do lead (mesmo catálogo do fechamento).
+enum LeadPaymentIntent {
+  cash
+  financing
+  fgts
+  trade_in
+
+  @@schema("imoveis")
+}
+
+enum PropertyType {
+  house
+  apartment
+  villa
+  land
+  commercial
+
+  @@schema("imoveis")
+}
+
+enum LeadActivityType {
+  note
+  system
+  status
+  assignment
+  document
+  property
+
+  @@schema("imoveis")
+}
+
+enum LeadDocumentKind {
+  contract
+  other
+
+  @@schema("imoveis")
+}
+
+enum LeadDocumentSentChannel {
+  whatsapp
+  share
+  link
+
+  @@schema("imoveis")
+}
+
+model Lead {
+  id                     String       @id @default(uuid())
+  storeId                String       @map("store_id")
+  name                   String
+  email                  String       @default("")
+  phone                  String       @default("")
+  city                   String       @default("")
+  state                  String       @default("")
+  status                 LeadStatus   @default(new)
+  leadSource             LeadSource   @map("lead_source")
+  interestedPropertyType PropertyType @map("interested_property_type")
+  budgetRange            String       @default("") @map("budget_range")
+  preferredLocation      String       @default("") @map("preferred_location")
+  purpose                LeadPurpose
+  paymentIntents         LeadPaymentIntent[] @default([]) @map("payment_intents")
+  latestFollowUp         DateTime?    @map("latest_follow_up") @db.Date
+  nextFollowUp           DateTime?    @map("next_follow_up") @db.Date
+  notes                  String       @default("")
+  photoUrl               String?      @map("photo_url") @db.Text
+  propertyName           String?      @map("property_name")
+  hasSuggestion          Boolean      @default(false) @map("has_suggestion")
+  /// Corretor “dono” (filtro Meu perfil / sync catálogo).
+  agentId                String?      @map("agent_id")
+  /// Token público para o cliente enviar PDF/DOC (TTL 48h).
+  documentUploadToken     String?   @unique @map("document_upload_token")
+  documentUploadExpiresAt DateTime? @map("document_upload_expires_at") @db.Timestamptz(3)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Coluna FTS (preenchida por trigger) — ver migration `add_fts_search_vectors`.
+  searchVector           Unsupported("tsvector")? @map("search_vector")
+
+  agents            LeadAgent[]
+  matchedProperties LeadMatchedProperty[]
+  documents            LeadDocument[]
+  activities           LeadActivity[]
+  appointments         Appointment[]
+  deals                Deal[]
+  transactions         Transaction[]
+  generatedDocuments   GeneratedDocument[]
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, agentId])
+  @@index([storeId, name])
+  @@index([storeId, createdAt])
+  @@index([searchVector], type: Gin, map: "idx_leads_fts")
+  @@map("leads")
+  @@schema("imoveis")
+}
+
+model LeadAgent {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  agentId   String   @map("agent_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, agentId])
+  @@index([agentId])
+  @@map("lead_agents")
+  @@schema("imoveis")
+}
+
+model LeadMatchedProperty {
+  id           String   @id @default(uuid())
+  leadId       String   @map("lead_id")
+  propertyId   String   @map("property_id")
+  propertyName String   @map("property_name")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@unique([leadId, propertyId])
+  @@map("lead_matched_properties")
+  @@schema("imoveis")
+}
+
+model LeadDocument {
+  id             String                    @id @default(uuid())
+  leadId         String                    @map("lead_id")
+  name           String
+  sizeLabel      String                    @map("size_label")
+  /** `contract` avança o negócio para contract_sent; `other` é anexo geral. */
+  kind           LeadDocumentKind          @default(other)
+  addedAt        DateTime                  @map("added_at") @db.Date
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  objectKey      String?                   @map("object_key")
+  mimeType       String?                   @map("mime_type")
+  sentAt         DateTime?                 @map("sent_at") @db.Timestamptz(3)
+  sentChannel    LeadDocumentSentChannel?  @map("sent_channel")
+  shareToken     String?                   @unique @map("share_token")
+  shareExpiresAt DateTime?                 @map("share_expires_at") @db.Timestamptz(3)
+  /** Preenchido no ack da página `/d/:token` — não no GET do arquivo. */
+  viewedAt       DateTime?                 @map("viewed_at") @db.Timestamptz(3)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("lead_documents")
+  @@schema("imoveis")
+}
+
+model LeadActivity {
+  id         String           @id @default(uuid())
+  leadId     String           @map("lead_id")
+  type       LeadActivityType
+  message    String
+  authorName String?          @map("author_name")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@map("lead_activities")
+  @@schema("imoveis")
+}
+
+// ---------------------------------------------------------------------------
+// Properties — espelha PropertyListing do imoveis-web
+// ---------------------------------------------------------------------------
+
+enum PropertyStatus {
+  available
+  occupied
+  sold_out
+  reserved
+
+  @@schema("imoveis")
+}
+
+enum ListingType {
+  sale
+  rent
+
+  @@schema("imoveis")
+}
+
+model Property {
+  id            String         @id @default(uuid())
+  storeId       String         @map("store_id")
+  name          String
+  city          String         @default("")
+  state         String         @default("")
+  type          PropertyType
+  units         Int            @default(1)
+  cost          Decimal        @default(0) @db.Decimal(14, 2)
+  views         Int            @default(0)
+  status        PropertyStatus @default(available)
+  occupiedUnits Int?           @map("occupied_units")
+  listingType   ListingType    @map("listing_type")
+  negotiable    Boolean        @default(false)
+  bedrooms      Int            @default(0)
+  floors        Int            @default(1)
+  sizeSqm       Int            @default(0) @map("size_sqm")
+  yearBuilt     Int            @default(0) @map("year_built")
+  address       String         @default("")
+  country       String         @default("Brasil")
+  zipCode       String         @default("") @map("zip_code")
+  mapCoordinate String         @default("") @map("map_coordinate")
+  typeCode      String?        @map("type_code")
+  /** Texto exibido no catálogo público — seção "Sobre o imóvel". */
+  description   String         @default("")
+  /** Itens exibidos no catálogo — seção "Diferenciais" (um por linha no form). */
+  highlights    String[]       @default([])
+  totalActiveLeads Int         @default(0) @map("total_active_leads")
+  agentId       String?        @map("agent_id")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector  Unsupported("tsvector")? @map("search_vector")
+
+  photos               PropertyPhoto[]
+  documents            PropertyDocument[]
+  activeLeads          PropertyActiveLead[]
+  appointments         Appointment[]
+  deals                Deal[]
+  transactions         Transaction[]
+  generatedDocuments   GeneratedDocument[]
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, agentId])
+  @@index([storeId, name])
+  @@index([storeId, createdAt])
+  @@index([searchVector], type: Gin, map: "idx_properties_fts")
+  @@map("properties")
+  @@schema("imoveis")
+}
+
+model PropertyPhoto {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  /** Object key no MinIO (não data URL). */
+  url        String   @db.Text
+  mimeType   String   @default("image/jpeg") @map("mime_type")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
+  @@map("property_photos")
+  @@schema("imoveis")
+}
+
+model PropertyDocument {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  name       String
+  sizeLabel  String   @map("size_label")
+  /** Object key no MinIO; `null` = documento legado salvo só com metadados. */
+  objectKey  String?  @map("object_key") @db.Text
+  mimeType   String   @default("application/pdf") @map("mime_type")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@map("property_documents")
+  @@schema("imoveis")
+}
+
+model PropertyActiveLead {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  leadId     String   @map("lead_id")
+  name       String
+  initials   String
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
+  @@map("property_active_leads")
+  @@schema("imoveis")
+}
+
+// ---------------------------------------------------------------------------
+// Appointments (Agenda) — espelha CalendarAppointment do imoveis-web
+// Enums em snake_case (Prisma); HTTP/UI usam kebab-case via mapper.
+// Wall-clock America/Bahia na apresentação (date + HH:mm).
+// ---------------------------------------------------------------------------
+
+enum AppointmentKind {
+  visit
+  follow_up
+  signing
+  other
+
+  @@schema("imoveis")
+}
+
+model Appointment {
+  id             String          @id @default(uuid())
+  storeId        String          @map("store_id")
+  title          String
+  description    String          @default("")
+  startsAt       DateTime        @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime        @map("ends_at") @db.Timestamptz(3)
+  location       String          @default("")
+  kind           AppointmentKind
+  agentId        String          @map("agent_id")
+  done           Boolean         @default(false)
+  leadId         String?         @map("lead_id")
+  leadName       String?         @map("lead_name")
+  leadEmail      String?         @map("lead_email")
+  leadPhone      String?         @map("lead_phone")
+  leadPhotoUrl   String?         @map("lead_photo_url") @db.Text
+  propertyId     String?         @map("property_id")
+  /// ID do evento no Google Calendar do corretor responsável (sync 1→1).
+  googleEventId  String?         @unique @map("google_event_id")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector   Unsupported("tsvector")? @map("search_vector")
+
+  lead                 Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  property             Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  generatedDocuments   GeneratedDocument[]
+
+  @@index([storeId, startsAt])
+  @@index([storeId, agentId])
+  @@index([storeId, leadId])
+  @@index([searchVector], type: Gin, map: "idx_appointments_fts")
+  @@map("appointments")
+  @@schema("imoveis")
+}
+
+// ---------------------------------------------------------------------------
+// Deals (funil CRM Lead ↔ Property) — complementa Transaction (financeiro)
+// Enums snake_case (Prisma); HTTP mapeia em fase posterior.
+// ---------------------------------------------------------------------------
+
+enum DealStatus {
+  active
+  won
+  cancelled
+
+  @@schema("imoveis")
+}
+
+enum DealStage {
+  awaiting_property
+  property_selected
+  contract_sent
+  contract_signed
+  payment_confirmed
+  handover
+
+  @@schema("imoveis")
+}
+
+model Deal {
+  id           String           @id @default(uuid())
+  storeId      String           @map("store_id")
+  leadId       String           @map("lead_id")
+  propertyId   String?          @map("property_id")
+  propertyName String           @default("") @map("property_name")
+  leadName     String?          @map("lead_name")
+  type         TransactionType?
+  status       DealStatus       @default(active)
+  stage        DealStage        @default(awaiting_property)
+  title        String           @default("")
+  agentId      String?          @map("agent_id")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  lead                 Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  property             Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  transaction          Transaction?
+  generatedDocuments   GeneratedDocument[]
+
+  @@index([storeId, createdAt])
+  @@index([storeId, status])
+  @@index([storeId, stage])
+  @@index([leadId])
+  @@index([propertyId])
+  @@map("deals")
+  @@schema("imoveis")
+}
+
+// ---------------------------------------------------------------------------
+// Transactions (Negócios) + Finance — espelha types do imoveis-web
+// Enums UPPER_SNAKE iguais ao HTTP/UI (sem mapper kebab).
+// ---------------------------------------------------------------------------
+
+enum TransactionType {
+  SALE
+  RENTAL
+
+  @@schema("imoveis")
+}
+
+enum TransactionStatus {
+  DRAFT
+  PROPOSAL
+  CONTRACT_SIGNED
+  COMPLETED
+  CANCELLED
+
+  @@schema("imoveis")
+}
+
+enum SplitSource {
+  GLOBAL
+  AGENT_OVERRIDE
+  MANUAL
+
+  @@schema("imoveis")
+}
+
+enum RentalPayoutStatus {
+  AWAITING_PAYMENT
+  PAID_BY_TENANT
+  READY_FOR_PAYOUT
+  PAID_TO_LANDLORD
+
+  @@schema("imoveis")
+}
+
+enum TransactionPaymentMethod {
+  pix
+  transfer
+  boleto
+  cash
+  check
+  debit
+  credit
+  financing
+  consortium
+  fgts
+  trade_in
+  other
+
+  @@schema("imoveis")
+}
+
+model Transaction {
+  id                     String               @id @default(uuid())
+  storeId                String               @map("store_id")
+  type                   TransactionType
+  status                 TransactionStatus
+  title                  String
+  propertyId             String?              @map("property_id")
+  propertyName           String               @map("property_name")
+  leadId                 String?              @map("lead_id")
+  leadName               String?              @map("lead_name")
+  captorId               String               @map("captor_id")
+  sellerId               String?              @map("seller_id")
+  grossValueCents        Int                  @map("gross_value_cents")
+  paymentMethod          TransactionPaymentMethod @map("payment_method")
+  commissionPercent      Float                @map("commission_percent")
+  agencyPercent          Float                @map("agency_percent")
+  captorPercent          Float                @map("captor_percent")
+  sellerPercent          Float                @map("seller_percent")
+  agencyAmountCents      Int                  @map("agency_amount_cents")
+  captorAmountCents      Int                  @map("captor_amount_cents")
+  sellerAmountCents      Int                  @map("seller_amount_cents")
+  totalCommissionCents   Int                  @map("total_commission_cents")
+  splitOthers            Json                 @default("[]") @map("split_others")
+  splitSource            SplitSource          @map("split_source")
+  rentalLandlordName     String?              @map("rental_landlord_name")
+  rentalTenantName       String?              @map("rental_tenant_name")
+  rentalBaseRentCents    Int?                 @map("rental_base_rent_cents")
+  rentalCondoCents       Int?                 @map("rental_condo_cents")
+  rentalIptuCents        Int?                 @map("rental_iptu_cents")
+  rentalAdminFeePercent  Float?               @map("rental_admin_fee_percent")
+  rentalDueDay           Int?                 @map("rental_due_day")
+  rentalPayoutStatus     RentalPayoutStatus?  @map("rental_payout_status")
+  rentalReceivedCents    Int?                 @map("rental_received_cents")
+  rentalDeductions       Json?                @map("rental_deductions")
+  rentalPaidAt           DateTime?            @map("rental_paid_at") @db.Date
+  rentalPayoutAt         DateTime?            @map("rental_payout_at") @db.Date
+  dealId                 String?              @unique @map("deal_id")
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector           Unsupported("tsvector")? @map("search_vector")
+
+  lead                 Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  property             Property?             @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  deal                 Deal?                 @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  activities           TransactionActivity[]
+  generatedDocuments   GeneratedDocument[]
+
+  @@index([storeId, createdAt])
+  @@index([storeId, status])
+  @@index([storeId, type])
+  @@index([storeId, captorId])
+  @@index([storeId, sellerId])
+  @@index([searchVector], type: Gin, map: "idx_transactions_fts")
+  @@map("transactions")
+  @@schema("imoveis")
+}
+
+model TransactionActivity {
+  id            String   @id @default(uuid())
+  transactionId String   @map("transaction_id")
+  at            DateTime @db.Date
+  actorName     String   @map("actor_name")
+  message       String
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, at])
+  @@map("transaction_activities")
+  @@schema("imoveis")
+}
+
+model CommissionConfig {
+  id                        String   @id @default(uuid())
+  storeId                   String   @unique @map("store_id")
+  defaultCommissionPercent  Float    @map("default_commission_percent")
+  agencyPercent             Float    @map("agency_percent")
+  captorPercent             Float    @map("captor_percent")
+  sellerPercent             Float    @map("seller_percent")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  overrides CommissionAgentOverride[]
+
+  @@map("commission_configs")
+  @@schema("imoveis")
+}
+
+model CommissionAgentOverride {
+  id                     String   @id @default(uuid())
+  storeId                String   @map("store_id")
+  configId               String   @map("config_id")
+  agentId                String   @map("agent_id")
+  captorPercentOverride  Float    @map("captor_percent_override")
+  sellerPercentOverride  Float?   @map("seller_percent_override")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  config CommissionConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, agentId])
+  @@index([configId])
+  @@map("commission_agent_overrides")
+  @@schema("imoveis")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  label       String
+  amountCents Int      @map("amount_cents")
+  date        DateTime @db.Date
+  category    String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([storeId, date])
+  @@map("expenses")
+  @@schema("imoveis")
+}
+
+// ---------------------------------------------------------------------------
+// Settings — store prefs (system + notifications) + agent profile
+// ---------------------------------------------------------------------------
+
+enum AgentLegalDocKind {
+  license
+  employment
+  insurance
+
+  @@schema("imoveis")
+}
+
+enum TeamMemberRole {
+  admin
+  broker
+  affiliated
+  assistant
+
+  @@schema("imoveis")
+}
+
+enum AgentDocumentFolder {
+  client
+  property
+  legal
+  signed
+
+  @@schema("imoveis")
+}
+
+enum AgentDocumentStatus {
+  pending
+  completed
+  archived
+
+  @@schema("imoveis")
+}
+
+enum AgentDocumentSource {
+  manual
+  profile_legal
+
+  @@schema("imoveis")
+}
+
+model StoreSettings {
+  id                          String    @id @default(uuid())
+  storeId                     String    @unique @map("store_id")
+  companyName                 String    @default("") @map("company_name")
+  timezone                    String    @default("America/Sao_Paulo")
+  currency                    String    @default("BRL")
+  language                    String    @default("pt-BR")
+  autoAssignLeads             Boolean   @default(false) @map("auto_assign_leads")
+  requireTwoFactorForNewUsers Boolean   @default(true) @map("require_two_factor_for_new_users")
+  /** Exibe botão de WhatsApp na página pública do imóvel. */
+  whatsappCatalogEnabled      Boolean   @default(true) @map("whatsapp_catalog_enabled")
+  /** Exibe formulário de captação de leads na página pública do imóvel. */
+  leadFormCatalogEnabled      Boolean   @default(true) @map("lead_form_catalog_enabled")
+  accentColorId               String    @default("orange") @map("accent_color_id")
+  emailEnabled                Boolean   @default(true) @map("email_enabled")
+  pushEnabled                 Boolean   @default(true) @map("push_enabled")
+  leadsAlerts                 Boolean   @default(true) @map("leads_alerts")
+  calendarAlerts              Boolean   @default(true) @map("calendar_alerts")
+  documentsAlerts             Boolean   @default(false) @map("documents_alerts")
+  integrationsJson            Json      @default("{}") @map("integrations_json")
+  billingPlanName             String    @default("Profissional") @map("billing_plan_name")
+  billingStatus               String    @default("active") @map("billing_status")
+  billingRenewsAt             DateTime? @map("billing_renews_at") @db.Timestamptz(3)
+  billingAmountCents          Int       @default(19900) @map("billing_amount_cents")
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("store_settings")
+  @@schema("imoveis")
+}
+
+model AgentProfile {
+  id                     String   @id @default(uuid())
+  storeId                String   @map("store_id")
+  agentId                String   @map("agent_id")
+  name                   String   @default("")
+  role                   String   @default("")
+  email                  String   @default("")
+  phone                  String   @default("")
+  region                 String   @default("")
+  stateId                String   @default("") @map("state_id")
+  taxId                  String   @default("") @map("tax_id")
+  photoObjectKey         String?  @map("photo_object_key")
+  photoMimeType          String?  @map("photo_mime_type")
+  twoFactorEnabled       Boolean  @default(false) @map("two_factor_enabled")
+  /// OAuth Google Calendar por corretor (não é config da loja).
+  googleCalendarEnabled  Boolean  @default(false) @map("google_calendar_enabled")
+  /// Refresh token Offline — nunca expor via API HTTP.
+  googleRefreshToken     String?  @map("google_refresh_token") @db.Text
+  googleCalendarId       String?  @default("primary") @map("google_calendar_id")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  legalDocuments AgentLegalDocument[]
+
+  @@unique([storeId, agentId])
+  @@index([storeId])
+  @@map("agent_profiles")
+  @@schema("imoveis")
+}
+
+model AgentLegalDocument {
+  id        String            @id @default(uuid())
+  profileId String            @map("profile_id")
+  kind      AgentLegalDocKind
+  name      String
+  sizeLabel String            @map("size_label")
+  objectKey String            @map("object_key")
+  mimeType  String            @map("mime_type")
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  profile AgentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, kind])
+  @@index([profileId])
+  @@map("agent_legal_documents")
+  @@schema("imoveis")
+}
+
+/// Sessões de dispositivo exibidas no painel de privacidade do corretor.
+model AgentDeviceSession {
+  id              String   @id @default(uuid())
+  storeId         String   @map("store_id")
+  agentId         String   @map("agent_id")
+  device          String
+  location        String   @default("")
+  lastActiveLabel String   @default("") @map("last_active_label")
+  isCurrent       Boolean  @default(false) @map("is_current")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([storeId, agentId])
+  @@map("agent_device_sessions")
+  @@schema("imoveis")
+}
+
+/// Usuários da equipe da loja (aba Usuários das configurações).
+model TeamMember {
+  id                 String         @id @default(uuid())
+  storeId            String         @map("store_id")
+  agentId            String         @map("agent_id")
+  name               String
+  email              String
+  phone              String         @default("")
+  role               TeamMemberRole @default(broker)
+  initials           String         @default("")
+  active             Boolean        @default(true)
+  permissionsJson    Json           @default("{}") @map("permissions_json")
+  lastAccessAt       DateTime?      @map("last_access_at") @db.Timestamptz(3)
+  keycloakSub        String?        @map("keycloak_sub")
+  username           String?
+  hasPassword        Boolean        @default(false) @map("has_password")
+  passwordHash       String?        @map("password_hash")
+  temporaryPassword  String?        @map("temporary_password")
+  mustChangePassword Boolean        @default(false) @map("must_change_password")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([storeId, agentId])
+  @@unique([storeId, keycloakSub])
+  @@unique([storeId, username])
+  @@index([storeId])
+  @@map("team_members")
+  @@schema("imoveis")
+}
+
+enum DocumentTemplateType {
+  termo_visita
+  recibo_sinal
+  proposta_compra
+  proposta_locacao
+  contrato_promessa_compra_venda
+  contrato_locacao
+  outro
+
+  @@schema("imoveis")
+}
+
+enum GeneratedDocumentStatus {
+  rascunho
+  gerado
+
+  @@schema("imoveis")
+}
+
+model DocumentTemplate {
+  id           String               @id @default(uuid())
+  storeId      String               @map("store_id")
+  nome         String
+  tipo         DocumentTemplateType
+  conteudoHtml String               @map("conteudo_html") @db.Text
+  ativo        Boolean              @default(true)
+  isDefault    Boolean              @default(false) @map("is_default")
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  documents    GeneratedDocument[]
+
+  @@index([storeId, tipo])
+  @@index([storeId, ativo])
+  @@map("document_templates")
+  @@schema("imoveis")
+}
+
+model GeneratedDocument {
+  id              String                   @id @default(uuid())
+  storeId         String                   @map("store_id")
+  templateId      String                   @map("template_id")
+  titulo          String
+  conteudoRender  String                   @map("conteudo_render") @db.Text
+  dadosSnapshot   Json                     @map("dados_snapshot")
+  objectKey       String                   @map("object_key")
+  mimeType        String                   @default("application/pdf") @map("mime_type")
+  status          GeneratedDocumentStatus  @default(gerado)
+  leadId          String?                  @map("lead_id")
+  dealId          String?                  @map("deal_id")
+  propertyId      String?                  @map("property_id")
+  appointmentId   String?                  @map("appointment_id")
+  transactionId   String?                  @map("transaction_id")
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template      DocumentTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  lead          Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  deal          Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  property      Property?        @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  appointment   Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  transaction   Transaction?     @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt])
+  @@index([storeId, templateId])
+  @@index([leadId])
+  @@index([appointmentId])
+  @@index([transactionId])
+  @@map("generated_documents")
+  @@schema("imoveis")
+}
+
+/// Dedupe de eventos `citybox.store.*` (outbox at-least-once do admin-api).
+model ProcessedEvent {
+  eventId     String   @id @map("event_id")
+  type        String
+  aggregateId String   @map("aggregate_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([aggregateId])
+  @@map("processed_events")
+  @@schema("imoveis")
+}
+
+/// Documentos das pastas do corretor (aba Documentos). `objectKey` nulo =
+/// registro só com metadados (não baixável).
+model AgentFolderDocument {
+  id           String              @id @default(uuid())
+  storeId      String              @map("store_id")
+  agentId      String              @map("agent_id")
+  folderId     AgentDocumentFolder @map("folder_id")
+  name         String
+  status       AgentDocumentStatus @default(pending)
+  sizeLabel    String              @default("") @map("size_label")
+  detailsLabel String              @default("") @map("details_label")
+  objectKey    String?             @map("object_key")
+  mimeType     String?             @map("mime_type")
+  source       AgentDocumentSource @default(manual)
+  legalKind    AgentLegalDocKind?  @map("legal_kind")
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([storeId, agentId, folderId])
+  @@map("agent_folder_documents")
+  @@schema("imoveis")
+}

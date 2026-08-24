@@ -1,0 +1,40 @@
+# BFF do app consumidor em produção (citybox.com.br/api → 127.0.0.1:3102).
+# Sobe na rede aplopes-platform junto da infra (postgres/redis/keycloak/typesense).
+name: marketplace-bff
+
+services:
+  bff:
+    build:
+      context: ../../..
+      dockerfile: apps/marketplace/bff/Dockerfile
+      args:
+        CACHEBUST: ${CACHEBUST:-unknown}
+    image: citybox-marketplace-bff:latest
+    container_name: citybox_marketplace_bff
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3102
+      CONSUMER_DATABASE_URL: ${CONSUMER_DATABASE_URL}
+      REDIS_URL: redis://aplopes_redis:6379
+      # Realm próprio do marketplace (ADR C-16); issuer único, sem lista de aceitos.
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://aplopes_keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-citybox-marketplace}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-https://auth.citybox.com.br/realms/citybox-marketplace}
+      KEYCLOAK_CLIENT_ID: marketplace-app
+      KEYCLOAK_PROVISIONING_CLIENT_ID: marketplace-provisioning
+      KEYCLOAK_PROVISIONING_CLIENT_SECRET: ${KEYCLOAK_MARKETPLACE_PROVISIONING_SECRET}
+      TYPESENSE_HOST: aplopes_typesense
+      TYPESENSE_PORT: 8108
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY}
+      PUBLIC_BASE_URL: https://citybox.com.br/api
+      CORE_API_URL: ${CORE_API_URL:-http://citybox_marketplace_api:3101/api}
+      CORE_STORE_ID: ${CORE_STORE_ID:-00000000-0000-7000-8000-000000000001}
+    ports:
+      - "127.0.0.1:3102:3102"
+    networks:
+      - aplopes-platform
+
+networks:
+  aplopes-platform:
+    external: true

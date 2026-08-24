@@ -1,0 +1,353 @@
+// Consumer domain do marketplace BFF — dados do app consumidor (contrato docs/openapi.yaml).
+// Schema Postgres dedicado "consumer" no banco citybox. O catálogo (Product/Category/Review)
+// é read model do consumidor: hoje seedado; futuramente projetado pelos workers a partir dos
+// eventos citybox.offer.published.v1 / catalog.item.updated.v1.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../../src/generated/consumer"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ConsumerUser {
+  id                String   @id @default(uuid())
+  keycloakId        String   @unique
+  name              String
+  email             String   @unique
+  phone             String   @default("")
+  avatarUrl         String?
+  isPlus            Boolean  @default(false)
+  hasSeenOnboarding Boolean  @default(false)
+  // ApiSettings
+  pushOrdersEnabled Boolean  @default(true)
+  pushPromoEnabled  Boolean  @default(true)
+  emailPromoEnabled Boolean  @default(false)
+  darkTheme         Boolean  @default(false)
+  language          String   @default("pt-BR")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  addresses      Address[]
+  paymentMethods PaymentMethod[]
+  favorites      Favorite[]
+  searchHistory  SearchHistory[]
+  cart           Cart?
+  checkout       CheckoutSession?
+  orders         Order[]
+  notifications  Notification[]
+  chatMessages   ChatMessage[]
+  tickets        SupportTicket[]
+  subscription   Subscription?
+  reviews        Review[]
+  returns        ReturnRequest[]
+}
+
+model Category {
+  id        String    @id
+  name      String
+  icon      String
+  colorHex  String
+  sortOrder Int       @default(0)
+  products  Product[]
+}
+
+model Product {
+  id              String   @id
+  name            String
+  imageUrl        String
+  price           Decimal  @db.Decimal(12, 2)
+  originalPrice   Decimal? @db.Decimal(12, 2)
+  discountPercent Int?
+  rating          Decimal  @default(0) @db.Decimal(3, 2)
+  reviewCount     Int      @default(0)
+  isFreeShipping  Boolean  @default(false)
+  isExpress       Boolean  @default(false)
+  brand           String?
+  specs           Json?
+  published       Boolean  @default(true)
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reviews    Review[]
+  favorites  Favorite[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([published])
+}
+
+model Review {
+  id        String        @id @default(uuid())
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  userId    String?
+  user      ConsumerUser? @relation(fields: [userId], references: [id])
+  author    String
+  rating    Int
+  text      String
+  photoUrls String[]      @default([])
+  date      DateTime      @default(now())
+
+  @@index([productId])
+}
+
+model HomeSection {
+  id         String   @id
+  title      String
+  productIds String[]
+  sortOrder  Int      @default(0)
+}
+
+model Address {
+  id           String       @id @default(uuid())
+  userId       String
+  user         ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String
+  zipCode      String
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  isDefault    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id         String       @id @default(uuid())
+  userId     String
+  user       ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand      String // VISA | MASTERCARD | ELO | AMEX | UNKNOWN
+  lastFour   String
+  expiry     String
+  holderName String
+  label      String
+  isDefault  Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+
+  @@index([userId])
+}
+
+model Favorite {
+  userId    String
+  user      ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@id([userId, productId])
+}
+
+model SearchHistory {
+  id        String       @id @default(uuid())
+  userId    String
+  user      ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  term      String
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Cart {
+  userId     String       @id
+  user       ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couponCode String?
+  updatedAt  DateTime     @updatedAt
+  items      CartItem[]
+}
+
+model CartItem {
+  cartUserId String
+  cart       Cart    @relation(fields: [cartUserId], references: [userId], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Int
+
+  @@id([cartUserId, productId])
+}
+
+model CheckoutSession {
+  userId            String       @id
+  user              ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedAddressId String?
+  shippingOptionId  String?
+  couponCode        String?
+  paymentType       String? // PIX | CARD | BOLETO
+  paymentMethodId   String?
+  boletoCpf         String?
+  updatedAt         DateTime     @updatedAt
+}
+
+model Coupon {
+  code        String   @id
+  description String
+  type        String // PERCENT | FIXED
+  value       Decimal  @db.Decimal(12, 2)
+  expiry      DateTime
+  minSubtotal Decimal? @db.Decimal(12, 2)
+  active      Boolean  @default(true)
+}
+
+model ShippingOption {
+  id               String  @id
+  name             String
+  deliveryEstimate String
+  price            Decimal @db.Decimal(12, 2)
+  isExpress        Boolean @default(false)
+  active           Boolean @default(true)
+  sortOrder        Int     @default(0)
+}
+
+model Order {
+  id             String       @id
+  userId         String
+  user           ConsumerUser @relation(fields: [userId], references: [id])
+  status         String // ApiOrderStatus
+  subtotal       Decimal      @db.Decimal(12, 2)
+  shipping       Decimal      @db.Decimal(12, 2)
+  discount       Decimal      @default(0) @db.Decimal(12, 2)
+  pixDiscount    Decimal      @default(0) @db.Decimal(12, 2)
+  total          Decimal      @db.Decimal(12, 2)
+  deliveryDate   DateTime
+  address        Json // snapshot ApiAddress
+  payment        Json // snapshot ApiPaymentResult + displayName
+  trackingCode   String?
+  carrier        String?
+  idempotencyKey String?      @unique
+  /// Id do pedido espelhado na marketplace-api core (POST /v1/orders)
+  coreOrderId    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  items         OrderItem[]
+  statusHistory OrderStatusEntry[]
+  returns       ReturnRequest[]
+
+  @@index([userId, createdAt])
+}
+
+model OrderItem {
+  id              String  @id @default(uuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product @relation(fields: [productId], references: [id])
+  productSnapshot Json
+  quantity        Int
+  unitPrice       Decimal @db.Decimal(12, 2)
+  subtotal        Decimal @db.Decimal(12, 2)
+
+  @@index([orderId])
+}
+
+model OrderStatusEntry {
+  id       String   @id @default(uuid())
+  orderId  String
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status   String
+  date     DateTime @default(now())
+  location String?
+
+  @@index([orderId])
+}
+
+model ReturnRequest {
+  id           String       @id @default(uuid())
+  orderId      String
+  order        Order        @relation(fields: [orderId], references: [id])
+  userId       String
+  user         ConsumerUser @relation(fields: [userId], references: [id])
+  productId    String
+  quantity     Int
+  reason       String // ApiReturnReason
+  description  String
+  status       String       @default("REQUESTED")
+  instructions String?
+  createdAt    DateTime     @default(now())
+
+  @@index([orderId])
+}
+
+model Notification {
+  id       String       @id @default(uuid())
+  userId   String
+  user     ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type     String // ORDER | PROMO | SYSTEM
+  title    String
+  body     String
+  date     DateTime     @default(now())
+  isRead   Boolean      @default(false)
+  deepLink String?
+
+  @@index([userId, date])
+}
+
+model ChatMessage {
+  id        String       @id @default(uuid())
+  userId    String
+  user      ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  isAgent   Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model SupportTicket {
+  id        String       @id @default(uuid())
+  userId    String
+  user      ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  message   String
+  orderId   String?
+  status    String       @default("OPEN")
+  createdAt DateTime     @default(now())
+
+  @@index([userId])
+}
+
+model Subscription {
+  userId       String       @id
+  user         ConsumerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive     Boolean      @default(false)
+  planName     String       @default("CityBox+")
+  priceMonthly Decimal      @default(19.90) @db.Decimal(12, 2)
+  renewalDate  DateTime
+  benefits     String[]     @default([])
+}
+
+model FaqItem {
+  id        String @id @default(uuid())
+  question  String
+  answer    String
+  sortOrder Int    @default(0)
+}
+
+model Banner {
+  id          String  @id
+  title       String
+  subtitle    String?
+  imageUrl    String
+  actionType  String?
+  actionQuery String?
+  sortOrder   Int     @default(0)
+  active      Boolean @default(true)
+}
+
+model StaticPage {
+  slug      String   @id
+  title     String
+  content   String
+  updatedAt DateTime @updatedAt
+}

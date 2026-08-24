@@ -1,0 +1,600 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_liveness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/hierarchy/network": {
+      "post": {
+        "operationId": "HierarchyController_createNetwork",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hierarchy"
+        ]
+      }
+    },
+    "/api/v1/hierarchy/stores": {
+      "get": {
+        "operationId": "HierarchyController_listStores",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hierarchy"
+        ]
+      }
+    },
+    "/api/v1/devices/stores/{storeId}/register": {
+      "post": {
+        "operationId": "DevicesController_register",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/push/register": {
+      "post": {
+        "operationId": "DevicesController_registerPush",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/catalog/items": {
+      "post": {
+        "operationId": "CatalogController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/stores/{storeId}/inventory/stock": {
+      "post": {
+        "operationId": "InventoryController_upsertStock",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/stores/{storeId}/inventory/reserve": {
+      "post": {
+        "operationId": "InventoryController_reserve",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/scheduling/professionals": {
+      "post": {
+        "operationId": "SchedulingController_createProfessional",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "scheduling"
+        ]
+      }
+    },
+    "/api/v1/scheduling/slots/{slotId}/book": {
+      "post": {
+        "operationId": "SchedulingController_bookSlot",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "scheduling"
+        ]
+      }
+    },
+    "/api/v1/scheduling/slots": {
+      "post": {
+        "operationId": "SchedulingController_createSlot",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "scheduling"
+        ]
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "operationId": "OrdersController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}": {
+      "get": {
+        "operationId": "OrdersController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/stores/{storeId}/shipping/rules": {
+      "post": {
+        "operationId": "ShippingController_upsertRule",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "shipping"
+        ]
+      }
+    },
+    "/api/v1/stores/{storeId}/shipping/quote": {
+      "post": {
+        "operationId": "ShippingController_quote",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "shipping"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/permissions": {
+      "get": {
+        "operationId": "AuthController_permissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/users/me/stores": {
+      "get": {
+        "operationId": "UsersController_listMyStores",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lojas vinculadas ao usuário autenticado",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "patch": {
+        "operationId": "UsersController_updateMe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  },
+                  "currentPassword": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "photo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Atualizar o próprio perfil (sync Keycloak)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/photo": {
+      "delete": {
+        "operationId": "UsersController_removeMyPhoto",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remover foto do próprio perfil",
+        "tags": [
+          "users"
+        ]
+      },
+      "get": {
+        "operationId": "UsersController_getMyPhoto",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Obter foto do próprio perfil",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/checkout": {
+      "post": {
+        "operationId": "PaymentsController_checkoutOrder",
+        "parameters": [
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customer",
+                  "paymentMethods"
+                ],
+                "properties": {
+                  "customer": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "cpfCnpj"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "Maria Silva"
+                      },
+                      "cpfCnpj": {
+                        "type": "string",
+                        "example": "12345678901"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "phone": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "paymentMethods": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "PIX"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "storeSharePercent": {
+                    "type": "number",
+                    "example": 95
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "routingStrategy": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orderId": {
+                      "type": "string"
+                    },
+                    "charges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subOrderId": {
+                            "type": "string"
+                          },
+                          "storeId": {
+                            "type": "string"
+                          },
+                          "externalReference": {
+                            "type": "string"
+                          },
+                          "charge": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Citybox Core API",
+    "description": "",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
+}

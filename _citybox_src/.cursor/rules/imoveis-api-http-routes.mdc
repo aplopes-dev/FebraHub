@@ -1,0 +1,37 @@
+---
+description: Padrão HTTP obrigatório da imoveis-api (1 ação = pasta com route/dto/presenter, como admin-api)
+globs: apps/imoveis/api/**/*
+alwaysApply: false
+---
+
+# imoveis-api — HTTP routes (padrão admin-api)
+
+Fonte de verdade: `apps/imoveis/api/AGENTS.md` §5.8 e §6.1.
+Referência: `apps/admin/api/src/modules/users/infrastructure/http/routes/`.
+Exemplo local: `apps/imoveis/api/src/modules/leads/infrastructure/http/routes/`.
+
+## Sempre
+
+- **1 ação HTTP = 1 pasta** sob `modules/<feature>/infrastructure/http/routes/<acao>/`
+- Arquivos por pasta: `<acao>.route.ts` + `<acao>.dto.ts` (body) e/ou `<acao>.query.ts` (list) + `<acao>.presenter.ts`
+- Route fino: `DTO → UseCase → Presenter.toHttp`
+- Use case retorna **entidade de domínio** (nunca envelope `{ data }` / shape HTTP)
+- Validação HTTP com **class-validator** + `ValidationPipe` (`@Body() dto: XxxDto`)
+- Registrar **cada** classe de route em `controllers: [...]` do `*.module.ts`
+- Todo use case novo tem `*.use-case.spec.ts` ao lado (ver rule `imoveis-api-use-case-tests`)
+
+## Nunca
+
+- Controller monolítico com vários verbos no mesmo arquivo
+- `@Body() body: unknown` + Zod no use case para validar request HTTP
+- Mapear resposta HTTP dentro do use case
+- Colocar regra de negócio no `*.route.ts`
+- Use case sem teste unitário
+
+## Fluxo
+
+```
+HTTP → Route (DTO) → UseCase → Entity → Presenter → { data } | { data, meta }
+```
+
+Listagens: `{ data, meta: { total, page, perPage, totalPages } }`.

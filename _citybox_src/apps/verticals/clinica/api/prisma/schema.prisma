@@ -1,0 +1,2287 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["clinica"]
+}
+
+model ClinicStore {
+  storeId            String   @id @map("store_id")
+  tradeName          String   @map("trade_name")
+  legalName          String?  @map("legal_name")
+  slug               String
+  vertical           String
+  document           String?
+  stateRegistration  String?  @map("state_registration")
+  usesClientDocument Boolean  @default(true) @map("uses_client_document")
+  zipCode            String?  @map("zip_code")
+  street             String?
+  number             String?
+  complement         String?
+  neighborhood       String?
+  city               String?
+  state              String?  @db.VarChar(2)
+  phone              String?
+  timezone           String
+  platformUpdatedAt  DateTime @map("platform_updated_at") @db.Timestamptz(3)
+  syncedAt           DateTime @map("synced_at") @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([vertical])
+  @@map("clinic_stores")
+  @@schema("clinica")
+}
+
+model ClinicStoreSetup {
+  storeId     String   @id @map("store_id")
+  version     Int
+  completedAt DateTime @map("completed_at") @db.Timestamptz(3)
+
+  @@map("clinic_store_setups")
+  @@schema("clinica")
+}
+
+model ContractModel {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  content   String   @default("") @db.Text
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patientEmissions PatientContractEmission[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@index([storeId, isDefault])
+  @@map("contract_models")
+  @@schema("clinica")
+}
+
+model ProfessionalServiceHours {
+  id                         String   @id @default(uuid())
+  storeId                    String   @map("store_id")
+  memberId                   String   @map("member_id")
+  defaultConsultationMinutes Int      @default(30) @map("default_consultation_minutes")
+  fixedLunchBreakEnabled     Boolean  @default(false) @map("fixed_lunch_break_enabled")
+  lunchBreakStart            String?  @map("lunch_break_start") @db.VarChar(5)
+  lunchBreakEnd              String?  @map("lunch_break_end") @db.VarChar(5)
+  weekSchedule               Json     @map("week_schedule")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([storeId, memberId])
+  @@index([storeId])
+  @@map("professional_service_hours")
+  @@schema("clinica")
+}
+
+// --- Modelos existentes (planos / perfil da loja) ---
+
+enum ClinicPlanStatus {
+  active
+  inactive
+
+  @@schema("clinica")
+}
+
+enum ClinicPlanTreatmentInit {
+  copy_default
+  empty
+
+  @@schema("clinica")
+}
+
+model ClinicStoreProfile {
+  storeId            String   @id @map("store_id")
+  clinicName         String   @default("") @map("clinic_name")
+  cnpj               String   @default("")
+  communicationsName String   @default("") @map("communications_name")
+  responsible        String   @default("")
+  logoObjectKey      String?  @map("logo_object_key") @db.VarChar(512)
+  logoMimeType       String?  @map("logo_mime_type") @db.VarChar(64)
+  openingTime        String   @default("08:00") @map("opening_time")
+  closingTime        String   @default("18:00") @map("closing_time")
+  email              String   @default("")
+  phone              String   @default("")
+  mobile             String   @default("")
+  cep                String   @default("")
+  street             String   @default("")
+  number             String   @default("")
+  complement         String   @default("")
+  neighborhood       String   @default("")
+  city               String   @default("")
+  state              String   @default("") @db.VarChar(2)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @map("updated_at") @db.Timestamptz(3)
+
+  @@map("clinic_store_profiles")
+  @@schema("clinica")
+}
+
+model ClinicPlan {
+  id            String                   @id @default(uuid())
+  storeId       String                   @map("store_id")
+  name          String
+  sortOrder     Int                      @map("sort_order")
+  status        ClinicPlanStatus         @default(active)
+  isDefault     Boolean                  @default(false) @map("is_default")
+  treatmentInit ClinicPlanTreatmentInit? @map("treatment_init")
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime                 @map("updated_at") @db.Timestamptz(3)
+  specialties   ClinicPlanSpecialty[]
+  treatments    ClinicPlanTreatment[]
+  patients      Patient[]
+  budgetItems   BudgetItem[]
+
+  @@index([storeId])
+  @@map("clinic_plans")
+  @@schema("clinica")
+}
+
+enum ClinicPlanLocationUiType {
+  tooth
+  face_region
+  body_region
+  session
+  none
+
+  @@schema("clinica")
+}
+
+model ClinicPlanSpecialty {
+  id             String                   @id @default(uuid())
+  storeId        String                   @map("store_id")
+  planId         String                   @map("plan_id")
+  name           String
+  locationUiType ClinicPlanLocationUiType @default(tooth) @map("location_ui_type")
+  sortOrder      Int                      @map("sort_order")
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime              @map("updated_at") @db.Timestamptz(3)
+  plan        ClinicPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  treatments  ClinicPlanTreatment[]
+
+  @@index([planId])
+  @@index([storeId])
+  @@map("clinic_plan_specialties")
+  @@schema("clinica")
+}
+
+model ClinicPlanTreatment {
+  id              String                    @id @default(uuid())
+  storeId         String                    @map("store_id")
+  planId          String                    @map("plan_id")
+  specialtyId     String                    @map("specialty_id")
+  name            String
+  valueCents      Int                       @map("value_cents")
+  costCents       Int                       @map("cost_cents")
+  enabled         Boolean                   @default(true)
+  acceptsFaces    Boolean                   @default(false) @map("accepts_faces")
+  locationUiType  ClinicPlanLocationUiType? @map("location_ui_type")
+  sortOrder       Int                       @map("sort_order")
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime            @map("updated_at") @db.Timestamptz(3)
+  plan         ClinicPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  specialty    ClinicPlanSpecialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+  budgetItems    BudgetItem[]
+  appointments   Appointment[]
+
+  @@index([planId])
+  @@index([specialtyId])
+  @@index([storeId])
+  @@map("clinic_plan_treatments")
+  @@schema("clinica")
+}
+
+// --- Anamnese ---
+
+enum AnamnesisTemplateStatus {
+  active
+  inactive
+
+  @@schema("clinica")
+}
+
+enum AnamnesisQuestionType {
+  yes_no_unknown
+  yes_no_unknown_text
+  text
+  left_right_unknown
+  rich_text
+  single_choice
+
+  @@schema("clinica")
+}
+
+enum AnamnesisQuestionScope {
+  global
+  clinic
+
+  @@schema("clinica")
+}
+
+enum AnamnesisAlertTrigger {
+  yes
+  no
+
+  @@schema("clinica")
+}
+
+model AnamnesisTemplate {
+  id        String                  @id @default(uuid())
+  storeId   String                  @map("store_id")
+  name      String
+  status    AnamnesisTemplateStatus @default(active)
+  createdAt DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  templateQuestions AnamnesisTemplateQuestion[]
+  customQuestions   AnamnesisQuestion[]         @relation("TemplateCustomQuestions")
+  patientAnamneses  PatientAnamnesis[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("anamnesis_templates")
+  @@schema("clinica")
+}
+
+model AnamnesisQuestion {
+  id             String                 @id @default(uuid())
+  storeId        String?                @map("store_id")
+  templateId     String?                @map("template_id")
+  text           String
+  type           AnamnesisQuestionType
+  scope          AnamnesisQuestionScope
+  auxiliaryText  String?                @map("auxiliary_text")
+  /// Opções de `single_choice`: `[{ value, label, allowsOther? }]`.
+  options        Json?
+  generatesAlert Boolean                @default(false) @map("generates_alert")
+  alertWhen      AnamnesisAlertTrigger? @map("alert_when")
+  alertName      String?                @map("alert_name")
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template      AnamnesisTemplate?          @relation("TemplateCustomQuestions", fields: [templateId], references: [id], onDelete: Cascade)
+  templateLinks AnamnesisTemplateQuestion[]
+
+  @@index([storeId])
+  @@index([templateId])
+  @@map("anamnesis_questions")
+  @@schema("clinica")
+}
+
+model AnamnesisTemplateQuestion {
+  id         String   @id @default(uuid())
+  storeId    String   @map("store_id")
+  templateId String   @map("template_id")
+  questionId String   @map("question_id")
+  sortOrder  Int      @map("sort_order")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template AnamnesisTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  question AnamnesisQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, questionId])
+  @@index([storeId])
+  @@index([templateId])
+  @@map("anamnesis_template_questions")
+  @@schema("clinica")
+}
+
+// --- Pacientes ---
+
+enum PatientStatus {
+  active
+  inactive
+
+  @@schema("clinica")
+}
+
+enum PatientGender {
+  male
+  female
+  other
+
+  @@schema("clinica")
+}
+
+enum PatientReferralOriginSystemKey {
+  indicacao
+  indicacao_profissional
+  indicacao_profissional_externo
+  google
+  instagram
+  facebook
+  outro
+
+  @@schema("clinica")
+}
+
+model PatientCategory {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  name        String
+  /** Hex `#rrggbb` (livre; UI usa seletor de saturação). */
+  colorId     String   @map("color_id") @db.VarChar(7)
+  isProtected Boolean  @default(false) @map("is_protected")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patients Patient[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("patient_categories")
+  @@schema("clinica")
+}
+
+model PatientReferralOrigin {
+  id        String                           @id @default(uuid())
+  storeId   String                           @map("store_id")
+  name      String
+  systemKey PatientReferralOriginSystemKey?  @map("system_key")
+  isSystem  Boolean                          @default(false) @map("is_system")
+  createdAt DateTime                         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patients Patient[]
+
+  @@unique([storeId, name])
+  @@unique([storeId, systemKey])
+  @@index([storeId])
+  @@map("patient_referral_origins")
+  @@schema("clinica")
+}
+
+model ExternalReferralProfessional {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  phone     String   @default("")
+  cro       String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patients Patient[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("external_referral_professionals")
+  @@schema("clinica")
+}
+
+model Patient {
+  id                  String                 @id @default(uuid())
+  storeId             String                 @map("store_id")
+  status              PatientStatus          @default(active)
+  name                String
+  cpf                 String?                @db.VarChar(11)
+  rg                  String                 @default("")
+  birthDate           DateTime?              @map("birth_date") @db.Date
+  gender              PatientGender
+  photoObjectKey      String?                @map("photo_object_key") @db.VarChar(512)
+  photoMimeType       String?                @map("photo_mime_type") @db.VarChar(64)
+  phone               String                 @default("")
+  landlinePhone       String                 @default("") @map("landline_phone")
+  email               String                 @default("")
+  socialNetwork       String                 @default("") @map("social_network")
+  medicalRecordNumber String                 @default("") @map("medical_record_number")
+  referralOriginId    String?                @map("referral_origin_id")
+  referredByPatientId String?                @map("referred_by_patient_id")
+  referredByMemberId  String?                @map("referred_by_member_id")
+  referredByMemberName String?               @map("referred_by_member_name")
+  referredByExternalProfessionalId String?   @map("referred_by_external_professional_id")
+  profession          String                 @default("")
+  categoryId          String                 @map("category_id")
+  guardianName        String                 @default("") @map("guardian_name")
+  guardianBirthDate   DateTime?              @map("guardian_birth_date") @db.Date
+  guardianCpf         String?                @map("guardian_cpf") @db.VarChar(11)
+  guardianPhone       String                 @default("") @map("guardian_phone")
+  guardianNotes       String                 @default("") @map("guardian_notes")
+  zipCode             String                 @default("") @map("zip_code")
+  street              String                 @default("")
+  streetNumber        String                 @default("") @map("street_number")
+  complement          String                 @default("")
+  neighborhood        String                 @default("")
+  city                String                 @default("")
+  state               String                 @default("") @db.VarChar(2)
+  planId              String?                @map("plan_id")
+  planNumber          String                 @default("") @map("plan_number")
+  planHolderName      String                 @default("") @map("plan_holder_name")
+  planHolderCpf       String?                @map("plan_holder_cpf") @db.VarChar(11)
+  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector        Unsupported("tsvector")? @map("search_vector")
+
+  category           PatientCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  plan               ClinicPlan?             @relation(fields: [planId], references: [id], onDelete: SetNull)
+  referralOrigin     PatientReferralOrigin?  @relation(fields: [referralOriginId], references: [id], onDelete: SetNull)
+  referredByPatient  Patient?                @relation("PatientReferrals", fields: [referredByPatientId], references: [id], onDelete: SetNull)
+  referredPatients   Patient[]               @relation("PatientReferrals")
+  referredByExternalProfessional ExternalReferralProfessional? @relation(fields: [referredByExternalProfessionalId], references: [id], onDelete: SetNull)
+
+  budgets       Budget[]
+  treatments    PatientTreatment[]
+  evolutions    TreatmentEvolution[]
+  nutritionInitiations PatientNutritionInitiation[]
+  anamneses     PatientAnamnesis[]
+  appointments  Appointment[]
+  fitIns        FitIn[]
+  returnAlerts  ReturnAlert[]
+  financialEntries   FinancialEntry[]
+  contractEmissions  PatientContractEmission[]
+  prescriptions      PatientPrescription[]
+  certificates       PatientCertificate[]
+  folders            PatientFolder[]
+  files              PatientFile[]
+  toothAnnotations          PatientToothAnnotation[]
+  bodyRegionAnnotations     PatientBodyRegionAnnotation[]
+  bodyMetrics               PatientBodyMetric[]
+  salesOpportunities SalesOpportunity[]
+  whatsappMessages   WhatsappMessage[]
+  electronicSignatures ElectronicSignature[]
+
+  @@unique([storeId, cpf])
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, categoryId])
+  @@index([storeId, name])
+  @@index([storeId, referralOriginId])
+  @@index([storeId, referredByExternalProfessionalId])
+  @@index([searchVector], type: Gin, map: "idx_patients_fts")
+  @@map("patients")
+  @@schema("clinica")
+}
+
+// --- Orçamentos e Tratamentos (CLIN-041) ---
+
+enum BudgetStatus {
+  pending
+  approved
+  rejected
+  expired
+
+  @@schema("clinica")
+}
+
+enum BudgetDiscountType {
+  fixed
+  percent
+
+  @@schema("clinica")
+}
+
+enum BudgetItemLocationType {
+  tooth
+  body_region
+  session
+  none
+
+  @@schema("clinica")
+}
+
+enum PatientTreatmentSource {
+  budget
+  standalone
+
+  @@schema("clinica")
+}
+
+enum PatientTreatmentStatus {
+  active
+  completed
+
+  @@schema("clinica")
+}
+
+enum TreatmentEvolutionSource {
+  treatment
+  standalone
+  nutrition_init
+
+  @@schema("clinica")
+}
+
+enum EvolutionHistoryAction {
+  created
+  edited
+  confirmed
+
+  @@schema("clinica")
+}
+
+model Budget {
+  id                 String              @id @default(uuid())
+  storeId            String              @map("store_id")
+  patientId          String              @map("patient_id")
+  description        String              @default("")
+  date               DateTime            @db.Date
+  observations       String              @default("") @db.Text
+  responsibleId      String              @map("responsible_id")
+  responsibleName    String              @default("") @map("responsible_name")
+  discountType       BudgetDiscountType? @map("discount_type")
+  discountValue      Int?                @map("discount_value")
+  subtotalCents      Int                 @map("subtotal_cents")
+  finalValueCents    Int                 @map("final_value_cents")
+  installmentEnabled Boolean             @default(false) @map("installment_enabled")
+  downPaymentCents   Int                 @default(0) @map("down_payment_cents")
+  installmentsCount  Int                 @default(0) @map("installments_count")
+  status             BudgetStatus        @default(pending)
+  supersedesBudgetId String?             @map("supersedes_budget_id")
+  approvedAt         DateTime?           @map("approved_at") @db.Timestamptz(3)
+  rejectedAt         DateTime?           @map("rejected_at") @db.Date
+  rejectionReason    String?             @map("rejection_reason") @db.VarChar(255)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient          Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  supersedesBudget Budget?            @relation("BudgetSupersedes", fields: [supersedesBudgetId], references: [id], onDelete: SetNull)
+  supersededBy     Budget[]           @relation("BudgetSupersedes")
+  items            BudgetItem[]
+  treatments          PatientTreatment[]
+  financialEntries    FinancialEntry[]
+  contractEmissions   PatientContractEmission[]
+  salesOpportunity    SalesOpportunity?
+
+  @@index([storeId])
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, status])
+  @@map("budgets")
+  @@schema("clinica")
+}
+
+model BudgetItem {
+  id               String                 @id @default(uuid())
+  storeId          String                 @map("store_id")
+  budgetId         String                 @map("budget_id")
+  planId           String                 @map("plan_id")
+  treatmentId      String                 @map("treatment_id")
+  professionalId   String                 @map("professional_id")
+  professionalName String                 @default("") @map("professional_name")
+  planName         String                 @default("") @map("plan_name")
+  treatmentName    String                 @default("") @map("treatment_name")
+  valueCents       Int                    @map("value_cents")
+  locationType     BudgetItemLocationType @default(none) @map("location_type")
+  locationLabel    String                 @default("") @map("location_label")
+  sessionIndex     Int?                   @map("session_index")
+  sessionTotal     Int?                   @map("session_total")
+  sortOrder        Int                    @map("sort_order")
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  budget     Budget              @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  plan       ClinicPlan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  treatment  ClinicPlanTreatment @relation(fields: [treatmentId], references: [id], onDelete: Restrict)
+  treatments PatientTreatment[]
+  financialEntries FinancialEntry[]
+
+  @@index([budgetId])
+  @@index([storeId])
+  @@map("budget_items")
+  @@schema("clinica")
+}
+
+model PatientTreatment {
+  id               String                 @id @default(uuid())
+  storeId          String                 @map("store_id")
+  patientId        String                 @map("patient_id")
+  source           PatientTreatmentSource
+  status           PatientTreatmentStatus @default(active)
+  budgetId         String?                @map("budget_id")
+  budgetItemId     String?                @map("budget_item_id")
+  planId           String?                @map("plan_id")
+  treatmentId      String?                @map("treatment_id")
+  professionalId   String?                @map("professional_id")
+  professionalName String                 @default("") @map("professional_name")
+  planName         String                 @default("") @map("plan_name")
+  treatmentName    String                 @default("") @map("treatment_name")
+  description      String                 @default("")
+  valueCents       Int                    @map("value_cents")
+  locationType     BudgetItemLocationType @default(none) @map("location_type")
+  locationLabel    String                 @default("") @map("location_label")
+  sessionIndex     Int?                   @map("session_index")
+  sessionTotal     Int?                   @map("session_total")
+  diagnosis        String                 @default("") @db.Text
+  observation      String                 @default("") @db.Text
+  sortOrder        Int                    @map("sort_order")
+  finalizedAt      DateTime?              @map("finalized_at") @db.Timestamptz(3)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient    Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  budget     Budget?             @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetItem BudgetItem?         @relation(fields: [budgetItemId], references: [id], onDelete: SetNull)
+  evolutions TreatmentEvolution[]
+  nutritionInitiations PatientNutritionInitiation[]
+
+  @@index([storeId])
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, status])
+  @@map("patient_treatments")
+  @@schema("clinica")
+}
+
+enum EvolutionSignatureStatus {
+  unsigned
+  pending
+  signed
+
+  @@schema("clinica")
+}
+
+model TreatmentEvolution {
+  id               String                   @id @default(uuid())
+  storeId          String                   @map("store_id")
+  patientId        String                   @map("patient_id")
+  treatmentId      String?                  @map("treatment_id")
+  source           TreatmentEvolutionSource
+  description      String                   @default("")
+  valueCents       Int?                     @map("value_cents")
+  evolutionNotes   String                   @default("") @map("evolution_notes") @db.Text
+  professionalId   String?                  @map("professional_id")
+  professionalName String                   @default("") @map("professional_name")
+  finalizedAt      DateTime                 @map("finalized_at") @db.Timestamptz(3)
+  soapSubjective   String?                  @map("soap_subjective") @db.Text
+  soapObjective    String?                  @map("soap_objective") @db.Text
+  soapAssessment   String?                  @map("soap_assessment") @db.Text
+  soapPlan         String?                  @map("soap_plan") @db.Text
+  cid10Codes       Json?                    @map("cid10_codes")
+  confirmedAt      DateTime?                @map("confirmed_at") @db.Timestamptz(3)
+  confirmedBy      String?                  @map("confirmed_by")
+  confirmationHash String?                  @map("confirmation_hash") @db.VarChar(128)
+  signatureStatus  EvolutionSignatureStatus @default(unsigned) @map("signature_status")
+  signatureRequestId String?                @map("signature_request_id")
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient  Patient                    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  treatment PatientTreatment?         @relation(fields: [treatmentId], references: [id], onDelete: SetNull)
+  signatureRequest ElectronicSignature? @relation(fields: [signatureRequestId], references: [id], onDelete: SetNull)
+  history  EvolutionHistory[]
+  images   TreatmentEvolutionImage[]
+  nutritionInitiation PatientNutritionInitiation?
+
+  @@index([storeId])
+  @@index([storeId, patientId])
+  @@index([treatmentId])
+  @@index([signatureRequestId])
+  @@map("treatment_evolutions")
+  @@schema("clinica")
+}
+
+/**
+ * Pacote clínico da Nutrição (Inicializar): Anamnese / Corporal / Plano.
+ * Conteúdo das seções ainda TBD — JSON estável para evolução do produto.
+ * Cada save cria um card de evolução (`source = nutrition_init`).
+ */
+model PatientNutritionInitiation {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  patientId        String   @map("patient_id")
+  treatmentId      String   @map("treatment_id")
+  evolutionId      String   @unique @map("evolution_id")
+  patientAnamnesisId String? @unique @map("patient_anamnesis_id")
+  anamnesis        Json     @default("{}")
+  body             Json     @default("{}")
+  treatmentPlan    Json     @default("{}") @map("treatment_plan")
+  professionalId   String?  @map("professional_id")
+  professionalName String   @default("") @map("professional_name")
+  initiatedAt      DateTime @map("initiated_at") @db.Timestamptz(3)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient   Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  treatment PatientTreatment   @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+  evolution TreatmentEvolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+  patientAnamnesis PatientAnamnesis? @relation(fields: [patientAnamnesisId], references: [id], onDelete: SetNull)
+  notes     PatientNutritionNote[]
+
+  @@index([storeId])
+  @@index([storeId, patientId])
+  @@index([treatmentId])
+  @@map("patient_nutrition_initiations")
+  @@schema("clinica")
+}
+
+/**
+ * Nota do profissional sobre o atendimento nutricional (texto rico + 1 anexo
+ * opcional). Registro clínico: pode ser editado, nunca excluído.
+ */
+model PatientNutritionNote {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  patientId        String   @map("patient_id")
+  evolutionId      String   @map("evolution_id")
+  content          String
+  fileName         String?  @map("file_name")
+  fileObjectKey    String?  @map("file_object_key") @db.VarChar(512)
+  fileMimeType     String?  @map("file_mime_type") @db.VarChar(128)
+  fileSizeBytes    Int?     @map("file_size_bytes")
+  professionalId   String?  @map("professional_id")
+  professionalName String   @default("") @map("professional_name")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  initiation PatientNutritionInitiation @relation(fields: [evolutionId], references: [evolutionId], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@index([evolutionId])
+  @@map("patient_nutrition_notes")
+  @@schema("clinica")
+}
+
+model EvolutionHistory {
+  id               String                 @id @default(uuid())
+  storeId          String                 @map("store_id")
+  evolutionId      String                 @map("evolution_id")
+  action           EvolutionHistoryAction
+  professionalId   String?                @map("professional_id")
+  professionalName String                 @default("") @map("professional_name")
+  occurredAt       DateTime               @map("occurred_at") @db.Timestamptz(3)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  evolution TreatmentEvolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+
+  @@index([evolutionId])
+  @@index([storeId])
+  @@map("evolution_history")
+  @@schema("clinica")
+}
+
+model TreatmentEvolutionImage {
+  id          String   @id @default(uuid())
+  storeId     String   @map("store_id")
+  evolutionId String   @map("evolution_id")
+  objectKey   String   @map("object_key") @db.VarChar(512)
+  mimeType    String   @map("mime_type") @db.VarChar(64)
+  sortOrder   Int      @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  evolution TreatmentEvolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+
+  @@index([evolutionId])
+  @@index([storeId])
+  @@map("treatment_evolution_images")
+  @@schema("clinica")
+}
+
+// --- Anamnese do paciente (preenchimento) ---
+
+enum PatientAnamnesisStatus {
+  issued
+  awaiting_response
+
+  @@schema("clinica")
+}
+
+enum PatientAnamnesisSignatureStatus {
+  unsigned
+  pending
+  signed
+
+  @@schema("clinica")
+}
+
+enum PatientAnamnesisFillingMode {
+  professional
+  patient
+
+  @@schema("clinica")
+}
+
+model PatientAnamnesis {
+  id                 String                          @id @default(uuid())
+  storeId            String                          @map("store_id")
+  patientId          String                          @map("patient_id")
+  templateId         String                          @map("template_id")
+  templateName       String                          @map("template_name")
+  issuedAt           DateTime                        @map("issued_at") @db.Date
+  status             PatientAnamnesisStatus
+  signatureStatus    PatientAnamnesisSignatureStatus   @default(unsigned) @map("signature_status")
+  fillingMode        PatientAnamnesisFillingMode       @map("filling_mode")
+  consultationReason String?                         @map("consultation_reason") @db.Text
+  questionsSnapshot  Json                            @map("questions_snapshot")
+  answers            Json?
+  publicToken        String?                         @unique @map("public_token")
+  linkExpiresAt      DateTime?                       @map("link_expires_at") @db.Timestamptz(3)
+  createdAt          DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient  Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  template AnamnesisTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  nutritionInitiation PatientNutritionInitiation?
+
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, status])
+  @@map("patient_anamneses")
+  @@schema("clinica")
+}
+
+// --- Agenda (CLIN-020) ---
+
+enum AppointmentStatus {
+  scheduled
+  confirmed
+  patient_waiting
+  in_progress
+  finished
+  missed
+  cancelled_patient
+  cancelled_pro
+
+  @@schema("clinica")
+}
+
+enum AppointmentConfirmationSource {
+  manual
+  whatsapp
+
+  @@schema("clinica")
+}
+
+// --- Arquivos do paciente (drive clínico) ---
+
+enum PatientFileKind {
+  image
+  file
+
+  @@schema("clinica")
+}
+
+// --- Estoque (Clin-Estoque) ---
+
+enum StockMovementType {
+  entry
+  withdrawal
+  adjustment
+
+  @@schema("clinica")
+}
+
+model StockSupplier {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  phone     String?  @map("phone")
+  email     String?  @map("email")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products StockProduct[]
+
+  @@index([storeId])
+  @@unique([storeId, name])
+  @@map("stock_suppliers")
+  @@schema("clinica")
+}
+
+model StockProduct {
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  name           String
+  category       String
+  sku            String?  @map("sku")
+  supplierId     String?  @map("supplier_id")
+  quantity       Int      @map("quantity")
+  minQuantity    Int      @map("min_quantity")
+  unitCostCents  Int      @map("unit_cost_cents")
+
+  photoObjectKey String? @map("photo_object_key") @db.VarChar(512)
+  photoMimeType  String? @map("photo_mime_type") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  supplier  StockSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  movements StockMovement[]
+
+  @@index([storeId])
+  @@index([storeId, name])
+  @@index([storeId, category])
+  @@index([searchVector], type: Gin, map: "idx_stock_products_fts")
+  @@map("stock_products")
+  @@schema("clinica")
+}
+
+model StockMovement {
+  id              String             @id @default(uuid())
+  storeId         String             @map("store_id")
+  productId       String             @map("product_id")
+  type            StockMovementType
+  quantity        Int               @map("quantity")
+  notes           String?           @map("notes") @db.Text
+
+  requestedById   String?           @map("requested_by_id")
+  requestedByName String?           @map("requested_by_name")
+  authorizedById  String            @map("authorized_by_id")
+  authorizedByName String          @map("authorized_by_name")
+
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product StockProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([storeId, type])
+  @@map("stock_movements")
+  @@schema("clinica")
+}
+
+enum AppointmentChannel {
+  phone
+  whatsapp
+  in_person
+  online
+  other
+
+  @@schema("clinica")
+}
+
+enum InsuranceType {
+  private
+  plan
+
+  @@schema("clinica")
+}
+
+enum ReturnOption {
+  none
+  one_month
+  six_months
+  twelve_months
+  custom_date
+
+  @@schema("clinica")
+}
+
+enum InternalEventAvailability {
+  busy
+  available
+
+  @@schema("clinica")
+}
+
+enum InternalEventPrivacy {
+  private
+  public
+
+  @@schema("clinica")
+}
+
+enum RecurrenceType {
+  daily
+  weekly
+  biweekly
+  monthly
+  yearly
+
+  @@schema("clinica")
+}
+
+enum RecurrenceEnd {
+  never
+  on_date
+
+  @@schema("clinica")
+}
+
+enum FitInShift {
+  morning
+  afternoon
+  any
+
+  @@schema("clinica")
+}
+
+enum FitInStatus {
+  pending
+  scheduled
+  cancelled
+
+  @@schema("clinica")
+}
+
+// --- Financeiro unificado (fluxo de caixa + ficha) ---
+
+enum FinancialEntryType {
+  income
+  expense
+
+  @@schema("clinica")
+}
+
+enum FinancialEntryStatus {
+  pending
+  paid
+  received
+  cancelled
+
+  @@schema("clinica")
+}
+
+enum FinancialEntrySource {
+  manual
+  budget_approve
+  avulso_debit
+
+  @@schema("clinica")
+}
+
+enum FinancialCategoryKind {
+  income
+  expense
+
+  @@schema("clinica")
+}
+
+enum ReturnAlertSource {
+  auto
+  manual
+
+  @@schema("clinica")
+}
+
+model PatientFolder {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  patientId String   @map("patient_id")
+  parentId  String?  @map("parent_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient  Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  parent   PatientFolder?  @relation("PatientFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children PatientFolder[] @relation("PatientFolderTree")
+  files    PatientFile[]
+
+  @@index([storeId, patientId, parentId])
+  @@map("patient_folders")
+  @@schema("clinica")
+}
+
+model PatientFile {
+  id        String          @id @default(uuid())
+  storeId   String          @map("store_id")
+  patientId String          @map("patient_id")
+  folderId  String?         @map("folder_id")
+  name      String
+  objectKey String          @map("object_key") @db.VarChar(512)
+  mimeType  String          @map("mime_type") @db.VarChar(128)
+  sizeBytes Int             @map("size_bytes")
+  kind      PatientFileKind
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  patient Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  folder  PatientFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId, folderId])
+  @@map("patient_files")
+  @@schema("clinica")
+}
+
+/// Anotações clínicas por dente (odontograma da aba Tratamentos).
+model PatientToothAnnotation {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  patientId        String   @map("patient_id")
+  toothNumber      Int      @map("tooth_number")
+  content          String   @db.VarChar(255)
+  professionalId   String   @default("") @map("professional_id")
+  professionalName String   @map("professional_name")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, toothNumber])
+  @@map("patient_tooth_annotations")
+  @@schema("clinica")
+}
+
+/// Anotações clínicas por região corporal (mapa anatômico da aba Tratamentos — fisioterapia).
+model PatientBodyRegionAnnotation {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  patientId        String   @map("patient_id")
+  bodyRegionId     String   @map("body_region_id") @db.VarChar(64)
+  content          String   @db.VarChar(255)
+  professionalId   String   @default("") @map("professional_id")
+  professionalName String   @map("professional_name")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, bodyRegionId])
+  @@map("patient_body_region_annotations")
+  @@schema("clinica")
+}
+
+model PatientBodyMetric {
+  id               String   @id @default(uuid())
+  storeId          String   @map("store_id")
+  patientId        String   @map("patient_id")
+  measuredAt       DateTime @map("measured_at") @db.Date
+  weightKg         Float    @map("weight_kg")
+  heightCm         Float    @map("height_cm")
+  bmi              Float
+  professionalId   String   @default("") @map("professional_id")
+  professionalName String   @map("professional_name")
+  notes            String   @default("")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, measuredAt])
+  @@map("patient_body_metrics")
+  @@schema("clinica")
+}
+
+// --- Documentos do paciente (contratos emitidos, receituários, atestados) ---
+
+enum PatientContractIssuedVia {
+  manual
+
+  @@schema("clinica")
+}
+
+model AppointmentCategory {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  color     String   @default("blue")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  appointments Appointment[]
+  fitIns       FitIn[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("appointment_categories")
+  @@schema("clinica")
+}
+
+model Appointment {
+  id                 String                       @id @default(uuid())
+  storeId            String                       @map("store_id")
+  patientId          String                       @map("patient_id")
+  professionalId     String                       @map("professional_id")
+  procedureId        String?                      @map("procedure_id")
+  roomId             String?                      @map("room_id")
+  categoryId         String?                      @map("category_id")
+  status             AppointmentStatus            @default(scheduled)
+  channel            AppointmentChannel?
+  confirmationSource AppointmentConfirmationSource? @map("confirmation_source")
+  insuranceType      InsuranceType                @default(private) @map("insurance_type")
+  startAt            DateTime                     @map("start_at") @db.Timestamptz(3)
+  endAt              DateTime                     @map("end_at") @db.Timestamptz(3)
+  durationMin        Int                          @map("duration_min")
+  notes              String?                      @db.Text
+  returnOption       ReturnOption?                @map("return_option")
+  returnDate         DateTime?                    @map("return_date") @db.Date
+  returnReason       String?                      @map("return_reason") @db.Text
+  fitInId            String?                      @unique @map("fit_in_id")
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector       Unsupported("tsvector")?     @map("search_vector")
+
+  patient    Patient              @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  procedure  ClinicPlanTreatment? @relation(fields: [procedureId], references: [id], onDelete: SetNull)
+  category   AppointmentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  fitIn      FitIn?               @relation(fields: [fitInId], references: [id], onDelete: SetNull)
+  returnAlerts     ReturnAlert[]
+  whatsappMessages WhatsappMessage[]
+
+  @@index([storeId])
+  @@index([storeId, professionalId, startAt])
+  @@index([storeId, patientId])
+  @@index([storeId, startAt, endAt])
+  @@index([searchVector], type: Gin, map: "idx_appointments_fts")
+  @@map("appointments")
+  @@schema("clinica")
+}
+
+model InternalEvent {
+  id                String                    @id @default(uuid())
+  storeId           String                    @map("store_id")
+  professionalId    String                    @map("professional_id")
+  roomId            String?                   @map("room_id")
+  title             String
+  description       String?                   @db.Text
+  allDay            Boolean                   @default(false) @map("all_day")
+  startAt           DateTime                  @map("start_at") @db.Timestamptz(3)
+  endAt             DateTime                  @map("end_at") @db.Timestamptz(3)
+  recurring         Boolean                   @default(false)
+  recurrenceType    RecurrenceType?           @map("recurrence_type")
+  recurrenceEnd     RecurrenceEnd?            @map("recurrence_end")
+  recurrenceEndDate DateTime?                 @map("recurrence_end_date") @db.Date
+  availability      InternalEventAvailability @default(busy)
+  privacy           InternalEventPrivacy      @default(public)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([storeId])
+  @@index([storeId, professionalId])
+  @@map("internal_events")
+  @@schema("clinica")
+}
+
+model FitIn {
+  id             String       @id @default(uuid())
+  storeId        String       @map("store_id")
+  patientId      String       @map("patient_id")
+  professionalId String?      @map("professional_id")
+  categoryId     String?      @map("category_id")
+  fitInDate      DateTime?    @map("fit_in_date") @db.Date
+  anyDate        Boolean      @default(false) @map("any_date")
+  shifts         FitInShift[]
+  planName       String?      @map("plan_name")
+  observation    String?      @db.Text
+  isUrgent       Boolean      @default(false) @map("is_urgent")
+  status         FitInStatus  @default(pending)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient      Patient              @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  category     AppointmentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  appointment  Appointment?
+
+  @@index([storeId])
+  @@index([storeId, patientId, status])
+  @@map("fit_ins")
+  @@schema("clinica")
+}
+
+model ReturnAlert {
+  id             String            @id @default(uuid())
+  storeId        String            @map("store_id")
+  patientId      String            @map("patient_id")
+  professionalId String            @map("professional_id")
+  appointmentId  String?           @map("appointment_id")
+  dueDate        DateTime          @map("due_date") @db.Date
+  reason         String?           @db.Text
+  source         ReturnAlertSource
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([storeId, patientId])
+  @@index([storeId, dueDate])
+  @@map("return_alerts")
+  @@schema("clinica")
+}
+
+enum ContractSignatureStatus {
+  unsigned
+  pending
+  signed
+
+  @@schema("clinica")
+}
+
+enum ElectronicSignatureKind {
+  anamnesis
+  contract
+  evolution_batch
+
+  @@schema("clinica")
+}
+
+enum ElectronicSignatureStatus {
+  pending
+  signed
+  refused
+  cancelled
+  expired
+
+  @@schema("clinica")
+}
+
+model ElectronicSignature {
+  id                     String                    @id @default(uuid())
+  storeId                String                    @map("store_id")
+  patientId              String                    @map("patient_id")
+  kind                   ElectronicSignatureKind
+  targetId               String?                   @map("target_id")
+  targetIds              Json?                     @map("target_ids")
+  zapsignDocumentToken   String                    @unique @map("zapsign_document_token")
+  status                 ElectronicSignatureStatus @default(pending)
+  originalPdfObjectKey   String                    @map("original_pdf_object_key") @db.VarChar(512)
+  signedPdfObjectKey     String?                   @map("signed_pdf_object_key") @db.VarChar(512)
+  signers                Json
+  requestedById          String                    @map("requested_by_id")
+  requestedByName        String                    @map("requested_by_name")
+  requestedAt            DateTime                  @map("requested_at") @db.Timestamptz(3)
+  completedAt            DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  cancelledAt            DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
+  createdAt              DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient    Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  evolutions TreatmentEvolution[]
+
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, kind, status])
+  @@index([storeId, kind, targetId])
+  @@map("electronic_signatures")
+  @@schema("clinica")
+}
+
+enum SignaturePackageRequestStatus {
+  pending
+  liberado
+  cancelado
+
+  @@schema("clinica")
+}
+
+model SignatureCreditBalance {
+  storeId   String   @id @map("store_id")
+  balance   Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("signature_credit_balances")
+  @@schema("clinica")
+}
+
+model SignaturePackageRequest {
+  id          String                         @id @default(uuid())
+  storeId     String                         @map("store_id")
+  packageId   String                         @map("package_id")
+  quantity    Int
+  priceCents  Int                            @map("price_cents")
+  status      SignaturePackageRequestStatus  @default(pending)
+  createdAt   DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  liberatedAt DateTime?                      @map("liberated_at") @db.Timestamptz(3)
+
+  @@index([storeId, status])
+  @@map("signature_package_requests")
+  @@schema("clinica")
+}
+
+model FinancialAccount {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  type      String   @default("checking")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  entries FinancialEntry[]
+
+  @@index([storeId])
+  @@index([storeId, isActive])
+  @@map("financial_accounts")
+  @@schema("clinica")
+}
+
+model FinancialCategory {
+  id        String                @id @default(uuid())
+  storeId   String                @map("store_id")
+  kind      FinancialCategoryKind
+  name      String
+  color     String                @default("")
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  expenseEntries FinancialEntry[] @relation("ExpenseCategoryEntries")
+  incomeEntries  FinancialEntry[] @relation("IncomeCategoryEntries")
+
+  @@index([storeId])
+  @@index([storeId, kind])
+  @@map("financial_categories")
+  @@schema("clinica")
+}
+
+model FinancialEntry {
+  id                 String                @id @default(uuid())
+  storeId            String                @map("store_id")
+  type               FinancialEntryType
+  status             FinancialEntryStatus  @default(pending)
+  source             FinancialEntrySource
+  description        String
+  valueCents         Int                   @map("value_cents")
+  dueDate            DateTime              @map("due_date") @db.Date
+  paidAt             DateTime?             @map("paid_at") @db.Date
+  paidValueCents     Int?                  @map("paid_value_cents")
+  paymentMethod      String?               @map("payment_method")
+  paymentType        String?               @map("payment_type")
+  observation        String?               @db.Text
+  accountId          String?               @map("account_id")
+  expenseCategoryId  String?               @map("expense_category_id")
+  incomeCategoryId   String?               @map("income_category_id")
+  patientId          String?               @map("patient_id")
+  budgetId           String?               @map("budget_id")
+  budgetItemId       String?               @map("budget_item_id")
+  installmentIndex   Int?                  @map("installment_index")
+  installmentNumber  Int?                  @map("installment_number")
+  totalInstallments  Int?                  @map("total_installments")
+  recurrenceGroupId  String?               @map("recurrence_group_id")
+  debitDetail        Json?                 @map("debit_detail")
+  receiveDetail      Json?                 @map("receive_detail")
+  receiptObjectKey   String?               @map("receipt_object_key") @db.VarChar(512)
+  cancelledById      String?               @map("cancelled_by_id")
+  cancelledByName    String?               @map("cancelled_by_name")
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient         Patient?           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  budget          Budget?            @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetItem      BudgetItem?        @relation(fields: [budgetItemId], references: [id], onDelete: SetNull)
+  account         FinancialAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  expenseCategory FinancialCategory? @relation("ExpenseCategoryEntries", fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  incomeCategory  FinancialCategory? @relation("IncomeCategoryEntries", fields: [incomeCategoryId], references: [id], onDelete: SetNull)
+  commissionAccrualsAsSource CommissionAccrual[] @relation("CommissionAccrualSource")
+  commissionPaymentsAsExpense CommissionPayment[] @relation("CommissionPaymentExpense")
+
+  @@unique([storeId, budgetId, installmentIndex])
+  @@index([storeId, dueDate])
+  @@index([storeId, patientId])
+  @@index([storeId, patientId, status])
+  @@index([storeId, patientId, budgetItemId])
+  @@index([storeId, type, status])
+  @@index([storeId, recurrenceGroupId])
+  @@map("financial_entries")
+  @@schema("clinica")
+}
+
+enum PatientCertificateType {
+  days
+  attendance
+
+  @@schema("clinica")
+}
+
+model PatientContractEmission {
+  id                         String                   @id @default(uuid())
+  storeId                    String                   @map("store_id")
+  patientId                  String                   @map("patient_id")
+  budgetId                   String?                  @map("budget_id")
+  templateId                 String                   @map("template_id")
+  templateName               String                   @map("template_name")
+  content                    String                   @db.Text
+  issuedAt                   DateTime                 @map("issued_at") @db.Timestamptz(3)
+  issuedVia                  PatientContractIssuedVia @default(manual) @map("issued_via")
+  responsibleName            String                   @default("") @map("responsible_name")
+  patientName                String                   @map("patient_name")
+  responsibleSignatureStatus ContractSignatureStatus  @default(unsigned) @map("responsible_signature_status")
+  patientSignatureStatus     ContractSignatureStatus  @default(unsigned) @map("patient_signature_status")
+  formValues                 Json                     @map("form_values")
+  createdAt                  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient  Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  budget   Budget?       @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  template ContractModel @relation(fields: [templateId], references: [id], onDelete: Restrict)
+
+  @@unique([storeId, budgetId])
+  @@index([storeId, patientId])
+  @@index([storeId, budgetId])
+  @@map("patient_contract_emissions")
+  @@schema("clinica")
+}
+
+model PatientPrescription {
+  id               String                   @id @default(uuid())
+  storeId          String                   @map("store_id")
+  patientId        String                   @map("patient_id")
+  professionalId   String                   @map("professional_id")
+  professionalName String                   @map("professional_name")
+  /// Snapshot do conselho na emissão (docs antigos podem ser null).
+  councilType      ProfessionalCouncilType? @map("council_type")
+  councilNumber    String?                  @map("council_number") @db.VarChar(20)
+  councilUf        String?                  @map("council_uf") @db.Char(2)
+  patientName      String                   @map("patient_name")
+  clinicName       String?                  @map("clinic_name")
+  issuedDate       DateTime                 @map("issued_date") @db.Date
+  issuedAt         DateTime                 @map("issued_at") @db.Timestamptz(3)
+  items            Json
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@map("patient_prescriptions")
+  @@schema("clinica")
+}
+
+model PatientCertificate {
+  id               String                   @id @default(uuid())
+  storeId          String                   @map("store_id")
+  patientId        String                   @map("patient_id")
+  professionalId   String                   @map("professional_id")
+  professionalName String                   @map("professional_name")
+  /// Snapshot do conselho na emissão (docs antigos podem ser null).
+  councilType      ProfessionalCouncilType? @map("council_type")
+  councilNumber    String?                  @map("council_number") @db.VarChar(20)
+  councilUf        String?                  @map("council_uf") @db.Char(2)
+  patientName      String                   @map("patient_name")
+  clinicName       String?                  @map("clinic_name")
+  type             PatientCertificateType
+  issuedDate       DateTime                 @map("issued_date") @db.Date
+  issuedAt         DateTime                 @map("issued_at") @db.Timestamptz(3)
+  daysCount        String?                  @map("days_count")
+  startTime        String?                  @map("start_time") @db.VarChar(5)
+  endTime          String?                  @map("end_time") @db.VarChar(5)
+  cid              String?                  @db.VarChar(16)
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, patientId])
+  @@map("patient_certificates")
+  @@schema("clinica")
+}
+
+// --- Sales CRM (funis / oportunidades / rótulos) ---
+
+enum SalesFunnelStageType {
+  others
+  won
+  lost
+
+  @@schema("clinica")
+}
+
+enum SalesOpportunityHistoryAction {
+  created
+  moved
+  comment
+  label_changed
+  contact_scheduled
+  updated
+
+  @@schema("clinica")
+}
+
+enum SalesOpportunityOrigin {
+  instagram
+  facebook
+  google
+  whatsapp
+  site
+  indicacao
+  retorno
+  campaign
+  budget
+  outro
+
+  @@schema("clinica")
+}
+
+model SalesFunnel {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  stages        SalesFunnelStage[]
+  opportunities SalesOpportunity[]
+
+  @@index([storeId])
+  @@index([storeId, isDefault])
+  @@map("sales_funnels")
+  @@schema("clinica")
+}
+
+model SalesFunnelStage {
+  id        String               @id @default(uuid())
+  storeId   String               @map("store_id")
+  funnelId  String               @map("funnel_id")
+  name      String
+  type      SalesFunnelStageType
+  color     String               @db.VarChar(7)
+  order     Int
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  funnel        SalesFunnel        @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  opportunities SalesOpportunity[]
+
+  @@unique([funnelId, order])
+  @@index([storeId])
+  @@index([funnelId])
+  @@map("sales_funnel_stages")
+  @@schema("clinica")
+}
+
+model SalesLabel {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  name      String
+  color     String   @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  opportunities SalesOpportunity[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("sales_labels")
+  @@schema("clinica")
+}
+
+model SalesOpportunity {
+  id                String                  @id @default(uuid())
+  storeId           String                  @map("store_id")
+  funnelId          String                  @map("funnel_id")
+  stageId           String                  @map("stage_id")
+  title             String
+  description       String?                 @db.Text
+  phone             String?                 @db.VarChar(32)
+  origin            SalesOpportunityOrigin?
+  nextContact       DateTime?               @map("next_contact") @db.Timestamptz(3)
+  patientId         String?                 @map("patient_id")
+  labelId           String?                 @map("label_id")
+  submissionId      String?                 @map("submission_id")
+  budgetId          String?                 @unique @map("budget_id")
+  sortOrder         Int                     @default(0) @map("sort_order")
+  lastInteractionAt DateTime?               @map("last_interaction_at") @db.Timestamptz(3)
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  funnel   SalesFunnel                    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  stage    SalesFunnelStage               @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  patient  Patient?                       @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  label    SalesLabel?                    @relation(fields: [labelId], references: [id], onDelete: SetNull)
+  budget   Budget?                        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  history  SalesOpportunityHistory[]
+
+  @@index([storeId])
+  @@index([storeId, funnelId])
+  @@index([storeId, stageId])
+  @@index([storeId, stageId, sortOrder])
+  @@index([storeId, patientId])
+  @@index([storeId, labelId])
+  @@index([storeId, budgetId])
+  @@index([searchVector], type: Gin, map: "idx_sales_opportunities_fts")
+  @@map("sales_opportunities")
+  @@schema("clinica")
+}
+
+model SalesOpportunityHistory {
+  id            String                         @id @default(uuid())
+  storeId       String                         @map("store_id")
+  opportunityId String                         @map("opportunity_id")
+  actionType    SalesOpportunityHistoryAction  @map("action_type")
+  userId        String?                        @map("user_id")
+  userName      String?                        @map("user_name")
+  userAvatar    String?                        @map("user_avatar")
+  content       String?                        @db.Text
+  metadata      Json?
+  isSystemAction Boolean                       @default(false) @map("is_system_action")
+  systemName    String?                        @map("system_name")
+  createdAt     DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([opportunityId, createdAt])
+  @@map("sales_opportunity_history")
+  @@schema("clinica")
+}
+
+// --- Comissões (CLIN-062) ---
+
+enum CommissionPaymentTrigger {
+  treatment_completed
+  debit_received
+  budget_approved
+
+  @@schema("clinica")
+}
+
+enum CommissionType {
+  percentage
+  fixed_value
+
+  @@schema("clinica")
+}
+
+enum CommissionAccrualStatus {
+  open
+  paid
+
+  @@schema("clinica")
+}
+
+model CommissionRule {
+  id                         String                    @id @default(uuid())
+  storeId                    String                    @map("store_id")
+  memberId                   String                    @map("member_id")
+  memberName                 String                    @map("member_name")
+  paymentTrigger             CommissionPaymentTrigger  @map("payment_trigger")
+  commissionType             CommissionType            @map("commission_type")
+  percentageValue            Float?                    @map("percentage_value")
+  commissionValueCents       Int?                      @map("commission_value_cents")
+  allowValueExceedsTreatment Boolean                   @default(false) @map("allow_value_exceeds_treatment")
+  planId                     String?                   @map("plan_id")
+  specialtyId                String?                   @map("specialty_id")
+  createdAt                  DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  treatments CommissionRuleTreatment[]
+  accruals   CommissionAccrual[]
+
+  @@index([storeId, memberId])
+  @@index([storeId, memberId, paymentTrigger])
+  @@map("commission_rules")
+  @@schema("clinica")
+}
+
+model CommissionRuleTreatment {
+  id           String @id @default(uuid())
+  ruleId       String @map("rule_id")
+  treatmentId  String @map("treatment_id")
+  amountCents  Int    @map("amount_cents")
+  /// Valor do tratamento no cadastro (centavos) — usado na validação de teto.
+  treatmentValueCents Int @default(0) @map("treatment_value_cents")
+
+  rule CommissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, treatmentId])
+  @@index([ruleId])
+  @@map("commission_rule_treatments")
+  @@schema("clinica")
+}
+
+model CommissionAccrual {
+  id                     String                   @id @default(uuid())
+  storeId                String                   @map("store_id")
+  memberId               String                   @map("member_id")
+  memberName             String                   @map("member_name")
+  ruleId                 String?                  @map("rule_id")
+  paymentTrigger         CommissionPaymentTrigger @map("payment_trigger")
+  triggerLabel           String                   @map("trigger_label")
+  planName               String                   @default("") @map("plan_name")
+  specialtyName          String                   @default("") @map("specialty_name")
+  treatmentName          String                   @map("treatment_name")
+  patientName            String                   @map("patient_name")
+  paidValueCents         Int                      @map("paid_value_cents")
+  treatmentCostCents     Int                      @map("treatment_cost_cents")
+  installment            String?
+  commissionCents        Int                      @map("commission_cents")
+  accruedAt              DateTime                 @map("accrued_at") @db.Date
+  sourceFinancialEntryId   String?                  @map("source_financial_entry_id")
+  sourceBudgetId             String?                  @map("source_budget_id")
+  sourcePatientTreatmentId   String?                  @map("source_patient_treatment_id")
+  status                 CommissionAccrualStatus  @default(open)
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  rule                   CommissionRule?         @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  sourceFinancialEntry   FinancialEntry?         @relation("CommissionAccrualSource", fields: [sourceFinancialEntryId], references: [id], onDelete: Restrict)
+  paymentItem            CommissionPaymentItem?
+
+  @@index([storeId, memberId, status])
+  @@index([storeId, status, accruedAt])
+  @@index([storeId, sourceFinancialEntryId])
+  @@index([storeId, sourceBudgetId])
+  @@index([storeId, sourcePatientTreatmentId])
+  @@map("commission_accruals")
+  @@schema("clinica")
+}
+
+model CommissionPayment {
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  memberId       String   @map("member_id")
+  memberName     String   @map("member_name")
+  description    String
+  paymentDate    DateTime @map("payment_date") @db.Date
+  accountId      String   @map("account_id")
+  paymentMethod  String   @map("payment_method")
+  grossCents     Int      @map("gross_cents")
+  discountCents  Int      @default(0) @map("discount_cents")
+  netCents       Int      @map("net_cents")
+  observation    String?  @db.Text
+  expenseEntryId String?  @map("expense_entry_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  expenseEntry FinancialEntry?         @relation("CommissionPaymentExpense", fields: [expenseEntryId], references: [id], onDelete: Restrict)
+  items        CommissionPaymentItem[]
+
+  @@index([storeId, paymentDate])
+  @@index([storeId, memberId])
+  @@index([storeId, expenseEntryId])
+  @@map("commission_payments")
+  @@schema("clinica")
+}
+
+model CommissionPaymentItem {
+  id         String @id @default(uuid())
+  paymentId  String @map("payment_id")
+  accrualId  String @unique @map("accrual_id")
+
+  payment CommissionPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  accrual CommissionAccrual @relation(fields: [accrualId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@map("commission_payment_items")
+  @@schema("clinica")
+}
+
+// --- Marketing / Campanhas (taxonomia — migration manual pelo operador) ---
+
+enum CampaignSegment {
+  captacao_leads
+  operacional_atendimento
+  relacionamento_pos_venda
+
+  @@schema("clinica")
+}
+
+enum CampaignType {
+  form_lead
+  mgm
+  debito_atraso
+  retorno_tratamento
+  aniversario
+  nps
+
+  @@schema("clinica")
+}
+
+enum CampaignStrategy {
+  PAGE
+  BROADCAST
+  AUTOMATION
+
+  @@schema("clinica")
+}
+
+enum CampaignStatus {
+  draft
+  active
+  inactive
+  paused
+  finished
+
+  @@schema("clinica")
+}
+
+enum CampaignChannel {
+  web
+  whatsapp
+  sms
+
+  @@schema("clinica")
+}
+
+enum CampaignStatusType {
+  always_active
+  period
+  limit
+
+  @@schema("clinica")
+}
+
+model Campaign {
+  id          String             @id @default(uuid())
+  storeId     String             @map("store_id")
+  name        String
+  slug        String
+  segment     CampaignSegment
+  type        CampaignType
+  strategy    CampaignStrategy
+  status      CampaignStatus     @default(active)
+  channel     CampaignChannel
+  statusType  CampaignStatusType @default(always_active) @map("status_type")
+  startDate   DateTime?          @map("start_date") @db.Timestamptz(3)
+  endDate     DateTime?          @map("end_date") @db.Timestamptz(3)
+  leadLimit   Int?               @map("lead_limit")
+  views       Int                @default(0)
+  submissions Int                @default(0)
+  funnelId    String?            @map("funnel_id")
+  stageId     String?            @map("stage_id")
+  content     Json
+  publicUrl   String?            @map("public_url")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  submissionRecords CampaignSubmission[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, status])
+  @@index([storeId, segment])
+  @@index([storeId, type])
+  @@map("campaigns")
+  @@schema("clinica")
+}
+
+model CampaignSubmission {
+  id           String   @id @default(uuid())
+  storeId      String   @map("store_id")
+  campaignId   String   @map("campaign_id")
+  campaignType String   @map("campaign_type")
+  source       String   @default("web")
+  payload      Json
+  metadata     Json     @default("{}")
+  phoneKey     String?  @map("phone_key")
+  isDuplicate  Boolean  @default(false) @map("is_duplicate")
+  submittedAt  DateTime @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, campaignId, submittedAt(sort: Desc)])
+  @@index([campaignId, phoneKey])
+  @@map("campaign_submissions")
+  @@schema("clinica")
+}
+
+/**
+ * Meta contínua de vendas do dashboard. Append-only: a meta ativa da loja é a
+ * linha mais recente; substituir cria nova linha e reinicia o acúmulo em startDate.
+ */
+model DashboardSalesGoal {
+  id        String   @id @default(uuid())
+  storeId   String   @map("store_id")
+  goalCents Int      @map("goal_cents")
+  startDate DateTime @map("start_date") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@map("dashboard_sales_goals")
+  @@schema("clinica")
+}
+
+// ===========================================================================
+// Tenancy própria da vertical (PLAT-001 / Fase 3)
+//
+// Organization = a conta operacional da loja dentro da clínica, 1:1 com a Store do
+// platform-api (referência LÓGICA via storeId — não há FK cross-schema).
+// Clinic       = a unidade operacional real. Uma Organization tem de 1 a N, limitado
+//                pelo plano (planMaxClinics, snapshot atualizado por evento).
+//
+// IMPORTANTE: a Clinic raiz nasce com `id` IGUAL ao `store_id` legado. É o que permite
+// que as 49 tabelas que já carregam `store_id` continuem válidas sem reescrever valor —
+// o rename cosmético `store_id -> clinic_id` fica para depois, se algum dia.
+// ===========================================================================
+
+enum OrganizationStatus {
+  active
+  suspended
+
+  @@schema("clinica")
+}
+
+enum ClinicStatus {
+  active
+  archived
+
+  @@schema("clinica")
+}
+
+model Organization {
+  id      String             @id @default(uuid())
+  /// Store do platform-api. Referência lógica, populada por evento.
+  storeId String             @unique @map("store_id")
+  name    String
+  status  OrganizationStatus @default(active)
+  /// Vertente da clínica. Imutável após o create. Default cobre lojas já provisionadas.
+  clinicStrand String @default("odontologia") @map("clinic_strand")
+
+  /// Snapshot do plano — evita chamada síncrona ao platform-api para validar quota.
+  planId         String? @map("plan_id")
+  planTier       String? @map("plan_tier")
+  planMaxClinics Int?    @map("plan_max_clinics")
+  planMaxUsers   Int?    @map("plan_max_users")
+
+  /// true quando o uso atual excede o plano (downgrade). Bloqueia CRIAÇÃO de novos
+  /// recursos; nunca apaga dado existente por causa de billing.
+  overQuota Boolean @default(false) @map("over_quota")
+
+  /// Motivo da suspensão, quando vier do evento (ex.: invoice_past_due).
+  suspendedReason String? @map("suspended_reason")
+
+  platformUpdatedAt DateTime? @map("platform_updated_at") @db.Timestamptz(3)
+  syncedAt          DateTime  @map("synced_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinics Clinic[]
+  members Member[]
+
+  @@index([status])
+  @@map("organizations")
+  @@schema("clinica")
+}
+
+model Clinic {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  name           String
+  slug           String
+  /// A clínica criada junto com a organização. Só uma por organização.
+  isRoot         Boolean      @default(false) @map("is_root")
+  status         ClinicStatus @default(active)
+
+  legalName         String? @map("legal_name")
+  document          String?
+  stateRegistration String? @map("state_registration")
+  zipCode           String? @map("zip_code")
+  street            String?
+  number            String?
+  complement        String?
+  neighborhood      String?
+  city              String?
+  state             String? @db.VarChar(2)
+  phone             String?
+  timezone          String  @default("America/Sao_Paulo")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ClinicMember[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+  @@map("clinics")
+  @@schema("clinica")
+}
+
+// ===========================================================================
+// Equipe própria da vertical (PLAT-001 / Fase 4)
+//
+// Antes, a clínica não tinha tabela de pessoas: guardava `platform.store_members.id`
+// como String solta em ~15 colunas (professionalId, memberId, responsibleId...), sem FK,
+// com o nome denormalizado ao lado, e resolvia tudo via platform-api.
+//
+// IMPORTANTE: `Member.id` reaproveita o `store_members.id` legado no backfill. É o que
+// mantém o histórico clínico (agendamentos, orçamentos, comissões) apontando para a
+// pessoa certa. Sem isso, todo o histórico de profissional fica órfão.
+// ===========================================================================
+
+enum MemberStatus {
+  active
+  disabled
+
+  @@schema("clinica")
+}
+
+/// Inscrição do profissional no conselho de classe (CRM/CRO/CREFITO/CRN).
+enum ProfessionalCouncilType {
+  CRM
+  CRO
+  CREFITO
+  CRN
+
+  @@schema("clinica")
+}
+
+/// Papel do membro **na organização** — ortogonal ao papel clínico de `ClinicMember.role`.
+///
+/// `OWNER` é o responsável pela organização: a pessoa cadastrada pelo operador da
+/// plataforma (`owner.responsibleName` do evento `citybox.store.created.v1`), a única que
+/// não pode ser removida nem desativada pela tela de equipe. Ser responsável **não** diz
+/// nada sobre o que a pessoa faz na clínica: o dono pode ser dentista, recepcionista ou
+/// nenhum dos dois — isso continua sendo decidido por clínica em `ClinicMember.role`
+/// (`gerente`, `dentista`, `recepcionista`, `auxiliar`, `financeiro`).
+///
+/// Vocabulário alinhado com `MembershipRole` do `erp-comercio` (`OWNER`/`ADMIN`/`MEMBER`);
+/// aqui só existem dois valores porque a clínica ainda não tem nível intermediário.
+enum OrganizationMemberRole {
+  OWNER
+  COLLABORATOR
+
+  @@schema("clinica")
+}
+
+model Member {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  /// Identidade no Keycloak. Criada/removida atomicamente junto com este registro.
+  keycloakSub    String       @unique @map("keycloak_sub")
+  username       String       @unique
+  email          String?
+  firstName      String       @map("first_name")
+  lastName       String       @map("last_name")
+  status         MemberStatus @default(active)
+
+  /// Responsável pela organização vs. colaborador. Invariante: **no máximo um `OWNER`
+  /// vivo por organização**, garantido pelo índice único parcial
+  /// `members_one_owner_per_organization` (só Postgres — o Prisma não modela unique
+  /// parcial, então o índice é escrito à mão na migration).
+  organizationRole OrganizationMemberRole @default(COLLABORATOR) @map("organization_role")
+
+  /// Inscrição no conselho (CRM/CRO) — preenchida na 1ª emissão de receituário/atestado.
+  councilType   ProfessionalCouncilType? @map("council_type")
+  councilNumber String?                  @map("council_number") @db.VarChar(20)
+  councilUf     String?                  @map("council_uf") @db.Char(2)
+
+  hasPassword          Boolean   @default(false) @map("has_password")
+  provisionalExpiresAt DateTime? @map("provisional_expires_at") @db.Timestamptz(3)
+  disabledAt           DateTime? @map("disabled_at") @db.Timestamptz(3)
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clinics      ClinicMember[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([organizationId, organizationRole])
+  @@map("members")
+  @@schema("clinica")
+}
+
+/// Escopo de acesso: um membro atua em uma ou mais clínicas da organização.
+model ClinicMember {
+  id          String   @id @default(uuid())
+  clinicId    String   @map("clinic_id")
+  memberId    String   @map("member_id")
+  /// Catálogo de papéis é da vertical (ver clinic-role.catalog.ts), não do platform.
+  role        String
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, memberId])
+  @@index([clinicId])
+  @@index([memberId])
+  @@map("clinic_members")
+  @@schema("clinica")
+}
+
+/// Dedupe de eventos consumidos (PLAT-001 / Fase 5).
+///
+/// O outbox do platform-api entrega **at-least-once**: um crash entre o publish e a
+/// marcação republica a linha quando o lease expira. Sem esta tabela, um `store.created`
+/// reentregue tentaria criar a organização de novo.
+model ProcessedEvent {
+  eventId     String   @id @map("event_id")
+  type        String
+  aggregateId String   @map("aggregate_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([aggregateId])
+  @@map("processed_events")
+  @@schema("clinica")
+}
+
+// --- WhatsApp (Baileys) ---
+
+enum WhatsappConnectionStatus {
+  disconnected
+  qr_pending
+  connected
+  error
+
+  @@schema("clinica")
+}
+
+enum WhatsappTemplateKey {
+  appointment_confirmation
+  mgm
+  debit_overdue
+  treatment_return
+  birthday
+  nps
+
+  @@schema("clinica")
+}
+
+enum WhatsappMessageDirection {
+  outbound
+  inbound
+
+  @@schema("clinica")
+}
+
+enum WhatsappMessageStatus {
+  queued
+  sent
+  delivered
+  failed
+  received
+
+  @@schema("clinica")
+}
+
+model WhatsappConnection {
+  storeId      String                    @id @map("store_id")
+  status       WhatsappConnectionStatus  @default(disconnected)
+  phoneE164    String?                   @map("phone_e164") @db.VarChar(20)
+  lastError    String?                   @map("last_error") @db.Text
+  authStateKey String                    @default("") @map("auth_state_key") @db.VarChar(512)
+  qrBase64     String?                   @map("qr_base64") @db.Text
+  createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("whatsapp_connections")
+  @@schema("clinica")
+}
+
+model WhatsappTemplate {
+  id        String              @id @default(uuid())
+  storeId   String              @map("store_id")
+  key       WhatsappTemplateKey
+  body      String              @db.Text
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([storeId, key])
+  @@index([storeId])
+  @@map("whatsapp_templates")
+  @@schema("clinica")
+}
+
+model WhatsappMessage {
+  id                String                   @id @default(uuid())
+  storeId           String                   @map("store_id")
+  patientId         String                   @map("patient_id")
+  appointmentId     String?                  @map("appointment_id")
+  direction         WhatsappMessageDirection
+  body              String                   @db.Text
+  toE164            String                   @map("to_e164") @db.VarChar(20)
+  status            WhatsappMessageStatus    @default(queued)
+  templateKey       WhatsappTemplateKey?     @map("template_key")
+  providerMessageId String?                  @map("provider_message_id") @db.VarChar(128)
+  correlationId     String?                  @map("correlation_id")
+  expiresAt         DateTime?                @map("expires_at") @db.Timestamptz(3)
+  attemptCount      Int                      @default(0) @map("attempt_count")
+  lastError         String?                  @map("last_error") @db.Text
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, patientId, createdAt(sort: Desc)])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, correlationId])
+  @@index([storeId, toE164, createdAt(sort: Desc)])
+  @@map("whatsapp_messages")
+  @@schema("clinica")
+}

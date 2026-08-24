@@ -1,0 +1,11 @@
+{
+  "event": "PAYMENT_RECEIVED",
+  "payment": {
+    "id": "pay_fixture_anon_001",
+    "status": "RECEIVED",
+    "value": 150.5,
+    "billingType": "PIX",
+    "paymentDate": "2026-06-11T12:00:00Z",
+    "externalReference": "ORDER-REF-ANON"
+  }
+}

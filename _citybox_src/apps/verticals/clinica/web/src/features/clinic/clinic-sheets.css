@@ -1,0 +1,78 @@
+/*
+ * Estilos de sheet exclusivos da vertical clinic.
+ * Carregado apenas em app/clinic/layout.tsx — não afeta food nem outras verticais.
+ */
+
+/* Sheet aninhado: evita overlay duplicado que escurece demais o sheet pai */
+[data-slot='sheet-overlay']:has(+ [data-clinic-nested-sheet='true']) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Sheet fullscreen (bottom): sobe de baixo com animação mais lenta */
+[data-slot='sheet-overlay']:has(+ [data-clinic-fullscreen-bottom-sheet='true']) {
+  animation-duration: 450ms !important;
+  transition-duration: 450ms !important;
+}
+
+@keyframes clinic-fullscreen-sheet-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes clinic-fullscreen-sheet-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+[data-clinic-fullscreen-bottom-sheet='true'][data-state='open'] {
+  animation: clinic-fullscreen-sheet-in 550ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+[data-clinic-fullscreen-bottom-sheet='true'][data-state='closed'] {
+  animation: clinic-fullscreen-sheet-out 450ms cubic-bezier(0.4, 0, 1, 1) both !important;
+}
+
+/* Sheet fullscreen (right): expande da direita para a esquerda */
+[data-slot='sheet-overlay']:has(+ [data-clinic-fullscreen-right-sheet='true']) {
+  animation-duration: 450ms !important;
+  transition-duration: 450ms !important;
+}
+
+@keyframes clinic-fullscreen-sheet-right-in {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes clinic-fullscreen-sheet-right-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+[data-clinic-fullscreen-right-sheet='true'][data-state='open'] {
+  animation: clinic-fullscreen-sheet-right-in 550ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+[data-clinic-fullscreen-right-sheet='true'][data-state='closed'] {
+  animation: clinic-fullscreen-sheet-right-out 450ms cubic-bezier(0.4, 0, 1, 1) both !important;
+}

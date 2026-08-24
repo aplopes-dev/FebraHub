@@ -1,0 +1,8 @@
+{
+  "themes": [
+    {
+      "name": "citybox",
+      "types": ["login", "account", "admin", "email"]
+    }
+  ]
+}

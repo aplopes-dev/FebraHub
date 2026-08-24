@@ -1,0 +1,122 @@
+/speckit-specify --scope erp --short-name fiscal-general-settings
+
+Desenvolver a tela "Configurações Gerais" fiscais do erp-web — dados e regras fiscais
+principais do Emitente, usados na emissão de NF-e/NFC-e/NFS-e.
+Referência visual: https://app.connectplug.com.br/dashboard/settings/fiscal-settings/general
+Seções da referência, na ordem: INFORMAÇÕES TRIBUTÁRIAS · INFORMAÇÕES FISCAIS ·
+AUTENTICAÇÃO E QR CODE · JUSTIFICATIVAS PADRÃO · PERMISSÕES DE ACESSO · AUTORIZADOS A
+ACESSAR XML · VENDAS · TAXAS DE SERVIÇO NA NFCE · INFORMAÇÕES DE PRODUTOS · ENVIO DE
+DOCUMENTOS · INSCRIÇÕES ESTADUAIS DO SUBSTITUTO TRIBUTÁRIO · INTERMEDIADORES DA TRANSAÇÃO ·
+CONFIGURAÇÕES ESPECÍFICAS · BASE DE CÁLCULO · DADOS DE PAGAMENTO.
+
+LOCALIZAÇÃO — DECIDIDA
+`/configuracoes/fiscal` (leaf único id "fiscal" já existente em `src/lib/navigation.ts`)
+vira página com abas: "Certificado digital" (entrega fiscal-certificate-screen) e
+"Configurações gerais" (esta). A aba ativa é refletida na URL, de modo que cada aba tenha
+link próprio, compartilhável e recarregável. Não criar leaf novo nem transformar "Fiscal"
+em grupo de sub-itens.
+
+ESCOPO DA FASE 1 — DECIDIDO
+Só entram funcionando os campos que já têm backend na services/fiscal-api:
+- Regime tributário → `Company.taxRegime` (PUT /v1/companies/{id})
+- Inscrição Estadual → `Company.stateRegistration`
+- Inscrição Municipal → `Company.municipalRegistration`
+- Ambiente de Geração (NFe) → `Company.defaultEnvironment` (HOMOLOGATION|PRODUCTION)
+- CSC / Token + ID Token → `PUT /v1/companies/{id}/csc` (cscId 1-6 dígitos + cscToken)
+- Autorizados a acessar XML → `Company.accountingOfficeDocument` (UM CPF/CNPJ; grupo autXML
+  — a Bahia rejeita a NF-e sem ele, rejeição 486). A referência permite lista; na Fase 1 é
+  campo único, com a limitação explicitada na UI.
+- Avaliar expor também `nationalNfseEnabled` (não está no print, mas sem `true` a NFS-e é
+  recusada com 422).
+
+TRATAMENTO DOS CAMPOS SEM BACKEND — DECIDIDO
+Renderizar TODOS os campos do print, na mesma estrutura de seções, porém DESABILITADOS,
+com legenda "em breve" visível. Nenhum campo desabilitado pode aceitar edição que seja
+descartada no submit. Lista dos que não têm backend (nem campo, nem endpoint, nem uso no
+builder de XML) e viram backlog nomeado:
+- Isento IE (checkbox)
+- Indicação de operação com consumidor final por padrão / Indicador de presença do comprador
+  (hoje `indFinal`/`indPres` chegam POR EMISSÃO no input, não são configuração persistida)
+- Inclui frete na base de PIS · de COFINS · Incluir IPI na base de cálculo
+- Cliente padrão é contribuinte de ICMS
+- Alíquota aplicável no cálculo do crédito (%)
+- Justificativas padrão: Inutilização / Cancelamento / Contingência
+- Permitir que o contador inutilize as notas
+- Modalidade de frete das vendas emitidas pelo PDV (hoje `modFrete: '9'` HARDCODED em
+  `nfe-xml.builder.ts`)
+- Taxa de serviço/garçom na NFC-e (Outras Despesas vs produto Gorjeta)
+- Adicionar lote · data de validade · GTIN na NF
+- Enviar XML/DANFE ao cliente automaticamente
+- Inscrições Estaduais do Substituto Tributário (lista por UF)
+- Intermediadores da transação (lista)
+- Habilitar venda de gás/combustível · Habilitar venda de medicamentos
+- Base de cálculo: desconto incondicionado vs condicionado
+- Dados de pagamento: UF do CNPJ do estabelecimento · CNPJ do pagamento · CNPJ do beneficiário
+Cada bloco acima entra na spec como item de escopo futuro, nomeando o trabalho de backend
+que exige (campo no schema + migration + DTO + uso no builder de XML). Não implementar aqui.
+QUESTÃO ABERTA a resolver no /speckit-plan: se esses campos, quando implementados, moram na
+fiscal-api (identidade do Emitente) ou no erp-api (defaults de emissão, já que é o erp-api
+quem monta o pedido). Não assumir uma das duas sem decisão registrada.
+
+REGIME TRIBUTÁRIO / CRT — DECIDIDO
+O select lista os 3 regimes que a API aceita, exibindo o CRT resultante em cada opção
+("1 — Simples Nacional", "3 — Lucro Presumido", "3 — Lucro Real"). NÃO oferecer CRT 2
+(Simples com excesso de sublimite, declarado fora do escopo v1 no builder) nem CRT 4 (MEI,
+inexistente na fiscal-api) — nenhuma opção selecionável pode ser recusada no salvamento.
+Referência da derivação atual: `taxRegimeCode: company.taxRegime === 'SIMPLES_NACIONAL' ?
+'1' : '3'` em `issue-nfe.use-case.ts` e `issue-nfce.use-case.ts`.
+
+SALVAMENTO — DECIDIDO
+- Um botão "Salvar" para os dados do Emitente (uma chamada `PUT /v1/companies/{id}`).
+- O bloco AUTENTICAÇÃO E QR CODE tem botão próprio, disparando `PUT /v1/companies/{id}/csc`
+  — recurso separado, substituição integral do par (cscId + cscToken) e segredo que não
+  pode ser regravado de carona num "Salvar" geral.
+- Aviso de alterações não salvas ao trocar de aba.
+- Mudar o ambiente de Homologação para PRODUÇÃO exige confirmação explícita (afeta emissão
+  real).
+
+CSC — REGRAS NÃO NEGOCIÁVEIS
+Write-only por decisão de segurança da fiscal-api: nenhum endpoint devolve o CSC; a leitura
+do Emitente traz apenas `cscConfigured: boolean`. A UI NUNCA tenta exibir o valor gravado —
+mostra "configurado / não configurado" e permite substituir por inteiro. `cscId` aceita a
+forma que o portal da SEFAZ exibe (com zeros à esquerda). O token nunca em log, cache do
+React Query, URL ou storage.
+
+INTEGRAÇÃO NO FRONT
+- Proxy same-origin `/api/proxy/fiscal/[...path]` + `fiscalFetch` (`src/lib/api/fiscal-client.ts`).
+- Resolver o Emitente pelo hook compartilhado da entrega de certificado (`useFiscalCompany`),
+  com o mesmo comportamento quando o Emitente não existe.
+- React Query para leitura + mutations para gravação; feature em `src/features/fiscal-settings/`
+  (`api/`, `hooks/`, `components/`, `types/`) + GUIA.md obrigatório em linguagem de negócio
+  (§4.5 de apps/erp/web/AGENTS.md).
+- DS: @citybox/mui; ícones só de @mui/icons-material via registry.
+
+SEGURANÇA
+- `fiscal.companies.manage` para ler/gravar dados do Emitente e o CSC.
+- Sem a permissão, a tela não oferece as ações.
+
+FORA DE ESCOPO
+- Implementar os campos sem backend (lista acima) — backlog nomeado.
+- Demais itens do menu Fiscal da referência (Padrões Fiscais, Grupo do ICMS/IPI/PIS-COFINS/
+  ISSQN, Série de NF, Tipo de NF emitida, Informações Adicionais NFs, Natureza de Operações).
+- Cadastro/edição do Emitente (endereço, CNPJ, storeId) — entrega própria já prevista.
+
+CRITÉRIOS DE SUCESSO
+- Alterar regime, IE, IM, autXML e ambiente persiste na fiscal-api e recarrega com o valor
+  correto.
+- Cadastrar CSC faz o indicador passar a "configurado" sem que o token apareça em nenhuma
+  resposta, log ou requisição subsequente.
+- Nenhum campo desabilitado aceita edição silenciosamente descartada.
+- Trocar para ambiente de Produção exige confirmação explícita.
+- Sair da aba com alterações pendentes gera aviso.
+- A URL identifica a aba aberta: recarregar ou compartilhar o link abre a mesma aba.
+
+DOCS-AS-CODE (Princípio I)
+Atualizar `apps/erp/web/AGENTS.md` (feature nova + abas em /configuracoes/fiscal) e criar
+`src/features/fiscal-settings/GUIA.md`.
+
+TESTES
+Vitest + Testing Library + MSW: carga dos valores atuais, gravação de cada campo suportado,
+fluxo do CSC (gravar → indicador muda → valor nunca exibido), confirmação ao mudar para
+Produção, aviso de alterações não salvas, aba refletida na URL, e verificação de que os
+campos sem backend estão desabilitados.

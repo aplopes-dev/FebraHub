@@ -1,0 +1,79 @@
+services:
+  keycloak-db:
+    image: postgres:17-alpine
+    container_name: citybox_keycloak_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      POSTGRES_DB: keycloak
+    volumes:
+      - citybox_keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - citybox-platform
+
+  keycloak:
+    build:
+      context: ../../
+      dockerfile: infra/keycloak/Dockerfile
+    image: citybox/keycloak-theme:local
+    container_name: citybox_keycloak
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      KC_HOSTNAME: ${KC_HOSTNAME:-auth.citybox.com}
+      KC_HOSTNAME_URL: ${KC_HOSTNAME_URL:-https://auth.citybox.com}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: ${KC_HOSTNAME_STRICT_HTTPS:-true}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-citybox}
+    # SEM `--import-realm`, de propósito (ADR C-16).
+    #
+    # Os JSONs de `import/` carregam campos que só o `sync-realm.mjs` entende
+    # (`secretEnv`, `serviceAccountRealmRoles`, `serviceAccountClientRoles`) — o
+    # importador nativo recusa campo desconhecido e **mata o boot** com
+    # "Unrecognized field", deixando o container em loop de restart.
+    #
+    # Mais de fundo: o import nativo e o `pnpm keycloak:sync` seriam dois
+    # escritores da mesma configuração, e o nativo cobre menos (não atribui role
+    # a service account, não aplica required actions nem o perfil de usuário).
+    # O sync é o único caminho: `pnpm infra:up` sobe o servidor vazio,
+    # `pnpm keycloak:sync` aplica os realms.
+    command: start-dev
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      # `master` em vez de um realm de aplicação: com um realm por sistema
+      # (ADR C-16) o healthcheck não pode depender de qual realm existe.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /realms/master HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - citybox-platform
+
+volumes:
+  citybox_keycloak_db_data:
+    name: citybox_keycloak_db_data
+
+networks:
+  citybox-platform:
+    name: citybox-platform
+    external: true

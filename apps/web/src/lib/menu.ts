@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
-  Plug, Settings2, ShieldCheck, ShoppingCart, Users, Workflow,
+  Plug, Receipt, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -53,6 +53,14 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
 
   if (key === "loja") {
     base.push(
+      {
+        id: "loja-produtos",
+        label: "Produtos e Estoque",
+        href: "/loja/produtos",
+        titulo: "Catálogo da Loja",
+        desc: "Produtos, categorias e estoque operacional (Loja / Depósito)",
+        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.produtos.ver"),
+      },
       {
         id: "loja-metas-mes",
         label: "Metas mensais",
@@ -220,6 +228,19 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       { id: "compras-config", label: "Configurações", href: "/compras/configuracoes", visivel: (ctx: ContextoMenu) => ctx.admin },
     ] }];
   }),
+  {
+    id: "pdv", label: "PDV", Icone: Receipt, visivel: comPermissao("pdv.ver"), filhos: [
+      { id: "pdv-resumo", label: "Resumo", href: "/pdv", Icone: Receipt, titulo: "Ponto de venda", desc: "Vendas do balcão, caixa e formas de pagamento", visivel: comPermissao("pdv.ver") },
+      { id: "pdv-caixa", label: "Frente de caixa", href: "/pdv/caixa", desc: "Abrir caixa, vender e fechar", visivel: comPermissao("pdv.operar") },
+      { id: "pdv-vendas", label: "Vendas", href: "/pdv/vendas", desc: "Histórico de cupons", visivel: comPermissao("pdv.ver") },
+    ],
+  },
+  {
+    id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
+      { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },
+      { id: "fin-erp-dre", label: "DRE", href: "/financeiro-erp/dre", desc: "Demonstrativo de resultado por competência", visivel: comPermissao("financeiro.erp.ver") },
+    ],
+  },
   {
     id: "integracoes",
     label: "Integrações",

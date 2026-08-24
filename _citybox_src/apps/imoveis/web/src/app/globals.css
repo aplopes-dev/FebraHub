@@ -1,0 +1,7 @@
+/* Tailwind v4 local — sem @citybox/ui/styles (cutover Fase 9). */
+@import "tailwindcss";
+/* Tokens CSS residual (accent / chart / utilitários Tailwind ainda usados) */
+@import "../styles/theme.css";
+
+/* Escaneia só o app — nunca packages/ui */
+@source "../**/*";

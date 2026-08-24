@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ATENÇÃO — WSDL de autoria própria, NÃO obtido do endpoint oficial.
+  Ver o cabeçalho de `NFeAutorizacao4.wsdl` (mesmo diretório) para o
+  contexto completo desta ressalva.
+
+  Modela o contrato nacional estável do webservice NFeConsultaProtocolo4:
+  uma única operação `nfeConsultaNF` que recebe `nfeDadosMsg` (string com o
+  XML `<consSitNFe>` bruto) e devolve `nfeResultMsg` (string com o XML
+  `<retConsSitNFe>` bruto de resposta).
+-->
+<wsdl:definitions
+    name="NFeConsultaProtocolo4"
+    targetNamespace="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4"
+    xmlns:tns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+
+  <wsdl:types>
+    <xsd:schema targetNamespace="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4">
+      <xsd:element name="nfeDadosMsg" type="xsd:string"/>
+      <xsd:element name="nfeResultMsg" type="xsd:string"/>
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="nfeConsultaNFRequest">
+    <wsdl:part name="parameters" element="tns:nfeDadosMsg"/>
+  </wsdl:message>
+  <wsdl:message name="nfeConsultaNFResponse">
+    <wsdl:part name="parameters" element="tns:nfeResultMsg"/>
+  </wsdl:message>
+
+  <wsdl:portType name="NfeConsultaProtocolo4Soap">
+    <wsdl:operation name="nfeConsultaNF">
+      <wsdl:input message="tns:nfeConsultaNFRequest"/>
+      <wsdl:output message="tns:nfeConsultaNFResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="NfeConsultaProtocolo4SoapBinding" type="tns:NfeConsultaProtocolo4Soap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <wsdl:operation name="nfeConsultaNF">
+      <soap:operation soapAction="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF" style="document"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="NfeConsultaProtocolo4">
+    <wsdl:port name="NfeConsultaProtocolo4Soap" binding="tns:NfeConsultaProtocolo4SoapBinding">
+      <soap:address location="https://hnfe.sefaz.ba.gov.br/webservices/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

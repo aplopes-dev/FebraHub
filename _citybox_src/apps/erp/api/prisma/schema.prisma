@@ -1,0 +1,3614 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["erp"]
+}
+
+// ---------------------------------------------------------------------------
+// TENANCY — Organization → Branch, e quem pode operar onde (User/Membership).
+// O Keycloak fica só com a AUTENTICAÇÃO (quem é o usuário); a AUTORIZAÇÃO e o
+// vínculo com empresa/filial moram aqui. Ver api/AGENTS.md §5.10.
+// ---------------------------------------------------------------------------
+
+/// Pessoa física (CPF) ou jurídica (CNPJ). Vale para organização e filial.
+enum PersonType {
+  PF
+  PJ
+
+  @@schema("erp")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+
+  @@schema("erp")
+}
+
+enum TaxRegime {
+  MEI
+  SIMPLES_NACIONAL
+  LUCRO_PRESUMIDO
+  LUCRO_REAL
+  ISENTO
+
+  @@schema("erp")
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+
+  @@schema("erp")
+}
+
+/// Estágio CRM do cliente no funil comercial.
+enum CustomerStage {
+  lead
+  opportunity
+  active
+  inactive
+
+  @@schema("erp")
+}
+
+enum CustomerAddressType {
+  principal
+  entrega
+  outro
+
+  @@schema("erp")
+}
+
+/// A empresa contratante — o tenant. Todo dado de negócio pertence a uma.
+model Organization {
+  id         String     @id @default(uuid())
+  personType PersonType @map("person_type")
+  /// Só dígitos (CPF com 11, CNPJ com 14). Único global: é a identidade do tenant.
+  document   String     @unique
+  /// Razão social (PJ) ou nome completo (PF).
+  legalName  String     @map("legal_name")
+  tradeName  String?    @map("trade_name")
+  email      String
+  phone      String?
+
+  // Responsável legal pela organização.
+  responsibleName     String  @map("responsible_name")
+  responsibleDocument String? @map("responsible_document")
+  responsibleEmail    String? @map("responsible_email")
+  responsiblePhone    String? @map("responsible_phone")
+
+  status OrganizationStatus @default(ACTIVE)
+
+  /// Ponte para o `Store` de apps/admin. Populada pelo consumidor de eventos
+  /// (`citybox.store.*`) — nula em organização criada direto no ERP, sem passar pelo
+  /// admin da plataforma. Continua opcional de propósito: o ERP roda autônomo.
+  platformStoreId String? @unique @map("platform_store_id")
+
+  /// Snapshot do plano contratado na plataforma. Copiado do evento para que o ERP
+  /// valide quota sem chamada síncrona ao platform-api no caminho quente.
+  planId          String? @map("plan_id")
+  planTier        String? @map("plan_tier")
+  planMaxBranches Int?    @map("plan_max_branches")
+  planMaxUsers    Int?    @map("plan_max_users")
+
+  /// Motivo da suspensão vinda da plataforma (ex.: `overdue_invoice`). Sem isto a tela
+  /// só consegue dizer "sem acesso", que não orienta o lojista a resolver.
+  suspendedReason String? @map("suspended_reason")
+
+  /// `platformUpdatedAt` é o `updatedAt` da loja **na origem**; `syncedAt` é quando
+  /// aplicamos aqui. O par existe para descartar evento atrasado que chegue depois de
+  /// um mais novo — a fila não garante ordem.
+  platformUpdatedAt DateTime? @map("platform_updated_at") @db.Timestamptz(3)
+  syncedAt          DateTime? @map("synced_at") @db.Timestamptz(3)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branches           Branch[]
+  memberships        Membership[]
+  permissionProfiles PermissionProfile[]
+
+  productCategories         ProductCategory[]
+  unitsOfMeasure            UnitOfMeasure[]
+  products                  Product[]
+  suppliers                 Supplier[]
+  carriers                  Carrier[]
+  stocks                    Stock[]
+  stockBalances             StockBalance[]
+  stockMovements            StockMovement[]
+  inventories               Inventory[]
+  stockTransfers            StockTransfer[]
+  purchases                 Purchase[]
+  productionOrders          ProductionOrder[]
+  productionHistoryEntries  ProductionHistoryEntry[]
+  movementCategories        MovementCategory[]
+  variations                Variation[]
+  priceLists                PriceList[]
+  productAddons             ProductAddon[]
+  productFiscals            ProductFiscal[]
+  technicalSheets           TechnicalSheet[]
+  customerCategories        CustomerCategory[]
+  customers                 Customer[]
+  saleOrders                SaleOrder[]
+  saleOrderLines            SaleOrderLine[]
+  saleOrderPayments         SaleOrderPayment[]
+  serviceOrders             ServiceOrder[]
+  serviceOrderStatuses      ServiceOrderStatus[]
+  salesContracts            SalesContract[]
+  contractStatuses          ContractStatus[]
+  contractInstallments      ContractInstallment[]
+  promotions                Promotion[]
+  bankAccounts              BankAccount[]
+  financialEntries          FinancialEntry[]
+  financialGroups           FinancialGroup[]
+  chartOfAccounts           ChartOfAccount[]
+  costCenters               CostCenter[]
+  paymentMethods            PaymentMethod[]
+  cardContracts             CardContract[]
+  cardPaymentMethods        CardPaymentMethod[]
+  cardRateTiers             CardRateTier[]
+  financialEntryPayments    FinancialEntryPayment[]
+  financialEntryAllocations FinancialEntryAllocation[]
+  financialEntryAttachments FinancialEntryAttachment[]
+  bankTransactions          BankTransaction[]
+  bankTransfers             BankTransfer[]
+  storeSetupLog             StoreSetupLog?
+  posTerminals              PosTerminal[]
+  posCashSessions           PosCashSession[]
+  posCashMovements          PosCashMovement[]
+  posDeliveryOrders         PosDeliveryOrder[]
+  posDeliveryOrderLines     PosDeliveryOrderLine[]
+  posPolicy                 PosPolicy?
+  posFiscalSettings         PosFiscalSettings?
+  fiscalGroups              FiscalGroup[]
+  fiscalGroupUfRates        FiscalGroupUfRate[]
+  fiscalDefaultTaxes        FiscalDefaultTaxes?
+  fiscalAdditionalInfos     FiscalAdditionalInfo[]
+  nfseIssuances             NfseIssuance[]
+  nfeIssuances              NfeIssuance[]
+  operationNatures          OperationNature[]
+  posModuleDefaults         PosModuleDefaults?
+  bankStatements            BankStatement[]
+  bankStatementTransactions BankStatementTransaction[]
+  bankStatementMatches      BankStatementMatch[]
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("organizations")
+  @@schema("erp")
+}
+
+/// Unidade/filial. Cada uma tem CNPJ (ou CPF) próprio — é o estabelecimento
+/// para efeito de nota fiscal e apuração.
+model Branch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  /// Código da unidade dentro da organização (ex.: "001").
+  code           String
+
+  personType            PersonType @map("person_type")
+  document              String
+  legalName             String     @map("legal_name")
+  tradeName             String?    @map("trade_name")
+  stateRegistration     String?    @map("state_registration")
+  municipalRegistration String?    @map("municipal_registration")
+  taxRegime             TaxRegime  @default(SIMPLES_NACIONAL) @map("tax_regime")
+  /// Matriz. A invariante "no máximo uma por organização" é validada no use case:
+  /// unique parcial exigiria SQL manual, proibido pelo §5.9.
+  isHeadquarters        Boolean    @default(false) @map("is_headquarters")
+
+  zipCode      String? @map("zip_code")
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+  phone        String?
+  email        String?
+  timezone     String  @default("America/Bahia")
+
+  active    Boolean   @default(true)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization             Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  access                   BranchAccess[]
+  productBranches          ProductBranch[]
+  supplierBranches         SupplierBranch[]
+  carrierBranches          CarrierBranch[]
+  stockBranches            StockBranch[]
+  movementCategoryBranches MovementCategoryBranch[]
+  productFiscalBranches    ProductFiscalBranch[]
+  customerBranches         CustomerBranch[]
+  posTerminals             PosTerminal[]
+  posCashSessions          PosCashSession[]
+  posDeliveryOrders        PosDeliveryOrder[]
+
+  @@unique([organizationId, code])
+  /// Escopado à organização de propósito. Unique global vazaria a existência de
+  /// outro tenant: um 409 ao cadastrar um CNPJ revelaria que outra empresa já o usa.
+  @@unique([organizationId, document])
+  /// Alvo da FK composta de BranchAccess — não é redundante com o @id.
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, active])
+  @@map("branches")
+  @@schema("erp")
+}
+
+/// Identidade local espelhando o Keycloak. Criado just-in-time no primeiro
+/// request autenticado — o Keycloak não guarda nada de negócio.
+model User {
+  id          String  @id @default(uuid())
+  keycloakSub String  @unique @map("keycloak_sub")
+  email       String?
+  name        String?
+  avatarUrl   String? @map("avatar_url") @db.VarChar(2048)
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships             Membership[]
+  stockMovementsCreated   StockMovement[]
+  stockTransfersCreated   StockTransfer[]
+  productionOrdersCreated ProductionOrder[]
+
+  @@index([email])
+  @@map("users")
+  @@schema("erp")
+}
+
+/// Perfil de acesso da organização — conjunto de permissões finas do catálogo.
+/// Só `Administrador` nasce com `isSystem` (não editável/excluível); os demais
+/// perfis do seed (Financeiro, Gerente, …) são editáveis pelo lojista.
+model PermissionProfile {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  name           String
+  description    String    @default("")
+  isSystem       Boolean   @default(false) @map("is_system")
+  /// Chave estável dos perfis de sistema (ex.: `administrador`). Nula em custom.
+  systemKey      String?   @map("system_key")
+  /// IDs do catálogo fino (`permission-catalog.ts`).
+  permissionIds  String[]  @default([]) @map("permission_ids")
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("permission_profiles")
+  @@schema("erp")
+}
+
+/// Usuário ↔ organização.
+model Membership {
+  id                  String         @id @default(uuid())
+  organizationId      String         @map("organization_id")
+  userId              String         @map("user_id")
+  /// Papel estrutural: OWNER (responsável), ADMIN/MEMBER (escopo de unidades).
+  /// Autorização fina vem do `PermissionProfile`.
+  role                MembershipRole @default(MEMBER)
+  /// Perfil de permissões. Obrigatório em membros novos; nullable só para
+  /// migração de linhas legadas até o backfill do store-setup.
+  permissionProfileId String?        @map("permission_profile_id")
+  active              Boolean        @default(true)
+  /// Aparece nas listas de vendedor (ERP e PDV). Independente do perfil.
+  isSeller            Boolean        @default(true) @map("is_seller")
+
+  /// Credencial de caixa no PDV (substitui `PosOperator`). Código curto + PIN
+  /// scrypt; elegibilidade também exige permissão `pdv.operacao.*` no perfil.
+  pdvCode           String?   @map("pdv_code")
+  pdvPinHash        String?   @map("pdv_pin_hash")
+  pdvPinUpdatedAt   DateTime? @map("pdv_pin_updated_at") @db.Timestamptz(3)
+  pdvFailedAttempts Int       @default(0) @map("pdv_failed_attempts")
+  pdvLockedUntil    DateTime? @map("pdv_locked_until") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionProfile PermissionProfile? @relation(fields: [permissionProfileId], references: [id], onDelete: Restrict)
+  branchAccess      BranchAccess[]
+
+  @@unique([organizationId, userId])
+  /// Alvo da FK composta de BranchAccess.
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([permissionProfileId])
+  @@index([organizationId, pdvCode])
+  @@index([organizationId, isSeller])
+  @@map("memberships")
+  @@schema("erp")
+}
+
+/// Em quais filiais o membro pode operar.
+///
+/// As FKs são COMPOSTAS e carregam o `organizationId`: o banco torna
+/// fisicamente impossível ligar um membro da organização A a uma filial da
+/// organização B. É defesa estrutural, não só de aplicação — sobrevive a bug de
+/// código e a query manual.
+model BranchAccess {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  membershipId   String @map("membership_id")
+  branchId       String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  membership Membership @relation(fields: [membershipId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch     Branch     @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: NoAction)
+
+  @@unique([membershipId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("branch_access")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// CATALOG — escopado por `organizationId`, com vínculo por unidade em
+// `ProductBranch`. O antigo `storeId` (header X-Store-Id) foi removido.
+// ---------------------------------------------------------------------------
+
+enum ProductType {
+  simple
+  collection
+  supply
+
+  @@schema("erp")
+}
+
+enum UnitKind {
+  unit
+  weight
+  volume
+  length
+  area
+
+  @@schema("erp")
+}
+
+enum VariationPriceMethod {
+  sum
+  average
+  highest
+
+  @@schema("erp")
+}
+
+enum ProductVariationFormat {
+  grid
+  composite
+
+  @@schema("erp")
+}
+
+model ProductCategory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  active         Boolean  @default(true)
+  /// Chave estável do provisionamento (ex.: geral). Null em registros do usuário.
+  systemKey      String?  @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@map("product_categories")
+  @@schema("erp")
+}
+
+model UnitOfMeasure {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  abbreviation   String
+  kind           UnitKind
+  decimalPlaces  Int      @default(0) @map("decimal_places")
+  active         Boolean  @default(true)
+  /// Chave estável do provisionamento (ex.: un). Null em registros do usuário.
+  systemKey      String?  @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([organizationId, abbreviation])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@map("units_of_measure")
+  @@schema("erp")
+}
+
+model Product {
+  id              String      @id @default(uuid())
+  organizationId  String      @map("organization_id")
+  name            String
+  sku             String
+  categoryId      String      @map("category_id")
+  unitOfMeasureId String?     @map("unit_of_measure_id")
+  type            ProductType @default(simple)
+  basePriceCents  Int         @default(0) @map("base_price_cents")
+  perishable      Boolean     @default(false)
+  description     String      @default("")
+  imageUrl        String?     @map("image_url") @db.VarChar(2048)
+  trackStock      Boolean     @default(false) @map("track_stock")
+  barcodes        String[]    @default([])
+  /// Visível no ERP (backoffice / pickers de venda). Default true.
+  availableOnErp  Boolean     @default(true) @map("available_on_erp")
+  /// Visível no PDV (snapshot `GET v1/pos/catalog`). Default true.
+  availableOnPdv  Boolean     @default(true) @map("available_on_pdv")
+
+  // Denormalizados mantidos ao salvar vínculos ProductVariation.
+  hasVariants     Boolean                 @default(false) @map("has_variants")
+  variantsCount   Int                     @default(0) @map("variants_count")
+  /// Formato de variação do produto (grade ou valor composto). Null = sem variação.
+  variationFormat ProductVariationFormat? @map("variation_format")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization                    Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category                        ProductCategory                 @relation(fields: [categoryId], references: [id])
+  unitOfMeasure                   UnitOfMeasure?                  @relation(fields: [unitOfMeasureId], references: [id])
+  branches                        ProductBranch[]
+  suppliers                       ProductSupplier[]
+  productVariations               ProductVariation[]
+  priceListItems                  PriceListItem[]
+  fiscal                          ProductFiscal?
+  fiscalBranches                  ProductFiscalBranch[]
+  technicalSheet                  TechnicalSheet?
+  technicalSheetAsComponent       TechnicalSheetComponent[]       @relation("TechnicalSheetComponentProduct")
+  technicalSheetOptionAsComponent TechnicalSheetOptionComponent[] @relation("TechnicalSheetOptionComponentProduct")
+  stockBalances                   StockBalance[]
+  stockMovementLines              StockMovementLine[]
+  inventoryLines                  InventoryLine[]
+  stockTransferLines              StockTransferLine[]
+  purchaseLines                   PurchaseLine[]
+  productionOrders                ProductionOrder[]
+  saleOrderLines                  SaleOrderLine[]
+  posDeliveryOrderLines           PosDeliveryOrderLine[]
+  addonSettings                   ProductAddonSettings?
+  addonLines                      ProductAddonLine[]
+  suggestionsAsOwner              ProductSuggestion[]             @relation("ProductSuggestionOwner")
+  suggestionsAsTarget             ProductSuggestion[]             @relation("ProductSuggestionTarget")
+
+  /// SKU único na EMPRESA (não mais por loja): o produto é da organização e um
+  /// SKU identifica um item em toda a rede.
+  @@unique([organizationId, sku])
+  /// Alvo da FK composta de ProductBranch/ProductSupplier — não é redundante com o @id.
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, type])
+  @@index([categoryId])
+  @@map("products")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// VÍNCULOS DO CATÁLOGO — em quais unidades o produto opera, e de quem se compra.
+// ---------------------------------------------------------------------------
+
+/// Em quais unidades o produto opera.
+///
+/// Sem linha aqui, o produto existe no cadastro da empresa mas não aparece em
+/// nenhuma filial — é o estado de um item recém-criado ou descontinuado.
+///
+/// As FKs são COMPOSTAS e carregam o `organizationId`: o banco torna
+/// fisicamente impossível ligar um produto da organização A a uma filial da
+/// organização B (mesma defesa de `BranchAccess`).
+model ProductBranch {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  productId      String  @map("product_id")
+  branchId       String  @map("branch_id")
+  /// A unidade pode desativar o produto localmente sem desfazer o vínculo.
+  active         Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([productId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("product_branches")
+  @@schema("erp")
+}
+
+/// Fornecedor — pessoa física ou jurídica de quem a empresa compra.
+model Supplier {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  personType     PersonType @map("person_type")
+  /// Nome usado no dia a dia (fantasia, para PJ).
+  name           String
+  legalName      String?    @map("legal_name")
+  /// Só dígitos (CPF com 11, CNPJ com 14).
+  document       String
+
+  stateRegistration     String? @map("state_registration")
+  /// Isento de inscrição estadual — quando true, a inscrição fica vazia.
+  stateExempt           Boolean @default(false) @map("state_exempt")
+  municipalRegistration String? @map("municipal_registration")
+  /// Inscrição SUFRAMA (Zona Franca de Manaus).
+  sufamaRegistration    String? @map("sufama_registration")
+
+  foundationDate DateTime? @map("foundation_date") @db.Date
+  note           String    @default("")
+
+  email           String?
+  commercialPhone String? @map("commercial_phone")
+  mobilePhone     String? @map("mobile_phone")
+
+  zipCode    String? @map("zip_code")
+  street     String?
+  number     String?
+  district   String?
+  city       String?
+  state      String?
+  complement String?
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches         SupplierBranch[]
+  products         ProductSupplier[]
+  purchases        Purchase[]
+  financialEntries FinancialEntry[]
+
+  /// Escopado à organização: unique global revelaria que outro tenant já
+  /// cadastrou aquele CNPJ (mesma razão de `Branch.document`).
+  @@unique([organizationId, document])
+  /// Alvo da FK composta de SupplierBranch/ProductSupplier.
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("suppliers")
+  @@schema("erp")
+}
+
+/// Em quais unidades o fornecedor atende.
+model SupplierBranch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  supplierId     String @map("supplier_id")
+  branchId       String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  supplier Supplier @relation(fields: [supplierId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([supplierId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("supplier_branches")
+  @@schema("erp")
+}
+
+/// Produto ↔ fornecedor: de quem se compra aquele item.
+model ProductSupplier {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  productId      String  @map("product_id")
+  supplierId     String  @map("supplier_id")
+  /// Código do produto no catálogo do fornecedor (o que vai no pedido de compra).
+  supplierCode   String? @map("supplier_code")
+  /// Quantas unidades nossas vêm em uma unidade de compra dele (ex.: caixa com 12).
+  conversion     Decimal @default(1) @map("conversion") @db.Decimal(12, 4)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product  Product  @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([productId, supplierId])
+  @@index([organizationId])
+  @@index([supplierId])
+  @@map("product_suppliers")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// TRANSPORTADORAS — parceiros de entrega / entregadores (Fase 6).
+// ---------------------------------------------------------------------------
+
+enum CarrierDeliveryType {
+  transportadora
+  entregador
+
+  @@schema("erp")
+}
+
+/// Transportadora ou entregador de delivery da organização.
+model Carrier {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  personType     PersonType          @map("person_type")
+  deliveryType   CarrierDeliveryType @default(transportadora) @map("delivery_type")
+  /// Nome fantasia / nome de uso.
+  name           String
+  legalName      String?             @map("legal_name")
+  /// Só dígitos (CPF 11 / CNPJ 14).
+  document       String
+
+  icmsExempt            Boolean @default(false) @map("icms_exempt")
+  registerInNfe         Boolean @default(false) @map("register_in_nfe")
+  /// Isento de inscrição estadual — quando true, a inscrição fica vazia.
+  stateExempt           Boolean @default(false) @map("state_exempt")
+  stateRegistration     String? @map("state_registration")
+  municipalRegistration String? @map("municipal_registration")
+
+  email           String?
+  commercialPhone String? @map("commercial_phone")
+  mobilePhone     String? @map("mobile_phone")
+
+  zipCode    String? @map("zip_code")
+  street     String?
+  number     String?
+  district   String?
+  city       String?
+  state      String?
+  complement String?
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches          CarrierBranch[]
+  stockTransfers    StockTransfer[]
+  purchases         Purchase[]
+  posDeliveryOrders PosDeliveryOrder[]
+
+  @@unique([organizationId, document])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("carriers")
+  @@schema("erp")
+}
+
+/// Em quais unidades a transportadora atende.
+model CarrierBranch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  carrierId      String @map("carrier_id")
+  branchId       String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  carrier Carrier @relation(fields: [carrierId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([carrierId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("carrier_branches")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// ESTOQUE — depósitos (espaços de armazenagem) da organização.
+// ---------------------------------------------------------------------------
+
+enum StockLocation {
+  proprio
+  externo
+  deposito
+
+  @@schema("erp")
+}
+
+enum StockProperty {
+  proprio
+  terceiro
+
+  @@schema("erp")
+}
+
+/// Depósito / espaço de armazenagem da empresa (não confundir com saldo).
+model Stock {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  name           String
+  location       StockLocation
+  property       StockProperty
+  /// Estoque padrão da operação — não pode ser excluído.
+  isDefault      Boolean       @default(false) @map("is_default")
+  /// Chave estável do provisionamento (ex.: principal). Null em registros do usuário.
+  systemKey      String?       @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean       @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization                Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches                    StockBranch[]
+  balances                    StockBalance[]
+  movements                   StockMovement[]
+  inventories                 Inventory[]
+  transfersFrom               StockTransfer[]   @relation("StockTransferFrom")
+  transfersTo                 StockTransfer[]   @relation("StockTransferTo")
+  purchases                   Purchase[]
+  productionOrdersSource      ProductionOrder[] @relation("ProductionOrderSource")
+  productionOrdersDestination ProductionOrder[] @relation("ProductionOrderDestination")
+  saleOrders                  SaleOrder[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@index([organizationId, name])
+  @@map("stocks")
+  @@schema("erp")
+}
+
+/// Em quais unidades o depósito é acessível.
+model StockBranch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  stockId        String @map("stock_id")
+  branchId       String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  stock  Stock  @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([stockId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("stock_branches")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// CATEGORIAS DE MOVIMENTAÇÃO — motivo de entrada/saída (ledger Fase 3).
+// ---------------------------------------------------------------------------
+
+enum MovementCategoryType {
+  entrada
+  saida
+
+  @@schema("erp")
+}
+
+/// Motivo classificatório de uma movimentação de estoque.
+model MovementCategory {
+  id             String               @id @default(uuid())
+  organizationId String               @map("organization_id")
+  /// Rótulo exibido (ex.: CM-001). Único na empresa.
+  code           String
+  name           String
+  type           MovementCategoryType
+  /// Chave estável de sistema (ex.: entrada-avulsa). Null em categorias do usuário.
+  systemKey      String?              @map("system_key")
+  /// Seed / categorias protegidas — não podem ser excluídas.
+  isSystem       Boolean              @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches     MovementCategoryBranch[]
+  movements    StockMovement[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, systemKey])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, type])
+  @@map("movement_categories")
+  @@schema("erp")
+}
+
+/// Em quais unidades a categoria aparece nos selects.
+model MovementCategoryBranch {
+  id                 String @id @default(uuid())
+  organizationId     String @map("organization_id")
+  movementCategoryId String @map("movement_category_id")
+  branchId           String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  movementCategory MovementCategory @relation(fields: [movementCategoryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch           Branch           @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([movementCategoryId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("movement_category_branches")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// LEDGER — movimentações imutáveis + saldo derivado (Fase 3).
+// ---------------------------------------------------------------------------
+
+enum StockMovementType {
+  entrada
+  saida
+
+  @@schema("erp")
+}
+
+enum StockMovementSourceType {
+  manual
+  transfer
+  inventory
+  purchase
+  production
+  sale
+
+  @@schema("erp")
+}
+
+/// Saldo atual por depósito × produto. Pode ser negativo (venda sem saldo).
+/// Atualizado só via use-cases de movimento/inventário/transferência/venda.
+model StockBalance {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  stockId        String  @map("stock_id")
+  productId      String  @map("product_id")
+  quantity       Decimal @db.Decimal(18, 6)
+
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  stock        Stock        @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([stockId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([productId])
+  // Filtro de situação do balanço (ok/low/empty) é sobre quantity, sempre
+  // dentro de um depósito.
+  @@index([stockId, quantity])
+  @@map("stock_balances")
+  @@schema("erp")
+}
+
+/// Cabeçalho do ledger — create-only (sem edit/delete).
+model StockMovement {
+  id              String                  @id @default(uuid())
+  organizationId  String                  @map("organization_id")
+  stockId         String                  @map("stock_id")
+  /// Só em movimentação manual: nos fluxos automáticos o motivo vem de `sourceType`.
+  categoryId      String?                 @map("category_id")
+  type            StockMovementType
+  operatedAt      DateTime                @map("operated_at") @db.Timestamptz(3)
+  createdByUserId String                  @map("created_by_user_id")
+  /// Motivo da movimentação. Junto de `type` define o rótulo exibido.
+  sourceType      StockMovementSourceType @default(manual) @map("source_type")
+  sourceId        String?                 @map("source_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stock        Stock               @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  category     MovementCategory?   @relation(fields: [categoryId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy    User                @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  lines        StockMovementLine[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, operatedAt])
+  @@index([organizationId, type])
+  @@index([stockId])
+  @@index([categoryId])
+  @@index([createdByUserId])
+  @@map("stock_movements")
+  @@schema("erp")
+}
+
+model StockMovementLine {
+  id              String  @id @default(uuid())
+  organizationId  String  @map("organization_id")
+  stockMovementId String  @map("stock_movement_id")
+  productId       String  @map("product_id")
+  quantity        Decimal @db.Decimal(18, 6)
+  costCents       Int     @map("cost_cents")
+
+  stockMovement StockMovement @relation(fields: [stockMovementId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product       Product       @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([stockMovementId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([stockMovementId])
+  @@index([productId])
+  @@map("stock_movement_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// INVENTÁRIO — contagem física (Fase 4). Finalize = create completed + ledger.
+// ---------------------------------------------------------------------------
+
+enum InventoryStatus {
+  open
+  completed
+
+  @@schema("erp")
+}
+
+model Inventory {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")
+  stockId        String          @map("stock_id")
+  name           String
+  status         InventoryStatus @default(completed)
+  completedAt    DateTime?       @map("completed_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stock        Stock           @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines        InventoryLine[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([stockId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  // Histórico de um depósito: where stockId + orderBy createdAt desc.
+  @@index([stockId, createdAt])
+  @@map("inventories")
+  @@schema("erp")
+}
+
+model InventoryLine {
+  id              String  @id @default(uuid())
+  organizationId  String  @map("organization_id")
+  inventoryId     String  @map("inventory_id")
+  productId       String  @map("product_id")
+  systemQuantity  Decimal @map("system_quantity") @db.Decimal(18, 6)
+  countedQuantity Decimal @map("counted_quantity") @db.Decimal(18, 6)
+
+  inventory Inventory @relation(fields: [inventoryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product   Product   @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([inventoryId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([inventoryId])
+  @@index([productId])
+  @@map("inventory_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// TRANSFERÊNCIAS — remanejamento entre depósitos (Fase 5) + ledger atômico.
+// ---------------------------------------------------------------------------
+
+enum StockTransferStatus {
+  active
+  cancelled
+
+  @@schema("erp")
+}
+
+model StockTransfer {
+  id                 String              @id @default(uuid())
+  organizationId     String              @map("organization_id")
+  fromStockId        String              @map("from_stock_id")
+  toStockId          String              @map("to_stock_id")
+  status             StockTransferStatus @default(active)
+  operatedAt         DateTime            @map("operated_at") @db.Timestamptz(3)
+  carrierId          String?             @map("carrier_id")
+  responsibleName    String              @map("responsible_name")
+  notes              String              @default("")
+  outboundMovementId String?             @map("outbound_movement_id")
+  inboundMovementId  String?             @map("inbound_movement_id")
+  createdByUserId    String              @map("created_by_user_id")
+  cancelledAt        DateTime?           @map("cancelled_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromStock    Stock               @relation("StockTransferFrom", fields: [fromStockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  toStock      Stock               @relation("StockTransferTo", fields: [toStockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  carrier      Carrier?            @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  createdBy    User                @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  lines        StockTransferLine[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([fromStockId])
+  @@index([toStockId])
+  @@index([carrierId])
+  @@index([organizationId, status])
+  @@index([organizationId, operatedAt])
+  @@index([createdByUserId])
+  // Abas Ativas/Canceladas + orderBy operatedAt desc.
+  @@index([organizationId, status, operatedAt])
+  @@map("stock_transfers")
+  @@schema("erp")
+}
+
+model StockTransferLine {
+  id              String  @id @default(uuid())
+  organizationId  String  @map("organization_id")
+  stockTransferId String  @map("stock_transfer_id")
+  productId       String  @map("product_id")
+  quantity        Decimal @db.Decimal(18, 6)
+  batch           String?
+
+  stockTransfer StockTransfer @relation(fields: [stockTransferId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product       Product       @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([stockTransferId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([stockTransferId])
+  @@index([productId])
+  @@map("stock_transfer_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// COMPRAS — pedido de compra + entrada de estoque idempotente (Fase 7).
+// ---------------------------------------------------------------------------
+
+enum PurchaseDeliveryStatus {
+  pending
+  received
+
+  @@schema("erp")
+}
+
+enum PurchaseLineStatus {
+  pending
+  received
+  cancelled
+
+  @@schema("erp")
+}
+
+/// Pedido de compra — entrada no ledger só quando deliveryStatus=received.
+model Purchase {
+  id                 String                 @id @default(uuid())
+  organizationId     String                 @map("organization_id")
+  stockId            String                 @map("stock_id")
+  supplierId         String                 @map("supplier_id")
+  deliveryStatus     PurchaseDeliveryStatus @default(pending) @map("delivery_status")
+  purchasedAt        DateTime               @map("purchased_at") @db.Date
+  series             String                 @default("")
+  invoiceNumber      String                 @default("") @map("invoice_number")
+  notes              String                 @default("")
+  carrierId          String?                @map("carrier_id")
+  freightCents       Int                    @default(0) @map("freight_cents")
+  discountsCents     Int                    @default(0) @map("discounts_cents")
+  otherExpensesCents Int                    @default(0) @map("other_expenses_cents")
+  /// Idempotência: um único StockMovement de entrada por compra.
+  stockMovementId    String?                @map("stock_movement_id")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stock        Stock          @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  supplier     Supplier       @relation(fields: [supplierId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  carrier      Carrier?       @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  lines        PurchaseLine[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([stockId])
+  @@index([supplierId])
+  @@index([carrierId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, deliveryStatus])
+  @@index([organizationId, purchasedAt])
+  // `deletedAt` entra em TODA listagem (abas Ativas/Excluídas) e a ordenação
+  // é por purchasedAt desc — os dois índices separados cobriam só metade.
+  @@index([organizationId, deletedAt, purchasedAt])
+  @@map("purchases")
+  @@schema("erp")
+}
+
+model PurchaseLine {
+  id             String             @id @default(uuid())
+  organizationId String             @map("organization_id")
+  purchaseId     String             @map("purchase_id")
+  productId      String             @map("product_id")
+  quantity       Decimal            @db.Decimal(18, 6)
+  costCents      Int                @map("cost_cents")
+  status         PurchaseLineStatus @default(pending)
+
+  purchase Purchase @relation(fields: [purchaseId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product  Product  @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([purchaseId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// PRODUÇÃO — ordens + histórico; finalize gera 2 movimentos no ledger (Fase 8).
+// ---------------------------------------------------------------------------
+
+enum ProductionOrderStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+
+  @@schema("erp")
+}
+
+enum ProductionHistoryKind {
+  system
+  comment
+
+  @@schema("erp")
+}
+
+/// Ordem de produção — BOM ao vivo da TechnicalSheet (productive_process).
+model ProductionOrder {
+  id                 String                @id @default(uuid())
+  organizationId     String                @map("organization_id")
+  productId          String                @map("product_id")
+  plannedQuantity    Decimal               @map("planned_quantity") @db.Decimal(18, 6)
+  producedQuantity   Decimal?              @map("produced_quantity") @db.Decimal(18, 6)
+  sourceStockId      String                @map("source_stock_id")
+  destinationStockId String                @map("destination_stock_id")
+  expectedDate       DateTime              @map("expected_date") @db.Date
+  status             ProductionOrderStatus @default(pending)
+  observation        String?
+  /// Movimento de saída dos insumos (`consumo-interno`). Null se sem BOM.
+  outboundMovementId String?               @map("outbound_movement_id")
+  /// Movimento de entrada do produto (`entrada-avulsa`).
+  inboundMovementId  String?               @map("inbound_movement_id")
+  createdByUserId    String                @map("created_by_user_id")
+
+  startedAt   DateTime? @map("started_at") @db.Timestamptz(3)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product          Product                  @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceStock      Stock                    @relation("ProductionOrderSource", fields: [sourceStockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  destinationStock Stock                    @relation("ProductionOrderDestination", fields: [destinationStockId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy        User                     @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  history          ProductionHistoryEntry[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([productId])
+  @@index([sourceStockId])
+  @@index([destinationStockId])
+  @@index([createdByUserId])
+  @@index([organizationId, expectedDate])
+  // Listagem: where {organizationId, status} + orderBy createdAt desc.
+  // Sem este composto não havia NENHUM índice com createdAt — a ordenação
+  // padrão sempre caía em sort.
+  @@index([organizationId, status, createdAt])
+  @@map("production_orders")
+  @@schema("erp")
+}
+
+model ProductionHistoryEntry {
+  id                String                @id @default(uuid())
+  organizationId    String                @map("organization_id")
+  productionOrderId String                @map("production_order_id")
+  kind              ProductionHistoryKind @default(system)
+  title             String
+  description       String?
+  userName          String                @map("user_name")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productionOrder ProductionOrder @relation(fields: [productionOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([productionOrderId])
+  @@index([productionOrderId, createdAt])
+  @@map("production_history_entries")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// VARIAÇÕES — templates reutilizáveis da empresa + vínculo por produto.
+// ---------------------------------------------------------------------------
+
+/// Template de variação (ex.: Tamanho, Cor) com regras de cálculo e opções.
+model Variation {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  name           String
+
+  chooseFrom                 Int                  @default(1) @map("choose_from")
+  chooseTo                   Int                  @default(1) @map("choose_to")
+  chargeFromSelectedQuantity Boolean              @default(false) @map("charge_from_selected_quantity")
+  chargeFromQuantity         Int                  @default(1) @map("charge_from_quantity")
+  priceMethod                VariationPriceMethod @default(sum) @map("price_method")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  options      VariationOption[]
+  productLinks ProductVariation[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@map("variations")
+  @@schema("erp")
+}
+
+model VariationOption {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  variationId    String  @map("variation_id")
+  name           String
+  description    String  @default("")
+  imageUrl       String? @map("image_url") @db.VarChar(2048)
+  priceCents     Int     @default(0) @map("price_cents")
+  code           String  @default("")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  variation                      Variation                       @relation(fields: [variationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  productSelections              ProductVariationOption[]
+  technicalSheetOptionComponents TechnicalSheetOptionComponent[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([variationId])
+  @@map("variation_options")
+  @@schema("erp")
+}
+
+/// Produto ↔ variação do catálogo (opções selecionadas + overrides).
+model ProductVariation {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  productId      String @map("product_id")
+  variationId    String @map("variation_id")
+  minChoices     Int    @default(1) @map("min_choices")
+  maxChoices     Int    @default(1) @map("max_choices")
+  sortOrder      Int    @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product   Product                  @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  variation Variation                @relation(fields: [variationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  options   ProductVariationOption[]
+
+  @@unique([productId, variationId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([variationId])
+  @@map("product_variations")
+  @@schema("erp")
+}
+
+model ProductVariationOption {
+  id                 String  @id @default(uuid())
+  organizationId     String  @map("organization_id")
+  productVariationId String  @map("product_variation_id")
+  optionId           String  @map("option_id")
+  /// Override de preço em centavos; null = usa o preço da opção do catálogo.
+  priceCents         Int?    @map("price_cents")
+  barcode            String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  productVariation ProductVariation @relation(fields: [productVariationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  option           VariationOption  @relation(fields: [optionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([productVariationId, optionId])
+  @@index([organizationId])
+  @@index([optionId])
+  @@map("product_variation_options")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// ADICIONAIS — catálogo de itens opcionais da organização + vínculo por produto.
+// Preço da linha é congelado no vínculo (não segue o preço do catálogo depois
+// de criado) — ver specs/erp/008-catalogo-adicionais-sugestoes/research.md #5.
+// ---------------------------------------------------------------------------
+
+model ProductAddon {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  name              String
+  defaultPriceCents Int       @default(0) @map("default_price_cents")
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productLines ProductAddonLine[]
+
+  @@unique([organizationId, name])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("product_addons")
+  @@schema("erp")
+}
+
+/// Configuração de adicionais do produto (1:1). Ausência = defaults do form
+/// (min 0 / max 0 / cobrança desativada).
+model ProductAddonSettings {
+  id                         String   @id @default(uuid())
+  organizationId             String   @map("organization_id")
+  productId                  String   @unique @map("product_id")
+  minQuantity                Int      @default(0) @map("min_quantity")
+  maxQuantity                Int      @default(0) @map("max_quantity")
+  chargeFromSelectedQuantity Boolean  @default(false) @map("charge_from_selected_quantity")
+  chargeFromQuantity         Int      @default(1) @map("charge_from_quantity")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([productId, organizationId])
+  @@index([organizationId])
+  @@map("product_addon_settings")
+  @@schema("erp")
+}
+
+/// Linha de adicional vinculada a um produto (produto ↔ catálogo de adicionais).
+model ProductAddonLine {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  productId      String @map("product_id")
+  addonId        String @map("addon_id")
+  maxQuantity    Int    @default(1) @map("max_quantity")
+  priceCents     Int    @map("price_cents")
+  sortOrder      Int    @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  addon   ProductAddon @relation(fields: [addonId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  /// FR-009: um adicional não pode aparecer 2x na lista do mesmo produto.
+  @@unique([productId, addonId])
+  @@index([organizationId])
+  @@index([addonId])
+  @@map("product_addon_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// SUGESTÕES — cross-sell entre produtos do próprio catálogo.
+// ---------------------------------------------------------------------------
+
+model ProductSuggestion {
+  id                 String @id @default(uuid())
+  organizationId     String @map("organization_id")
+  productId          String @map("product_id")
+  suggestedProductId String @map("suggested_product_id")
+  sortOrder          Int    @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product          Product @relation("ProductSuggestionOwner", fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  suggestedProduct Product @relation("ProductSuggestionTarget", fields: [suggestedProductId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  /// FR-014: um produto sugerido não pode aparecer 2x na lista do mesmo produto dono.
+  @@unique([productId, suggestedProductId])
+  @@index([organizationId])
+  @@index([suggestedProductId])
+  @@map("product_suggestions")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// LISTAS DE PREÇO — tabelas de preço por contexto (padrão, atacado, promoção…).
+// Preço do cadastro permanece em Product.basePriceCents; aqui é o preço por lista.
+// ---------------------------------------------------------------------------
+
+enum PriceAdjustmentType {
+  manual
+  percent_markup
+  percent_discount
+  fixed_over_base
+
+  @@schema("erp")
+}
+
+model PriceList {
+  id              String              @id @default(uuid())
+  organizationId  String              @map("organization_id")
+  name            String
+  adjustmentType  PriceAdjustmentType @map("adjustment_type")
+  /// Percentual (tipos % ) ou centavos (`fixed_over_base`); 0 se `manual`.
+  adjustmentValue Int                 @default(0) @map("adjustment_value")
+  channels        String[]            @default([])
+  startDate       DateTime?           @map("start_date") @db.Timestamptz(3)
+  endDate         DateTime?           @map("end_date") @db.Timestamptz(3)
+  active          Boolean             @default(true)
+  /// Menor = maior prioridade de aplicação.
+  priority        Int                 @default(0)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        PriceListItem[]
+
+  @@unique([organizationId, name])
+  @@unique([id, organizationId])
+  @@index([organizationId, priority])
+  @@map("price_lists")
+  @@schema("erp")
+}
+
+model PriceListItem {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  priceListId    String @map("price_list_id")
+  productId      String @map("product_id")
+  priceCents     Int    @map("price_cents")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  priceList PriceList @relation(fields: [priceListId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product   Product   @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([priceListId, productId])
+  @@index([organizationId])
+  @@index([productId])
+  @@map("price_list_items")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// PARÂMETROS FISCAIS — ficha 1:1 do produto + overrides por unidade.
+// ---------------------------------------------------------------------------
+
+/// Dados fiscais do produto (NCM, origem, tributos padrão da empresa).
+model ProductFiscal {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  productId      String @unique @map("product_id")
+
+  ncm                  String  @default("")
+  origin               String  @default("")
+  netWeightKg          Decimal @default(0) @map("net_weight_kg") @db.Decimal(12, 3)
+  grossWeightKg        Decimal @default(0) @map("gross_weight_kg") @db.Decimal(12, 3)
+  cest                 String  @default("")
+  fcpPercent           Decimal @default(0) @map("fcp_percent") @db.Decimal(7, 2)
+  fcpStPercent         Decimal @default(0) @map("fcp_st_percent") @db.Decimal(7, 2)
+  fcpStRetainedPercent Decimal @default(0) @map("fcp_st_retained_percent") @db.Decimal(7, 2)
+  cstIbsCbs            String  @default("") @map("cst_ibs_cbs")
+  taxClassification    String  @default("") @map("tax_classification")
+
+  icms                String  @default("")
+  icmsApplyToAll      Boolean @default(true) @map("icms_apply_to_all")
+  pisCofins           String  @default("") @map("pis_cofins")
+  pisCofinsApplyToAll Boolean @default(true) @map("pis_cofins_apply_to_all")
+  ipi                 String  @default("")
+  ipiApplyToAll       Boolean @default(true) @map("ipi_apply_to_all")
+  cfop                String  @default("")
+  cfopApplyToAll      Boolean @default(true) @map("cfop_apply_to_all")
+  // ISSQN — tributo da NFS-e (spec erp/014). Mesmo formato dos outros quatro.
+  issqn               String  @default("")
+  issqnApplyToAll     Boolean @default(true) @map("issqn_apply_to_all")
+  // Grupo de PIS/COFINS (spec erp/015) — FK que a emissão resolve para CST+alíquota.
+  // Convive com o campo livre `pisCofins` (legado da 014); a emissão usa a FK.
+  pisCofinsGroupId    String? @map("pis_cofins_group_id")
+  // Grupo de ICMS (spec erp/016) — FK; a emissão resolve situação + alíquota por UF.
+  icmsGroupId         String? @map("icms_group_id")
+  // Grupo de ISSQN (spec erp/018) — FK; a emissão de NFS-e resolve código municipal,
+  // cTribNac, alíquota e exigibilidade (tribISSQN) a partir do grupo.
+  issqnGroupId        String? @map("issqn_group_id")
+  // Grupo de IPI (spec erp/019) — FK; a emissão resolve CST + cEnq + percentual.
+  // Ausência (o caso normal, não-contribuinte de IPI) → item sem bloco IPI no XML.
+  ipiGroupId          String? @map("ipi_group_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product        Product               @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  pisCofinsGroup FiscalGroup?          @relation("ProductPisCofinsGroup", fields: [pisCofinsGroupId], references: [id], onDelete: SetNull)
+  icmsGroup      FiscalGroup?          @relation("ProductIcmsGroup", fields: [icmsGroupId], references: [id], onDelete: SetNull)
+  issqnGroup     FiscalGroup?          @relation("ProductIssqnGroup", fields: [issqnGroupId], references: [id], onDelete: SetNull)
+  ipiGroup       FiscalGroup?          @relation("ProductIpiGroup", fields: [ipiGroupId], references: [id], onDelete: SetNull)
+  branches       ProductFiscalBranch[]
+
+  @@unique([id, organizationId])
+  @@unique([productId, organizationId])
+  @@index([organizationId])
+  @@index([pisCofinsGroupId])
+  @@index([icmsGroupId])
+  @@index([issqnGroupId])
+  @@index([ipiGroupId])
+  @@map("product_fiscals")
+  @@schema("erp")
+}
+
+/// Override de tributos por unidade (quando applyToAll = false no grupo).
+model ProductFiscalBranch {
+  id              String @id @default(uuid())
+  organizationId  String @map("organization_id")
+  productFiscalId String @map("product_fiscal_id")
+  productId       String @map("product_id")
+  branchId        String @map("branch_id")
+
+  icms             String  @default("")
+  pisCofins        String  @default("") @map("pis_cofins")
+  ipi              String  @default("")
+  cfop             String  @default("")
+  issqn            String  @default("")
+  // Override do grupo de PIS/COFINS por unidade (spec erp/015).
+  pisCofinsGroupId String? @map("pis_cofins_group_id")
+  // Override do grupo de ICMS por unidade (spec erp/016).
+  icmsGroupId      String? @map("icms_group_id")
+  // Override do grupo de ISSQN por unidade (spec erp/018).
+  issqnGroupId     String? @map("issqn_group_id")
+  // Override do grupo de IPI por unidade (spec erp/019).
+  ipiGroupId       String? @map("ipi_group_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  fiscal         ProductFiscal @relation(fields: [productFiscalId], references: [id], onDelete: Cascade)
+  product        Product       @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch         Branch        @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  pisCofinsGroup FiscalGroup?  @relation("ProductBranchPisCofinsGroup", fields: [pisCofinsGroupId], references: [id], onDelete: SetNull)
+  icmsGroup      FiscalGroup?  @relation("ProductBranchIcmsGroup", fields: [icmsGroupId], references: [id], onDelete: SetNull)
+  issqnGroup     FiscalGroup?  @relation("ProductBranchIssqnGroup", fields: [issqnGroupId], references: [id], onDelete: SetNull)
+  ipiGroup       FiscalGroup?  @relation("ProductBranchIpiGroup", fields: [ipiGroupId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, branchId])
+  @@index([organizationId])
+  @@index([productFiscalId])
+  @@index([branchId])
+  @@index([pisCofinsGroupId])
+  @@index([icmsGroupId])
+  @@index([issqnGroupId])
+  @@index([ipiGroupId])
+  @@map("product_fiscal_branches")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// PADRÕES FISCAIS (spec erp/014) — grupo fiscal por tributo + padrão da org.
+// ⚠️ `FiscalGroup` (entidade catálogo de grupos) é distinto do tipo
+// `FiscalGroupField` (`{value, applyToAll}`) usado dentro de `ProductFiscal`.
+// Entrega mínima: sem alíquotas/UF/FCP/ST/cBenef (backlog). Sem CRUD (seed/backoffice).
+// ---------------------------------------------------------------------------
+
+/// Grupo fiscal mínimo por organização + tributo. `taxType`: ICMS|IPI|PIS_COFINS|ISSQN.
+model FiscalGroup {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  taxType String @map("tax_type")
+  name    String
+
+  // Regra de PIS/COFINS (spec erp/015) — usada quando taxType = PIS_COFINS.
+  // CST 01/02 (tributado) exige alíquota; CST 04–09 (NT) não tem valores.
+  // Colunas nuláveis: 016 (ICMS) e 019 (IPI) acrescentarão as suas à mesma tabela.
+  pisCst         String?  @map("pis_cst")
+  pisAliquota    Decimal? @map("pis_aliquota") @db.Decimal(7, 4)
+  cofinsCst      String?  @map("cofins_cst")
+  cofinsAliquota Decimal? @map("cofins_aliquota") @db.Decimal(7, 4)
+
+  // Situação de ICMS (spec erp/016) — usada quando taxType = ICMS. Exatamente uma
+  // preenchida conforme o regime: `icmsCst` (Regime Normal) ou `icmsCsosn` (Simples).
+  // As alíquotas por UF vivem na tabela filha `FiscalGroupUfRate`.
+  icmsCst   String? @map("icms_cst")
+  icmsCsosn String? @map("icms_csosn")
+
+  // Situação de ISSQN (spec erp/018) — usada quando taxType = ISSQN (perfil fiscal
+  // do serviço, NFS-e). `issqnServiceCode` = código municipal LC 116 (`NN.NN`);
+  // `issqnNationalCode` = cTribNac (6 díg.); `issqnRate` = alíquota do ISS;
+  // `issqnTribType` = exigibilidade (`tribISSQN`: 1 tributável, 2 imunidade, 4 não
+  // incidência — 3 exportação fora desta fatia).
+  issqnServiceCode  String?  @map("issqn_service_code")
+  issqnNationalCode String?  @map("issqn_national_code")
+  issqnRate         Decimal? @map("issqn_rate") @db.Decimal(7, 4)
+  issqnTribType     String?  @map("issqn_trib_type")
+
+  // Situação de IPI (spec erp/019) — usada quando taxType = IPI. `ipiCst` = CST de
+  // saída (50/99 tributado → IPITrib; 51–55 → IPINT); `ipiEnquadramento` = cEnq
+  // (Código de Enquadramento Legal, tabela versionada em código); `ipiRate` =
+  // percentual (nulo quando o CST não é tributado).
+  ipiCst           String?  @map("ipi_cst")
+  ipiEnquadramento String?  @map("ipi_enquadramento")
+  ipiRate          Decimal? @map("ipi_rate") @db.Decimal(7, 4)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Padrões que referenciam este grupo (SetNull ao excluir o grupo).
+  defaultForIcms      FiscalDefaultTaxes[] @relation("DefaultIcmsGroup")
+  defaultForIpi       FiscalDefaultTaxes[] @relation("DefaultIpiGroup")
+  defaultForPisCofins FiscalDefaultTaxes[] @relation("DefaultPisCofinsGroup")
+  defaultForIssqn     FiscalDefaultTaxes[] @relation("DefaultIssqnGroup")
+
+  // Produtos que usam este grupo (aba "Produtos" do cadastro — spec erp/015/016).
+  productFiscalsPisCofins        ProductFiscal[]       @relation("ProductPisCofinsGroup")
+  productFiscalBranchesPisCofins ProductFiscalBranch[] @relation("ProductBranchPisCofinsGroup")
+  productFiscalsIcms             ProductFiscal[]       @relation("ProductIcmsGroup")
+  productFiscalBranchesIcms      ProductFiscalBranch[] @relation("ProductBranchIcmsGroup")
+  productFiscalsIssqn            ProductFiscal[]       @relation("ProductIssqnGroup")
+  productFiscalBranchesIssqn     ProductFiscalBranch[] @relation("ProductBranchIssqnGroup")
+  productFiscalsIpi              ProductFiscal[]       @relation("ProductIpiGroup")
+  productFiscalBranchesIpi       ProductFiscalBranch[] @relation("ProductBranchIpiGroup")
+
+  // Regras de-para de natureza de operação que referenciam este grupo (spec erp/020).
+  operationNatureFromRules OperationNatureGroupRule[] @relation("OperationNatureFromGroup")
+  operationNatureToRules   OperationNatureGroupRule[] @relation("OperationNatureToGroup")
+
+  // Alíquotas de ICMS por UF (spec erp/016) — tabela filha (grupo × UF × tipo).
+  ufRates FiscalGroupUfRate[]
+
+  @@index([organizationId, taxType])
+  @@map("fiscal_groups")
+  @@schema("erp")
+}
+
+/// Alíquota de ICMS por UF de um grupo (spec erp/016). `rateType`: INTERNA (venda
+/// dentro do estado) | INTERESTADUAL. Tabela filha para acomodar FCP/ST/cBenef
+/// depois sem migration de layout. Só faz efeito no XML em Regime Normal.
+model FiscalGroupUfRate {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  fiscalGroupId  String @map("fiscal_group_id")
+
+  uf       String
+  rateType String  @map("rate_type")
+  aliquota Decimal @db.Decimal(7, 4)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fiscalGroup  FiscalGroup  @relation(fields: [fiscalGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([fiscalGroupId, uf, rateType])
+  @@index([organizationId])
+  @@index([fiscalGroupId])
+  @@map("fiscal_group_uf_rates")
+  @@schema("erp")
+}
+
+/// Padrão fiscal da organização — **um por org**. Grupo padrão por tributo + CFOP.
+model FiscalDefaultTaxes {
+  id             String @id @default(uuid())
+  organizationId String @unique @map("organization_id")
+
+  icmsGroupId      String? @map("icms_group_id")
+  ipiGroupId       String? @map("ipi_group_id")
+  pisCofinsGroupId String? @map("pis_cofins_group_id")
+  issqnGroupId     String? @map("issqn_group_id")
+  /// CFOP padrão = código (4 dígitos) do catálogo estático (plan D1), não um grupo.
+  cfop             String  @default("")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  icmsGroup      FiscalGroup? @relation("DefaultIcmsGroup", fields: [icmsGroupId], references: [id], onDelete: SetNull)
+  ipiGroup       FiscalGroup? @relation("DefaultIpiGroup", fields: [ipiGroupId], references: [id], onDelete: SetNull)
+  pisCofinsGroup FiscalGroup? @relation("DefaultPisCofinsGroup", fields: [pisCofinsGroupId], references: [id], onDelete: SetNull)
+  issqnGroup     FiscalGroup? @relation("DefaultIssqnGroup", fields: [issqnGroupId], references: [id], onDelete: SetNull)
+
+  // FKs indexadas (convenção do projeto + acelera o SET NULL ao excluir um grupo).
+  @@index([icmsGroupId])
+  @@index([ipiGroupId])
+  @@index([pisCofinsGroupId])
+  @@index([issqnGroupId])
+  @@map("fiscal_default_taxes")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// NATUREZAS DE OPERAÇÃO (spec erp/020) — regras de-para entrada→saída (CFOP +
+// grupos fiscais). Agregado: pai + regras de CFOP + regras de grupo.
+// ---------------------------------------------------------------------------
+
+/// Natureza de operação por organização (caso canônico: devolução para fornecedor).
+model OperationNature {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  name            String
+  description     String?
+  /// Manter Código de Benefício Fiscal na UF — sempre false nesta fatia (spec erp/020
+  /// FR-009, depende de `cBenef` por UF, fora de escopo).
+  keepBenefitInUf Boolean @default(false) @map("keep_benefit_in_uf")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cfopRules    OperationNatureCfopRule[]
+  groupRules   OperationNatureGroupRule[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@map("operation_natures")
+  @@schema("erp")
+}
+
+/// Linha de-para de CFOP: entrada → saída, condicionada por ICMS livre.
+model OperationNatureCfopRule {
+  id                String @id @default(uuid())
+  organizationId    String @map("organization_id")
+  operationNatureId String @map("operation_nature_id")
+
+  fromCfop  String @map("from_cfop")
+  toCfop    String @map("to_cfop")
+  /// AMBOS | SIM | NAO — condição de aplicação (para quem a linha vale).
+  icmsLivre String @map("icms_livre")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // organizationId é coluna de escopo denormalizada (sem relação própria a
+  // Organization — a exclusão em cascata flui pelo pai OperationNature).
+  operationNature OperationNature @relation(fields: [operationNatureId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([operationNatureId])
+  @@map("operation_nature_cfop_rules")
+  @@schema("erp")
+}
+
+/// Linha de-para de grupo fiscal (ICMS ou PIS/COFINS): grupo de entrada → saída.
+/// FK ao grupo em SetNull — a regra órfã (grupo excluído) é ignorada pelo resolvedor.
+model OperationNatureGroupRule {
+  id                String @id @default(uuid())
+  organizationId    String @map("organization_id")
+  operationNatureId String @map("operation_nature_id")
+
+  /// ICMS | PIS_COFINS
+  taxType     String  @map("tax_type")
+  fromGroupId String? @map("from_group_id")
+  toGroupId   String? @map("to_group_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // organizationId é coluna de escopo denormalizada (cascade pelo pai).
+  operationNature OperationNature @relation(fields: [operationNatureId], references: [id], onDelete: Cascade)
+  fromGroup       FiscalGroup?    @relation("OperationNatureFromGroup", fields: [fromGroupId], references: [id], onDelete: SetNull)
+  toGroup         FiscalGroup?    @relation("OperationNatureToGroup", fields: [toGroupId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([operationNatureId])
+  @@index([fromGroupId])
+  @@index([toGroupId])
+  @@map("operation_nature_group_rules")
+  @@schema("erp")
+}
+
+/// Informação adicional da nota fiscal (spec erp/017). Texto fixo que o emissor
+/// concatena por tipo de documento e destino e injeta no XML transmitido.
+///
+/// `documentType`: NFE | NFCE | NFSE — cada registro serve a **um** tipo (espelha as
+/// abas da tela e o limite por tipo). `target`: INF_CPL (contribuinte) | INF_AD_FISCO
+/// (fisco) — decide em qual campo do XML o texto entra (campos e tetos distintos):
+/// NF-e/NFC-e → `infAdic/infCpl` (máx. 5000) ou `infAdic/infAdFisco` (máx. 2000);
+/// NFS-e → `serv/infoCompl/xInfComp` (máx. 2000) — só INF_CPL (o DPS_v1.01.xsd não
+/// tem `infAdFisco`; `documentType=NFSE` + `target=INF_AD_FISCO` é recusado na entidade,
+/// plan D10). Concatenação por (tipo, destino) na ordem de `createdAt`.
+model FiscalAdditionalInfo {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  name         String
+  text         String
+  documentType String @map("document_type")
+  target       String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, documentType])
+  @@map("fiscal_additional_infos")
+  @@schema("erp")
+}
+
+/// Vínculo entre uma NFS-e emitida na `fiscal-api` e a operação do ERP (spec
+/// erp/018). O erp-api gera `sourceSystem`/`externalReference`/`idempotencyKey` e
+/// registra aqui o documento fiscal (chave/protocolo/status/ambiente) — sustenta a
+/// idempotência local (não reemitir a mesma operação) e a consulta. A `fiscal-api`
+/// é a dona do documento; esta tabela é o ponteiro do ERP para ele.
+model NfseIssuance {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  /// Emitente na fiscal-api (Company.id) — resolvido pelo CNPJ da organização.
+  companyId         String  @map("company_id")
+  sourceSystem      String  @map("source_system")
+  externalReference String  @map("external_reference")
+  idempotencyKey    String  @map("idempotency_key")
+  /// Chave de acesso / protocolo devolvidos pelo órgão (nulos enquanto pendente).
+  accessKey         String? @map("access_key")
+  protocol          String?
+  /// Estado do documento (espelha o status da fiscal-api). Ex.: SIGNED, AUTHORIZED,
+  /// REJECTED, DENIED, CANCEL_AUTHORIZED.
+  status            String
+  /// HOMOLOGATION | PRODUCTION (nesta plataforma só HOMOLOGATION).
+  environment       String
+  /// Código/mensagem de rejeição do órgão (spec erp/028) — nulos quando AUTHORIZED
+  /// ou quando a falha foi de transporte/config (nunca chegou a ser avaliada). A
+  /// `fiscal-api` já devolve os dois na resposta de `POST /v1/nfse`; antes desta
+  /// spec o erp-api os descartava.
+  errorCode         String? @map("error_code")
+  errorMessage      String? @map("error_message")
+  /// Id do documento na fiscal-api (`FiscalDocument.id`, spec erp/029) — falta
+  /// dele impedia montar a URL de download (`GET /v1/nfse/:id/xml|danfse`); a
+  /// fiscal-api já devolvia esse id na resposta de `POST /v1/nfse`, descartado
+  /// até aqui pelo mesmo motivo do `errorCode`/`errorMessage` (spec 028).
+  fiscalDocumentId  String? @map("fiscal_document_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Idempotência local por organização: a mesma operação não emite duas notas.
+  // `map` explícito: o nome default (83 chars) estoura o limite de 63 bytes do
+  // Postgres e divergiria do que o Prisma calcula (drift).
+  @@unique([organizationId, sourceSystem, externalReference, idempotencyKey], map: "nfse_issuances_idempotency_key")
+  @@index([organizationId, companyId])
+  // Ordenação da listagem (org + created_at desc) — evita sort não indexado.
+  @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("nfse_issuances")
+  @@schema("erp")
+}
+
+/// Vínculo do ERP com uma NF-e emitida na fiscal-api a partir de um pedido de
+/// venda (spec erp/026) — mesmo papel que `NfseIssuance` cumpre para NFS-e,
+/// mas referenciando `saleOrderId` em vez de `sourceSystem`/`externalReference`
+/// arbitrários: o índice único em `saleOrderId` É o mecanismo real de FR-006/
+/// SC-004 (nunca duas NF-e emitidas com sucesso para o mesmo pedido).
+model NfeIssuance {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  /// Pedido de venda que originou a emissão — único por design (FR-006).
+  saleOrderId String @map("sale_order_id")
+
+  /// Emitente na fiscal-api (Company.id) — resolvido pelo CNPJ da organização.
+  companyId String @map("company_id")
+  /// Chave de acesso / protocolo devolvidos pelo órgão (nulos enquanto pendente).
+  accessKey String? @map("access_key")
+  protocol  String?
+  /// Estado do documento (espelha o status da fiscal-api). Ex.: SIGNED, AUTHORIZED,
+  /// REJECTED, DENIED.
+  status String
+  /// HOMOLOGATION | PRODUCTION (nesta plataforma só HOMOLOGATION).
+  environment String
+  /// Código/mensagem de rejeição do órgão (spec erp/028) — mesmo padrão de
+  /// `NfseIssuance.errorCode`/`errorMessage`, ver comentário lá.
+  errorCode    String? @map("error_code")
+  errorMessage String? @map("error_message")
+  /// Id do documento na fiscal-api (spec erp/029) — mesmo padrão de
+  /// `NfseIssuance.fiscalDocumentId`, ver comentário lá.
+  fiscalDocumentId String? @map("fiscal_document_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Composto (não só `saleOrderId`) — mesmo padrão de defesa em profundidade
+  // de `SaleOrderLine`: mesmo que `organizationId` fosse manipulado, a FK
+  // recusa apontar para um pedido de outro tenant.
+  saleOrder SaleOrder @relation(fields: [saleOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  // Um pedido de venda tem no máximo uma NF-e emitida (FR-006/SC-004) — o
+  // índice único É a proteção contra reemissão, não um campo/status novo em
+  // SaleOrder. Composto com `organizationId` porque a FK acima usa os dois
+  // campos (exigência do Prisma para relação 1:1 via chave composta); como
+  // `saleOrderId` já pertence a uma única organização, o efeito prático
+  // continua sendo "no máximo 1 NF-e por pedido", não por pedido+organização.
+  @@unique([saleOrderId, organizationId], map: "nfe_issuances_sale_order_unique")
+  @@index([organizationId, companyId])
+  @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("nfe_issuances")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// FICHAS TÉCNICAS — BOM / receita 1:1 do produto + linhas por opção de variação.
+// ---------------------------------------------------------------------------
+
+/// Como o produto afeta o estoque na venda (baixa automática) vs ordem de produção.
+enum ProductionType {
+  automatic
+  productive_process
+
+  @@schema("erp")
+}
+
+/// Ficha técnica (receita) do produto acabado — 1:1 com Product (não-supply).
+model TechnicalSheet {
+  id                     String         @id @default(uuid())
+  organizationId         String         @map("organization_id")
+  productId              String         @unique @map("product_id")
+  productionType         ProductionType @map("production_type")
+  /// Máximo de componentes opcionais que o cliente pode remover na venda.
+  maxRemovableComponents Int            @default(0) @map("max_removable_components")
+  /// Markup % sobre o custo total (ex.: 100.00 = 100%).
+  markupPercent          Decimal        @default(0) @map("markup_percent") @db.Decimal(8, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product          Product                         @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  components       TechnicalSheetComponent[]
+  optionComponents TechnicalSheetOptionComponent[]
+
+  @@unique([id, organizationId])
+  @@unique([productId, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, productionType])
+  @@map("technical_sheets")
+  @@schema("erp")
+}
+
+/// Linha da composição base do produto (insumo × quantidade).
+model TechnicalSheetComponent {
+  id                 String  @id @default(uuid())
+  organizationId     String  @map("organization_id")
+  technicalSheetId   String  @map("technical_sheet_id")
+  componentProductId String  @map("component_product_id")
+  optional           Boolean @default(false)
+  quantity           Decimal @db.Decimal(18, 6)
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  technicalSheet TechnicalSheet @relation(fields: [technicalSheetId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  component      Product        @relation("TechnicalSheetComponentProduct", fields: [componentProductId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([technicalSheetId, componentProductId])
+  @@index([organizationId])
+  @@index([componentProductId])
+  @@map("technical_sheet_components")
+  @@schema("erp")
+}
+
+/// Composição adicional por opção de variação (só faz sentido em produção automática).
+model TechnicalSheetOptionComponent {
+  id                 String  @id @default(uuid())
+  organizationId     String  @map("organization_id")
+  technicalSheetId   String  @map("technical_sheet_id")
+  variationOptionId  String  @map("variation_option_id")
+  componentProductId String  @map("component_product_id")
+  optional           Boolean @default(false)
+  quantity           Decimal @db.Decimal(18, 6)
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  technicalSheet  TechnicalSheet  @relation(fields: [technicalSheetId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  variationOption VariationOption @relation(fields: [variationOptionId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  component       Product         @relation("TechnicalSheetOptionComponentProduct", fields: [componentProductId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([technicalSheetId, variationOptionId, componentProductId])
+  @@index([organizationId])
+  @@index([variationOptionId])
+  @@index([componentProductId])
+  @@map("technical_sheet_option_components")
+  @@schema("erp")
+}
+
+/// Idempotência do consumo de eventos da plataforma.
+///
+/// RabbitMQ entrega **pelo menos uma vez**: redelivery após um ack perdido faria o
+/// consumidor reprocessar. Sem esta trava, um `store.created` reentregue tentaria criar a
+/// organização de novo. O `eventId` é o `id` do CloudEvent, gerado uma vez na origem —
+/// por isso serve como chave: sobrevive a redelivery, não é regerado.
+model ProcessedEvent {
+  eventId     String   @id @map("event_id")
+  type        String
+  aggregateId String   @map("aggregate_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([aggregateId])
+  @@map("processed_events")
+  @@schema("erp")
+}
+
+/// Versão do template de provisionamento já aplicada em cada organização.
+///
+/// O provisionamento roda em toda criação de organização, mas o template evolui: quando
+/// uma chave nova entra (foi o caso de `venda`), organizações antigas ficariam sem ela.
+/// Comparar `version` com a versão do template diz quem precisa ser reprovisionado, sem
+/// reexecutar o seed inteiro em quem já está em dia.
+model StoreSetupLog {
+  organizationId String   @id @map("organization_id")
+  version        Int
+  completedAt    DateTime @map("completed_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("store_setup_logs")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// CLIENTES — CRM comercial (PF/PJ, estágio, endereços N, vínculo por unidade).
+// ---------------------------------------------------------------------------
+
+model CustomerCategory {
+  id                 String  @id @default(uuid())
+  organizationId     String  @map("organization_id")
+  name               String
+  /// Desconto percentual (0–100) aplicado a clientes desta categoria.
+  discountPercentage Decimal @default(0) @map("discount_percentage") @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customers    Customer[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("customer_categories")
+  @@schema("erp")
+}
+
+model Customer {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  personType     PersonType @map("person_type")
+  name           String
+  /// Só dígitos (CPF 11 / CNPJ 14). Null quando ainda não informado — unique
+  /// Postgres permite vários nulls na mesma organização.
+  document       String?
+  rg             String?
+  birthDate      DateTime?  @map("birth_date") @db.Date
+
+  email            String?
+  mobilePhone      String?  @map("mobile_phone")
+  phone            String?
+  additionalPhones String[] @default([]) @map("additional_phones")
+
+  stage      CustomerStage @default(lead)
+  categoryId String?       @map("category_id")
+  notes      String        @default("")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category          CustomerCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  addresses         CustomerAddress[]
+  branches          CustomerBranch[]
+  saleOrders        SaleOrder[]
+  posDeliveryOrders PosDeliveryOrder[]
+  serviceOrders     ServiceOrder[]
+  salesContracts    SalesContract[]
+  financialEntries  FinancialEntry[]
+
+  @@unique([organizationId, document])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, stage])
+  @@index([organizationId, deletedAt])
+  @@index([categoryId])
+  @@map("customers")
+  @@schema("erp")
+}
+
+model CustomerAddress {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  customerId     String              @map("customer_id")
+  addressType    CustomerAddressType @map("address_type")
+  zipCode        String?             @map("zip_code")
+  street         String?
+  number         String?
+  district       String?
+  city           String?
+  state          String?
+  complement     String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@map("customer_addresses")
+  @@schema("erp")
+}
+
+model CustomerBranch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  customerId     String @map("customer_id")
+  branchId       String @map("branch_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([customerId, branchId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("customer_branches")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// VENDAS — pedidos/vendas (mesma entidade), OS, contratos, promoções, financeiro.
+// ---------------------------------------------------------------------------
+
+enum SaleOrderStatus {
+  open
+  closed
+  cancelled
+  preparing
+  delivering
+  reserved
+  waiting
+  pickup
+
+  @@schema("erp")
+}
+
+enum SaleOrderChannel {
+  pdv
+  delivery
+  marketplace
+  cardapio
+
+  @@schema("erp")
+}
+
+model SaleOrder {
+  id                 String           @id @default(uuid())
+  organizationId     String           @map("organization_id")
+  number             Int
+  customerId         String?          @map("customer_id")
+  customerName       String           @map("customer_name")
+  /// CPF/CNPJ na nota (só dígitos). Opcional — consumidor final sem identificação.
+  consumerDocument   String?          @map("consumer_document") @db.VarChar(14)
+  stockId            String?          @map("stock_id")
+  status             SaleOrderStatus  @default(open)
+  channelId          SaleOrderChannel @default(pdv) @map("channel_id")
+  sellerId           String?          @map("seller_id")
+  sellerName         String           @default("") @map("seller_name")
+  createdByName      String           @map("created_by_name")
+  /// Membership.userId do operador PDV (quem fechou a venda no terminal).
+  operatorUserId     String?          @map("operator_user_id")
+  /// Terminal DeviceAuth que originou a venda (canal pdv).
+  posTerminalId      String?          @map("pos_terminal_id")
+  /// Turno de caixa aberto no momento do checkout.
+  cashSessionId      String?          @map("cash_session_id")
+  notes              String           @default("")
+  deliveryFeeCents   Int              @default(0) @map("delivery_fee_cents")
+  discountsCents     Int              @default(0) @map("discounts_cents")
+  totalCents         Int              @map("total_cents")
+  stockMovementId    String?          @map("stock_movement_id")
+  /// Pedido operacional de delivery da loja que originou esta venda.
+  /// Unique **parcial** (venda não cancelada) via migration SQL — Prisma não
+  /// modela `WHERE` em `@@unique`, então a relação é 1:N no schema.
+  posDeliveryOrderId String?          @map("pos_delivery_order_id")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer         Customer?          @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  stock            Stock?             @relation(fields: [stockId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  posTerminal      PosTerminal?       @relation(fields: [posTerminalId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  cashSession      PosCashSession?    @relation(fields: [cashSessionId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  posDeliveryOrder PosDeliveryOrder?  @relation("SaleOrderPosDelivery", fields: [posDeliveryOrderId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  lines            SaleOrderLine[]
+  payments         SaleOrderPayment[]
+  serviceOrders    ServiceOrder[]
+  /// NF-e emitida a partir deste pedido (spec erp/026) — no máximo 1 (FR-006).
+  nfeIssuance      NfeIssuance?
+
+  @@unique([organizationId, number])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, channelId])
+  @@index([organizationId, posDeliveryOrderId])
+  @@index([cashSessionId])
+  @@index([posTerminalId])
+  @@map("sale_orders")
+  @@schema("erp")
+}
+
+model SaleOrderLine {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  saleOrderId    String  @map("sale_order_id")
+  /// Opcional (spec erp/031 D1) — `null` para linha de serviço sem vínculo de
+  /// catálogo. Nesse caso `description` é obrigatória (regra de domínio, não
+  /// de banco — ver SaleOrder.entity.ts `normalizeLines`).
+  productId      String? @map("product_id")
+  /// Rótulo da linha quando `productId` é `null` (serviço). `null` quando há
+  /// produto — nome vem do catálogo via join.
+  description    String? @map("description")
+  quantity       Decimal @db.Decimal(18, 6)
+  unitPriceCents Int     @map("unit_price_cents")
+
+  saleOrder    SaleOrder    @relation(fields: [saleOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Postgres trata NULL como distinto em constraints UNIQUE — várias linhas
+  // de serviço (productId null) na mesma venda continuam permitidas sem
+  // precisar de índice parcial.
+  @@unique([saleOrderId, productId])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([saleOrderId])
+  @@index([productId])
+  @@map("sale_order_lines")
+  @@schema("erp")
+}
+
+model SaleOrderPayment {
+  id              String                 @id @default(uuid())
+  organizationId  String                 @map("organization_id")
+  saleOrderId     String                 @map("sale_order_id")
+  amountCents     Int                    @map("amount_cents")
+  methodId        String                 @map("method_id")
+  bankAccountId   String?                @map("bank_account_id")
+  /// Discriminador estrutural para o motor de recebíveis de cartão — setado só
+  /// quando `methodId` corresponde a débito/crédito/Pix reais (não dinheiro/
+  /// boleto/transferência). `methodId` continua a forma de pagamento "de
+  /// exibição"; este campo é o sinal que `resolve-card-settlement` consome.
+  cardPaymentType CardPaymentMethodType? @map("card_payment_type")
+  /// Bandeira do cartão, do catálogo fixo compartilhado com `CardPaymentMethod.brand`
+  /// (`apps/erp/web/.../card-contracts/data/card-brands.ts`). `null` para Pix e
+  /// para formas de pagamento não-cartão.
+  brand           String?                @map("brand")
+  /// Número de parcelas do crédito. Irrelevante para débito/Pix.
+  installments    Int?                   @map("installments")
+
+  saleOrder        SaleOrder        @relation(fields: [saleOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  bankAccount      BankAccount?     @relation(fields: [bankAccountId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Recebíveis gerados pelo motor de recebíveis a partir deste pagamento
+  /// (1 por parcela) — ver `FinancialEntry.saleOrderPaymentId`.
+  financialEntries FinancialEntry[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([saleOrderId])
+  @@map("sale_order_payments")
+  @@schema("erp")
+}
+
+enum ServiceOrderBaseType {
+  open
+  in_progress
+  ready
+  closed
+  canceled
+
+  @@schema("erp")
+}
+
+enum ServiceOrderStatusVariant {
+  default
+  secondary
+  outline
+  destructive
+
+  @@schema("erp")
+}
+
+model ServiceOrderStatus {
+  id             String               @id @default(uuid())
+  organizationId String               @map("organization_id")
+  name           String
+  baseType       ServiceOrderBaseType @map("base_type")
+  sortOrder      Int                  @default(0) @map("sort_order")
+  active         Boolean              @default(true)
+  /// Token de cor do badge no frontend — só estilo, sem regra de negócio.
+  /// Bugfix 2026-08-20: o form já editava esse campo, mas o `PUT`/`POST`
+  /// descartavam o valor (coluna não existia).
+  variant        ServiceOrderStatusVariant @default(secondary)
+  /// Chave estável do provisionamento (ex.: aberta). Null em registros do usuário.
+  systemKey      String?              @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean              @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       ServiceOrder[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@map("service_order_statuses")
+  @@schema("erp")
+}
+
+model ServiceOrder {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  code              String
+  customerId        String?   @map("customer_id")
+  customerName      String    @map("customer_name")
+  customerPhone     String    @default("") @map("customer_phone")
+  statusId          String    @map("status_id")
+  sellerName        String    @default("") @map("seller_name")
+  technicianName    String    @default("") @map("technician_name")
+  openedAt          DateTime  @map("opened_at") @db.Timestamptz(3)
+  dueAt             DateTime? @map("due_at") @db.Timestamptz(3)
+  totalCents        Int       @default(0) @map("total_cents")
+  budgetedCents     Int       @default(0) @map("budgeted_cents")
+  diagnosisFeeCents Int       @default(0) @map("diagnosis_fee_cents")
+  approvalStatus    String    @default("pending") @map("approval_status")
+  approvalNotes     String    @default("") @map("approval_notes")
+  approvedAt        DateTime? @map("approved_at") @db.Timestamptz(3)
+  generatedSaleId   String?   @map("generated_sale_id")
+  payloadJson       Json      @default("{}") @map("payload_json")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer      Customer?          @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  status        ServiceOrderStatus @relation(fields: [statusId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  generatedSale SaleOrder?         @relation(fields: [generatedSaleId, organizationId], references: [id, organizationId], onDelete: SetNull)
+
+  @@unique([organizationId, code])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, statusId])
+  @@map("service_orders")
+  @@schema("erp")
+}
+
+model ContractStatus {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  name           String
+  sortOrder      Int     @default(0) @map("sort_order")
+  active         Boolean @default(true)
+  /// Chave estável do provisionamento (ex.: em-negociacao). Null em registros do usuário.
+  systemKey      String? @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contracts    SalesContract[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId])
+  @@map("contract_statuses")
+  @@schema("erp")
+}
+
+model SalesContract {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  number         Int
+  customerId     String?   @map("customer_id")
+  customerName   String    @map("customer_name")
+  statusId       String    @map("status_id")
+  sellerName     String    @default("") @map("seller_name")
+  startsAt       DateTime  @map("starts_at") @db.Date
+  endsAt         DateTime? @map("ends_at") @db.Date
+  totalCents     Int       @map("total_cents")
+  frequency      String    @default("monthly")
+  durationType   String    @default("times") @map("duration_type")
+  durationValue  Int       @default(12) @map("duration_value")
+  firstDueDate   DateTime  @map("first_due_date") @db.Date
+  payloadJson    Json      @default("{}") @map("payload_json")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?             @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  status       ContractStatus        @relation(fields: [statusId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  installments ContractInstallment[]
+
+  @@unique([organizationId, number])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("sales_contracts")
+  @@schema("erp")
+}
+
+model ContractInstallment {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  contractId       String   @map("contract_id")
+  sequence         Int
+  dueDate          DateTime @map("due_date") @db.Date
+  amountCents      Int      @map("amount_cents")
+  status           String   @default("open")
+  financialEntryId String?  @map("financial_entry_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  contract       SalesContract   @relation(fields: [contractId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry? @relation(fields: [financialEntryId, organizationId], references: [id, organizationId], onDelete: SetNull)
+
+  @@unique([contractId, sequence])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([contractId])
+  @@map("contract_installments")
+  @@schema("erp")
+}
+
+enum PromotionType {
+  leve_mais_pague_menos
+  progressivo
+  desconto_por_valor
+  brinde_por_valor
+  desconto_por_quantidade
+  brinde_por_quantidade
+  cupom
+
+  @@schema("erp")
+}
+
+model Promotion {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  name           String
+  description    String        @default("")
+  type           PromotionType
+  startsAt       DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime      @map("ends_at") @db.Timestamptz(3)
+  rulesJson      Json          @default("{}") @map("rules_json")
+  branchIds      String[]      @default([]) @map("branch_ids")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, type])
+  @@map("promotions")
+  @@schema("erp")
+}
+
+model BankAccount {
+  id                  String   @id @default(uuid())
+  organizationId      String   @map("organization_id")
+  name                String
+  bankName            String   @default("") @map("bank_name")
+  /// Identificador estável do catálogo de bancos do frontend — corrige o
+  /// round-trip do formulário (`bankName` continua sendo só o texto de
+  /// exibição). Ver spec 002-bank-account-ledger, FR-015.
+  bankCode            String   @default("") @map("bank_code")
+  openingBalanceCents Int      @default(0) @map("opening_balance_cents")
+  openedAt            DateTime @map("opened_at") @db.Date
+  branchIds           String[] @default([]) @map("branch_ids")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  salePayments      SaleOrderPayment[]
+  financialEntries  FinancialEntry[]
+  cardContracts     CardContract[]
+  bankTransactions  BankTransaction[]
+  bankTransfersFrom BankTransfer[]     @relation("BankTransferFrom")
+  bankTransfersTo   BankTransfer[]     @relation("BankTransferTo")
+  bankStatements    BankStatement[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("bank_accounts")
+  @@schema("erp")
+}
+
+/// `initial_balance`/`credit` somam ao saldo da conta; `debit` subtrai.
+/// `BankTransaction.amountCents` é sempre positivo — o sinal vem só daqui.
+enum BankTransactionKind {
+  initial_balance
+  credit
+  debit
+
+  @@schema("erp")
+}
+
+/// `reconciliation` é reservado para a fase de conciliação bancária (fora de
+/// escopo de 002-bank-account-ledger) — nenhum código grava esse valor ainda.
+enum BankTransactionSourceType {
+  initial_balance
+  financial_entry_payment
+  bank_transfer
+  reconciliation
+
+  @@schema("erp")
+}
+
+/// Livro-razão de movimentações da conta bancária — a soma com sinal de todas
+/// as linhas de uma conta é o seu saldo atual (nunca uma coluna materializada,
+/// ver spec 002-bank-account-ledger `research.md` D2). Imutável depois de
+/// criada nas origens `initial_balance`/`bank_transfer`; a origem
+/// `financial_entry_payment` é uma projeção ressincronizada a cada
+/// save/soft-delete/restore do lançamento de origem (`research.md` D1).
+model BankTransaction {
+  id             String                    @id @default(uuid())
+  organizationId String                    @map("organization_id")
+  bankAccountId  String                    @map("bank_account_id")
+  kind           BankTransactionKind
+  description    String                    @default("")
+  /// Sempre positivo — o sinal do movimento vem de `kind`, nunca daqui.
+  amountCents    Int                       @map("amount_cents")
+  effectiveAt    DateTime                  @map("effective_at") @db.Date
+  sourceType     BankTransactionSourceType @map("source_type")
+  /// id do agregado de origem: `BankAccount.id` (initial_balance),
+  /// `BankTransfer.id` (bank_transfer) ou `FinancialEntry.id`
+  /// (financial_entry_payment — não o id do pagamento individual).
+  sourceId       String?                   @map("source_id")
+  /// Vazio quando a origem não guarda usuário responsável (ex.: pagamento de
+  /// lançamento — `FinancialEntryPayment` não tem esse campo hoje).
+  createdByName  String                    @default("") @map("created_by_name")
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount  BankAccount  @relation(fields: [bankAccountId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, bankAccountId, effectiveAt])
+  @@index([organizationId, sourceType, sourceId])
+  @@map("bank_transactions")
+  @@schema("erp")
+}
+
+/// Transferência entre duas contas bancárias da mesma organização — gera
+/// exatamente 2 `BankTransaction` vinculadas (débito na origem, crédito no
+/// destino), na mesma transação. Não é editável/cancelável depois de criada.
+model BankTransfer {
+  id                String   @id @default(uuid())
+  organizationId    String   @map("organization_id")
+  fromBankAccountId String   @map("from_bank_account_id")
+  toBankAccountId   String   @map("to_bank_account_id")
+  amountCents       Int      @map("amount_cents")
+  effectiveAt       DateTime @map("effective_at") @db.Date
+  /// Mesmo enum de aplicação de `FinancialEntryPayment.paymentMethod` — sem
+  /// FK, não há cadastro de formas de pagamento na API ainda.
+  paymentMethod     String   @map("payment_method")
+  costCenterId      String   @map("cost_center_id")
+  description       String   @default("")
+  createdByName     String   @default("") @map("created_by_name")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromBankAccount BankAccount  @relation("BankTransferFrom", fields: [fromBankAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  toBankAccount   BankAccount  @relation("BankTransferTo", fields: [toBankAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  costCenter      CostCenter   @relation(fields: [costCenterId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, fromBankAccountId])
+  @@index([organizationId, toBankAccountId])
+  @@map("bank_transfers")
+  @@schema("erp")
+}
+
+enum FinancialGroupType {
+  receita
+  despesa
+
+  @@schema("erp")
+}
+
+/// `resultado` participa da DRE (receita/despesa do período); `patrimonial` fica de fora
+/// (ex.: caixa e bancos, ativo — movimentação de caixa, não resultado). Não é um input do
+/// formulário de cadastro: grupo criado pelo lojista é sempre `resultado`; só os grupos de
+/// sistema `caixa-e-bancos`/`ativo` nascem/são corrigidos como `patrimonial` (seed + backfill).
+enum FinancialGroupClassification {
+  resultado
+  patrimonial
+
+  @@schema("erp")
+}
+
+/// Sinal do grupo no cálculo do Resultado Operacional da DRE — independente do
+/// binário receita/despesa (ex.: "Descontos/Taxas" é despesa mas não é
+/// necessariamente `financialGroupType = despesa`). Ver spec 007-financeiro-ajustes-ui.
+enum FinancialGroupSign {
+  positive
+  negative
+
+  @@schema("erp")
+}
+
+model FinancialGroup {
+  id             String                       @id @default(uuid())
+  organizationId String                       @map("organization_id")
+  name           String
+  type           FinancialGroupType
+  /// Chave estável do provisionamento (ex.: receitas). Null em registros do usuário.
+  systemKey      String?                      @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean                      @default(false) @map("is_system")
+  /// Se o grupo participa do resultado do período (DRE) ou é patrimonial. Não editável
+  /// via API — ver `FinancialGroupClassification`.
+  classification FinancialGroupClassification @default(resultado) @map("classification")
+  /// Ordem fixa de exibição na árvore da DRE (substitui ordenação por valor
+  /// quando `classification = resultado`). Não editável via API.
+  catalogOrder   Int                          @default(0) @map("catalog_order")
+  /// Sinal do grupo no total de Resultado Operacional. Não editável via API —
+  /// só preenchido pelo seed de provisionamento.
+  sign           FinancialGroupSign?          @map("sign")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chartOfAccounts ChartOfAccount[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, systemKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, type])
+  @@map("financial_groups")
+  @@schema("erp")
+}
+
+model ChartOfAccount {
+  id               String  @id @default(uuid())
+  organizationId   String  @map("organization_id")
+  name             String
+  financialGroupId String  @map("financial_group_id")
+  availableForPdv  Boolean @default(false) @map("available_for_pdv")
+  /// Chave estável do provisionamento (ex.: vendas). Null em registros do usuário.
+  systemKey        String? @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem         Boolean @default(false) @map("is_system")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  financialGroup FinancialGroup             @relation(fields: [financialGroupId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  allocations    FinancialEntryAllocation[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, systemKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([financialGroupId])
+  @@map("chart_of_accounts")
+  @@schema("erp")
+}
+
+model PaymentMethod {
+  id                    String  @id @default(uuid())
+  organizationId        String  @map("organization_id")
+  name                  String
+  /// Código `tPag` da NF-e (NT 2023.004), opcional — mesmo catálogo já usado
+  /// pelo formulário (`data/payment-method-options.ts` no frontend).
+  fiscalCode            String? @map("fiscal_code")
+  /// Rótulo livre de permissão de parcelamento ("Não permitir", etc.),
+  /// migrado como está do formulário mock existente.
+  installmentPermission String? @map("installment_permission")
+  /// Chave estável do provisionamento (ex.: pix, dinheiro). Null em registros do usuário.
+  systemKey             String? @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser editado nem excluído.
+  isSystem              Boolean @default(false) @map("is_system")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, systemKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("payment_methods")
+  @@schema("erp")
+}
+
+model CostCenter {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  name           String
+  /// Chave estável do provisionamento (ex.: administrativo). Null em registros do usuário.
+  systemKey      String? @map("system_key")
+  /// Registro provisionado pelo sistema — não pode ser excluído.
+  isSystem       Boolean @default(false) @map("is_system")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allocations   FinancialEntryAllocation[]
+  bankTransfers BankTransfer[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, systemKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("cost_centers")
+  @@schema("erp")
+}
+
+enum CardContractGrouping {
+  by_card_brand
+  by_payment_method
+  no_grouping
+
+  @@schema("erp")
+}
+
+enum CardCutoffPeriod {
+  daily
+  weekly
+  monthly
+
+  @@schema("erp")
+}
+
+enum CardDayType {
+  business_days
+  calendar_days
+
+  @@schema("erp")
+}
+
+enum CardInstallmentDayType {
+  business_days
+  calendar_days
+  single_payment
+
+  @@schema("erp")
+}
+
+enum CardPaymentMethodType {
+  pix
+  debit
+  credit
+
+  @@schema("erp")
+}
+
+model CardContract {
+  id                       String                 @id @default(uuid())
+  organizationId           String                 @map("organization_id")
+  provider                 String
+  bankAccountId            String?                @map("bank_account_id")
+  description              String                 @default("")
+  grouping                 CardContractGrouping   @default(no_grouping)
+  cutoffPeriod             CardCutoffPeriod       @default(daily) @map("cutoff_period")
+  firstPaymentDayType      CardDayType            @default(business_days) @map("first_payment_day_type")
+  installmentDayType       CardInstallmentDayType @default(business_days) @map("installment_day_type")
+  businessDaysOnly         Boolean                @default(true) @map("business_days_only")
+  depositFeeCents          Int                    @default(0) @map("deposit_fee_cents")
+  anticipationPeriods      Int                    @default(0) @map("anticipation_periods")
+  anticipationRate         Decimal                @default(0) @map("anticipation_rate") @db.Decimal(9, 4)
+  allEntriesPaidInContract Boolean                @default(false) @map("all_entries_paid_in_contract")
+  businessDaysDeposit      Boolean                @default(true) @map("business_days_deposit")
+  active                   Boolean                @default(true)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount      BankAccount?        @relation(fields: [bankAccountId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  paymentMethods   CardPaymentMethod[]
+  /// Recebíveis gerados pelo motor de recebíveis a partir deste contrato.
+  financialEntries FinancialEntry[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, active])
+  @@index([bankAccountId])
+  @@map("card_contracts")
+  @@schema("erp")
+}
+
+model CardPaymentMethod {
+  id                      String                @id @default(uuid())
+  organizationId          String                @map("organization_id")
+  cardContractId          String                @map("card_contract_id")
+  type                    CardPaymentMethodType
+  brand                   String?
+  rate                    Decimal?              @db.Decimal(9, 4)
+  feeCents                Int?                  @map("fee_cents")
+  settlementDays          Int?                  @map("settlement_days")
+  minInstallments         Int?                  @map("min_installments")
+  maxInstallments         Int?                  @map("max_installments")
+  firstPaymentDays        Int?                  @map("first_payment_days")
+  daysBetweenInstallments Int?                  @map("days_between_installments")
+  progressiveEnabled      Boolean               @default(false) @map("progressive_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cardContract     CardContract     @relation(fields: [cardContractId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  rateTiers        CardRateTier[]
+  /// Recebíveis gerados pelo motor de recebíveis a partir deste método.
+  financialEntries FinancialEntry[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([cardContractId])
+  @@map("card_payment_methods")
+  @@schema("erp")
+}
+
+model CardRateTier {
+  id                  String  @id @default(uuid())
+  organizationId      String  @map("organization_id")
+  cardPaymentMethodId String  @map("card_payment_method_id")
+  minInstallments     Int     @map("min_installments")
+  maxInstallments     Int     @map("max_installments")
+  rate                Decimal @db.Decimal(9, 4)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cardPaymentMethod CardPaymentMethod @relation(fields: [cardPaymentMethodId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([cardPaymentMethodId])
+  @@map("card_rate_tiers")
+  @@schema("erp")
+}
+
+enum FinancialEntryOperation {
+  receivable
+  payable
+
+  @@schema("erp")
+}
+
+enum FinancialEntryStatus {
+  pending
+  paid
+
+  @@schema("erp")
+}
+
+model FinancialEntry {
+  id             String                  @id @default(uuid())
+  organizationId String                  @map("organization_id")
+  operation      FinancialEntryOperation
+  description    String                  @default("")
+  amountCents    Int                     @map("amount_cents")
+  /// Taxa, somada ao valor base para compor o total.
+  feesCents      Int                     @default(0) @map("fees_cents")
+  /// Multa, somada ao valor base para compor o total.
+  finesCents     Int                     @default(0) @map("fines_cents")
+  /// Cache recalculado, a cada `save()`, a partir da soma de `payments[].amountCents`
+  /// — nunca aceito bruto do cliente (ver `status`).
+  paidCents      Int                     @default(0) @map("paid_cents")
+  /// Derivado (`paidCents >= amountCents + feesCents + finesCents`), recalculado
+  /// junto de `paidCents` a cada `save()` — persistido para permitir filtro
+  /// server-side (`WHERE status IN (...)`) sem carregar todas as linhas.
+  status         FinancialEntryStatus    @default(pending)
+  competenceDate DateTime                @map("competence_date") @db.Date
+  dueDate        DateTime                @map("due_date") @db.Date
+  partyName      String                  @default("") @map("party_name")
+  customerId     String?                 @map("customer_id")
+  /// Mutuamente exclusivo com `customerId` (validado na aplicação, não no schema).
+  supplierId     String?                 @map("supplier_id")
+  bankAccountId  String?                 @map("bank_account_id")
+  /// Não editável pelo formulário — só o fechamento de `SaleOrder` preenche.
+  /// Quando presente, o lançamento inteiro fica somente-leitura.
+  saleOrderId    String?                 @map("sale_order_id")
+  /// Mantida por compatibilidade histórica (pré-rateio) — nenhum código novo lê/escreve.
+  categoryName   String                  @default("") @map("category_name")
+  note           String                  @default("")
+
+  /// Motor de recebíveis do contrato de cartões (`specs/erp/005-card-receivables-engine/`).
+  /// Todos os campos abaixo são `null`/`false` para lançamentos fora do motor
+  /// (manuais, ou vendas fechadas antes desta entrega — nunca recalculados).
+  /// Valor bruto da venda para este recebível/parcela, antes da taxa da adquirente.
+  grossAmountCents       Int?    @map("gross_amount_cents")
+  /// Taxa da adquirente (percentual + tarifa fixa) descontada. Dedutiva — sem
+  /// relação com `feesCents`/`finesCents` acima, que são aditivas (atraso/multa).
+  acquirerFeeCents       Int?    @map("acquirer_fee_cents")
+  /// Contrato de cartão resolvido no fechamento da venda (sistema-derivado, não
+  /// escolhido pelo operador).
+  cardContractId         String? @map("card_contract_id")
+  /// Método de pagamento do contrato resolvido no fechamento.
+  cardPaymentMethodId    String? @map("card_payment_method_id")
+  /// Pagamento da venda de origem — base da idempotência do motor (junto de
+  /// `installmentSequence`); nulo para o recebível agregado "resto do pedido"
+  /// (pagamentos sem `cardPaymentType`) e para lançamentos manuais.
+  saleOrderPaymentId     String? @map("sale_order_payment_id")
+  /// 1-based; `1` mesmo quando há só 1 parcela (pagamento único, Pix, fallback).
+  installmentSequence    Int?    @map("installment_sequence")
+  /// Total de parcelas geradas para o pagamento de origem.
+  installmentCount       Int?    @map("installment_count")
+  /// `true` quando este recebível nasceu do fallback (sem contrato/método
+  /// correspondente) para um pagamento que tinha `cardPaymentType` setado —
+  /// indicador visível ao usuário financeiro, não só log técnico.
+  cardSettlementFallback Boolean @default(false) @map("card_settlement_fallback")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization         Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount          BankAccount?               @relation(fields: [bankAccountId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  customer             Customer?                  @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  supplier             Supplier?                  @relation(fields: [supplierId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  installments         ContractInstallment[]
+  payments             FinancialEntryPayment[]
+  allocations          FinancialEntryAllocation[]
+  attachments          FinancialEntryAttachment[]
+  cardContract         CardContract?              @relation(fields: [cardContractId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  cardPaymentMethod    CardPaymentMethod?         @relation(fields: [cardPaymentMethodId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  saleOrderPayment     SaleOrderPayment?          @relation(fields: [saleOrderPaymentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  /// Vínculos de conciliação bancária (`006-bank-reconciliation`) — existem só
+  /// enquanto a conciliação está ativa (research.md D6 dessa feature).
+  bankStatementMatches BankStatementMatch[]
+
+  @@unique([id, organizationId])
+  @@unique([saleOrderPaymentId, installmentSequence])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, operation])
+  @@index([organizationId, competenceDate])
+  @@index([organizationId, status])
+  @@index([cardContractId])
+  @@index([cardPaymentMethodId])
+  @@map("financial_entries")
+  @@schema("erp")
+}
+
+/// Uma linha de rateio de pagamento — parte do valor de um lançamento
+/// efetivamente recebida/paga numa forma específica. Substituída por completo
+/// (delete + recreate) a cada `save()` do lançamento — sem identidade estável
+/// para o cliente entre saves (mesmo raciocínio de `SaleOrderPayment`).
+model FinancialEntryPayment {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  financialEntryId String   @map("financial_entry_id")
+  amountCents      Int      @map("amount_cents")
+  paidAt           DateTime @map("paid_at") @db.Date
+  /// Enum de aplicação fixo (dinheiro/pix/debito/credito/boleto/deposito/transferencia)
+  /// — validado no DTO HTTP, não há cadastro de formas de pagamento ainda.
+  paymentMethod    String   @map("payment_method")
+  /// Livre, sem cadastro — mesmo padrão de `CardPaymentMethod.brand`.
+  cardBrand        String?  @map("card_brand")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry @relation(fields: [financialEntryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([financialEntryId])
+  @@map("financial_entry_payments")
+  @@schema("erp")
+}
+
+/// Uma linha de rateio por categoria financeira — fatia do valor total de um
+/// lançamento atribuída a uma conta do plano de contas + um centro de custo
+/// (obrigatório). A soma de todas as linhas de um lançamento deve fechar com
+/// o valor total (tolerância de 1 centavo) — validado na aplicação. Alimenta
+/// a DRE. Substituída por completo a cada `save()`, mesmo padrão de `payments`.
+model FinancialEntryAllocation {
+  id               String  @id @default(uuid())
+  organizationId   String  @map("organization_id")
+  financialEntryId String  @map("financial_entry_id")
+  chartOfAccountId String  @map("chart_of_account_id")
+  costCenterId     String  @map("cost_center_id")
+  amountCents      Int     @map("amount_cents")
+  percentage       Decimal @db.Decimal(7, 4)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry @relation(fields: [financialEntryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  chartOfAccount ChartOfAccount @relation(fields: [chartOfAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  costCenter     CostCenter     @relation(fields: [costCenterId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([financialEntryId])
+  @@index([chartOfAccountId])
+  @@index([costCenterId])
+  @@map("financial_entry_allocations")
+  @@schema("erp")
+}
+
+/// Um comprovante anexado a um lançamento. Único filho com CRUD HTTP próprio
+/// (upload/download/remoção assíncronos, fora do payload principal de
+/// criação/edição) — falha de anexo nunca bloqueia o salvamento do lançamento.
+model FinancialEntryAttachment {
+  id               String @id @default(uuid())
+  organizationId   String @map("organization_id")
+  financialEntryId String @map("financial_entry_id")
+  fileName         String @map("file_name")
+  /// Chave no MinIO — nunca exposta ao cliente (mesmo padrão de `imageUrl` em catalog).
+  objectKey        String @map("object_key")
+  contentType      String @map("content_type")
+  sizeBytes        Int    @map("size_bytes")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry @relation(fields: [financialEntryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([financialEntryId])
+  @@map("financial_entry_attachments")
+  @@schema("erp")
+}
+
+// ─── Conciliação bancária (006-bank-reconciliation) ────────────────────────
+
+enum BankStatementStatus {
+  not_reconciled
+  partially_reconciled
+  reconciled
+
+  @@schema("erp")
+}
+
+enum BankStatementTransactionStatus {
+  pending
+  reconciled
+  discarded
+
+  @@schema("erp")
+}
+
+enum BankStatementTransactionKind {
+  credit // entrada — verde, RN-07
+  debit // saída — vermelho, RN-07
+
+  @@schema("erp")
+}
+
+/// Extrato bancário importado em OFX — o arquivo original fica no MinIO
+/// (bucket `erp`, `BankReconciliationObjectKeyPolicy`), nunca no Postgres.
+/// `status`/contadores são cache recalculado a cada ação sobre as
+/// transações do extrato (mesma convenção de `FinancialEntry.status`/
+/// `paidCents` — nunca aceito bruto do cliente).
+model BankStatement {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  /// Opcional desde 007-financeiro-ajustes-ui FR-007: a importação não exige
+  /// mais conta bancária resolvida — `null` quando o código do banco do
+  /// arquivo não bate com exatamente 1 conta ativa da organização.
+  bankAccountId  String? @map("bank_account_id")
+
+  bankName      String   @default("") @map("bank_name")
+  bankCode      String   @default("") @map("bank_code")
+  branchNumber  String   @default("") @map("branch_number")
+  accountNumber String   @default("") @map("account_number")
+  periodStart   DateTime @map("period_start") @db.Date
+  periodEnd     DateTime @map("period_end") @db.Date
+
+  status BankStatementStatus @default(not_reconciled)
+
+  pendingCount    Int @default(0) @map("pending_count")
+  reconciledCount Int @default(0) @map("reconciled_count")
+  discardedCount  Int @default(0) @map("discarded_count")
+
+  fileName       String @map("file_name")
+  objectKey      String @map("object_key")
+  importedByName String @default("") @map("imported_by_name")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount  BankAccount?               @relation(fields: [bankAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  transactions BankStatementTransaction[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, bankAccountId, createdAt])
+  @@map("bank_statements")
+  @@schema("erp")
+}
+
+/// Uma linha extraída do OFX. `dedupeKey` (não `fitId` cru) é a chave real de
+/// unicidade — `dedupeKey = fitId` quando presente, senão um hash de
+/// `(postedAt, amountCents, memo)` (research.md D11 de 006-bank-reconciliation).
+model BankStatementTransaction {
+  id              String  @id @default(uuid())
+  organizationId  String  @map("organization_id")
+  bankStatementId String  @map("bank_statement_id")
+  /// Denormalizado de `bankStatement.bankAccountId` — usado na query de
+  /// candidatos do matcher sem precisar de join. Opcional desde
+  /// 007-financeiro-ajustes-ui FR-007 (extrato pode não ter conta
+  /// resolvida); o dedupe de importação passou a ser por organização, não
+  /// mais por conta (`findExistingDedupeKeys`).
+  bankAccountId   String? @map("bank_account_id")
+
+  fitId     String @default("") @map("fit_id")
+  dedupeKey String @map("dedupe_key")
+
+  postedAt        DateTime                     @map("posted_at") @db.Date
+  /// Sempre positivo — o sinal vem de `kind`, nunca daqui (mesma convenção de
+  /// `BankTransaction.amountCents`).
+  amountCents     Int                          @map("amount_cents")
+  kind            BankStatementTransactionKind
+  transactionType String                       @default("") @map("transaction_type")
+  memo            String                       @default("")
+
+  status       BankStatementTransactionStatus @default(pending)
+  reconciledAt DateTime?                      @map("reconciled_at") @db.Timestamptz(3)
+  discardedAt  DateTime?                      @map("discarded_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankStatement BankStatement        @relation(fields: [bankStatementId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  matches       BankStatementMatch[]
+
+  @@unique([id, organizationId])
+  /// Dedupe por organização (não mais por conta) — coerente com
+  /// `bankAccountId` opcional: um extrato sem conta resolvida ainda precisa
+  /// deduplicar contra reimportação (007-financeiro-ajustes-ui FR-007).
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, bankStatementId, status])
+  @@map("bank_statement_transactions")
+  @@schema("erp")
+}
+
+/// Vínculo N:1 transação↔lançamento (N lançamentos podem casar com 1
+/// transação — repasse agrupado, FR-017 de 006-bank-reconciliation). Existe
+/// só enquanto a conciliação está ativa — desfazer é hard delete
+/// (research.md D6), não soft-delete.
+model BankStatementMatch {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+
+  bankStatementTransactionId String @map("bank_statement_transaction_id")
+  financialEntryId           String @map("financial_entry_id")
+  /// id do `FinancialEntryPayment` criado por esta conciliação — permite
+  /// `removePayment(id)` exato ao desfazer, sem heurística de "pagamento mais
+  /// recente". Sem `@relation` formal (value object embutido em
+  /// `FinancialEntry.payments`, sem tabela própria consultável por FK).
+  financialEntryPaymentId    String @map("financial_entry_payment_id")
+  amountCents                Int    @map("amount_cents")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transaction    BankStatementTransaction @relation(fields: [bankStatementTransactionId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  financialEntry FinancialEntry           @relation(fields: [financialEntryId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([bankStatementTransactionId, financialEntryId])
+  @@unique([id, organizationId])
+  @@index([organizationId, financialEntryId])
+  @@map("bank_statement_matches")
+  @@schema("erp")
+}
+
+/// Terminal de PDV cadastrado por uma unidade — o dispositivo físico (desktop,
+/// tablet) que vai se identificar contra a erp-api. Primeiro módulo da
+/// integração PDV↔ERP (ver .claude/plans/_platform/pos-terminals-pdv-integration.plan.md);
+/// pareamento real (troca de código por credencial de longa duração) é fatia futura.
+model PosTerminal {
+  id              String            @id @default(uuid())
+  organizationId  String            @map("organization_id")
+  branchId        String            @map("branch_id")
+  name            String
+  status          PosTerminalStatus @default(active)
+  printer         String?
+  scale           String?
+  nfceContingency Boolean           @default(false) @map("nfce_contingency")
+  offlineServerId String?           @map("offline_server_id")
+
+  /// Código opaco de uso único, gerado por `POST .../pair`. `null` até a primeira
+  /// geração; regenerar sobrescreve o anterior (não cumulativo).
+  pairingCode          String?   @map("pairing_code")
+  pairingCodeExpiresAt DateTime? @map("pairing_code_expires_at") @db.Timestamptz(3)
+
+  /// SHA-256 do device token. O token em claro existe **uma vez**, na resposta
+  /// do `redeem` — igual a chave de API. `null` = nunca pareado ou revogado.
+  deviceTokenHash   String?   @map("device_token_hash")
+  pairedAt          DateTime? @map("paired_at") @db.Timestamptz(3)
+  /// Rótulo que o próprio dispositivo informou ("Windows · Caixa da frente"),
+  /// para o gerente reconhecer o que está revogando.
+  pairedDeviceLabel String?   @map("paired_device_label")
+  lastSeenAt        DateTime? @map("last_seen_at") @db.Timestamptz(3)
+
+  /// Sobrescrita **deste** terminal sobre o padrão da loja.
+  ///
+  /// `null` = herda, e continua herdando quando o padrão mudar. Um `{}` não
+  /// serviria: seria indistinguível de "configurado sem nada ligado", e o
+  /// terminal deixaria de acompanhar a loja em silêncio.
+  ///
+  /// Só os **opcionais** entram — ver `resolveTerminalModules`.
+  moduleOverrides Json? @map("module_overrides")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch            Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cashSessions      PosCashSession[]
+  saleOrders        SaleOrder[]
+  posDeliveryOrders PosDeliveryOrder[]
+
+  @@unique([id, organizationId])
+  /// O `redeem` e o `DeviceAuthGuard` procuram sem saber a organização — são
+  /// as duas únicas consultas do sistema que rodam fora do escopo de tenant.
+  @@index([pairingCode])
+  @@index([deviceTokenHash])
+  @@index([organizationId])
+  @@index([organizationId, branchId])
+  @@index([organizationId, deletedAt])
+  @@map("pos_terminals")
+  @@schema("erp")
+}
+
+enum PosCashSessionStatus {
+  open
+  closed
+
+  @@schema("erp")
+}
+
+enum PosCashMovementType {
+  withdrawal
+  reinforcement
+
+  @@schema("erp")
+}
+
+/// Turno de caixa do PDV (abrir → movimentos/vendas → fechar).
+model PosCashSession {
+  id             String               @id @default(uuid())
+  organizationId String               @map("organization_id")
+  branchId       String               @map("branch_id")
+  posTerminalId  String               @map("pos_terminal_id")
+  status         PosCashSessionStatus @default(open)
+
+  openedAt DateTime  @map("opened_at") @db.Timestamptz(3)
+  closedAt DateTime? @map("closed_at") @db.Timestamptz(3)
+
+  openedByUserId String @map("opened_by_user_id")
+  openedByName   String @map("opened_by_name")
+
+  openingFloatCents Int @map("opening_float_cents")
+
+  /// Contagens físicas no fechamento (canais do PDV). Null enquanto open.
+  countedCashCents    Int? @map("counted_cash_cents")
+  countedCreditCents  Int? @map("counted_credit_cents")
+  countedDebitCents   Int? @map("counted_debit_cents")
+  countedVoucherCents Int? @map("counted_voucher_cents")
+  countedOtherCents   Int? @map("counted_other_cents")
+
+  expectedCashCents     Int? @map("expected_cash_cents")
+  differenceCashCents   Int? @map("difference_cash_cents")
+  /// Soma das contagens informadas (todos os canais) no fechamento.
+  declaredReceiptsCents Int? @map("declared_receipts_cents")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  posTerminal  PosTerminal       @relation(fields: [posTerminalId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  movements    PosCashMovement[]
+  saleOrders   SaleOrder[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, openedAt])
+  @@index([organizationId, status])
+  @@index([posTerminalId, status])
+  @@index([openedByUserId])
+  @@map("pos_cash_sessions")
+  @@schema("erp")
+}
+
+model PosCashMovement {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  sessionId      String              @map("session_id")
+  type           PosCashMovementType
+  amountCents    Int                 @map("amount_cents")
+  reason         String              @default("")
+  /// Alinhado ao Flutter `CashOperationType` (ex.: cashWithdrawal).
+  operation      String
+
+  operatorUserId String @map("operator_user_id")
+  operatorName   String @map("operator_name")
+
+  authorizedByUserId String? @map("authorized_by_user_id")
+  authorizedByName   String? @map("authorized_by_name")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  session      PosCashSession @relation(fields: [sessionId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([sessionId, createdAt])
+  @@index([organizationId])
+  @@map("pos_cash_movements")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// DELIVERY DA LOJA — pedido operacional (antes/junto do checkout PDV).
+// ---------------------------------------------------------------------------
+
+enum PosDeliveryOrderStatus {
+  received
+  preparing
+  dispatched
+  delivered
+  cancelled
+
+  @@schema("erp")
+}
+
+enum PosDeliveryFulfillment {
+  delivery
+  pickup
+
+  @@schema("erp")
+}
+
+/// Pedido operacional de delivery/retirada da loja (multi-terminal, branch-scoped).
+model PosDeliveryOrder {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  branchId       String                 @map("branch_id")
+  number         Int
+  status         PosDeliveryOrderStatus @default(received)
+  fulfillment    PosDeliveryFulfillment @default(delivery)
+
+  customerId   String? @map("customer_id")
+  customerName String  @default("") @map("customer_name")
+
+  addressZipCode    String? @map("address_zip_code")
+  addressStreet     String? @map("address_street")
+  addressNumber     String? @map("address_number")
+  addressDistrict   String? @map("address_district")
+  addressCity       String? @map("address_city")
+  addressState      String? @map("address_state")
+  addressComplement String? @map("address_complement")
+  /// Texto de exibição; obrigatório quando fulfillment = delivery.
+  addressText       String  @default("") @map("address_text")
+
+  feeCents    Int     @default(0) @map("fee_cents")
+  courierId   String? @map("courier_id")
+  courierName String? @map("courier_name")
+
+  posTerminalId  String? @map("pos_terminal_id")
+  operatorUserId String? @map("operator_user_id")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer     Customer?              @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  courier      Carrier?               @relation(fields: [courierId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  posTerminal  PosTerminal?           @relation(fields: [posTerminalId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  /// Reverse da FK em SaleOrder.posDeliveryOrderId (1:N no Prisma; unique
+  /// ativa é parcial em SQL — uma venda não-cancelada por delivery).
+  saleOrders   SaleOrder[]            @relation("SaleOrderPosDelivery")
+  lines        PosDeliveryOrderLine[]
+
+  @@unique([organizationId, branchId, number])
+  @@unique([id, organizationId])
+  @@index([organizationId, branchId, status])
+  @@index([organizationId, branchId, createdAt])
+  @@index([posTerminalId])
+  @@index([customerId])
+  @@index([courierId])
+  @@map("pos_delivery_orders")
+  @@schema("erp")
+}
+
+model PosDeliveryOrderLine {
+  id              String  @id @default(uuid())
+  organizationId  String  @map("organization_id")
+  deliveryOrderId String  @map("delivery_order_id")
+  productId       String  @map("product_id")
+  productName     String  @map("product_name")
+  quantity        Decimal @db.Decimal(18, 6)
+  unitPriceCents  Int     @map("unit_price_cents")
+  notes           String  @default("")
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveryOrder PosDeliveryOrder @relation(fields: [deliveryOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  product       Product          @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([deliveryOrderId])
+  @@index([productId])
+  @@map("pos_delivery_order_lines")
+  @@schema("erp")
+}
+
+/// Alçadas do PDV — **uma por organização**.
+///
+/// Política é da empresa, não do terminal: limite por terminal seria explorável
+/// escolhendo o caixa mais frouxo. Por isso `organizationId` é `@unique` e não
+/// existe `branchId` aqui.
+///
+/// Ver `.claude/plans/_platform/pdv-erp-auth-offline.plan.md` (M5).
+model PosPolicy {
+  id             String @id @default(uuid())
+  organizationId String @unique @map("organization_id")
+
+  /// Desconto acima disto exige supervisor. `100` = nunca exige.
+  discountSupervisorAbovePercent Int     @default(10) @map("discount_supervisor_above_percent")
+  /// Sangria acima disto exige supervisor. `0` = sempre exige.
+  withdrawalSupervisorAboveCents Int     @default(50000) @map("withdrawal_supervisor_above_cents")
+  cancellationRequiresSupervisor Boolean @default(true) @map("cancellation_requires_supervisor")
+  refundRequiresSupervisor       Boolean @default(true) @map("refund_requires_supervisor")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("pos_policies")
+  @@schema("erp")
+}
+
+/// Configuração fiscal do PDV — **uma por organização** (spec erp/013).
+///
+/// Qual modelo de documento fiscal o PDV emite ao concluir a venda. Entidade
+/// própria, ao lado de `PosPolicy` e não dentro dela: tipo de documento fiscal
+/// não é alçada de operador. `posDocumentModel` nulo = não configurado (a venda
+/// conclui sem documento, comportamento atual). Não mora no Emitente da
+/// fiscal-api (que não conhece PDV/organização).
+model PosFiscalSettings {
+  id             String @id @default(uuid())
+  organizationId String @unique @map("organization_id")
+
+  /// `MODEL_55` (NF-e) | `MODEL_65` (NFC-e) | null = não configurado.
+  posDocumentModel String? @map("pos_document_model")
+  /// Quem alterou por último (registro de auditoria — dado sensível).
+  updatedByUserId  String? @map("updated_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("pos_fiscal_settings")
+  @@schema("erp")
+}
+
+/// Padrão de módulos do PDV — **um por organização**.
+///
+/// O que um terminal novo herda, e o que os terminais sem sobrescrita seguem
+/// quando muda. Separado de `PosPolicy` de propósito: alçada é **permissão**
+/// (quem pode fazer), módulo é **capacidade** (o que a loja faz). Uma tela só
+/// mudaria duas coisas sem relação.
+///
+/// ⚠️ **Não confundir com o catálogo de módulos do `admin-api`**, que responde
+/// "a loja pagou por isto?". Este responde "este caixa usa isto?".
+///
+/// Ver `.claude/plans/_platform/pdv-modulos-por-terminal.plan.md`.
+model PosModuleDefaults {
+  id             String @id @default(uuid())
+  organizationId String @unique @map("organization_id")
+
+  /// Nome do perfil aplicado por último ("Restaurante", "Loja"…). Informativo:
+  /// o que vale é [modules], porque o gerente pode ajustar depois de aplicar.
+  profileName String? @map("profile_name")
+
+  /// `{ "tables": "available", "delivery": "disabled", … }` — só os
+  /// **opcionais**. O núcleo nunca entra: guardá-lo persistiria uma intenção
+  /// que a resolução ignora.
+  modules Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("pos_module_defaults")
+  @@schema("erp")
+}
+
+enum PosTerminalStatus {
+  active
+  inactive
+
+  @@schema("erp")
+}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki Clinic — Citybox</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script>
+    window.WIKI = {
+      sections: [],
+      register: function(section) { this.sections.push(section); }
+    };
+  </script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <button id="menuToggle" style="display:none;background:none;border:none;color:white;font-size:22px;padding:4px 8px;">☰</button>
+    <div class="brand-logo">🏥</div>
+    <div class="brand-text">
+      <span class="brand-name">Clinic</span>
+      <span class="brand-sub">Citybox · Blueprint</span>
+    </div>
+  </div>
+
+  <button class="search-trigger" id="searchTrigger">
+    🔍 <span>Buscar seção…</span>
+    <kbd>Ctrl K</kbd>
+  </button>
+
+  <nav class="topbar-wikis" aria-label="Wikis do ecossistema">
+    <a class="topbar-wiki-link" href="/wiki-admin/">🛠️ <span>Admin</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp/">🏪 <span>ERP Base</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp-food/">🍔 <span>Food</span></a>
+    <a class="topbar-wiki-link" href="/wiki-erp/wiki-erp-market/">🛒 <span>Market</span></a>
+    <a class="topbar-wiki-link active" href="/wiki-erp/wiki-erp-clinic/">🏥 <span>Clinic</span></a>
+    <a class="topbar-wiki-link" href="/wiki-services/">⚙️ <span>Services</span></a>
+    <a class="topbar-wiki-link" href="/wiki-marketplace/">🛍️ <span>Marketplace</span></a>
+    <a class="topbar-wiki-link" href="/wiki-arquitetura/">🏛️ <span>Arquitetura</span></a>
+  </nav>
+
+  <div class="topbar-progress">
+    <span class="progress-text" id="progressText">0 de 26 seções aprovadas</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</header>
+
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" placeholder="Buscar em todas as seções…" autocomplete="off">
+    <span class="search-esc">Esc</span>
+  </div>
+  <div class="search-results" id="searchResults"></div>
+  <div class="search-backdrop" id="searchBackdrop"></div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-nav" id="sidebarNav"></div>
+    </div>
+  </nav>
+
+  <main class="main" id="mainContent">
+    <div class="section-content" id="section-content">
+      <div class="loading-placeholder">
+        <div class="loading-spinner"></div>
+        <span>Carregando…</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+<script src="assets/js/content/00-visao-geral-clinic.js"></script>
+<script src="assets/js/content/01-benchmark-clinic.js"></script>
+<script src="assets/js/content/02-tipos-estabelecimentos.js"></script>
+<script src="assets/js/content/03-agenda-agendamento.js"></script>
+<script src="assets/js/content/04-recepcao-sala-espera.js"></script>
+<script src="assets/js/content/05-prontuario-eletronico.js"></script>
+<script src="assets/js/content/06-odontograma-especialidades.js"></script>
+<script src="assets/js/content/07-financeiro-caixa.js"></script>
+<script src="assets/js/content/08-faturamento-convenios.js"></script>
+<script src="assets/js/content/09-estoque-suprimentos.js"></script>
+<script src="assets/js/content/10-equipe-rh.js"></script>
+<script src="assets/js/content/11-relatorios-bi.js"></script>
+<script src="assets/js/content/12-configuracoes-parametros.js"></script>
+<script src="assets/js/content/13-portal-paciente.js"></script>
+<script src="assets/js/content/14-interfaces-ux.js"></script>
+<script src="assets/js/content/15-lgpd-conformidade.js"></script>
+<script src="assets/js/content/16-arquitetura-tecnica.js"></script>
+<script src="assets/js/content/17-roadmap-clinic.js"></script>
+<script src="assets/js/content/18-como-aprovar-clinic.js"></script>
+<script src="assets/js/content/19-onboarding-multiclinica.js"></script>
+<script src="assets/js/content/20-encaixe-retorno.js"></script>
+<script src="assets/js/content/21-anamnese-formularios.js"></script>
+<script src="assets/js/content/22-orcamentos-tratamentos.js"></script>
+<script src="assets/js/content/23-documentos-contratos.js"></script>
+<script src="assets/js/content/24-arquivos-paciente.js"></script>
+<script src="assets/js/content/25-crm-funil-vendas.js"></script>
+<script src="assets/js/content/26-captacao-leads.js"></script>
+<script src="assets/js/content/27-loja-assinatura-eletronica.js"></script>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

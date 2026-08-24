@@ -1,0 +1,100 @@
+/speckit-specify --scope erp --short-name pos-fiscal-document-type
+
+Entregar a configuração "Tipo de NF emitida pelo PDV" — qual modelo de documento fiscal o
+Ponto de Venda emite ao concluir uma venda — e o consumo dessa configuração pelo PDV.
+
+CONTEXTO — ESTA É A PEÇA QUE FALTA DE UMA FEATURE QUASE PRONTA
+A emissão de NFC-e (modelo 65) está implementada na fiscal-api: é a feature ativa do Spec Kit
+(`specs/005-nfce-cupom-fiscal`), com 62 tarefas concluídas e 4 pendentes — módulo `nfce`
+completo, fila de contingência (`NfceContingencyQueue`) e roteamento ao SVRS (a Bahia delega
+NFC-e ao SVRS, registrado em services/fiscal-api/AGENTS.md). A NF-e (modelo 55) já era
+emitida antes. A spec 005 já decidiu que PDV e ERP chamam a fiscal-api. Falta ao PDV saber
+QUAL modelo emitir — que é exatamente esta tela.
+
+TELA DE REFERÊNCIA (lida ao vivo em /dashboard/settings/fiscal-settings/type-invoice-pos)
+- Aviso legal em destaque citando a Lei 8.846 (Art. 1º e Art. 6º): o documento fiscal deve ser
+  emitido no momento da operação. Manter um aviso equivalente — é o que justifica a
+  configuração existir.
+- Seção "Parâmetros fiscais": "Selecione o modelo de nota fiscal que será emitido pelo Ponto
+  de Venda (PDV) ao realizar uma venda, de acordo com a legislação aplicável."
+  - Tipo de NF emitida pelo PDV (select): Modelo 55 - NF-e · Modelo 65 - NFC-e · limpar.
+  - Toggle "ICMS para Consumidor Final".
+
+ONDE A CONFIGURAÇÃO MORA — DECIDIDO
+Entidade PRÓPRIA de configuração fiscal do PDV, por organização, ao lado de `PosPolicy` — não
+dentro dela. `PosPolicy` tem escopo declarado no próprio código ("Até onde o operador de caixa
+vai sozinho"), e tipo de documento fiscal não é alçada de operador. Uma entidade por
+organização, sem eixo de filial ou terminal, coerente com `PosPolicy` e com a decisão tomada
+em Série de NF.
+NÃO colocar no Emitente da fiscal-api: a decisão herdada é que a fiscal-api não conhece PDV
+nem organização, e quem monta o pedido de emissão resolve a configuração.
+
+TOGGLE "ICMS PARA CONSUMIDOR FINAL" — DECIDIDO: DESABILITADO
+Renderizar o toggle desabilitado, com o motivo visível, como já foi feito com os campos sem
+backend em Configurações gerais. Justificativa a registrar: DIFAL não existe no emissor
+(nenhum grupo `ICMSUFDest` em builder nenhum) e venda de balcão no PDV é operação interna,
+onde DIFAL não incide. `indFinal` já é enviado por emissão. DIFAL entra como backlog nomeado.
+
+VENDA SEM CONFIGURAÇÃO — DECIDIDO
+O PDV conclui a venda SEM documento fiscal, que é o comportamento atual (o PDV não emite nada
+hoje), porém com aviso visível no PDV e registro do fato. Não bloquear a venda: bloquear
+transformaria uma feature de configuração em parada de operação para toda loja que ainda não
+configurou. Não assumir modelo por padrão: emitiria documento errado para quem não tem CSC.
+
+PRÉ-REQUISITOS AO SALVAR — DECIDIDO
+- **Bloquear** o salvamento de "Modelo 65 - NFC-e" quando o Emitente não tem CSC cadastrado
+  (`Company.cscId` + `cscTokenEncrypted`). Sem CSC, toda venda tentaria emitir e falharia —
+  pior que não ter configuração. A mensagem leva à tela de Configurações gerais, onde o CSC é
+  cadastrado.
+- **Avisar sem bloquear** quando não há certificado A1 válido: é pendência resolvível em
+  paralelo, enquanto o PDV já fica configurado.
+- **Não verificar série**: a `FiscalSequence` é criada sob demanda na emissão; exigi-la seria
+  inventar um pré-requisito que o sistema não tem.
+
+FALHA DE EMISSÃO NO PDV — DECIDIDO
+- Indisponibilidade da SEFAZ: já coberta pela fila de contingência da spec 005. Não reabrir.
+  A spec 005 também já declarou fora de escopo o caso "internet da loja fora" (exigiria agente
+  local no caixa).
+- Falha que NÃO é indisponibilidade (certificado vencido, CSC inválido, rejeição de validação):
+  a venda é CONCLUÍDA, o cupom é registrado como pendente/erro, e o problema fica visível com
+  alerta no PDV e na retaguarda até alguém resolver. Não segurar o consumidor no caixa; não
+  falhar em silêncio. Não reenfileirar para retry automático — rejeição de validação não se
+  resolve tentando de novo.
+
+ESCOPO
+- erp-web: tela de configuração sob `/configuracoes/fiscal` (leaf único id "fiscal", página com
+  abas e aba ativa na URL — mesma resposta das features fiscais anteriores).
+- erp-api: entidade nova, persistência e exposição da configuração ao PDV.
+- pdv: leitura da configuração e emissão do modelo correspondente no fechamento de venda;
+  estados de aviso (sem configuração) e de erro (falha não-transitória).
+FORA:
+- Implementar DIFAL.
+- SAT CF-e (modelo 59) e MFE — não se aplicam à Bahia; a spec 005 já registrou.
+- Alterar a emissão de NFC-e em si, já implementada.
+- Configuração por terminal ou por filial.
+
+SEGURANÇA E PERMISSÃO
+Configuração que determina se a loja emite documento fiscal e qual — permissão própria,
+distinta da de leitura, com registro de quem alterou.
+
+CRITÉRIOS DE SUCESSO
+- Escolher "Modelo 65 - NFC-e" faz o PDV emitir NFC-e na venda seguinte; "Modelo 55 - NF-e"
+  faz emitir NF-e.
+- Tentar salvar Modelo 65 sem CSC é bloqueado, com mensagem que leva ao lugar certo.
+- Ausência de certificado gera aviso, não bloqueio.
+- Venda sem configuração conclui normalmente, com aviso visível e registro — comportamento
+  idêntico ao de hoje, porém explícito.
+- Falha não-transitória conclui a venda e produz cupom pendente/erro visível no PDV e na
+  retaguarda; nada falha em silêncio.
+- Nenhum controle da tela promete cálculo (DIFAL) que o emissor não faz.
+
+DOCS-AS-CODE (Princípio I)
+Atualizar `apps/erp/web/AGENTS.md`, `apps/erp/api/AGENTS.md` e `apps/pdv/frontend/AGENTS.md`.
+Migration Prisma → gate `database-reviewer`. GUIA.md da feature.
+
+TESTES
+erp-web: Vitest + Testing Library + MSW (seleção, bloqueio por CSC ausente, aviso de
+certificado, salvamento).
+erp-api: Postgres real — persistência e leitura da configuração.
+pdv: fechamento de venda emitindo o modelo configurado; venda sem configuração (conclui com
+aviso); falha não-transitória (conclui com cupom pendente e alerta).

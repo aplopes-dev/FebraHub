@@ -1,0 +1,552 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["fiscal"]
+}
+
+// ---------------------------------------------------------------------------
+// Enums — ver specs/002-fiscal-api/data-model.md
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  NFE
+  NFSE
+  /// Cupom fiscal ao consumidor final (modelo 65). Acrescentar aqui já dá
+  /// numeração ISOLADA da NF-e: `fiscal_sequences` é única por
+  /// `(companyId, documentType, series, environment)`.
+  ///
+  /// ⚠️ Este enum tem **três espelhos manuais** — aqui, `DOCUMENT_TYPES` em
+  /// `fiscal-document.entity.ts`, e `FILE_PREFIX` em
+  /// `get-auxiliary-document.use-case.ts`. Divergência não quebra compilação:
+  /// quebra no INSERT, em runtime.
+  NFCE
+
+  @@schema("fiscal")
+}
+
+enum ProviderType {
+  SEFAZ_BA_NFE
+  /// Mantido enquanto os casos de uso de NFS-e ainda o referenciam. A remoção
+  /// exige atualizar os 7 pontos de código espelhados na mesma mudança (gate
+  /// database-reviewer, T005) e faz rewrite de duas tabelas ativas sob lock
+  /// ACCESS EXCLUSIVE — fica para quando o provider for trocado.
+  /// Sistema Nacional da NFS-e (Sefin Nacional / ADN).
+  SEFIN_NACIONAL
+
+  @@schema("fiscal")
+}
+
+enum Environment {
+  HOMOLOGATION
+  PRODUCTION
+
+  @@schema("fiscal")
+}
+
+/// Status unificado — nem todo status se aplica a todo DocumentType (ver data-model.md
+/// "Transições de Status"). DENIED/CORRECTION_LETTER_AUTHORIZED/INUTILIZED são NF-e apenas.
+enum FiscalDocumentStatus {
+  DRAFT
+  VALIDATING
+  NUMBER_RESERVED
+  XML_GENERATED
+  SIGNED
+  SENT
+  PROCESSING
+  AUTHORIZED
+  REJECTED
+  DENIED
+  CANCEL_REQUESTED
+  CANCEL_AUTHORIZED
+  CANCEL_REJECTED
+  CORRECTION_LETTER_AUTHORIZED
+  INUTILIZED
+  ERROR
+  SYNC_REQUIRED
+
+  @@schema("fiscal")
+}
+
+enum CertificateStatus {
+  PENDING_VALIDATION
+  VALID
+  EXPIRED
+  INVALID
+  REVOKED
+
+  @@schema("fiscal")
+}
+
+/// Discrimina o tipo de evento dentro de FiscalEvent — cobre cancelamento, carta de
+/// correção e inutilização com uma única tabela genérica (research.md §3).
+enum FiscalEventType {
+  ISSUE
+  CANCEL
+  CORRECTION_LETTER
+  INUTILIZATION
+  SYNC
+  /// Eventos do padrão nacional da NFS-e (tiposEventos_v1.01.xsd). Os três
+  /// OFFICIAL_* são gerados pelo município — nós apenas os lemos na consulta.
+  CANCEL_BY_SUBSTITUTION
+  FISCAL_ANALYSIS_REQUEST
+  FISCAL_ANALYSIS_GRANTED
+  FISCAL_ANALYSIS_DENIED
+  OFFICIAL_CANCEL
+  OFFICIAL_BLOCK
+  OFFICIAL_UNBLOCK
+
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// Company (Emitente) — relação 1:1 com a Loja (Store) do CityBox
+// ---------------------------------------------------------------------------
+
+model Company {
+  id                    String      @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  storeId               String      @unique @map("store_id") @db.Uuid
+  cnpj                  String      @unique
+  legalName             String      @map("legal_name")
+  tradeName             String?     @map("trade_name")
+  stateRegistration     String?     @map("state_registration")
+  municipalRegistration String?     @map("municipal_registration")
+  taxRegime             String      @map("tax_regime")
+  cityCodeIbge          String      @map("city_code_ibge")
+  uf                    String
+  address               Json
+  defaultEnvironment    Environment @default(HOMOLOGATION) @map("default_environment")
+  active                Boolean     @default(true)
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  certificates    Certificate[]
+  customers       Customer[]
+  fiscalDocuments FiscalDocument[]
+  fiscalSequences FiscalSequence[]
+  /// Só eventos INUTILIZATION referenciam Company diretamente (sem
+  /// FiscalDocument) — ver comentário em `FiscalEvent`.
+  fiscalEvents    FiscalEvent[]
+
+  /// Município do prestador é aderente ao Sistema Nacional da NFS-e.
+  /// Sustenta FR-020: recusar emissão antes de transmitir, com mensagem que
+  /// identifica o município.
+  nationalNfseEnabled      Boolean @default(false) @map("national_nfse_enabled")
+  /// CNPJ/CPF do escritório de contabilidade, emitido no grupo `autXML` da
+  /// NF-e. A Bahia (e outras UFs) **rejeitam a nota sem ele** — rejeição 486.
+  /// Fica na empresa e não na nota porque o contador serve o Emitente, não a
+  /// operação; repetir em cada emissão seria pedir ao ERP o que já sabemos.
+  accountingOfficeDocument String? @map("accounting_office_document")
+
+  /// CSC (Código de Segurança do Contribuinte) — emitido pela SEFAZ ao
+  /// Emitente e usado para assinar o QR Code da NFC-e.
+  ///
+  /// ⚠️ **Não substitui o certificado digital**: o cupom exige os dois. São
+  /// segredos de naturezas diferentes — o certificado assina o documento, o CSC
+  /// assina o QR Code que o consumidor usa para consultar.
+  ///
+  /// Nulos porque o Emitente existe antes de obter o CSC, que é passo
+  /// administrativo junto ao órgão. A ausência bloqueia **apenas** a emissão de
+  /// cupom; NF-e e NFS-e seguem funcionando.
+  cscId             String? @map("csc_id")
+  /// Cifrado com o mesmo caminho da senha do PKCS#12 (`cert-encryption`) — um
+  /// segundo mecanismo para o mesmo tipo de segredo criaria duas superfícies
+  /// para auditar e duas chaves para rotacionar.
+  cscTokenEncrypted String? @map("csc_token_encrypted")
+
+  /// Justificativas padrão (spec erp/023, N6 — "Justificativas padrão" em
+  /// Configurações gerais). Nulas até o lojista preencher; quando
+  /// preenchidas, exigem 15–255 caracteres (`xJust`/`xCorrecao` da SEFAZ,
+  /// mesma regra já usada em `InutilizeNfeHttpDto`/`CancelNfeHttpDto`) — não
+  /// usadas automaticamente ainda: não há tela em `erp-web` que chame
+  /// inutilizar/cancelar documento (limitação declarada no plan.md).
+  inutilizationJustification String? @map("inutilization_justification")
+  cancellationJustification  String? @map("cancellation_justification")
+
+  @@map("companies")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// Certificate — certificado digital A1 vinculado a um Emitente
+// ---------------------------------------------------------------------------
+
+model Certificate {
+  id                    String            @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  companyId             String            @map("company_id") @db.Uuid
+  type                  String            @default("A1")
+  name                  String?
+  encryptedPfxObjectKey String            @map("encrypted_pfx_object_key")
+  encryptedPassword     String            @map("encrypted_password")
+  subjectCnpj           String            @map("subject_cnpj")
+  validFrom             DateTime          @map("valid_from")
+  validUntil            DateTime          @map("valid_until")
+  status                CertificateStatus @default(PENDING_VALIDATION)
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("certificates")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// Customer (Destinatário/Tomador)
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id                    String   @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  companyId             String   @map("company_id") @db.Uuid
+  documentType          String   @map("document_type")
+  document              String
+  name                  String
+  email                 String?
+  phone                 String?
+  stateRegistration     String?  @map("state_registration")
+  municipalRegistration String?  @map("municipal_registration")
+  address               Json
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fiscalDocuments FiscalDocument[]
+
+  @@index([companyId])
+  @@map("customers")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// FiscalDocument — entidade base de NF-e ou NFS-e
+// ---------------------------------------------------------------------------
+
+model FiscalDocument {
+  id                String               @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  companyId         String               @map("company_id") @db.Uuid
+  customerId        String?              @map("customer_id") @db.Uuid
+  documentType      DocumentType         @map("document_type")
+  provider          ProviderType
+  environment       Environment
+  status            FiscalDocumentStatus @default(DRAFT)
+  sourceSystem      String               @map("source_system")
+  externalReference String               @map("external_reference")
+  idempotencyKey    String               @map("idempotency_key")
+  series            String?
+  number            String?
+  rpsSeries         String?              @map("rps_series")
+  rpsNumber         String?              @map("rps_number")
+  accessKey         String?              @map("access_key")
+  verificationCode  String?              @map("verification_code")
+  protocol          String?
+  totalAmount       Decimal              @default(0) @map("total_amount") @db.Decimal(15, 2)
+  xmlObjectKey      String?              @map("xml_object_key")
+  errorCode         String?              @map("error_code")
+  errorMessage      String?              @map("error_message")
+  issuedAt          DateTime?            @map("issued_at")
+  authorizedAt      DateTime?            @map("authorized_at")
+  cancelledAt       DateTime?            @map("cancelled_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  /// Chave do XML assinado guardado ANTES da transmissão — é o que torna a
+  /// retomada possível sem re-assinar (re-assinar geraria identificador novo
+  /// para um documento que o órgão fiscal pode já ter recebido).
+  dpsObjectKey           String? @map("dps_object_key")
+  /// `cLocIncid` — código IBGE do local de incidência do ISSQN, que pode
+  /// diferir do município do prestador.
+  municipalIncidenceCode String? @map("municipal_incidence_code")
+
+  company           Company               @relation(fields: [companyId], references: [id])
+  customer          Customer?             @relation(fields: [customerId], references: [id])
+  items             FiscalDocumentItem[]
+  events            FiscalEvent[]         @relation("FiscalEventDocument")
+  /// Presente apenas em cupom emitido com a SEFAZ fora do ar.
+  contingencyEntry  NfceContingencyQueue?
+  /// Eventos de substituição que apontam para ESTE documento como substituto.
+  replacementEvents FiscalEvent[]         @relation("FiscalEventReplacement")
+  requests          ProviderRequest[]
+
+  /// Idempotência (FR-013, SC-007) — requisição repetida retorna o documento existente.
+  /// `companyId` faz parte da chave: ela e escolhida pelo ERP, e nada impede
+  /// duas empresas de usarem "PEDIDO-0001". Sem a empresa na unique, a segunda
+  /// recebia o documento fiscal da primeira — chave de acesso, protocolo e
+  /// valores de outro contribuinte (isolamento de tenant, Constituicao V).
+  @@unique([companyId, sourceSystem, externalReference, documentType, idempotencyKey], name: "idempotency_key")
+  @@index([companyId, documentType, status])
+  @@map("fiscal_documents")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// FiscalDocumentItem — linha de produto (NF-e) ou serviço (NFS-e)
+// ---------------------------------------------------------------------------
+
+model FiscalDocumentItem {
+  id               String  @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  fiscalDocumentId String  @map("fiscal_document_id") @db.Uuid
+  description      String
+  quantity         Decimal @db.Decimal(15, 4)
+  unitValue        Decimal @map("unit_value") @db.Decimal(15, 4)
+  totalValue       Decimal @map("total_value") @db.Decimal(15, 2)
+  itemType         String  @map("item_type")
+  ncm              String?
+  cfop             String?
+  cst              String?
+  csosn            String?
+  serviceCode      String? @map("service_code")
+  taxJson          Json?   @map("tax_json")
+
+  fiscalDocument FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([fiscalDocumentId])
+  @@map("fiscal_document_items")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// FiscalEvent — cancelamento, carta de correção, inutilização (research.md §3)
+// ---------------------------------------------------------------------------
+
+/// `fiscalDocumentId` é nullable desde a migration `..._fiscal_event_inutilization_fields`
+/// (T065, US4) — eventos `INUTILIZATION` não têm um `FiscalDocument` (número
+/// nunca emitido, data-model.md "FiscalEvent de inutilização vs.
+/// FiscalSequence"). `companyId`/`series`/`numberRangeStart`/`numberRangeEnd`
+/// só são preenchidos para `eventType=INUTILIZATION` — para `CANCEL`/
+/// `CORRECTION_LETTER` continuam null (a faixa não se aplica, o documento já
+/// carrega companyId/series/number via `fiscalDocument`).
+model FiscalEvent {
+  id                   String          @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  fiscalDocumentId     String?         @map("fiscal_document_id") @db.Uuid
+  eventType            FiscalEventType @map("event_type")
+  sequence             Int?
+  status               String
+  justification        String?
+  correctionText       String?         @map("correction_text")
+  protocol             String?
+  requestXmlObjectKey  String?         @map("request_xml_object_key")
+  responseXmlObjectKey String?         @map("response_xml_object_key")
+  createdAt            DateTime        @default(now()) @map("created_at")
+
+  /// Só para INUTILIZATION — a faixa de numeração inutilizada, comparada
+  /// contra `FiscalDocument.number` já emitidos na mesma
+  /// companyId+série+ambiente antes de aceitar o pedido (FR-006, edge case
+  /// "faixa já usada").
+  companyId        String? @map("company_id") @db.Uuid
+  series           String?
+  numberRangeStart BigInt? @map("number_range_start")
+  numberRangeEnd   BigInt? @map("number_range_end")
+
+  /// Código oficial do evento no esquema nacional (`e101101`, `e105102`, ...).
+  /// Preservado como String para não se perder quando o enum interno evoluir.
+  nationalEventCode    String? @map("national_event_code")
+  /// `ambGer`: 1 = sistema próprio do município, 2 = Sefin Nacional, 3 = ADN.
+  /// Distingue evento que emitimos de evento que apenas lemos. Validado no
+  /// adaptador de domínio, não por CHECK (decisão registrada em data-model.md).
+  generatorEnvironment Int?    @map("generator_environment")
+  /// Vínculo da substituição: qual documento substituiu o desta linha.
+  replacedByDocumentId String? @map("replaced_by_document_id") @db.Uuid
+
+  /// Relações nomeadas: são DUAS FKs de FiscalEvent para FiscalDocument, e o
+  /// Prisma exige nome explícito em ambas (senão "Ambiguous relation detected").
+  fiscalDocument     FiscalDocument? @relation("FiscalEventDocument", fields: [fiscalDocumentId], references: [id], onDelete: Cascade)
+  replacedByDocument FiscalDocument? @relation("FiscalEventReplacement", fields: [replacedByDocumentId], references: [id])
+  company            Company?        @relation(fields: [companyId], references: [id])
+
+  @@index([fiscalDocumentId, createdAt])
+  @@index([companyId, series])
+  @@index([replacedByDocumentId])
+  @@map("fiscal_events")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// FiscalSequence — controle de número/série por Emitente + tipo + ambiente
+// ---------------------------------------------------------------------------
+
+model FiscalSequence {
+  id            String       @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  documentType  DocumentType @map("document_type")
+  series        String
+  currentNumber BigInt       @default(0) @map("current_number")
+  environment   Environment
+  active        Boolean      @default(true)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, documentType, series, environment])
+  @@map("fiscal_sequences")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// FiscalSequenceNumberChange — auditoria da alteração manual do número atual
+// (spec erp/011, FR-004). Append-only: quem alterou, quando, de quanto para
+// quanto. Sem FK Prisma de propósito (log independente do ciclo de vida da
+// série); integridade referencial pela aplicação, índices para consulta.
+// ---------------------------------------------------------------------------
+
+model FiscalSequenceNumberChange {
+  id              String   @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  sequenceId      String   @map("sequence_id") @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  previousNumber  BigInt   @map("previous_number")
+  newNumber       BigInt   @map("new_number")
+  changedByUserId String   @map("changed_by_user_id")
+  changedByActor  String?  @map("changed_by_actor")
+  changedAt       DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  @@index([sequenceId, changedAt])
+  @@index([companyId, changedAt])
+  @@map("fiscal_sequence_number_changes")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// ProviderRequest — log de auditoria de toda tentativa de transmissão (FR-011)
+// ---------------------------------------------------------------------------
+
+model ProviderRequest {
+  id                   String       @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  fiscalDocumentId     String?      @map("fiscal_document_id") @db.Uuid
+  provider             ProviderType
+  operation            String
+  requestXmlObjectKey  String?      @map("request_xml_object_key")
+  responseXmlObjectKey String?      @map("response_xml_object_key")
+  requestPayload       Json?        @map("request_payload")
+  responsePayload      Json?        @map("response_payload")
+  status               String
+  errorMessage         String?      @map("error_message")
+  createdAt            DateTime     @default(now()) @map("created_at")
+
+  fiscalDocument FiscalDocument? @relation(fields: [fiscalDocumentId], references: [id])
+
+  @@index([fiscalDocumentId])
+  @@map("provider_requests")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// MunicipalParameters — cache da parametrizacao consultada no ambiente nacional
+// ---------------------------------------------------------------------------
+
+/// Prazos e exigencias variam por municipio e sao definidos por ato
+/// administrativo. `parameters` fica como Json de proposito: tipar cada campo
+/// exigiria migration a cada mudanca de regra municipal. A fronteira de
+/// tipagem vive no adaptador de dominio, nao no schema.
+model MunicipalParameters {
+  id           String   @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  cityCodeIbge String   @unique @map("city_code_ibge")
+  parameters   Json
+  /// Base do TTL — invalidacao diaria (research.md §5).
+  fetchedAt    DateTime @map("fetched_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("municipal_parameters")
+  @@schema("fiscal")
+}
+
+// ---------------------------------------------------------------------------
+// NfceContingencyQueue — cupons emitidos com a SEFAZ fora do ar
+// ---------------------------------------------------------------------------
+
+enum ContingencyStatus {
+  PENDING
+  TRANSMITTED
+  REJECTED
+
+  @@schema("fiscal")
+}
+
+/// Fila de transmissão posterior dos cupons emitidos em contingência.
+///
+/// ⚠️ **Persistente, e não em memória, de propósito.** O cupom em contingência
+/// já foi impresso e entregue ao consumidor — perdê-lo num restart do serviço é
+/// a pior falha desta feature: existiria papel na mão do cliente sem documento
+/// no fisco, e ninguém saberia.
+///
+/// Três propriedades que este modelo sustenta:
+///
+/// 1. **Ordem** (`sequence`) — a transmissão respeita a ordem de emissão. Fora
+///    de ordem, a numeração chega quebrada à SEFAZ.
+/// 2. **Prazo** (`emittedAt`) — a transmissão posterior tem prazo legal.
+///    Estourá-lo é problema fiscal, não pendência técnica: pede alarme, não
+///    retry silencioso.
+/// 3. **Rejeição visível** (`status = REJECTED`, `lastError`) — FR-012. Um
+///    cupom rejeitado depois de entregue não pode falhar em silêncio.
+model NfceContingencyQueue {
+  id               String            @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  fiscalDocumentId String            @unique @map("fiscal_document_id") @db.Uuid
+  /// ⚠️ **Desnormalizado de propósito.** O Emitente chega por join com
+  /// `fiscal_documents`, mas a ordem de dreno é *por empresa* — e o invariante
+  /// abaixo (`@@unique`) não pode depender de join. Sem esta coluna, o comentário
+  /// "monotônica por Emitente" seria promessa sem quem a cumprisse.
+  companyId        String            @map("company_id") @db.Uuid
+  /// Ordem de emissão, monotônica por Emitente. É o que a transmissão segue —
+  /// fora de ordem, a numeração chega quebrada à SEFAZ.
+  sequence         BigInt
+  /// Base do prazo legal de transmissão posterior.
+  emittedAt        DateTime          @map("emitted_at")
+  status           ContingencyStatus @default(PENDING)
+  attempts         Int               @default(0)
+  lastError        String?           @map("last_error")
+  transmittedAt    DateTime?         @map("transmitted_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  /// ⚠️ **`Restrict`, não `Cascade`.** Apagar o documento levaria junto o
+  /// registro de um cupom **já entregue ao consumidor** — papel na mão do
+  /// cliente sem rastro no sistema, silenciosamente. `Restrict` força qualquer
+  /// remoção futura a ser decisão explícita, não efeito colateral de cascata.
+  fiscalDocument FiscalDocument @relation(fields: [fiscalDocumentId], references: [id], onDelete: Restrict)
+
+  /// O invariante que o dreno depende: dois cupons da mesma empresa não podem
+  /// disputar a mesma posição. Sem isto, uma corrida entre duas emissões em
+  /// contingência deixaria a ordem indeterminada — exatamente na dimensão que
+  /// esta tabela existe para proteger.
+  @@unique([companyId, sequence])
+  /// Drenar é sempre "pendentes DESTA empresa, em ordem": a SEFAZ volta ao ar
+  /// por UF, e o worker opera por Emitente. Igualdade antes de ordenação.
+  @@index([companyId, status, sequence])
+  @@map("nfce_contingency_queue")
+  @@schema("fiscal")
+}
+
+/// Verificação de disponibilidade de um órgão fiscal (spec fiscal/001).
+///
+/// A mesma linha serve de **cache** (FR-007) e de **trilha de auditoria**
+/// (FR-013). Append-only: cada contato real com o órgão grava uma entrada; a
+/// leitura pega a mais recente por (empresa, modelo, ambiente). Por isso **não
+/// há unique** na chave de janela — o histórico é intencional.
+model SefazStatusCheck {
+  id          String   @id @default(dbgenerated("public.citybox_uuid_v7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  /// Modelo do documento: NFE | NFCE | NFSE. Texto, não enum — o conjunto vive
+  /// no domínio (`StatusModel`), e a tabela não precisa cravá-lo.
+  model       String
+  /// HOMOLOGATION | PRODUCTION. Parte da chave de janela: o órgão conta
+  /// consultas por ambiente também.
+  environment String
+  /// Situação apurada (ServiceStatus). Texto pela mesma razão de `model`.
+  status      String
+  /// Qual órgão respondeu (FR-004): SEFAZ-BA | SVRS | SEFIN-NACIONAL.
+  authority   String
+  /// Mensagem original do órgão, literal (FR-006). Null quando não houve
+  /// resposta (UNREACHABLE) ou não se aplica.
+  authorityMessage String?   @map("authority_message")
+  /// Previsão de retorno quando o órgão informa (FR-006).
+  expectedReturnAt DateTime? @map("expected_return_at")
+  /// Instante da apuração (FR-005). É por ele que se decide frescor da janela.
+  checkedAt   DateTime @map("checked_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  /// "Última verificação por chave" — a leitura mais quente. `checkedAt DESC`
+  /// no índice evita ordenar em tempo de consulta.
+  @@index([companyId, model, environment, checkedAt(sort: Desc)])
+  @@map("sefaz_status_check")
+  @@schema("fiscal")
+}

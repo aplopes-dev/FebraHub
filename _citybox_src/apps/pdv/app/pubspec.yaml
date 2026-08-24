@@ -1,0 +1,72 @@
+name: citybox_pdv
+description: PDV Citybox — frente de caixa para desktop (Linux/Windows) e Android (tablet e celular).
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Estado e injeção de dependência.
+  flutter_riverpod: ^2.6.1
+
+  # Formatação de data, hora e moeda em pt-BR.
+  # A versão é ditada pelo `flutter_localizations` do SDK — não suba sozinha.
+  intl: ^0.20.2
+
+  # Barra de título própria no desktop: esconde a decoração do sistema e nos dá
+  # arrastar, minimizar, maximizar e fechar. Só é inicializado em Linux/Windows.
+  window_manager: ^0.5.2
+
+  # Versão do app lida do bundle. Evita a constante que envelhece e faz o
+  # suporte perguntar "qual versão?" para uma tela que mente.
+  package_info_plus: ^10.2.1
+
+  # Navegação declarativa entre as telas do PDV (Home, Balcão, Pagamento…).
+  go_router: ^16.2.0
+
+  # Cache local do último conjunto de módulos conhecido (offline).
+  shared_preferences: ^2.5.3
+
+  # Cliente HTTP da integração com a erp-api. Escolhido por causa dos
+  # interceptors: é neles que o token do terminal entra em toda requisição e
+  # some do log (ver `core/http/pdv_api_client.dart`).
+  dio: ^5.7.0
+
+  # Cofre do sistema (Keychain no iOS/macOS, EncryptedSharedPreferences no
+  # Android, libsecret no Linux). É onde mora a credencial do terminal — nunca
+  # em `SharedPreferences`, que é texto claro (ver AGENTS.md §4.10).
+  flutter_secure_storage: ^11.0.0
+  pointycastle: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  # Inter embutida (SIL OFL) — mesma família do DS Citybox (`@citybox/ui`).
+  # Sem isto o Flutter cai na fonte do SO e o PDV muda de cara entre Linux,
+  # Windows e Android. Pesos usados por `PdvTypography` (400/500/600/700).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700

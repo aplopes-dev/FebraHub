@@ -1,0 +1,97 @@
+{
+  "realm": "citybox-imoveis",
+  "displayName": "Citybox Imóveis",
+  "enabled": true,
+  "loginTheme": "citybox",
+  "accountTheme": "citybox",
+  "emailTheme": "citybox",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "pt"
+  ],
+  "defaultLocale": "pt",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespan": 1800,
+  "passwordPolicy": "length(10) and notUsername and notEmail",
+  "roles": {
+    "realm": [
+      {
+        "name": "platform.admin",
+        "description": "Chamador de plataforma (admin-api via M2M). Atribuída EXCLUSIVAMENTE ao service account admin-m2m — nunca a usuário humano. Autorização vem do schema imoveis (TeamMember + resolve-imoveis-permissions)."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "imoveis-web",
+      "name": "Imóveis — app do lojista",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:3111/auth/callback",
+        "http://127.0.0.1:3111/auth/sso",
+        "http://localhost:3111/auth/callback",
+        "http://localhost:3111/auth/sso",
+        "https://imoveis.citybox.com/auth/callback",
+        "https://imoveis.citybox.com/auth/sso",
+        "https://imoveis.aplopes.com/auth/callback",
+        "https://imoveis.aplopes.com/auth/sso"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:3111",
+        "http://localhost:3111",
+        "https://imoveis.citybox.com",
+        "https://imoveis.aplopes.com"
+      ],
+      "attributes": {
+        "use.refresh.tokens": "true"
+      },
+      "secretEnv": "KEYCLOAK_IMOVEIS_WEB_SECRET"
+    },
+    {
+      "clientId": "imoveis-provisioning",
+      "name": "Imóveis — service account de provisionamento",
+      "description": "Usada pela imoveis-api para criar/gerenciar membros. manage-users LIMITADO a este realm.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "serviceAccountClientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      },
+      "secretEnv": "KEYCLOAK_IMOVEIS_PROVISIONING_SECRET"
+    },
+    {
+      "clientId": "admin-m2m",
+      "name": "Citybox admin — chamador M2M",
+      "description": "Credencial que o admin-api usa para chamar a imoveis-api. NÃO tem manage-users: só a role platform.admin.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "serviceAccountRealmRoles": [
+        "platform.admin"
+      ],
+      "secretEnv": "KEYCLOAK_IMOVEIS_M2M_CLIENT_SECRET"
+    }
+  ]
+}

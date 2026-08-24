@@ -1,0 +1,70 @@
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+const LOCAIS = ['LOJA', 'DEPOSITO'] as const;
+
+// -------------------- CATEGORIA --------------------
+export class CategoriaDto {
+  @IsString() @IsNotEmpty() nome!: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() ordem?: number;
+  @IsOptional() @IsBoolean() ativo?: boolean;
+}
+
+// -------------------- PRODUTO --------------------
+export class ProdutoDto {
+  @IsString() @IsNotEmpty() nome!: string;
+  @IsOptional() @IsString() sku?: string;
+  @IsOptional() @IsString() codigoBarras?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() imagemUrl?: string;
+  @IsOptional() @IsUUID() categoriaId?: string | null;
+  @Type(() => Number) @IsNumber() @Min(0) preco!: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) custo?: number;
+  @IsOptional() @IsString() unidade?: string;
+  /** produto_estoque_id do Omie (BigInt como string), vínculo opcional. */
+  @IsOptional() @IsString() produtoEstoqueId?: string | null;
+  @IsOptional() @IsBoolean() ativo?: boolean;
+  @IsOptional() @IsBoolean() vendePdv?: boolean;
+  @IsOptional() @IsBoolean() exibeCardapio?: boolean;
+  @IsOptional() @IsBoolean() precisaPreparacao?: boolean;
+  @IsOptional() @IsBoolean() controlaEstoque?: boolean;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) estoqueMinimo?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() ordem?: number;
+}
+
+// -------------------- ESTOQUE --------------------
+/** Ajuste direto de saldo em um local (entrada/saída/inventário). */
+export class AjusteEstoqueDto {
+  @IsIn(LOCAIS) local!: string;
+  @IsIn(['entrada', 'saida', 'inventario']) tipo!: string;
+  @Type(() => Number) @IsNumber() @Min(0) quantidade!: number;
+  @IsOptional() @IsString() observacao?: string;
+}
+
+/** Transferência de saldo entre LOJA e DEPÓSITO. */
+export class TransferenciaEstoqueDto {
+  @IsIn(LOCAIS) origem!: string;
+  @IsIn(LOCAIS) destino!: string;
+  @Type(() => Number) @IsNumber() @Min(0.001) quantidade!: number;
+  @IsOptional() @IsString() observacao?: string;
+}
+
+export class ListaProdutosQuery {
+  @IsOptional() @IsString() busca?: string;
+  @IsOptional() @IsUUID() categoriaId?: string;
+  @IsOptional() @IsString() situacao?: string; // ativos | inativos | todos
+}

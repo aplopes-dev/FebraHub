@@ -1,0 +1,34 @@
+{
+  "name": "@citybox/messaging",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./clinic-strand": {
+      "types": "./dist/contracts/clinic-strand.d.ts",
+      "default": "./dist/contracts/clinic-strand.js"
+    },
+    "./professional-council": {
+      "types": "./dist/contracts/professional-council.d.ts",
+      "default": "./dist/contracts/professional-council.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.5"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^22.10.0",
+    "typescript": "~6.0.3"
+  }
+}

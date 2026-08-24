@@ -1,0 +1,58 @@
+name: payment-api
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: payment_api_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: citybox
+      POSTGRES_PASSWORD: citybox
+      POSTGRES_DB: citybox_payments
+    ports:
+      - '127.0.0.1:15435:5432'
+    volumes:
+      - payment_api_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U citybox -d citybox_payments']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - citybox-platform
+
+  api:
+    build:
+      context: ../..
+      dockerfile: payment-api/Dockerfile
+    image: citybox-payment-api:latest
+    container_name: payment_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3106
+      NODE_ENV: production
+      PAYMENT_API_IN_DOCKER: 'true'
+      PAYMENT_API_DOCKER_ALLOWED_HOSTS: citybox_core_api
+      DATABASE_URL: postgresql://citybox:citybox@postgres:5432/citybox_payments
+      REDIS_URL: redis://citybox_redis:6379
+      RABBITMQ_URL: amqp://citybox:citybox@citybox_rabbitmq:5672/citybox
+      CORE_API_INTERNAL_WEBHOOK_URL: http://citybox_core_api:3101/api/v1/internal/payments/webhooks
+      CORS_ORIGINS: http://localhost:3101,http://127.0.0.1:3101,http://localhost:3107,http://127.0.0.1:3107
+      SWAGGER_ENABLED: 'true'
+    ports:
+      - '127.0.0.1:3106:3106'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - citybox-platform
+
+networks:
+  citybox-platform:
+    name: citybox-platform
+    external: true
+
+volumes:
+  payment_api_pg_data:

@@ -1,0 +1,103 @@
+/speckit-specify --scope erp --short-name fiscal-additional-info
+
+Entregar o cadastro de Informações Adicionais de nota fiscal — textos reutilizáveis anexados
+aos documentos fiscais emitidos — junto da emissão do grupo `infAdic` no XML.
+
+LACUNA TOTAL NO BACKEND
+Nenhum `infAdic`, `infCpl` ou `infAdFisco` existe em qualquer builder da fiscal-api (NF-e,
+NFC-e e DPS). Nenhuma nota emitida hoje consegue carregar texto adicional. Não é conforto: o
+grupo carrega textos que em vários casos são exigência legal — a menção obrigatória do Simples
+Nacional sobre permissão de crédito de ICMS (LC 123, art. 26), a citação da lei que ampara
+benefício fiscal, e observações de interesse do fisco. Como as features de grupo fiscal, esta
+é fatia vertical: cadastro + emissão, ou não entrega nada.
+
+TELA DE REFERÊNCIA (lida ao vivo em /dashboard/settings/fiscal-settings/nfe-additional-info)
+Lista "Informações adicionais da nota fiscal", com abas NF-e · NFC-e · NFS-e, busca por nome,
+seleção múltipla e colunas Nome · Descrição · Automático. Botão "Nova informação NF-e", com o
+rótulo acompanhando a aba.
+Formulário: Nome · checkbox "Compartilhar com todas as empresas" · Descrição (textarea) ·
+toggle "Informação automática".
+
+DESTINO DO TEXTO — DECIDIDO
+Cada informação declara para onde vai: `infCpl` (interesse do contribuinte) ou `infAdFisco`
+(interesse do fisco). São campos distintos no XML, com destinatários e tetos próprios. A
+referência não faz essa distinção; nós fazemos — observação exigida pelo fisco gravada no
+campo do contribuinte fica no lugar errado dentro de um documento já transmitido, e não há
+como corrigir depois.
+
+MODO DE APLICAÇÃO — DECIDIDO
+Nesta entrega TODA informação é automática: aplicada a todo documento do tipo ao qual está
+associada. Não implementar escolha caso a caso, porque não há onde escolher — o ERP não tem
+tela de emissão de NF-e, a de NFS-e é outra spec ainda não construída, e o único emissor real
+é o PDV, onde ninguém quer o operador de caixa escolhendo texto fiscal a cada venda. Além
+disso, os casos que a lei exige (menção do Simples, citação de benefício) são automáticos por
+natureza.
+CONSEQUÊNCIA: não renderizar o toggle "Informação automática" da referência — nesta entrega
+ele teria um único estado possível. A escolha caso a caso entra quando existir tela de emissão
+que a comporte, e aí o toggle volta com significado.
+
+MÚLTIPLAS INFORMAÇÕES E LIMITE — DECIDIDO
+- Vários registros por tipo de documento, concatenados na ordem de criação.
+- Validar o TOTAL concatenado contra o limite do campo no XSD, tanto no cadastro (avisando
+  quando o novo registro estoura o conjunto) quanto antes da transmissão.
+- Texto que estouraria o limite é IMPEDIDO com mensagem clara. Nunca truncar em silêncio.
+
+LIMITES DE CARACTERES — DECIDIDO
+Derivar do XSD, por campo (`infCpl` e `infAdFisco` têm tetos distintos). NÃO copiar os limites
+da referência (nome 100, descrição 300): seriam teto artificial abaixo do que o documento
+aceita e, ainda assim, não protegeriam do estouro real, que é a soma.
+
+TIPOS DE DOCUMENTO — DECIDIDO
+As três abas correspondem ao `DocumentType` existente: NFE | NFCE | NFSE. A NFC-e recebe o
+mesmo tratamento dos demais: o cadastro define o conteúdo do XML; o que é impresso na bobina é
+decisão do layout do DANFE/DANFCE, fora desta feature.
+Definir no plan se um registro serve a mais de um tipo ou se o cadastro é por tipo.
+
+DECISÕES HERDADAS DAS FEATURES FISCAIS — MANTER, NÃO REABRIR
+- Fatia vertical: cadastro + emissão na mesma entrega.
+- Sem o checkbox "Compartilhar com todas as empresas": o cadastro pertence à organização e
+  vale para todas as suas unidades. Compartilhamento entre organizações descartado
+  (Princípio V).
+- Quem monta o pedido de emissão resolve o texto e envia pronto; a fiscal-api recebe conteúdo,
+  não regra.
+- Salvamento explícito, com aviso ao sair com alterações pendentes.
+- Localização: `/configuracoes/fiscal` (leaf único id "fiscal", página com abas e aba ativa na
+  URL) — mesma resposta das features fiscais anteriores, a fechar no plan.
+
+ESCOPO
+- erp-api: entidade de informação adicional (nome, texto, tipo de documento, destino
+  infCpl/infAdFisco) e endpoints de CRUD.
+- erp-web: lista com abas por tipo, busca e formulário, no espírito da referência, sem o
+  toggle.
+- fiscal-api: os DTOs de emissão passam a aceitar os textos, e os builders passam a emitir o
+  grupo `infAdic` com `infCpl` e `infAdFisco` na NF-e, na NFC-e e na DPS.
+FORA:
+- Escolha caso a caso na emissão.
+- Substituição de variáveis no texto (ex.: número do pedido) — fonte clássica de crescimento
+  silencioso; se for desejado, entra como decisão explícita, não por dedução.
+
+SEGURANÇA E PERMISSÃO
+Texto que entra em documento fiscal transmitido ao fisco — permissão própria, distinta da de
+leitura.
+
+CRITÉRIOS DE SUCESSO
+- Criar, listar, buscar e editar informações por tipo de documento persiste e recarrega
+  correto.
+- Informação com destino `infCpl` aparece em `infCpl`; com destino `infAdFisco`, em
+  `infAdFisco`. Nunca trocadas.
+- Toda nota do tipo sai com as informações daquele tipo concatenadas na ordem de criação.
+- Conjunto que estouraria o limite do XSD é impedido com mensagem clara, no cadastro e antes
+  da transmissão; nada é truncado.
+- **NÃO-REGRESSÃO: tipo de documento sem nenhuma informação cadastrada sai sem o grupo
+  `infAdic`, com XML idêntico ao de hoje.**
+
+DOCS-AS-CODE (Princípio I)
+Atualizar `apps/erp/web/AGENTS.md`, `apps/erp/api/AGENTS.md` e `services/fiscal-api/AGENTS.md`
+(novo grupo no XML). Migration Prisma → gate `database-reviewer`. GUIA.md da feature.
+
+TESTES
+erp-web: Vitest + Testing Library + MSW (lista por aba, busca, criação, aviso de estouro do
+conjunto).
+erp-api: Postgres real — persistência e consulta por tipo de documento e destino.
+fiscal-api: builders emitindo `infAdic` com `infCpl` e `infAdFisco` na NF-e, NFC-e e DPS;
+validação de limite; e o teste de não-regressão sem informação cadastrada.

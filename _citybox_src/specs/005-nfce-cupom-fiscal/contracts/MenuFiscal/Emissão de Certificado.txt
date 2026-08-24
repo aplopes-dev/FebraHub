@@ -1,0 +1,129 @@
+/speckit-specify --scope erp --short-name fiscal-certificate-screen
+
+Desenvolver a tela "Fiscal" do erp-web em Configurações, cuja função nesta entrega é o
+cadastro e acompanhamento do certificado digital A1 (.pfx) da empresa. Consome a
+services/fiscal-api (módulo `certificates`, já implementado).
+
+LOCALIZAÇÃO — DECIDIDA, NÃO REABRIR
+A tela ocupa o leaf que JÁ EXISTE em `src/lib/navigation.ts`: id "fiscal", label "Fiscal",
+path `/configuracoes/fiscal`, ícone "receipt", em COMERCIO_FOOTER_MODULES > Configurações.
+Não criar leaf novo, hub, nem sub-rota. `app/(app)/configuracoes/fiscal/page.tsx` deixa de
+ser PlaceholderPage. Referência visual de layout (cards com título, descrição, ação à
+direita): https://app.connectplug.com.br/dashboard/settings/certificate
+
+REMOÇÃO DA UI MOCK DUPLICADA (escopo desta entrega)
+Existe hoje uma seção "Certificado digital (NF-e)" mockada em
+`features/company-settings/components/company-usage-tab.tsx` (usa
+`company-certificate-field.tsx`, com progresso simulado por setInterval e nenhuma chamada
+de API, hoje desabilitada). Remover essa seção e, no lugar, deixar um atalho para
+`/configuracoes/fiscal`. Certificado passa a ter um único dono na aplicação.
+Reaproveitar o que serve de `company-certificate-field.tsx` (seletor .pfx/.p12,
+`PasswordInput` do @citybox/mui) na feature nova — sem manter o componente antigo.
+
+CONTRATO DA fiscal-api (:3116, já implementado — NÃO alterar)
+- POST   /api/v1/companies/{companyId}/certificates
+    multipart/form-data: `file` (.pfx|.p12, máx. 10 MB), `password` (obrigatório),
+    `name` (opcional) → 201 { data: { id, companyId, type, name, subjectCnpj,
+    validFrom, validUntil, status, createdAt } }
+- GET    /api/v1/companies/{companyId}/certificates → { data: [...] }
+- GET    /api/v1/certificates/{id}/status → { data: { status, validUntil,
+         daysUntilExpiration } }
+- POST   /api/v1/companies  (criação do Emitente — ver abaixo)
+- Permissão: `fiscal.certificates.manage` (certificados) e `fiscal.companies.manage`
+  (Emitente)
+- Status: PENDING_VALIDATION | VALID | EXPIRED | INVALID | REVOKED (upload aceito nasce VALID)
+- Nenhuma resposta devolve senha ou chave de armazenamento do .pfx.
+
+PROVISIONAMENTO DO EMITENTE (quando não existe Company para o CNPJ da organização)
+A tela cria o Emitente automaticamente, sem formulário, a partir da FILIAL MATRIZ
+(`GET /v1/branches`, `isHeadquarters: true`) da erp-api, que já carrega CNPJ, razão
+social, nome fantasia, inscrição estadual, inscrição municipal, regime tributário e
+endereço completo. NÃO usar `/v1/organizations/current` como fonte desses dados — esse
+endpoint não devolve endereço, regime, UF nem código IBGE, e `POST /v1/companies` exige
+todos eles.
+- `storeId`: usar `platformStoreId` da organização. Ele NÃO é exposto hoje —
+  adicionar o campo ao `OrganizationPresenter` da erp-api
+  (`modules/tenancy/infrastructure/http/routes/shared/organization.presenter.ts`)
+  e ao DTO correspondente no erp-web. É a única alteração de backend desta entrega.
+- `defaultEnvironment`: HOMOLOGATION.
+- A tela dedicada de cadastro/edição de Emitente fica FORA DE ESCOPO (entrega futura);
+  aqui o Emitente é criado com o mínimo necessário para existir.
+
+RISCOS CONHECIDOS A TRATAR NA SPEC (não silenciar)
+1. `cityCodeIbge` (7 dígitos, obrigatório) NÃO tem fonte no cadastro de filial, que só
+   tem cidade e UF. Definir a origem no /speckit-plan (tabela IBGE estática, derivação
+   por CEP, ou novo campo na filial) — é o item aberto de maior risco.
+2. A filial aceita os regimes MEI e ISENTO, que NÃO existem na fiscal-api
+   (SIMPLES_NACIONAL | LUCRO_PRESUMIDO | LUCRO_REAL). Definir comportamento: bloquear
+   com mensagem clara em vez de mapear para um regime arbitrário.
+3. `platformStoreId` é nullable — organização não provisionada por evento da plataforma
+   fica sem ele. Definir o estado da tela nesse caso.
+4. `Company.cnpj` e `Company.storeId` são @unique — filiais com CNPJ próprio exigirão
+   Emitentes distintos. Limite conhecido desta entrega, registrar como tal.
+
+CONTEÚDO DA TELA
+- Certificado vigente: card com CNPJ do titular, validade (de/até), dias restantes
+  (via /status), chip de status, destaque para "vence em breve" e "vencido".
+- Histórico: lista SOMENTE LEITURA dos demais certificados (nome, CNPJ, validade,
+  status, data de envio). SEM botão "Ativar" — `PATCH /certificates/{id}/activate` não
+  altera qual certificado assina as notas (não há campo `active` no schema; vale sempre
+  o VALID mais recente). Substituir = enviar um novo certificado.
+- Estado vazio: card no formato da referência com o botão "Inserir certificado".
+- Modal de upload: seletor de arquivo (drag-and-drop + clique), campo Senha
+  (`PasswordInput`), campo Nome/apelido opcional, estado de envio e erro inline.
+
+ERROS TRADUZIDOS EM MENSAGEM DE NEGÓCIO
+- arquivo ausente / senha em branco → 400
+- extensão ≠ .pfx/.p12, arquivo vazio, > 10 MB, assinatura binária inválida
+- senha incorreta, certificado corrompido ou expirado (parse PKCS#12) → 422
+- CNPJ do certificado ≠ CNPJ do Emitente → mensagem comparando os dois documentos
+  (é o erro mais provável na operação real)
+- falha ao provisionar o Emitente (campo obrigatório ausente na filial) → mensagem
+  dizendo qual dado falta e onde completá-lo
+
+INTEGRAÇÃO NO FRONT
+- Proxy same-origin `/api/proxy/fiscal/[...path]` (já existe; repassa Content-Type e
+  body cru, então multipart passa).
+- ⚠️ `fiscalFetch` (`src/lib/api/fiscal-client.ts`) força `Content-Type: application/json`
+  quando há body, o que QUEBRA multipart (apaga o boundary). Criar `fiscalUpload()`
+  espelhando `comercioUpload()` de `comercio-client.ts`.
+- Reaproveitar/promover `useFiscalCompany()` (hoje em `features/facilita-nfe/hooks`) em
+  vez de duplicar.
+- React Query; feature nova em `src/features/fiscal-certificate/`
+  (`api/`, `hooks/`, `components/`, `types/`) + GUIA.md obrigatório em linguagem de
+  negócio (§4.5 de apps/erp/web/AGENTS.md).
+- DS: @citybox/mui (não @citybox/ui); ícones só de @mui/icons-material via registry.
+  O DS tem `PasswordInput`, `Button` e `toast`; não tem Dropzone — construir na feature.
+
+SEGURANÇA
+- Senha do certificado nunca em query string, log, cache do React Query ou
+  localStorage/sessionStorage; vive só no estado do formulário e é descartada após envio.
+- Nunca exibir de volta senha ou identificador de armazenamento do .pfx.
+- Rota e ações respeitam `fiscal.certificates.manage`.
+
+FORA DE ESCOPO (declarar na spec)
+- Card "Comprar Certificado" / "Ver solicitações": não há backend de compra no Citybox.
+- Excluir/revogar certificado: a fiscal-api não expõe DELETE.
+- Certificado A3 (token/cartão): a fiscal-api só trata A1.
+- Tela de cadastro/edição de Emitente.
+- Demais assuntos fiscais da tela (parâmetros, notas) — a página nasce só com certificado,
+  estruturada para receber outras seções depois.
+
+CRITÉRIOS DE SUCESSO
+- Upload de .pfx válido com senha correta conclui e a tela reflete o certificado vigente
+  sem recarregar a página.
+- Cada família de falha (arquivo, senha, expirado, CNPJ divergente, Emitente sem dados)
+  produz mensagem distinta e acionável, sem stack trace nem código HTTP cru.
+- Certificado a menos de 30 dias do vencimento é sinalizado visualmente.
+- Loja sem Emitente consegue concluir o upload no primeiro acesso, sem passo manual fora
+  da tela (desde que a filial matriz tenha os dados obrigatórios).
+
+DOCS-AS-CODE (Princípio I)
+Na mesma entrega: `apps/erp/web/AGENTS.md` (feature nova, remoção da seção mock,
+`fiscalUpload`), `apps/erp/api/AGENTS.md` (novo campo no presenter de organizações) e
+`src/features/fiscal-certificate/GUIA.md`.
+
+TESTES
+Vitest + Testing Library + MSW cobrindo: estado sem Emitente (provisionamento
+automático), upload com sucesso, cada família de erro, badge de expiração próxima e
+renderização do histórico somente-leitura.

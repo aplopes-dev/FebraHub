@@ -1,0 +1,35 @@
+{
+  "realm": "citybox-erp",
+  "enabled": true,
+  "displayName": "CityBox Comércio (preview do tema)",
+  "loginTheme": "citybox",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR"],
+  "defaultLocale": "pt-BR",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "users": [
+    {
+      "username": "preview@citybox.com",
+      "email": "preview@citybox.com",
+      "firstName": "Preview",
+      "lastName": "Tema",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "preview", "temporary": false }]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "preview-web",
+      "name": "Preview do tema",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ]
+}

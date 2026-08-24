@@ -1,0 +1,97 @@
+/speckit-specify --scope erp --short-name fiscal-operation-natures
+
+Entregar o cadastro de Naturezas de Operação — regras de-para que, dada uma operação de
+entrada, determinam CFOP e grupos fiscais da operação de saída correspondente. O caso canônico
+é devolução de mercadoria para fornecedor.
+
+STATUS: BACKLOG — DEPENDE DE CINCO PRÉ-REQUISITOS
+Esta spec é escrita agora para registrar o levantamento, mas a implementação é a ÚLTIMA da
+fila fiscal. Pré-requisitos, todos nomeados:
+1. Grupos de ICMS (fiscal-icms-group) — spec escrita, não implementada.
+2. Grupos de PIS/COFINS (fiscal-pis-cofins-group) — spec escrita, não implementada.
+3. Tabela de CFOP — não existe no monorepo; `ProductFiscal.cfop` é String livre.
+4. Emissão de ENTRADA/DEVOLUÇÃO — o builder fixa `tpNF: '1'` (saída), com "único suportado no
+   v1" registrado no código. Sem operação de entrada, um de-para entrada→saída não tem o que
+   transformar.
+5. `cBenef` por UF — fora da fatia decidida para o grupo de ICMS.
+Implementar antes disso produz cadastro sem o que mapear.
+
+TELA DE REFERÊNCIA (lida ao vivo em /dashboard/settings/fiscal-settings/nature-operations)
+Formulário "Nova natureza de operações", quatro blocos:
+1. Informações gerais — Nome (placeholder "Ex. Devolução de Mercadoria para Fornecedor") ·
+   Descrição opcional (300 caracteres) · "Manter Código de Benefício Fiscal na UF nos
+   produtos?" (Sim/Não, padrão Não).
+2. CFOP — "Configure os códigos fiscais de entrada e saída que serão aplicados
+   automaticamente": linhas De → Para + campo "ICMS Livre", com "+ Adicionar campo". O select
+   "De" lista CFOPs de ENTRADA (1101, 1102, 1111, 1113…).
+3. Grupo de ICMS — linhas De → Para, com "+ Adicionar campo".
+4. Grupo de PIS/COFINS — linhas De → Para, com "+ Adicionar campo".
+
+"ICMS LIVRE" — SEMÂNTICA APURADA
+O campo tem três opções: **Ambos · Não · Sim**. Não é um valor aplicado, é a CONDIÇÃO de
+aplicação da linha: o de-para vale para itens ICMS-livre (Sim), para itens não ICMS-livre
+(Não), ou para os dois (Ambos). Leitura por inferência — a referência não traz tooltip.
+Como o sistema sabe se um item é ICMS livre: DERIVADO do grupo de ICMS do item — CSTs/CSOSN
+não tributados contam como ICMS livre. Definir a lista exata no plan. NÃO criar flag manual no
+produto: uma segunda declaração da mesma verdade diverge do CST cadastrado e faz a regra
+escolher a linha errada sem ninguém perceber.
+
+RESOLUÇÃO DO DE-PARA — DECIDIDO
+- Várias linhas podem casar. **A mais específica vence**: linha com ICMS Livre = Sim/Não
+  prevalece sobre linha com Ambos. É o que dá sentido ao estado "Ambos" — permite "regra geral
+  + exceção".
+- Nenhuma linha casa: mantém o valor original do item. Não bloquear a operação.
+- Ambos os comportamentos são requisitos testáveis, não detalhe de implementação.
+
+TABELA DE CFOP — DECIDIDO
+Estática, versionada em código, protegida por teste que quebra se alguém a alterar — mesmo
+padrão decidido para o `cEnq` do IPI e já usado no bundle de CAs da SEFAZ. Não é cadastro do
+lojista nem seed de banco; atualização entra por PR quando a legislação mudar.
+
+"MANTER CÓDIGO DE BENEFÍCIO FISCAL NA UF" — DECIDIDO
+Renderizar o campo DESABILITADO, com o motivo visível — mesmo tratamento já dado aos campos
+sem backend em Configurações gerais e ao toggle de DIFAL em Tipo de NF do PDV. Depende do
+`cBenef` por UF, que está fora da fatia do grupo de ICMS.
+
+DECISÕES HERDADAS DAS FEATURES FISCAIS — MANTER, NÃO REABRIR
+- Fatia vertical: cadastro + uso real na emissão.
+- O cadastro pertence à organização e vale para todas as unidades. Compartilhamento entre
+  organizações descartado (Princípio V).
+- Quem monta o pedido de emissão resolve a regra e envia valores prontos; a fiscal-api não
+  conhece naturezas de operação.
+- Só oferecer nos selects o que o emissor sabe montar.
+- Salvamento explícito, com aviso ao sair com alterações pendentes.
+- Localização: `/configuracoes/fiscal` (leaf único id "fiscal") — mesma resposta das features
+  fiscais anteriores, a fechar no plan.
+
+ESCOPO (condicionado aos pré-requisitos)
+- erp-api: entidade de natureza de operação com nome, descrição, indicador de benefício fiscal
+  e as três listas de-para (CFOP com condição ICMS Livre, grupo de ICMS, grupo de PIS/COFINS).
+- erp-web: lista e formulário no espírito da referência, com linhas adicionáveis por bloco.
+- Aplicação da regra no fluxo que gerar a operação de saída correspondente.
+FORA:
+- Implementar operação de entrada/devolução na fiscal-api (pré-requisito, não escopo).
+- Grupos de ICMS e de PIS/COFINS (features próprias).
+- `cBenef` por UF.
+
+SEGURANÇA E PERMISSÃO
+Regra que altera CFOP e tributação da nota emitida — permissão própria, distinta da de leitura.
+
+CRITÉRIOS DE SUCESSO
+- Criar, listar e editar uma natureza com as três listas de-para persiste e recarrega correto.
+- Operação de entrada que casa com uma linha gera a saída com o CFOP e os grupos mapeados.
+- Item ICMS-livre com regra geral (Ambos) e exceção (Sim) cadastradas resolve pela exceção.
+- Operação sem correspondência mantém o valor original do item, sem bloquear.
+- O campo de benefício fiscal aparece desabilitado, com o motivo, e não aceita edição.
+- Nenhum select oferece CFOP ou grupo que o emissor não saiba montar.
+
+DOCS-AS-CODE (Princípio I)
+Atualizar `apps/erp/web/AGENTS.md` e `apps/erp/api/AGENTS.md`; `services/fiscal-api/AGENTS.md`
+apenas se a emissão for tocada. Migration Prisma → gate `database-reviewer`. GUIA.md da
+feature.
+
+TESTES
+erp-web: Vitest + Testing Library + MSW (lista, criação, adição/remoção de linhas, campo
+desabilitado, validação).
+erp-api: Postgres real — persistência das listas e resolução da regra: casa uma, casa duas com
+especificidades diferentes, não casa nenhuma.

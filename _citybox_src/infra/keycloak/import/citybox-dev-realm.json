@@ -1,0 +1,252 @@
+{
+  "realm": "citybox-dev",
+  "enabled": true,
+  "displayName": "Citybox Platform",
+  "loginTheme": "citybox-admin",
+  "accountTheme": "citybox",
+  "emailTheme": "citybox",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "pt"
+  ],
+  "defaultLocale": "pt",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "platform_admin",
+        "description": "Admin plataforma"
+      },
+      {
+        "name": "store_staff",
+        "description": "Operador loja / backoffice"
+      },
+      {
+        "name": "consumer",
+        "description": "App consumidor"
+      },
+      {
+        "name": "platform_operator",
+        "description": "Operador interno da plataforma Citybox"
+      }
+    ],
+    "client": {
+      "citybox-backoffice": [
+        {
+          "name": "platform.admin",
+          "description": "Admin backoffice"
+        },
+        {
+          "name": "vertical.comercio.view",
+          "description": "Vertical Comércio — ERP Comércio (food + varejo no mesmo sistema)"
+        },
+        {
+          "name": "vertical.clinic.view",
+          "description": "Vertical Clínica — apps/verticals/clinica"
+        },
+        {
+          "name": "vertical.imoveis.view",
+          "description": "Vertical Imóveis — apps/imoveis"
+        },
+        {
+          "name": "vertical.beautiful.view",
+          "description": "Vertical Beautiful — apps/verticals/beautiful"
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "citybox-app",
+      "name": "App Consumidor",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:*",
+        "https://app.citybox.com/*",
+        "citybox://*"
+      ],
+      "webOrigins": [
+        "https://app.citybox.com",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ]
+    },
+    {
+      "clientId": "citybox-backoffice",
+      "name": "Backoffice SaaS",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:*",
+        "http://127.0.0.1:3107/*",
+        "http://127.0.0.1:3111/*",
+        "http://127.0.0.1:3113/*",
+        "http://127.0.0.1:3115/*",
+        "https://admin.citybox.com/*",
+        "https://backoffice.citybox.com/*",
+        "https://clinica.citybox.com/*",
+        "https://imoveis.citybox.com/*",
+        "https://beautiful.citybox.com/*",
+        "https://admin.aplopes.com/*",
+        "https://backoffice.aplopes.com/*",
+        "https://clinica.aplopes.com/*",
+        "https://imoveis.aplopes.com/*"
+      ],
+      "webOrigins": [
+        "https://admin.citybox.com",
+        "https://backoffice.citybox.com",
+        "https://clinica.citybox.com",
+        "https://imoveis.citybox.com",
+        "https://beautiful.citybox.com",
+        "https://admin.aplopes.com",
+        "https://backoffice.aplopes.com",
+        "https://clinica.aplopes.com",
+        "https://imoveis.aplopes.com",
+        "http://localhost:3107",
+        "http://127.0.0.1:3107",
+        "http://localhost:3111",
+        "http://127.0.0.1:3111",
+        "http://localhost:3113",
+        "http://127.0.0.1:3113",
+        "http://localhost:3115",
+        "http://127.0.0.1:3115"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "use.refresh.tokens": "true",
+        "login_theme": "citybox-erp"
+      },
+      "secretEnv": "KEYCLOAK_BACKOFFICE_SECRET"
+    },
+    {
+      "clientId": "citybox-admin",
+      "name": "Admin Plataforma",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:3108/auth/callback",
+        "http://127.0.0.1:3108/auth/callback",
+        "http://localhost:3108/*",
+        "http://127.0.0.1:3108/*",
+        "https://admin.citybox.com/*",
+        "https://admin.aplopes.com/auth/callback",
+        "https://admin.aplopes.com/*"
+      ],
+      "webOrigins": [
+        "https://admin.citybox.com",
+        "https://admin.aplopes.com",
+        "http://localhost:3108",
+        "http://127.0.0.1:3108"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "login_theme": "citybox-admin"
+      },
+      "secretEnv": "KEYCLOAK_ADMIN_WEB_SECRET"
+    },
+    {
+      "clientId": "citybox-core-admin",
+      "name": "Core API - Keycloak Admin",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "citybox-core-admin-dev-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "secretEnv": "KEYCLOAK_ADMIN_CLIENT_SECRET",
+      "serviceAccountClientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "view-clients",
+          "query-clients"
+        ]
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@citybox.com",
+      "firstName": "Admin",
+      "lastName": "Plataforma",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "citybox",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "platform_admin"
+      ],
+      "clientRoles": {
+        "citybox-backoffice": [
+          "platform.admin",
+          "vertical.comercio.view",
+          "vertical.clinic.view",
+          "vertical.imoveis.view",
+          "vertical.beautiful.view"
+        ]
+      }
+    },
+    {
+      "username": "service-account-citybox-core-admin",
+      "enabled": true,
+      "serviceAccountClientId": "citybox-core-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-realm",
+          "manage-users",
+          "view-realm",
+          "view-users"
+        ]
+      },
+      "realmRoles": [
+        "platform_admin"
+      ]
+    },
+    {
+      "username": "lojista",
+      "enabled": true,
+      "email": "lojista@citybox.com",
+      "firstName": "Maria",
+      "lastName": "Lojista",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "citybox",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "store_staff"
+      ],
+      "clientRoles": {
+        "citybox-backoffice": [
+          "vertical.comercio.view",
+          "vertical.clinic.view",
+          "vertical.imoveis.view",
+          "vertical.beautiful.view"
+        ]
+      }
+    }
+  ],
+  "_deprecated": "Realm compartilhado legado. Substituido por um realm por sistema (ADR C-16). Mantido apenas ate a F1 terminar; removido na F4."
+}

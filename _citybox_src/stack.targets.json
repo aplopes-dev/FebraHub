@@ -1,0 +1,27 @@
+{
+  "infra": {
+    "postgres": { "label": "PostgreSQL", "target": "17", "match": "^postgres:17|^pgvector/pgvector:pg17" },
+    "postgres-replica": { "label": "PostgreSQL réplica", "target": "17", "match": "^postgres:17|^pgvector/pgvector:pg17" },
+    "redis": { "label": "Redis", "target": "8", "match": "^redis:8" },
+    "rabbitmq": { "label": "RabbitMQ", "target": "4.3", "match": "^rabbitmq:4\\.3" },
+    "typesense": { "label": "Typesense", "target": "30", "match": "^typesense/typesense:30" },
+    "keycloak": { "label": "Keycloak", "target": "26.6", "match": "^quay\\.io/keycloak/keycloak:26\\.6" },
+    "unleash": { "label": "Unleash", "target": "6.9", "match": "^unleashorg/unleash-server:6\\.9" },
+    "minio": { "label": "MinIO", "target": "RELEASE.2025", "match": "^minio/minio:RELEASE\\.202[56]" },
+    "metabase": { "label": "Metabase", "target": "0.53", "match": "^metabase/metabase:v0\\.53" },
+    "nginx": { "label": "Nginx", "target": "1.27", "match": "^nginx:1\\.27" }
+  },
+  "runtime": {
+    "node": { "label": "Node.js", "target": "24", "match": "^24" },
+    "typescript": { "label": "TypeScript", "target": "6.0", "match": "^6\\." }
+  },
+  "backend": {
+    "nestjs": { "label": "NestJS", "target": "11.1", "match": "^11\\." },
+    "prisma": { "label": "Prisma ORM", "target": "7.8", "match": "^7\\.8" }
+  },
+  "frontend": {
+    "next": { "label": "Next.js", "target": "16.2", "match": "^16\\.2" },
+    "react": { "label": "React", "target": "19.2", "match": "^19\\.2" },
+    "tailwind": { "label": "Tailwind CSS", "target": "4.3", "match": "^4\\.3" }
+  }
+}

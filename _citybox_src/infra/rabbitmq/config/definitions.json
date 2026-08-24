@@ -1,0 +1,172 @@
+{
+  "users": [
+    {
+      "name": "citybox",
+      "password": "citybox",
+      "tags": "administrator"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "citybox",
+      "vhost": "citybox",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "vhosts": [{ "name": "citybox" }],
+  "queues": [
+    {
+      "name": "marketplace.projection",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "search.indexer",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "notifications",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "fiscal",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "payments.webhook",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "realtime.broadcast",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "print.jobs",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "payments.orders",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "food.store-setup",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-dead-letter-exchange": "citybox.dlx" }
+    },
+    {
+      "name": "dlq",
+      "vhost": "citybox",
+      "durable": true,
+      "auto_delete": false
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "citybox.events",
+      "vhost": "citybox",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "citybox.dlx",
+      "vhost": "citybox",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false
+    }
+  ],
+  "bindings": [
+    {
+      "source": "citybox.dlx",
+      "vhost": "citybox",
+      "destination": "dlq",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "marketplace.projection",
+      "destination_type": "queue",
+      "routing_key": "citybox.order.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "search.indexer",
+      "destination_type": "queue",
+      "routing_key": "citybox.catalog.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "notifications",
+      "destination_type": "queue",
+      "routing_key": "citybox.order.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "print.jobs",
+      "destination_type": "queue",
+      "routing_key": "citybox.print.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "realtime.broadcast",
+      "destination_type": "queue",
+      "routing_key": "citybox.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "payments.orders",
+      "destination_type": "queue",
+      "routing_key": "citybox.payment.#",
+      "arguments": {}
+    },
+    {
+      "source": "citybox.events",
+      "vhost": "citybox",
+      "destination": "food.store-setup",
+      "destination_type": "queue",
+      "routing_key": "citybox.store.#",
+      "arguments": {}
+    }
+  ]
+}

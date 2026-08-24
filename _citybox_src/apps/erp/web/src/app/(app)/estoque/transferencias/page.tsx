@@ -1,0 +1,5 @@
+import { StockTransferListPage } from "@/features/stock-transfers";
+
+export default function Page() {
+  return <StockTransferListPage />;
+}

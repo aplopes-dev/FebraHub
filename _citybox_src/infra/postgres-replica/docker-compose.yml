@@ -1,0 +1,33 @@
+# C-08 — em dev: instância separada para BI. Em prod: configurar streaming replication
+# a partir de services/postgres/ (ver README).
+services:
+  postgres-replica:
+    image: postgres:17-alpine
+    container_name: citybox_postgres_replica
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_REPLICA_USER:-citybox_replica}
+      POSTGRES_PASSWORD: ${POSTGRES_REPLICA_PASSWORD:-citybox_replica}
+      POSTGRES_DB: ${POSTGRES_REPLICA_DB:-campinas_dev_ro}
+    ports:
+      - "127.0.0.1:${POSTGRES_REPLICA_PORT:-5434}:5432"
+    volumes:
+      - citybox_postgres_replica_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_REPLICA_USER:-citybox_replica}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - citybox-platform
+
+volumes:
+  citybox_postgres_replica_data:
+    name: citybox_postgres_replica_data
+
+networks:
+  citybox-platform:
+    name: citybox-platform
+    external: true

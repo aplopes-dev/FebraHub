@@ -1,0 +1,37 @@
+# Marketplace API core em produção (interna — consumida pelo BFF; sem rota pública).
+name: marketplace-api
+
+services:
+  api:
+    build:
+      context: ../../..
+      dockerfile: apps/marketplace/api/Dockerfile
+    image: citybox-marketplace-api:latest
+    container_name: citybox_marketplace_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3101
+      PLATFORM_DATABASE_URL: ${PLATFORM_DATABASE_URL}
+      TENANT_DATABASE_URL: ${TENANT_DATABASE_URL}
+      # Realm próprio do marketplace (ADR C-16). Issuer ÚNICO: KEYCLOAK_ACCEPTED_ISSUERS
+      # foi removido — aceitar mais de um issuer é aceitar token de mais de um realm.
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-citybox-marketplace}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-https://auth.citybox.com.br/realms/citybox-marketplace}
+      KEYCLOAK_JWKS_URL: ${KEYCLOAK_JWKS_URL:-http://aplopes_keycloak:8080/realms/citybox-marketplace/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-marketplace-app}
+      KEYCLOAK_ALLOWED_AZP: ${KEYCLOAK_ALLOWED_AZP:-marketplace-app}
+      KEYCLOAK_PROVISIONING_CLIENT_ID: ${KEYCLOAK_PROVISIONING_CLIENT_ID:-marketplace-provisioning}
+      KEYCLOAK_PROVISIONING_CLIENT_SECRET: ${KEYCLOAK_MARKETPLACE_PROVISIONING_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-citybox-marketplace}
+    ports:
+      - "127.0.0.1:3101:3101"
+    networks:
+      - aplopes-platform
+
+networks:
+  aplopes-platform:
+    external: true

@@ -1,0 +1,163 @@
+name: citybox-platform-api
+
+services:
+  infra-wait:
+    image: busybox:1.36.1
+    container_name: citybox_platform_infra_wait
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 60); do
+          nc -z citybox_postgres 5432 && nc -z citybox_rabbitmq 5672 && nc -z citybox_redis 6379 && nc -z citybox_typesense 8108 && exit 0
+          sleep 2
+        done
+        echo "infra indisponível (postgres/rabbitmq/redis/typesense)" >&2
+        exit 1
+    restart: "no"
+    networks:
+      - citybox-platform
+
+  marketplace-api:
+    build:
+      context: ../..
+      dockerfile: apps/marketplace/api/Dockerfile
+    image: citybox-marketplace-api:latest
+    container_name: citybox_marketplace_api
+    restart: unless-stopped
+    env_file:
+      - ./platform-apps.env
+    environment:
+      NODE_ENV: production
+      AUTH_DEV_BYPASS: "false"
+      PORT: 3101
+      PLATFORM_DATABASE_URL: postgresql://citybox:citybox@citybox_postgres:5432/citybox_platform
+      TENANT_DATABASE_URL_TEMPLATE: postgresql://citybox:citybox@citybox_postgres:5432/{db}
+      PAYMENT_API_BASE_URL: http://payment_api:3106/api
+      PAYMENTS_PLATFORM_RECIPIENT_ID: "019aff00-0000-7000-8000-000000000002"
+      KEYCLOAK_ISSUER: https://auth.citybox.com/realms/citybox-dev
+      MINIO_ENDPOINT: citybox_minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-citybox}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-citybox-minio-dev}
+      MINIO_USERS_BUCKET: citybox-platform-users
+      SWAGGER_ENABLED: "false"
+      CORS_ORIGINS: https://backoffice.citybox.com,https://admin.citybox.com,https://app.citybox.com,https://city.citybox.com,http://127.0.0.1:3107
+    ports:
+      - "127.0.0.1:3101:3101"
+    depends_on:
+      infra-wait:
+        condition: service_completed_successfully
+    networks:
+      citybox-platform:
+        aliases:
+          - citybox_core_api
+
+  workers:
+    build:
+      context: ../..
+      dockerfile: apps/workers/Dockerfile
+    image: citybox-workers:latest
+    container_name: citybox_workers
+    restart: unless-stopped
+    env_file:
+      - ./platform-apps.env
+    environment:
+      NODE_ENV: production
+      AUTH_DEV_BYPASS: "false"
+      PORT: 3105
+      PLATFORM_DATABASE_URL: postgresql://citybox:citybox@citybox_postgres:5432/citybox_platform
+      TENANT_DATABASE_URL_TEMPLATE: postgresql://citybox:citybox@citybox_postgres:5432/{db}
+      RABBITMQ_URL: amqp://citybox:citybox@citybox_rabbitmq:5672/citybox
+      TYPESENSE_HOST: citybox_typesense
+      TYPESENSE_PORT: 8108
+      TYPESENSE_PROTOCOL: http
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-citybox-dev-typesense-key}
+      SWAGGER_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3105:3105"
+    depends_on:
+      infra-wait:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3105/api/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    networks:
+      - citybox-platform
+
+  admin-api:
+    build:
+      context: ../..
+      dockerfile: apps/admin/api/Dockerfile
+    image: citybox-admin-api:latest
+    container_name: citybox_admin_api
+    restart: unless-stopped
+    env_file:
+      - ./platform-apps.env
+    environment:
+      NODE_ENV: production
+      AUTH_DEV_BYPASS: "false"
+      PORT: 3103
+      DATABASE_URL: postgresql://citybox:citybox@citybox_postgres:5432/citybox_platform?schema=platform
+      KEYCLOAK_ISSUER: https://auth.citybox.com/realms/citybox-dev
+      KEYCLOAK_ADMIN_CLIENT_ID: citybox-core-admin
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_CORE_ADMIN_CLIENT_SECRET:-citybox-core-admin-dev-secret}
+      RABBITMQ_URL: amqp://citybox:citybox@citybox_rabbitmq:5672/citybox
+      REDIS_URL: redis://citybox_redis:6379
+      SWAGGER_ENABLED: "false"
+      CORS_ORIGINS: https://admin.citybox.com,https://backoffice.citybox.com
+    ports:
+      - "127.0.0.1:3103:3103"
+    depends_on:
+      infra-wait:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3103/api/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    networks:
+      - citybox-platform
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin/web/Dockerfile
+      args:
+        NEXT_PUBLIC_KEYCLOAK_ISSUER: https://auth.citybox.com/realms/citybox-dev
+        NEXT_PUBLIC_ADMIN_ORIGIN: https://admin.citybox.com
+    image: citybox-admin-web:latest
+    container_name: citybox_admin_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3108
+      ADMIN_API_URL: http://admin-api:3103/api
+      NEXT_PUBLIC_KEYCLOAK_ISSUER: https://auth.citybox.com/realms/citybox-dev
+      NEXT_PUBLIC_ADMIN_ORIGIN: https://admin.citybox.com
+      KEYCLOAK_INTERNAL_ISSUER: http://citybox_keycloak:8080/realms/citybox-dev
+      KEYCLOAK_ADMIN_WEB_SECRET: ${KEYCLOAK_ADMIN_WEB_SECRET:-citybox-admin-dev-secret}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_WEB_SECRET:-citybox-admin-dev-secret}
+    ports:
+      - "127.0.0.1:3108:3108"
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    networks:
+      - citybox-platform
+
+networks:
+  citybox-platform:
+    name: citybox-platform
+    external: true

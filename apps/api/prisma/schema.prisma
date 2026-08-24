@@ -2007,15 +2007,19 @@ model Fornecedor {
   id               String   @id @default(uuid()) @db.Uuid
   razaoSocial      String   @map("razao_social")
   nomeFantasia     String?  @map("nome_fantasia")
+  /// CPF/CNPJ so digitos. Unico quando informado (indice parcial na migration).
   documento        String?
   inscricao        String?
   email            String?
   telefone         String?
   whatsapp         String?
+  /// Endereco em um bloco so — o cadastro corporativo nao precisa normalizar
+  /// logradouro/numero/bairro para o uso de Compras.
   endereco         String?
   cidade           String?
   uf               String?  @db.VarChar(2)
   cep              String?
+  /// Categorias/tags livres (ex.: "papelaria", "grafica", "servicos").
   categorias       String[] @default([])
   banco            String?
   agencia          String?
@@ -2023,6 +2027,7 @@ model Fornecedor {
   chavePix         String?  @map("chave_pix")
   prazoMedioDias   Int?     @map("prazo_medio_dias")
   condicoesComerciais String? @map("condicoes_comerciais")
+  /// ativo | inativo | bloqueado | em_homologacao
   situacao         String   @default("ativo")
   observacoes      String?
   documentos       Json     @default("[]")
@@ -2050,6 +2055,309 @@ model FornecedorContato {
 
   @@index([fornecedorId])
   @@map("fornecedor_contatos")
+}
+
+// ====================================================================
+// PDV — Ponto de venda interno (sem Omie). A venda escreve DIRETO no
+// banco: baixa o saldo em fato_loja_estoque, registra o movimento no
+// MESMO ledger do Compras (compra_movimentos_estoque, tipo='saida') e
+// gera um recebivel no Financeiro. Tudo numa transacao.
+// ====================================================================
+
+model PdvTerminal {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  sessoes   PdvCaixaSessao[]
+  vendas    PdvVenda[]
+  @@map("pdv_terminais")
+}
+
+/// Turno de caixa (abrir -> vendas/sangrias -> fechar).
+model PdvCaixaSessao {
+  id             String   @id @default(uuid()) @db.Uuid
+  terminalId     String   @map("terminal_id") @db.Uuid
+  situacao       String   @default("aberto") // aberto | fechado
+  abertoEm       DateTime @default(now()) @map("aberto_em") @db.Timestamptz(6)
+  fechadoEm      DateTime? @map("fechado_em") @db.Timestamptz(6)
+  abertoPorId    String   @map("aberto_por_id") @db.Uuid
+  abertoPorNome  String   @map("aberto_por_nome")
+  fundoAbertura  Decimal  @default(0) @map("fundo_abertura") @db.Decimal(14, 2)
+  contadoDinheiro Decimal? @map("contado_dinheiro") @db.Decimal(14, 2)
+  esperadoDinheiro Decimal? @map("esperado_dinheiro") @db.Decimal(14, 2)
+  diferenca      Decimal? @db.Decimal(14, 2)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  terminal       PdvTerminal @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  movimentos     PdvCaixaMovimento[]
+  vendas         PdvVenda[]
+  @@index([situacao, abertoEm(sort: Desc)])
+  @@index([terminalId, situacao])
+  @@map("pdv_caixa_sessoes")
+}
+
+/// Sangria (retirada) ou reforço (aporte) de caixa.
+model PdvCaixaMovimento {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessaoId  String   @map("sessao_id") @db.Uuid
+  tipo      String   // sangria | reforco
+  valor     Decimal  @db.Decimal(14, 2)
+  motivo    String   @default("")
+  operadorId String  @map("operador_id") @db.Uuid
+  operadorNome String @map("operador_nome")
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  sessao    PdvCaixaSessao @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+  @@index([sessaoId, criadoEm(sort: Desc)])
+  @@map("pdv_caixa_movimentos")
+}
+
+model PdvVenda {
+  id            String   @id @default(uuid()) @db.Uuid
+  numero        String   @unique
+  situacao      String   @default("fechada") // fechada | cancelada
+  canal         String   @default("pdv")     // pdv | delivery
+  clienteNome   String   @default("") @map("cliente_nome")
+  clienteDocumento String? @map("cliente_documento")
+  terminalId    String?  @map("terminal_id") @db.Uuid
+  sessaoId      String?  @map("sessao_id") @db.Uuid
+  operadorId    String   @map("operador_id") @db.Uuid
+  operadorNome  String   @map("operador_nome")
+  subtotal      Decimal  @db.Decimal(14, 2)
+  desconto      Decimal  @default(0) @db.Decimal(14, 2)
+  total         Decimal  @db.Decimal(14, 2)
+  observacoes   String   @default("")
+  canceladaEm   DateTime? @map("cancelada_em") @db.Timestamptz(6)
+  motivoCancelamento String? @map("motivo_cancelamento")
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  terminal      PdvTerminal? @relation(fields: [terminalId], references: [id], onDelete: SetNull)
+  sessao        PdvCaixaSessao? @relation(fields: [sessaoId], references: [id], onDelete: SetNull)
+  itens         PdvVendaItem[]
+  pagamentos    PdvVendaPagamento[]
+  @@index([situacao, criadoEm(sort: Desc)])
+  @@index([sessaoId])
+  @@map("pdv_vendas")
+}
+
+model PdvVendaItem {
+  id              String       @id @default(uuid()) @db.Uuid
+  vendaId         String       @map("venda_id") @db.Uuid
+  /// Legado Omie — mantido para histórico de vendas antigas.
+  produtoId       BigInt?      @map("produto_id")
+  /// Catálogo nativo da Loja — usado em vendas novas.
+  lojaProdutoId   String?      @map("loja_produto_id") @db.Uuid
+  descricao       String
+  quantidade      Decimal      @db.Decimal(12, 3)
+  precoUnit       Decimal      @map("preco_unit") @db.Decimal(14, 2)
+  total           Decimal      @db.Decimal(14, 2)
+  venda           PdvVenda     @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  lojaProduto     LojaProduto? @relation(fields: [lojaProdutoId], references: [id], onDelete: SetNull)
+  @@index([vendaId])
+  @@index([lojaProdutoId])
+  @@map("pdv_venda_itens")
+}
+
+model PdvVendaPagamento {
+  id          String   @id @default(uuid()) @db.Uuid
+  vendaId     String   @map("venda_id") @db.Uuid
+  formaPagamento String @map("forma_pagamento")
+  valor       Decimal  @db.Decimal(14, 2)
+  bandeira    String?
+  parcelas    Int?
+  venda       PdvVenda @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  @@index([vendaId])
+  @@map("pdv_venda_pagamentos")
+}
+
+// ====================================================================
+// FINANCEIRO ERP — contas a pagar/receber + DRE. Convive com as views
+// analiticas (vw_financeiro_*) que vem do Salesforce/Sympla; estas sao
+// as tabelas operacionais do ERP proprio. Uma venda do PDV gera um
+// lancamento 'receber' (ja pago). Cadastros de apoio (conta, centro de
+// custo, grupo, plano de contas) sustentam o rateio da DRE.
+// ====================================================================
+
+model FinanceiroContaBancaria {
+  id           String   @id @default(uuid()) @db.Uuid
+  nome         String
+  banco        String   @default("")
+  saldoInicial Decimal  @default(0) @map("saldo_inicial") @db.Decimal(14, 2)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  lancamentos  FinanceiroLancamento[]
+  @@map("financeiro_contas_bancarias")
+}
+
+model FinanceiroCentroCusto {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String   @unique
+  sistema   Boolean  @default(false)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  rateios   FinanceiroRateio[]
+  @@map("financeiro_centros_custo")
+}
+
+model FinanceiroGrupo {
+  id            String   @id @default(uuid()) @db.Uuid
+  nome          String   @unique
+  tipo          String   // receita | despesa
+  classificacao String   @default("resultado") // resultado | patrimonial
+  ordem         Int      @default(0)
+  sistema       Boolean  @default(false)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  contas        FinanceiroPlanoConta[]
+  @@map("financeiro_grupos")
+}
+
+model FinanceiroPlanoConta {
+  id            String   @id @default(uuid()) @db.Uuid
+  nome          String   @unique
+  grupoId       String   @map("grupo_id") @db.Uuid
+  disponivelPdv Boolean  @default(false) @map("disponivel_pdv")
+  sistema       Boolean  @default(false)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  grupo         FinanceiroGrupo @relation(fields: [grupoId], references: [id], onDelete: Restrict)
+  rateios       FinanceiroRateio[]
+  @@index([grupoId])
+  @@map("financeiro_planos_conta")
+}
+
+model FinanceiroLancamento {
+  id             String   @id @default(uuid()) @db.Uuid
+  operacao       String   // receber | pagar
+  descricao      String   @default("")
+  valor          Decimal  @db.Decimal(14, 2)
+  juros          Decimal  @default(0) @db.Decimal(14, 2)
+  multa          Decimal  @default(0) @db.Decimal(14, 2)
+  valorPago      Decimal  @default(0) @map("valor_pago") @db.Decimal(14, 2)
+  situacao       String   @default("pendente") // pendente | pago
+  dataCompetencia DateTime @map("data_competencia") @db.Date
+  dataVencimento DateTime @map("data_vencimento") @db.Date
+  pagoEm         DateTime? @map("pago_em") @db.Date
+  contraparte    String   @default("")
+  formaPagamento String?  @map("forma_pagamento")
+  contaBancariaId String? @map("conta_bancaria_id") @db.Uuid
+  vendaId        String?  @map("venda_id") @db.Uuid
+  origem         String   @default("manual") // manual | pdv
+  observacao     String   @default("")
+  excluidoEm     DateTime? @map("excluido_em") @db.Timestamptz(6)
+  criadoPorId    String?  @map("criado_por_id") @db.Uuid
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  contaBancaria  FinanceiroContaBancaria? @relation(fields: [contaBancariaId], references: [id], onDelete: SetNull)
+  rateios        FinanceiroRateio[]
+  @@index([operacao, dataCompetencia(sort: Desc)])
+  @@index([situacao, dataVencimento])
+  @@index([excluidoEm])
+  @@map("financeiro_lancamentos")
+}
+
+/// Rateio de um lançamento por conta contábil + centro de custo — alimenta a DRE.
+model FinanceiroRateio {
+  id            String   @id @default(uuid()) @db.Uuid
+  lancamentoId  String   @map("lancamento_id") @db.Uuid
+  planoContaId  String   @map("plano_conta_id") @db.Uuid
+  centroCustoId String   @map("centro_custo_id") @db.Uuid
+  valor         Decimal  @db.Decimal(14, 2)
+  percentual    Decimal  @default(0) @db.Decimal(7, 4)
+  lancamento    FinanceiroLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Cascade)
+  planoConta    FinanceiroPlanoConta @relation(fields: [planoContaId], references: [id], onDelete: Restrict)
+  centroCusto   FinanceiroCentroCusto @relation(fields: [centroCustoId], references: [id], onDelete: Restrict)
+  @@index([lancamentoId])
+  @@map("financeiro_rateios")
+}
+
+// ====================================================================
+// LOJA — cadastro rico de produto, categorias e estoque OPERACIONAL por
+// LOCAL (LOJA / DEPOSITO). Nasce da necessidade do grande evento: o PDV e o
+// Cardapio precisam de estoque confiavel e proprio, separado do ETL do Omie
+// (fato_loja_estoque), que pode sobrescrever saldos durante a operacao.
+// Migration 31.
+// ====================================================================
+
+model LojaCategoria {
+  id           String   @id @default(uuid()) @db.Uuid
+  nome         String
+  descricao    String   @default("")
+  cor          String?
+  icone        String?
+  ordem        Int      @default(0)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  produtos     LojaProduto[]
+
+  @@index([ordem, nome])
+  @@map("loja_categorias")
+}
+
+model LojaProduto {
+  id                String   @id @default(uuid()) @db.Uuid
+  nome              String
+  sku               String?
+  codigoBarras      String?  @map("codigo_barras")
+  descricao         String   @default("")
+  imagemUrl         String?  @map("imagem_url")
+  categoriaId       String?  @map("categoria_id") @db.Uuid
+  preco             Decimal  @default(0) @db.Decimal(14, 2)
+  custo             Decimal? @db.Decimal(14, 2)
+  unidade           String   @default("un")
+  /// Vinculo opcional com o estoque legado do Omie (fato_loja_estoque.produto_id).
+  produtoEstoqueId  BigInt?  @map("produto_estoque_id")
+  ativo             Boolean  @default(true)
+  vendePdv          Boolean  @default(true) @map("vende_pdv")
+  exibeCardapio     Boolean  @default(true) @map("exibe_cardapio")
+  precisaPreparacao Boolean  @default(false) @map("precisa_preparacao")
+  controlaEstoque   Boolean  @default(true) @map("controla_estoque")
+  estoqueMinimo     Decimal  @default(0) @map("estoque_minimo") @db.Decimal(14, 3)
+  ordem             Int      @default(0)
+  criadoPorId       String?  @map("criado_por_id") @db.Uuid
+  criadoEm          DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  categoria         LojaCategoria? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  saldos            LojaEstoqueSaldo[]
+  movimentos        LojaEstoqueMovimento[]
+  vendaItens        PdvVendaItem[]
+
+  @@index([categoriaId])
+  @@index([ativo, ordem, nome])
+  @@index([produtoEstoqueId])
+  @@map("loja_produtos")
+}
+
+/// Saldo operacional por (produto, local). Local fisico: LOJA ou DEPOSITO.
+model LojaEstoqueSaldo {
+  produtoId    String   @map("produto_id") @db.Uuid
+  local        String   // LOJA | DEPOSITO
+  saldoFisico  Decimal  @default(0) @map("saldo_fisico") @db.Decimal(14, 3)
+  reservado    Decimal  @default(0) @db.Decimal(14, 3)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  produto      LojaProduto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@id([produtoId, local])
+  @@index([local])
+  @@map("loja_estoque_saldos")
+}
+
+/// Ledger de movimentacoes de estoque da Loja (rastro por local).
+model LojaEstoqueMovimento {
+  id           String   @id @default(uuid()) @db.Uuid
+  produtoId    String   @map("produto_id") @db.Uuid
+  local        String   // LOJA | DEPOSITO
+  tipo         String   // entrada|saida|ajuste|reserva|liberacao|transferencia|devolucao|cancelamento|inventario
+  quantidade   Decimal  @db.Decimal(14, 3)
+  saldoApos    Decimal? @map("saldo_apos") @db.Decimal(14, 3)
+  origem       String   @default("manual") // manual|pdv|cardapio|compras|transferencia
+  referenciaId String?  @map("referencia_id")
+  observacao   String   @default("")
+  usuarioId    String?  @map("usuario_id") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  produto      LojaProduto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@index([produtoId, criadoEm(sort: Desc)])
+  @@index([local, criadoEm(sort: Desc)])
+  @@index([origem, referenciaId])
+  @@map("loja_estoque_movimentos")
 }
 
 // --------------------------------------------------------------------

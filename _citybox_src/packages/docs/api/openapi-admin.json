@@ -1,0 +1,127 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_liveness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/onboarding/organizations": {
+      "post": {
+        "operationId": "OnboardingController_onboardOrganization",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/onboarding/stores": {
+      "post": {
+        "operationId": "OnboardingController_createStore",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/platform/verticals": {
+      "post": {
+        "operationId": "PlatformVerticalsController_enableVertical",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/finance/settlements": {
+      "get": {
+        "operationId": "FinanceController_listSettlements",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "finance"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Admin API",
+    "description": "Onboarding municipal e administração plataforma",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

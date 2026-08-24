@@ -1,0 +1,7 @@
+# Shell scripts must use LF so bash on Windows (Git Bash/WSL) accepts set -o pipefail.
+*.sh text eol=lf
+
+# Env files are often sourced by bash scripts — CRLF breaks `source` on WSL/Git Bash.
+*.env text eol=lf
+*.env.* text eol=lf
+*.env.example text eol=lf
