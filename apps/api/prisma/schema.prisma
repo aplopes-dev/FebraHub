@@ -1895,6 +1895,7 @@ model CompraCotacao {
   id             String   @id @default(uuid()) @db.Uuid
   solicitacaoId  String   @map("solicitacao_id") @db.Uuid
   fornecedor     String
+  fornecedorId   String?  @map("fornecedor_id") @db.Uuid
   documento      String?
   cnpj           String?
   contato        String?
@@ -1915,8 +1916,10 @@ model CompraCotacao {
   criadaPor      String   @map("criada_por") @db.Uuid
   criadaEm       DateTime @default(now()) @map("criada_em") @db.Timestamptz(6)
   solicitacao    CompraSolicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  fornecedorRef  Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 
   @@index([solicitacaoId])
+  @@index([fornecedorId])
   @@map("compra_cotacoes")
 }
 
@@ -1926,6 +1929,7 @@ model CompraPedido {
   cotacaoId      String?  @map("cotacao_id") @db.Uuid
   numero         String   @unique
   fornecedor     String
+  fornecedorId   String?  @map("fornecedor_id") @db.Uuid
   valorTotal     Decimal  @map("valor_total") @db.Decimal(14, 2)
   condicaoPagamento String? @map("condicao_pagamento")
   previsaoEntrega DateTime? @map("previsao_entrega") @db.Date
@@ -1936,8 +1940,10 @@ model CompraPedido {
   criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
   solicitacao    CompraSolicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   recebimentos   CompraRecebimento[]
+  fornecedorRef  Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 
   @@index([solicitacaoId])
+  @@index([fornecedorId])
   @@map("compra_pedidos")
 }
 
@@ -1987,6 +1993,63 @@ model CompraHistorico {
 
   @@index([solicitacaoId, criadoEm(sort: Desc)])
   @@map("compra_historico")
+}
+
+// ====================================================================
+// FORNECEDORES — cadastro corporativo UNICO (PRD Compras §36/§37).
+// Antes o fornecedor era texto livre repetido em cada cotacao/pedido; aqui
+// ele vira entidade referenciavel, sem duplicar por modulo/setor. Cotacoes e
+// pedidos passam a poder apontar para ele (fornecedorId opcional — o texto
+// continua existindo para propostas de fornecedor ainda nao cadastrado).
+// ====================================================================
+
+model Fornecedor {
+  id               String   @id @default(uuid()) @db.Uuid
+  razaoSocial      String   @map("razao_social")
+  nomeFantasia     String?  @map("nome_fantasia")
+  documento        String?
+  inscricao        String?
+  email            String?
+  telefone         String?
+  whatsapp         String?
+  endereco         String?
+  cidade           String?
+  uf               String?  @db.VarChar(2)
+  cep              String?
+  categorias       String[] @default([])
+  banco            String?
+  agencia          String?
+  conta            String?
+  chavePix         String?  @map("chave_pix")
+  prazoMedioDias   Int?     @map("prazo_medio_dias")
+  condicoesComerciais String? @map("condicoes_comerciais")
+  situacao         String   @default("ativo")
+  observacoes      String?
+  documentos       Json     @default("[]")
+  criadoPor        String?  @map("criado_por") @db.Uuid
+  criadoEm         DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  contatos         FornecedorContato[]
+  cotacoes         CompraCotacao[]
+  pedidos          CompraPedido[]
+
+  @@index([situacao, razaoSocial])
+  @@map("fornecedores")
+}
+
+model FornecedorContato {
+  id           String   @id @default(uuid()) @db.Uuid
+  fornecedorId String   @map("fornecedor_id") @db.Uuid
+  nome         String
+  cargo        String?
+  email        String?
+  telefone     String?
+  principal    Boolean  @default(false)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+
+  @@index([fornecedorId])
+  @@map("fornecedor_contatos")
 }
 
 // --------------------------------------------------------------------

@@ -26,6 +26,7 @@ import { TerritorialModule } from './modules/territorial/territorial.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { ProcessosModule } from './modules/processos/processos.module';
 import { ComprasModule } from './modules/compras/compras.module';
+import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
 import { PermissaoGuard } from './common/guards/permissao.guard';
@@ -91,6 +92,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     AgentesModule,
     ProcessosModule,
     ComprasModule,
+    FornecedoresModule,
   ],
   controllers: [HealthController],
   providers: [

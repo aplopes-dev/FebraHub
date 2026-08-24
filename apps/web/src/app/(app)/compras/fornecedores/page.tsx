@@ -1,1 +1,6 @@
-import'@/app/compras.css';export default function Pagina(){return <main className="co-page"><div className="co-panel co-placeholder"><h1>Fornecedores</h1><p>As propostas registradas nas cotações formam a base operacional de fornecedores. O cadastro mestre será consolidado na próxima evolução.</p></div></main>}
+"use client";
+import { Fornecedores } from '@/components/compras/Fornecedores';
+
+export default function Pagina() {
+  return <Fornecedores />;
+}

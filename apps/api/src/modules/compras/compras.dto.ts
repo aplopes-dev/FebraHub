@@ -34,6 +34,7 @@ export class EstoqueItemDto {
 }
 export class CotacaoDto {
   @IsString() @IsNotEmpty() fornecedor!: string;
+  @IsOptional() @IsUUID() fornecedorId?: string;
   @IsOptional() @IsString() cnpj?: string;
   @IsOptional() @IsString() contato?: string;
   @IsOptional() @IsString() documento?: string;
