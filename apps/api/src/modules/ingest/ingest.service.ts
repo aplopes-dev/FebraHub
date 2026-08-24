@@ -20,6 +20,8 @@ const TABELAS_INGESTAO: Record<string, string[]> = {
   fato_loja_item: ['cupom_id', 'seq_item'],
   fato_loja_pagamento: ['cupom_id', 'seq_item'],
   fato_loja_estoque: ['produto_id'],
+  fato_omie_contas_pagar: ['lancamento_id'],
+  fato_omie_produto: ['produto_id'],
   fato_loja_curso: ['mes_ref', 'curso', 'turma', 'treinador'],
   fato_loja_receita_extra: ['fonte', 'chave_origem'],
   fato_loja_fechamento: ['mes_ref'],
