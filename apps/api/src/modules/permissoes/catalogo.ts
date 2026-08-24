@@ -41,6 +41,27 @@ const HUBS: { chave: string; nome: string }[] = [
 
 export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
   {
+    id: 'compras', nome: 'Compras e Estoque', descricao: 'Fluxo operacional da solicitação ao recebimento e encerramento.',
+    permissoes: [
+      { id: 'compras.ver', nome: 'Consultar solicitações', descricao: 'Acompanhar solicitações de compras e materiais.' },
+      { id: 'compras.solicitar', nome: 'Solicitar materiais', descricao: 'Abrir e enviar novas solicitações.' },
+      { id: 'compras.operar', nome: 'Operar compras e estoque', descricao: 'Analisar, cotar, emitir pedido, receber e entregar.' },
+      { id: 'compras.aprovar', nome: 'Aprovar compras', descricao: 'Aprovar ou recusar compras submetidas à alçada.' },
+    ],
+  },
+  {
+    id: 'processos',
+    nome: 'Central de Processos',
+    descricao: 'Mapeamento, validação, publicação e implantação do ERP.',
+    permissoes: [
+      { id: 'processos.ver', nome: 'Consultar processos', descricao: 'Ver processos e manuais permitidos para seus setores.' },
+      { id: 'processos.mapear', nome: 'Mapear processos', descricao: 'Criar e editar entrevistas, fluxos e rascunhos.' },
+      { id: 'processos.validar', nome: 'Validar processos', descricao: 'Solicitar ajustes, rejeitar ou aprovar versões.' },
+      { id: 'processos.administrar', nome: 'Administrar a Central', descricao: 'Arquivar, restaurar versões e configurar a Central.' },
+      { id: 'processos.implantacao', nome: 'Implantação do ERP', descricao: 'Acessar entregas, cronograma, impedimentos e decisões.' },
+    ],
+  },
+  {
     id: 'paineis',
     nome: 'Painéis',
     descricao: 'As telas do bloco Painéis — as visões consolidadas da diretoria.',

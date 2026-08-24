@@ -6,6 +6,7 @@ import { Shell } from "@/components/shell/Shell";
 import { SemPerfil } from "@/components/shell/SemPerfil";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import { usePerfil, useSessao } from "@/hooks/auth";
+import "@/app/compras-mvp.css";
 
 /** Layout dos hubs: a sessão é resolvida uma vez aqui e o Shell (sidebar,
  *  cabeçalho e o provedor de período/categoria) envolve todas as rotas de

@@ -1,0 +1,1 @@
+"use client";import{useParams}from'next/navigation';import{GuardaPermissao}from'@/components/auth/GuardaPermissao';import{DetalheCompra}from'@/components/compras/DetalheCompra';import'@/app/compras.css';export default function Pagina(){const{id}=useParams<{id:string}>();return<GuardaPermissao permissoes={['compras.ver']}><DetalheCompra id={id}/></GuardaPermissao>}

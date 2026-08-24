@@ -1,0 +1,1 @@
+"use client";import{CentralCompras}from'@/components/compras/CentralCompras';import'@/app/compras.css';export default function Pagina(){return<CentralCompras situacao="aguardando_entrega" titulo="Recebimentos"/>}

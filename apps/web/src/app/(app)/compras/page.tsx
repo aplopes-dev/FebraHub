@@ -1,0 +1,1 @@
+"use client";import{GuardaPermissao}from'@/components/auth/GuardaPermissao';import{CentralCompras}from'@/components/compras/CentralCompras';import'@/app/compras.css';export default function Pagina(){return<GuardaPermissao permissoes={['compras.ver']}><CentralCompras titulo="Visão geral de Compras"/></GuardaPermissao>}

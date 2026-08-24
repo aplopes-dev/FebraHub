@@ -6,12 +6,12 @@ import { HubComercial } from "@/components/hubs/HubComercial";
 import { HubEventos } from "@/components/hubs/HubEventos";
 import { HubFinanceiro } from "@/components/hubs/HubFinanceiro";
 import { HubLoja } from "@/components/hubs/HubLoja";
+import { HubEstoque } from "@/components/hubs/HubEstoque";
 import { HubMarketing } from "@/components/hubs/HubMarketing";
 import { HubPedagogico } from "@/components/hubs/HubPedagogico";
-import { SemFonte } from "@/components/hubs/SemFonte";
 import { TelaCarregando } from "@/components/shell/TelaCarregando";
 import { ehAdmin, pode, setoresVisiveis, usePerfil, useSessao } from "@/hooks/auth";
-import { ROTAS_HUB, acharHub, hubInicial } from "@/lib/hubs";
+import { ROTAS_HUB, hubInicial } from "@/lib/hubs";
 
 /* Um hub por rota. O `tela` do protótipo virou o parâmetro da URL, e o
    switch continua sendo o mesmo — só que agora F5 e link direto funcionam.
@@ -25,7 +25,7 @@ function conteudoDe(hub: string) {
     case "pedagogico": return <HubPedagogico />;
     case "eventos":    return <HubEventos />;
     case "loja":       return <HubLoja />;
-    case "estoque":    return <SemFonte hub={acharHub("estoque")} />;
+    case "estoque":    return <HubEstoque />;
     default:           return null;
   }
 }

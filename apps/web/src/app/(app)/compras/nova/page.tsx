@@ -1,0 +1,1 @@
+"use client";import{GuardaPermissao}from'@/components/auth/GuardaPermissao';import{NovaSolicitacao}from'@/components/compras/NovaSolicitacao';import'@/app/compras.css';export default function Pagina(){return<GuardaPermissao permissoes={['compras.solicitar']}><NovaSolicitacao/></GuardaPermissao>}

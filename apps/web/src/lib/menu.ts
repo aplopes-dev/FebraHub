@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
-  Plug, Settings2, ShieldCheck, Users,
+  Plug, Settings2, ShieldCheck, ShoppingCart, Users, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -198,16 +198,28 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       },
     ],
   },
-  ...HUBS.map((h) => ({
-    id: h.key,
-    label: h.nome,
-    Icone: h.Icone,
-    visivel:
-      h.key === "marketing"
-        ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver")
-        : doSetor(h.key),
-    filhos: filhosHub(h.key, h.nome, h.Icone, h.desc),
-  })),
+  ...HUBS.flatMap((h) => {
+    const hub: MenuPrimario = { id: h.key, label: h.nome, Icone: h.Icone,
+      visivel: h.key === "marketing" ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver") : h.key === "estoque" ? (ctx: ContextoMenu) => doSetor("estoque")(ctx) || ctx.pode("compras.operar") : doSetor(h.key),
+      filhos: h.key === "estoque" ? [
+        { id:"estoque-resumo",label:"Visão Geral",href:"/estoque",Icone:h.Icone,titulo:"Estoque integrado",desc:"Saldos reais, reservas e demandas de Compras",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
+        { id:"estoque-verificacoes",label:"Verificações pendentes",href:"/compras/todas",desc:"Solicitações aguardando conferência do saldo",visivel:comPermissao("compras.operar") },
+        { id:"estoque-recebimentos",label:"Recebimentos",href:"/compras/recebimentos",desc:"Entradas aguardadas dos pedidos de compra",visivel:comPermissao("compras.operar") },
+      ] : filhosHub(h.key, h.nome, h.Icone, h.desc) };
+    if (h.key !== "estoque") return [hub];
+    return [hub, { id: "compras", label: "Compras", Icone: ShoppingCart, visivel: comPermissao("compras.ver"), filhos: [
+      { id: "compras-visao", label: "Visão Geral", href: "/compras", visivel: comPermissao("compras.ver") },
+      { id: "compras-nova", label: "Nova Solicitação", href: "/compras/nova", visivel: comPermissao("compras.solicitar") },
+      { id: "compras-minhas", label: "Minhas Solicitações", href: "/compras/minhas", visivel: comPermissao("compras.ver") },
+      { id: "compras-todas", label: "Todas as Solicitações", href: "/compras/todas", visivel: comPermissao("compras.operar") },
+      { id: "compras-cotacoes", label: "Cotações", href: "/compras/cotacoes", visivel: comPermissao("compras.operar") },
+      { id: "compras-aprovacoes", label: "Aprovações", href: "/compras/aprovacoes", visivel: comPermissao("compras.aprovar") },
+      { id: "compras-pedidos", label: "Pedidos de Compra", href: "/compras/pedidos", visivel: comPermissao("compras.operar") },
+      { id: "compras-recebimentos", label: "Recebimentos", href: "/compras/recebimentos", visivel: comPermissao("compras.operar") },
+      { id: "compras-fornecedores", label: "Fornecedores", href: "/compras/fornecedores", visivel: comPermissao("compras.operar") },
+      { id: "compras-config", label: "Configurações", href: "/compras/configuracoes", visivel: (ctx: ContextoMenu) => ctx.admin },
+    ] }];
+  }),
   {
     id: "integracoes",
     label: "Integrações",
@@ -254,8 +266,19 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       ctx.pode("perfis.gerenciar") ||
       ctx.pode("usuarios.gerenciar") ||
       ctx.pode("notificacoes.enviar") ||
-      ctx.pode("social.ver", "social.gerenciar"),
+      ctx.pode("social.ver", "social.gerenciar") ||
+      ctx.pode("processos.ver"),
     filhos: [
+      {
+        id: "processos-visao", label: "Central de Processos", href: "/processos", Icone: Workflow,
+        desc: "Documentação, fluxos, manuais e implantação do ERP", visivel: comPermissao("processos.ver"),
+      },
+      { id: "processos-mapa", label: "Mapa de Processos", href: "/processos/mapa", visivel: comPermissao("processos.ver") },
+      { id: "processos-setores", label: "Processos por Setor", href: "/processos/setores", visivel: comPermissao("processos.ver") },
+      { id: "processos-manuais", label: "Procedimentos e Tutoriais", href: "/processos/manuais", visivel: comPermissao("processos.ver") },
+      { id: "processos-indicadores", label: "Indicadores de Processos", href: "/processos/indicadores", visivel: comPermissao("processos.ver") },
+      { id: "processos-historico", label: "Versões dos Processos", href: "/processos/historico", visivel: comPermissao("processos.ver") },
+      { id: "processos-implantacao", label: "Implantação do ERP", href: "/processos/implantacao", visivel: comPermissao("processos.implantacao") },
       {
         id: "brain",
         label: "Memória institucional",

@@ -1,0 +1,1 @@
+import'@/app/compras.css';export default function Pagina(){return <main className="co-page"><div className="co-panel co-placeholder"><h1>Configurações de Compras</h1><p>Aprovadores e responsáveis usam os perfis reais do ERP. Não há alçada financeira fictícia codificada.</p></div></main>}

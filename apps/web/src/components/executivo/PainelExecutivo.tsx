@@ -115,7 +115,7 @@ export function PainelExecutivo() {
           </h1>
           <p className="fh-exec-hero-sub fh-exec-reveal" style={{ animationDelay: "140ms" }}>
             {d
-              ? "Âncoras da casa, alertas reais e ritmo da meta — sem ruído."
+              ? "Âncoras da casa, alertas reais e ritmo da meta — sem erros."
               : "Carregando o pulso da operação…"}
           </p>
           {d && (

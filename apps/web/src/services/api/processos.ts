@@ -1,0 +1,10 @@
+import { api } from './client';
+import type { Implantacao, Processo, VisaoProcessos } from '@/types/processos';
+export const processosVisao = () => api.get<VisaoProcessos>('/processos/visao-geral');
+export const processosListar = (busca?: string) => api.get<Processo[]>('/processos', { parametros: { busca } });
+export const processoCriar = (dados: Record<string, unknown>) => api.post<Processo>('/processos', dados);
+export const processoObter = (id: string) => api.get<Processo>(`/processos/${id}`);
+export const processoAtualizar = (id: string, dados: Record<string, unknown>) => api.patch<Processo>(`/processos/${id}`, dados);
+export const processoTransicionar = (id: string, acao: string, motivo?: string) => api.post<Processo>(`/processos/${id}/transicoes`, { acao, motivo });
+export const processoNovaVersao = (id: string, motivo: string) => api.post<Processo>(`/processos/${id}/nova-versao`, { motivo });
+export const implantacaoObter = () => api.get<Implantacao>('/processos/implantacao');

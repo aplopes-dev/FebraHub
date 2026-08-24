@@ -24,6 +24,8 @@ import { SocialModule } from './modules/social/social.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TerritorialModule } from './modules/territorial/territorial.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
+import { ProcessosModule } from './modules/processos/processos.module';
+import { ComprasModule } from './modules/compras/compras.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
 import { PermissaoGuard } from './common/guards/permissao.guard';
@@ -87,6 +89,8 @@ import { SetorGuard } from './common/guards/setor.guard';
     CrmModule,
     WhatsappModule,
     AgentesModule,
+    ProcessosModule,
+    ComprasModule,
   ],
   controllers: [HealthController],
   providers: [

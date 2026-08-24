@@ -35,3 +35,10 @@ c_admin.txt
 c_com.txt
 e2e.csv
 e2e.bin
+
+# Dumps de banco (25MB cada — nao versionar; backup fica fora do git)
+supabase/*.dump
+# Credenciais de seed geradas (nao versionar)
+CREDENCIAIS_SEED.txt
+# Backups locais de compose
+docker-compose.prod.yml.bak.*

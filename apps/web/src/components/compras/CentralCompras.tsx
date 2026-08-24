@@ -1,0 +1,18 @@
+"use client";
+import Link from 'next/link';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, CheckCircle2, Clock3, PackageCheck, Plus, Search, ShoppingCart, TriangleAlert } from 'lucide-react';
+import { comprasIndicadores, comprasListar } from '@/services/api/compras';
+
+export const ROTULOS:Record<string,string>={rascunho:'Rascunho',aguardando_analise:'Aguardando análise',aguardando_complementacao:'Aguardando complementação',verificacao_estoque:'Em verificação de estoque',atendida_estoque:'Atendida pelo estoque',em_cotacao:'Em cotação',aguardando_aprovacao:'Aguardando aprovação',ajustes_solicitados:'Ajustes solicitados',aprovada:'Aprovada',reprovada:'Reprovada',pedido_emitido:'Pedido emitido',aguardando_entrega:'Aguardando entrega',recebida_parcialmente:'Recebida parcialmente',recebida:'Recebida',pronta_entrega:'Pronta para entrega',entregue:'Entregue',encerrada:'Encerrada',cancelada:'Cancelada'};
+export const rotuloCompra=(s:string)=>ROTULOS[s]??s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
+export const corCompra:Record<string,string>={rascunho:'#777',aguardando_analise:'#3976a8',aguardando_complementacao:'#c67a28',verificacao_estoque:'#7652b5',atendida_estoque:'#2f855a',em_cotacao:'#b88924',aguardando_aprovacao:'#d69e2e',ajustes_solicitados:'#c67a28',aprovada:'#2f855a',reprovada:'#c94b4b',pedido_emitido:'#3976a8',aguardando_entrega:'#3976a8',recebida_parcialmente:'#b88924',recebida:'#2f855a',pronta_entrega:'#2f855a',entregue:'#2f855a',encerrada:'#68736a',cancelada:'#777'};
+
+export function CentralCompras({escopo='todas',situacao,titulo='Visão geral'}:{escopo?:string;situacao?:string;titulo?:string}){
+ const[busca,setBusca]=useState('');const q=useQuery({queryKey:['compras',escopo,situacao,busca],queryFn:()=>comprasListar(busca,escopo,situacao)});const k=useQuery({queryKey:['compras','indicadores'],queryFn:comprasIndicadores});
+ const cards=[['Solicitações',k.data?.total??0,ShoppingCart],['Aguardando aprovação',k.data?.porSituacao.aguardando_aprovacao??0,Clock3],['Aguardando entrega',k.data?.porSituacao.aguardando_entrega??0,PackageCheck],['Complementação',k.data?.porSituacao.aguardando_complementacao??0,TriangleAlert]]as const;
+ return <main className="co-page"><header className="co-hero"><div><span>MÓDULO OPERACIONAL</span><h1>{titulo}</h1><p>Solicitação, cotação, aprovação, pedido, recebimento e entrega em um único fluxo.</p></div><Link className="co-primary-link" href="/compras/nova"><Plus/> Nova solicitação</Link></header>
+ {escopo==='todas'&&!situacao&&<section className="co-kpis">{cards.map(([n,v,I])=><article key={n}><I/><div><b>{v}</b><span>{n}</span></div></article>)}</section>}
+ <section className="co-panel"><header><div><small>FILA OPERACIONAL</small><h2>{titulo}</h2></div><label><Search/><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Protocolo ou título"/></label></header><div className="co-list">{q.data?.map(s=><Link href={`/compras/${s.id}`} key={s.id}><div><span className="co-protocolo">{s.protocolo}</span><h3>{s.titulo}</h3><p>{s.tipo} · {s.setor} · {s.itens.length} item(ns)</p></div><div className="co-info"><span className="co-situacao" style={{'--co-cor':corCompra[s.situacao]??'#777'}as React.CSSProperties}>{rotuloCompra(s.situacao)}</span><small>{s.dataNecessaria?`Necessário em ${new Date(s.dataNecessaria).toLocaleDateString('pt-BR')}`:`Atualizado ${new Date(s.atualizadoEm).toLocaleDateString('pt-BR')}`}</small><ArrowRight/></div></Link>)}</div>{!q.isLoading&&!q.data?.length&&<div className="co-empty"><CheckCircle2/><b>Nenhuma solicitação encontrada</b></div>}</section></main>;
+}
