@@ -75,6 +75,16 @@ const acoes_loja: Acao[] = [
     visivel: comPermissao("loja.pedidos.operar"),
   },
   {
+    id: "loja-pdv-movel",
+    label: "PDV móvel (app)",
+    desc: "App instalável: vender, fila e retirada",
+    keywords: ["pdv", "movel", "móvel", "app", "celular", "tablet", "pwa", "instalar", "balcao"],
+    href: "/pdv-movel/vender",
+    icone: "Smartphone",
+    grupo: "loja",
+    visivel: comPermissao("loja.pedidos.operar"),
+  },
+  {
     id: "loja-fila",
     label: "Fila de preparação",
     desc: "Acompanhar pedidos em tempo real",

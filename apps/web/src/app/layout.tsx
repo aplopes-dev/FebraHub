@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
+import { RegistradorSW } from "@/components/pwa/RegistradorSW";
 import "./globals.css";
 import "./busca-global.css";
 
@@ -31,7 +32,15 @@ export const metadata: Metadata = {
   description:
     "Portal corporativo interno da Febracis Salvador. Cada setor vê o próprio hub; a diretoria vê o consolidado.",
   applicationName: "FebraHub",
-  icons: { icon: [{ url: "/logo-febracis.webp", type: "image/webp" }] },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/logo-febracis.webp", type: "image/webp" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icons/icon.svg" }],
+  },
+  appleWebApp: { capable: true, title: "FebraHub PDV", statusBarStyle: "black-translucent" },
   // Sistema interno: nada aqui deve ser indexado ou pré-visualizado.
   robots: { index: false, follow: false, nocache: true },
 };
@@ -74,6 +83,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+        <RegistradorSW />
         <Providers>{children}</Providers>
       </body>
     </html>

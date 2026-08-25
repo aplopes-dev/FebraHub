@@ -1,0 +1,65 @@
+/* FebraHub PWA service worker — enxuto e conservador.
+ *
+ * Objetivos:
+ *  - Tornar o PDV móvel instalável e resiliente a quedas de rede.
+ *  - NUNCA cachear /api (dados de sessão/venda precisam ser sempre frescos).
+ *  - Navegação (páginas): network-first com fallback ao cache (offline).
+ *  - Estáticos do Next (/_next/static, ícones): cache-first (imutáveis).
+ *
+ * Sem libs. Bump em CACHE_VERSION invalida os caches antigos no activate. */
+const CACHE_VERSION = "febrahub-pwa-v1";
+const APP_SHELL = ["/pdv-movel", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-maskable.svg"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL).catch(() => undefined)),
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((chaves) =>
+      Promise.all(chaves.filter((c) => c !== CACHE_VERSION).map((c) => caches.delete(c))),
+    ).then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  // Só atua na própria origem.
+  if (url.origin !== self.location.origin) return;
+  // API e healthchecks: sempre rede, nunca cache.
+  if (url.pathname.startsWith("/api")) return;
+
+  // Estáticos imutáveis do Next e ícones: cache-first.
+  if (url.pathname.startsWith("/_next/static") || url.pathname.startsWith("/icons")) {
+    event.respondWith(
+      caches.match(req).then((hit) =>
+        hit ||
+        fetch(req).then((res) => {
+          const copia = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copia));
+          return res;
+        }),
+      ),
+    );
+    return;
+  }
+
+  // Navegação de página: network-first, cai no cache quando offline.
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copia = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copia));
+          return res;
+        })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match("/pdv-movel"))),
+    );
+  }
+});

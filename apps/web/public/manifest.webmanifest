@@ -1,0 +1,23 @@
+{
+  "name": "FebraHub PDV",
+  "short_name": "FebraHub PDV",
+  "description": "PDV móvel da Loja FEBRACIS — vender, fila e retirada por QR.",
+  "id": "/pdv-movel",
+  "start_url": "/pdv-movel",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08080A",
+  "theme_color": "#08080A",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Vender", "short_name": "Vender", "url": "/pdv-movel/vender" },
+    { "name": "Retirada por QR", "short_name": "Retirada", "url": "/pdv-movel/retirada" },
+    { "name": "Fila", "short_name": "Fila", "url": "/pdv-movel/fila" }
+  ]
+}

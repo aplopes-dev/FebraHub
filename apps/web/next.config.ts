@@ -19,6 +19,23 @@ const nextConfig: NextConfig = {
     // O logo é o único asset de imagem e vive em /public. Sem host externo.
     remotePatterns: [],
   },
+  async headers() {
+    return [
+      {
+        // O service worker nunca deve ser cacheado pelo browser/CDN — senão um
+        // deploy novo não chega. E precisa de escopo raiz.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+      },
+    ];
+  },
   async rewrites() {
     if (!interna) return [];
     return [

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="FebraHub">
+  <rect width="512" height="512" rx="112" fill="#08080A"/>
+  <g transform="translate(146 118)" fill="#E4C06A">
+    <!-- marca "asa" da Febracis, estilizada -->
+    <path d="M104 0 L150 0 L96 132 L150 132 L60 276 L96 150 L44 150 Z"/>
+    <path d="M170 40 L216 40 L150 210 L108 210 Z" opacity="0.6"/>
+  </g>
+</svg>

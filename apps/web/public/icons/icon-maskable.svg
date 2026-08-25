@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="FebraHub">
+  <rect width="512" height="512" fill="#08080A"/>
+  <g transform="translate(176 156)" fill="#E4C06A">
+    <path d="M82 0 L118 0 L76 104 L118 104 L48 218 L76 118 L34 118 Z"/>
+    <path d="M134 32 L170 32 L118 166 L86 166 Z" opacity="0.6"/>
+  </g>
+</svg>
