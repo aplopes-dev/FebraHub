@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ScanLine, ShoppingCart, ListOrdered } from "lucide-react";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { PromptInstalar } from "@/components/pwa/PromptInstalar";
-import "@/app/pdv-movel.css";
+import "@/app/pdv-movel/pdv-movel.css";
 
 const TABS = [
   { href: "/pdv-movel/vender", label: "Vender", Icone: ShoppingCart },
