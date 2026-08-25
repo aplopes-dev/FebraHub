@@ -39,7 +39,7 @@ const doSetor = (setor: string) => (ctx: ContextoMenu) =>
   ctx.admin || ctx.setores.includes(setor);
 
 function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): ItemMenu[] {
-  const base: ItemMenu[] = [
+  const base: ItemMenu[] = key === "loja" ? [] : [
     {
       id: `${key}-resumo`,
       label: "Resumo",
@@ -61,14 +61,7 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Cadastrar, editar e organizar os produtos vendidos (PDV e Cardápio), com saldo Loja / Depósito",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.produtos.ver"),
       },
-      {
-        id: "loja-dashboard",
-        label: "Dashboard",
-        href: "/loja/dashboard",
-        titulo: "Dashboard da Loja",
-        desc: "Faturamento, mais vendidos, PIX × cartão, canal e tempos médios",
-        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
-      },
+
       {
         id: "loja-balcao",
         label: "Balcão (PDV)",
@@ -133,22 +126,7 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Meta de produtos e curso por mês",
         visivel: doSetor("loja"),
       },
-      {
-        id: "loja-faturamento-curso",
-        label: "Faturamento por curso",
-        href: "/loja/cadastros/faturamento-curso",
-        titulo: "Faturamento por curso",
-        desc: "Performance da loja durante o curso",
-        visivel: doSetor("loja"),
-      },
-      {
-        id: "loja-receitas-extras",
-        label: "Receitas extras",
-        href: "/loja/cadastros/receitas-extras",
-        titulo: "Receitas extras",
-        desc: "Premium, aluguel e Sentido de Brincar",
-        visivel: doSetor("loja"),
-      },
+
       {
         id: "loja-fechamento",
         label: "Fechamento",
