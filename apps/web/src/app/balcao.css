@@ -45,6 +45,9 @@
 .bal-chip{flex-shrink:0;padding:9px 18px;border-radius:22px;border:1px solid var(--card-line);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .bal-chip:hover{color:var(--text)}
 .bal-chip.on{background:#16233a;color:#fff;border-color:transparent}
+/* Categoria sem nenhum produto disponível: fundo cinza apagado */
+.bal-chip.sem-estoque{background:var(--fundo-app);color:var(--muted);border-color:var(--hair);opacity:.6}
+.bal-chip.sem-estoque:hover{opacity:.8}
 
 /* grid de produtos */
 .bal-scroll{overflow-y:auto;min-height:0;padding-bottom:6px}

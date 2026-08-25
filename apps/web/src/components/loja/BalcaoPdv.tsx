@@ -66,6 +66,18 @@ export function BalcaoPdv() {
     return categoria ? rows.filter((p) => p.categoria === categoria) : rows;
   }, [produtos.data, categoria]);
 
+  /** Conjunto de categorias sem nenhum produto disponível (para cinzar o chip) */
+  const categoriasSemEstoque = useMemo(() => {
+    const rows = produtos.data ?? [];
+    const sem = new Set<string>();
+    (categorias.data ?? []).filter((c) => c.ativo).forEach((c) => {
+      const prodsCat = rows.filter((p) => p.categoria === c.nome);
+      const todasEsgotadas = prodsCat.length > 0 && prodsCat.every((p) => p.controlaEstoque && p.disponivel <= 0);
+      if (todasEsgotadas) sem.add(c.nome);
+    });
+    return sem;
+  }, [produtos.data, categorias.data]);
+
   const linhas = Object.values(carrinho);
   const temItens = linhas.length > 0;
   const brutoTotal = useMemo(() => linhas.reduce((s, l) => s + l.produto.preco * l.quantidade, 0), [linhas]);
@@ -175,9 +187,19 @@ export function BalcaoPdv() {
 
           <div className="bal-chips">
             <button className={`bal-chip ${!categoria ? "on" : ""}`} onClick={() => setCategoria("")}>Todos</button>
-            {(categorias.data ?? []).filter((c) => c.ativo).map((c) => (
-              <button key={c.id} className={`bal-chip ${categoria === c.nome ? "on" : ""}`} onClick={() => setCategoria(c.nome)}>{c.nome}</button>
-            ))}
+            {(categorias.data ?? []).filter((c) => c.ativo).map((c) => {
+              const semEstoque = categoriasSemEstoque.has(c.nome);
+              return (
+                <button
+                  key={c.id}
+                  className={`bal-chip ${categoria === c.nome ? "on" : ""} ${semEstoque ? "sem-estoque" : ""}`}
+                  onClick={() => setCategoria(c.nome)}
+                  title={semEstoque ? "Sem estoque disponível" : undefined}
+                >
+                  {c.nome}
+                </button>
+              );
+            })}
           </div>
 
           <div className="bal-scroll">
