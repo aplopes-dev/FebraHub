@@ -42,9 +42,9 @@ RUN pnpm install --filter @febrahub/api... --prod --frozen-lockfile
 # (validação do XML fiscal). Compilamos com node-gyp explicitamente no
 # diretório real do pacote (caminho versionado do pnpm store). A toolchain
 # (python3/make/g++) já está instalada acima. Fiscal (NFC-e) depende disto.
-RUN LIB="$(find /app/node_modules/.pnpm -maxdepth 2 -type d -name libxmljs2 | head -1)" && \
-    echo "Compilando libxmljs2 em $LIB" && \
-    cd "$LIB" && npx node-gyp rebuild && \
+RUN LIB="$(find /app/node_modules/.pnpm -type f -name binding.gyp -path '*libxmljs2*' | head -1 | xargs -r dirname)" && \
+    echo "Compilando libxmljs2 em '$LIB'" && \
+    test -n "$LIB" && cd "$LIB" && npx node-gyp rebuild && \
     test -f build/Release/xmljs.node && echo "xmljs.node OK"
 # O client é gerado de novo aqui em vez de copiado do estágio de build: com
 # pnpm ele nasce dentro do store (node_modules/.pnpm/@prisma+client@.../),
