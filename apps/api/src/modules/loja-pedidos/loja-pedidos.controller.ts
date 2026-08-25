@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query, Sse } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPipe, Post, Put, Query, Sse } from '@nestjs/common';
 import { Publica, Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
@@ -38,10 +38,20 @@ export class LojaPedidosController {
     return this.s.iniciarPagamento(id, dto);
   }
 
-  /** Simulação/confirmação do pagamento em homolog (equivale ao webhook). */
+  /** Confirmação pública (dev/homolog SEM gateway). Com ASAAS ativo, o service
+   *  bloqueia — a confirmação real vem pelo webhook assinado abaixo. */
   @Publica() @Post('publico/pedidos/:id/pagamento/confirmar')
   confirmarPagamentoPublico(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ConfirmarPagamentoDto) {
-    return this.s.confirmarPagamento(id, dto, 'webhook');
+    return this.s.confirmarPagamentoPublico(id, dto);
+  }
+
+  /** WEBHOOK do gateway ASAAS. Autenticado pelo header `asaas-access-token`
+   *  (configurado no painel do ASAAS = env ASAAS_WEBHOOK_TOKEN). Idempotente. */
+  @Publica() @Post('publico/webhook/asaas')
+  webhookAsaas(@Headers('asaas-access-token') token: string | undefined, @Body() payload: unknown) {
+    const esperado = process.env.ASAAS_WEBHOOK_TOKEN;
+    if (esperado && token !== esperado) throw new ForbiddenException('Webhook não autorizado.');
+    return this.s.processarWebhook('asaas', payload);
   }
 
   @Publica() @Get('publico/pedidos/:id/acompanhar')
@@ -60,6 +70,14 @@ export class LojaPedidosController {
   @Get('dashboard') dashboard(@Query('operacaoId') operacaoId?: string) { return this.s.dashboard(operacaoId); }
   @Get('operacoes') operacoes() { return this.s.listarOperacoes(); }
   @Get('operacoes/ativa') operacaoAtiva() { return this.s.operacaoAtiva(); }
+
+  /** QR Code do cardápio da operação (PRD §11). Devolve URL + PNG (dataURL) +
+   *  SVG. Usa o header Origin como fallback quando FRONTEND_URL/APP_URL não
+   *  estiverem setados (ambiente local). */
+  @Get('operacoes/:slug/qrcode')
+  qrcodeCardapio(@Param('slug') slug: string, @Headers('origin') origem?: string) {
+    return this.s.qrCodeCardapio(slug, origem);
+  }
   @Get('pedidos') pedidos(@Query('operacaoId') operacaoId?: string, @Query('status') status?: string) { return this.s.listar(operacaoId, status); }
   @Get('pedidos/:id') pedido(@Param('id', ParseUUIDPipe) id: string) { return this.s.obter(id); }
 

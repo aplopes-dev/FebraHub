@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Monitor, Plus, Store } from "lucide-react";
+import { ExternalLink, Monitor, Plus, QrCode, Store } from "lucide-react";
 import { atualizarOperacao, criarOperacao, lojaOperacoes } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaOperacao } from "@/types/loja-pedidos";
+import { QrCardapioModal } from "@/components/loja/QrCardapioModal";
 import "@/app/loja.css";
 import "@/app/fila.css";
 
@@ -15,6 +16,7 @@ export function OperacoesLoja() {
   const qc = useQueryClient();
   const podeGerir = pode(usePerfil(useSessao()).data, "loja.pedidos.gerenciar");
   const [editar, setEditar] = useState<LojaOperacao | "novo" | null>(null);
+  const [qr, setQr] = useState<LojaOperacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   const operacoes = useQuery({ queryKey: ["loja-operacoes"], queryFn: () => lojaOperacoes() });
@@ -55,6 +57,7 @@ export function OperacoesLoja() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <a className="loja-btn mini" href={`${base}/cardapio/${op.slug}`} target="_blank" rel="noreferrer"><Store /> Cardápio <ExternalLink /></a>
                 <a className="loja-btn mini" href={`${base}/painel/${op.slug}`} target="_blank" rel="noreferrer"><Monitor /> TV <ExternalLink /></a>
+                <button className="loja-btn mini" onClick={() => setQr(op)}><QrCode /> QR</button>
               </div>
             )}
             {podeGerir && (
@@ -64,6 +67,8 @@ export function OperacoesLoja() {
         ))}
         {operacoes.data?.length === 0 && <p style={{ color: "var(--muted)" }}>Nenhuma operação ainda.</p>}
       </div>
+
+      {qr && qr.slug && <QrCardapioModal slug={qr.slug} nome={qr.nome} aoFechar={() => setQr(null)} />}
 
       {editar && (
         <FormOperacao

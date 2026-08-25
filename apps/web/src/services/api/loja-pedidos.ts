@@ -40,3 +40,7 @@ export const lojaAuditoria = (p: { entidade?: string; acao?: string; de?: string
 // -------------------- gestão de operações --------------------
 export const criarOperacao = (d: Partial<LojaOperacao>) => api.post<LojaOperacao>('/loja-pedidos/operacoes', d);
 export const atualizarOperacao = (id: string, d: Partial<LojaOperacao>) => api.put<LojaOperacao>(`/loja-pedidos/operacoes/${id}`, d);
+
+// -------------------- QR Code do cardápio (PRD §11) --------------------
+export interface QrCardapio { slug: string; operacao: string; url: string; pngDataUrl: string; svg: string }
+export const qrcodeCardapio = (slug: string) => api.get<QrCardapio>(`/loja-pedidos/operacoes/${slug}/qrcode`);

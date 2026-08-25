@@ -1,10 +1,10 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { cardapioPublico, checkout, iniciarPagamento, confirmarPagamentoPublico } from "@/services/api/loja-pedidos";
+import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
-import type { CardapioProduto } from "@/types/loja-pedidos";
+import type { CardapioProduto, LojaPedidoPagamento } from "@/types/loja-pedidos";
 import "@/app/fila.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -14,14 +14,31 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
-  const [etapa, setEtapa] = useState<"catalogo" | "identificar" | "pagando">("catalogo");
+  const [etapa, setEtapa] = useState<"catalogo" | "identificar" | "pix">("catalogo");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
+  const [pix, setPix] = useState<LojaPedidoPagamento | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   const cardapio = useQuery({
     queryKey: ["cardapio", slug],
     queryFn: () => cardapioPublico(slug),
   });
+
+  // Enquanto aguarda pagamento, checa o status: o webhook do ASAAS confirma e o
+  // pedido sai de AGUARDANDO_PAGAMENTO — aí levamos o cliente ao acompanhamento.
+  const statusPedido = useQuery({
+    queryKey: ["cardapio-status", pedidoId],
+    queryFn: () => acompanharPedido(pedidoId!),
+    enabled: etapa === "pix" && !!pedidoId,
+    refetchInterval: 4000,
+  });
+  useEffect(() => {
+    if (etapa === "pix" && pedidoId && statusPedido.data && statusPedido.data.status !== "AGUARDANDO_PAGAMENTO") {
+      router.push(`/pedido/${pedidoId}`);
+    }
+  }, [etapa, pedidoId, statusPedido.data, router]);
 
   const produtos = cardapio.data?.produtos ?? [];
   const porCategoria = useMemo(() => {
@@ -62,16 +79,34 @@ export function CardapioPublico({ slug }: { slug: string }) {
         clienteTel: tel.replace(/\D/g, ""),
         itens,
       });
-      // MVP: gera cobrança PIX e confirma (em produção o webhook do gateway confirma).
-      await iniciarPagamento(pedido.id, { forma: "PIX", provider: "asaas" });
-      await confirmarPagamentoPublico(pedido.id, {});
-      router.push(`/pedido/${pedido.id}`);
+      setPedidoId(pedido.id);
+      // Gera a cobrança PIX no gateway (ASAAS) e mostra o QR + copia-e-cola.
+      const pagamento = await iniciarPagamento(pedido.id, { forma: "PIX" });
+      setPix(pagamento);
+      setEtapa("pix");
     } catch (e) {
       setErro(e instanceof ErroApi ? e.mensagem : "Não foi possível finalizar o pedido.");
       setEtapa("catalogo");
     } finally {
       setOcupado(false);
     }
+  }
+
+  // Fallback dev/homolog (sem gateway): permite marcar como pago manualmente.
+  async function simularPago() {
+    if (!pedidoId) return;
+    setErro(null);
+    try {
+      await confirmarPagamentoPublico(pedidoId, {});
+      router.push(`/pedido/${pedidoId}`);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.mensagem : "Aguardando confirmação do pagamento.");
+    }
+  }
+
+  async function copiarPix() {
+    if (!pix?.pixCopiaCola) return;
+    try { await navigator.clipboard.writeText(pix.pixCopiaCola); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { /* sem clipboard */ }
   }
 
   if (cardapio.isLoading) return <div className="acomp-page"><p>Carregando cardápio…</p></div>;
@@ -98,6 +133,38 @@ export function CardapioPublico({ slug }: { slug: string }) {
             {ocupado ? "Processando…" : `Pagar ${brl(total)}`}
           </button>
           <button className="loja-btn" style={{ width: "100%", justifyContent: "center", marginTop: 8 }} onClick={() => setEtapa("catalogo")}>Voltar</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (etapa === "pix") {
+    return (
+      <div className="acomp-page">
+        <div className="acomp-card">
+          <h1>Pague com PIX</h1>
+          <p className="st">{brl(total)}</p>
+          {pix?.pixQrcode && (
+            // QR do gateway (imagem base64) — some styling reaproveitado da fila.css
+            <img src={pix.pixQrcode} alt="QR Code PIX" style={{ width: 220, height: 220, margin: "18px auto", borderRadius: 12, background: "#fff", display: "block" }} />
+          )}
+          {pix?.pixCopiaCola ? (
+            <>
+              <p style={{ fontSize: 12, color: "#9a9aa2", margin: "10px 0 6px" }}>Copie o código e pague no seu banco:</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input readOnly value={pix.pixCopiaCola} style={{ ...inputStyle, marginTop: 0, fontSize: 11 }} onFocus={(e) => e.currentTarget.select()} />
+                <button className="loja-btn ouro" onClick={copiarPix}>{copiado ? "Copiado!" : "Copiar"}</button>
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: "#9a9aa2", margin: "16px 0" }}>Gerando cobrança…</p>
+          )}
+          <p style={{ fontSize: 12, color: "#e9b949", marginTop: 18 }}>Aguardando confirmação do pagamento…</p>
+          {erro && <p style={{ color: "#e06c75", fontSize: 13 }}>{erro}</p>}
+          {/* Só aparece quando não há gateway configurado (dev/homolog). */}
+          {!pix?.pixQrcode && (
+            <button className="loja-btn" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={simularPago}>Já paguei (homolog)</button>
+          )}
         </div>
       </div>
     );

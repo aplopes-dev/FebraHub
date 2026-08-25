@@ -31,6 +31,8 @@ export interface LojaPedidoPagamento {
   forma: string;
   status: "PENDENTE" | "CONFIRMADO" | "RECUSADO" | "EXPIRADO" | "ESTORNADO";
   valor: string;
+  gatewayId?: string | null;
+  pixQrcode?: string | null;
   pixCopiaCola?: string | null;
   pixExpiracao?: string | null;
   criadoEm: string;

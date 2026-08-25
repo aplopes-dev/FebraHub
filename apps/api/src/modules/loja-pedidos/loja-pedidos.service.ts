@@ -1,11 +1,14 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
+import * as QRCode from 'qrcode';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { LojaPedidosEventos } from './loja-pedidos.eventos';
+import { PagamentosService } from './pagamentos/pagamentos.service';
+import type { FormaPagamento } from './pagamentos/payment-provider';
 import {
   CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
@@ -41,6 +44,7 @@ export class LojaPedidosService {
     private readonly prisma: PrismaService,
     private readonly eventos: LojaPedidosEventos,
     private readonly whatsapp: WhatsappService,
+    private readonly pagamentos: PagamentosService,
   ) {}
 
   // ==================== OPERAÇÕES / EVENTOS ====================
@@ -54,6 +58,31 @@ export class LojaPedidosService {
 
   async operacaoAtiva() {
     return this.prisma.lojaOperacao.findFirst({ where: { status: 'ativa' }, orderBy: { criadoEm: 'desc' } });
+  }
+
+  /** Base pública do app (para as URLs do cardápio/TV). Prioriza FRONTEND_URL,
+   *  cai em APP_URL; sem env, aceita a origem passada pela tela. */
+  private basePublica(origem?: string): string {
+    const bruto = process.env.FRONTEND_URL || process.env.APP_URL || origem || '';
+    return bruto.replace(/\/$/, '');
+  }
+
+  /** QR Code do CARDÁPIO da operação (PRD §11). Aponta direto para a URL
+   *  pública `${base}/cardapio/:slug` — é o QR do cardápio, não "do evento".
+   *  Devolve a URL, o dataURL PNG (para <img>/download) e o SVG (impressão
+   *  nítida em banner/mesa). Não expõe nada sensível: é uma rota de leitura. */
+  async qrCodeCardapio(slug: string, origem?: string) {
+    const operacao = await this.prisma.lojaOperacao.findUnique({ where: { slug } });
+    if (!operacao) throw new NotFoundException('Operação não encontrada para este slug.');
+    const base = this.basePublica(origem);
+    if (!base) throw new BadRequestException('URL pública não configurada (defina FRONTEND_URL ou APP_URL).');
+    const url = `${base}/cardapio/${slug}`;
+    const opcoes = { errorCorrectionLevel: 'M' as const, margin: 2, width: 512 };
+    const [pngDataUrl, svg] = await Promise.all([
+      QRCode.toDataURL(url, opcoes),
+      QRCode.toString(url, { ...opcoes, type: 'svg' }),
+    ]);
+    return { slug, operacao: operacao.nome, url, pngDataUrl, svg };
   }
 
   async salvarOperacao(dto: SalvarOperacaoDto, u: UsuarioLogado, id?: string) {
@@ -203,24 +232,82 @@ export class LojaPedidosService {
 
   // ==================== PAGAMENTO ====================
 
-  /** Cria o registro de pagamento PENDENTE. Para PIX, aqui entraria o provider
-   *  (ASAAS) — no MVP devolvemos um pagamento manual pronto para confirmação. */
+  /** Cria a cobrança no provider ativo (ASAAS se configurado, senão manual) e
+   *  grava o pagamento PENDENTE com os dados do PIX/gateway. A confirmação vem
+   *  depois: por WEBHOOK (ASAAS) ou pelo OPERADOR (manual/maquininha). */
   async iniciarPagamento(pedidoId: string, dto: IniciarPagamentoDto) {
     const pedido = await this.prisma.lojaPedido.findUnique({ where: { id: pedidoId } });
     if (!pedido) throw new NotFoundException('Pedido não encontrado.');
     if (pedido.status !== 'AGUARDANDO_PAGAMENTO') throw new BadRequestException('Este pedido não está aguardando pagamento.');
 
+    const provider = this.pagamentos.provider();
+
+    // Cria primeiro o registro (para termos o pagamentoId como externalReference).
     const pagamento = await this.prisma.lojaPedidoPagamento.create({
-      data: {
-        pedidoId, provider: dto.provider ?? 'manual', forma: dto.forma, status: 'PENDENTE', valor: pedido.total,
-        // Placeholder de PIX para a UI mostrar algo em homolog. O provider real
-        // (ASAAS) substitui estes campos e um webhook confirma o pagamento.
-        ...(dto.forma === 'PIX' && (dto.provider ?? 'manual') !== 'manual'
-          ? { pixCopiaCola: `00020126FEBRACIS-${pedido.numero}`, pixExpiracao: new Date(Date.now() + 30 * 60_000) }
-          : {}),
-      },
+      data: { pedidoId, provider: provider.nome, forma: dto.forma, status: 'PENDENTE', valor: pedido.total },
     });
-    return jsonSeguro(pagamento);
+
+    try {
+      const cobranca = await provider.criarCobranca({
+        pagamentoId: pagamento.id, pedidoNumero: pedido.numero, forma: dto.forma as FormaPagamento,
+        valor: Number(pedido.total), clienteNome: pedido.clienteNome, clienteTel: pedido.clienteTel, expiraMin: 30,
+      });
+      const atualizado = await this.prisma.lojaPedidoPagamento.update({
+        where: { id: pagamento.id },
+        data: {
+          gatewayId: cobranca.gatewayId ?? undefined,
+          gatewayPayload: cobranca.payload === undefined ? undefined : (jsonSeguro(cobranca.payload) as Prisma.InputJsonValue),
+          pixQrcode: cobranca.pixQrcode ?? undefined,
+          pixCopiaCola: cobranca.pixCopiaCola ?? undefined,
+          pixExpiracao: cobranca.pixExpiracao ?? undefined,
+        },
+      });
+      return jsonSeguro(atualizado);
+    } catch (e) {
+      // Falhou no gateway: marca o pagamento como recusado e propaga um erro
+      // amigável — o pedido continua AGUARDANDO_PAGAMENTO (dá p/ tentar de novo).
+      await this.prisma.lojaPedidoPagamento.update({ where: { id: pagamento.id }, data: { status: 'RECUSADO' } }).catch(() => undefined);
+      throw e;
+    }
+  }
+
+  /** Confirmação PÚBLICA (sem sessão) — só permitida quando NÃO há gateway
+   *  externo ativo (dev/homolog). Com ASAAS configurado, a confirmação só vem
+   *  por webhook assinado ou pelo operador autenticado — fechando o furo de
+   *  alguém "confirmar sozinho" um pagamento via rota aberta. */
+  async confirmarPagamentoPublico(pedidoId: string, dto: ConfirmarPagamentoDto) {
+    if (this.pagamentos.usaGatewayExterno) {
+      throw new ForbiddenException('Confirmação pública desabilitada: o pagamento é confirmado pelo gateway.');
+    }
+    return this.confirmarPagamento(pedidoId, dto, 'webhook');
+  }
+
+  /** Webhook do gateway: confirma o pagamento de forma idempotente. Encontra o
+   *  pagamento pelo gateway_id, e só age quando o status vira CONFIRMADO. Um
+   *  reenvio do mesmo evento não confirma duas vezes (o confirmarPagamento já
+   *  é idempotente por pedido). */
+  async processarWebhook(providerNome: string, payload: unknown): Promise<{ ok: boolean; tratado: boolean }> {
+    const provider = this.pagamentos.porNome(providerNome);
+    const evento = provider.interpretarWebhook(payload);
+    if (!evento) return { ok: true, tratado: false };
+
+    void this.auditar({ entidade: 'pagamento', acao: 'webhook.recebido', origem: 'webhook', depois: { gatewayId: evento.gatewayId, status: evento.status } });
+
+    const pagamento = await this.prisma.lojaPedidoPagamento.findFirst({ where: { gatewayId: evento.gatewayId } });
+    if (!pagamento) {
+      this.logger.warn(`Webhook ${providerNome}: pagamento com gatewayId=${evento.gatewayId} não encontrado.`);
+      return { ok: true, tratado: false };
+    }
+
+    if (evento.status === 'CONFIRMADO') {
+      await this.confirmarPagamento(pagamento.pedidoId, { pagamentoId: pagamento.id, gatewayId: evento.gatewayId }, 'webhook');
+      return { ok: true, tratado: true };
+    }
+    if (['EXPIRADO', 'RECUSADO', 'ESTORNADO'].includes(evento.status)) {
+      await this.prisma.lojaPedidoPagamento.update({ where: { id: pagamento.id }, data: { status: evento.status } }).catch(() => undefined);
+      return { ok: true, tratado: true };
+    }
+    return { ok: true, tratado: false };
   }
 
   /** Confirma o pagamento: baixa o estoque reservado, gera recebível no
