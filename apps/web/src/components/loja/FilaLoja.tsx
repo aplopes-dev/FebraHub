@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode } from "lucide-react";
@@ -87,9 +88,9 @@ export function FilaLoja() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {podeOperar && (
-            <a className="loja-btn ouro" href="/loja/retirada">
+            <Link className="loja-btn ouro" href="/loja/retirada">
               <QrCode /> Escanear retirada
-            </a>
+            </Link>
           )}
           <button className="loja-btn" onClick={() => qc.invalidateQueries({ queryKey: ["loja-pedidos"] })}>
             <RefreshCw /> Atualizar
