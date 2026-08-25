@@ -36,11 +36,16 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY patches ./patches
 COPY apps/api/package.json apps/api/
 RUN pnpm install --filter @febrahub/api... --prod --frozen-lockfile
-# libxmljs2 é módulo NATIVO (node-gyp) e o pnpm ignora scripts de build por
-# padrão — sem este rebuild o addon .node não existe e o boot da API morre no
-# xsd-validator (validação do XML fiscal). A toolchain (python3/make/g++) já
-# está instalada acima. Fiscal (NFC-e) depende disto.
-RUN pnpm rebuild libxmljs2
+# libxmljs2 é módulo NATIVO e o prebuild publicado NÃO cobre este ABI
+# (Node 22 / node-v127 / musl-alpine): `pnpm rebuild` vira no-op e o addon
+# .node nunca é gerado, fazendo o boot da API morrer no xsd-validator
+# (validação do XML fiscal). Compilamos com node-gyp explicitamente no
+# diretório real do pacote (caminho versionado do pnpm store). A toolchain
+# (python3/make/g++) já está instalada acima. Fiscal (NFC-e) depende disto.
+RUN LIB="$(find /app/node_modules/.pnpm -maxdepth 2 -type d -name libxmljs2 | head -1)" && \
+    echo "Compilando libxmljs2 em $LIB" && \
+    cd "$LIB" && npx node-gyp rebuild && \
+    test -f build/Release/xmljs.node && echo "xmljs.node OK"
 # O client é gerado de novo aqui em vez de copiado do estágio de build: com
 # pnpm ele nasce dentro do store (node_modules/.pnpm/@prisma+client@.../),
 # não em apps/api/node_modules/.prisma, e copiar o caminho errado quebra o
