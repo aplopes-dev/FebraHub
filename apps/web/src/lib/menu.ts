@@ -55,10 +55,10 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
     base.push(
       {
         id: "loja-produtos",
-        label: "Produtos e Estoque",
+        label: "Produtos da Loja (cadastrar)",
         href: "/loja/produtos",
-        titulo: "Catálogo da Loja",
-        desc: "Produtos, categorias e estoque operacional (Loja / Depósito)",
+        titulo: "Produtos da Loja",
+        desc: "Cadastrar, editar e organizar os produtos vendidos (PDV e Cardápio), com saldo Loja / Depósito",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.produtos.ver"),
       },
       {
@@ -274,7 +274,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
     const hub: MenuPrimario = { id: h.key, label: h.nome, Icone: h.Icone,
       visivel: h.key === "marketing" ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver") : h.key === "estoque" ? (ctx: ContextoMenu) => doSetor("estoque")(ctx) || ctx.pode("compras.operar") : doSetor(h.key),
       filhos: h.key === "estoque" ? [
-        { id:"estoque-resumo",label:"Visão Geral",href:"/estoque",Icone:h.Icone,titulo:"Estoque integrado",desc:"Saldos reais, reservas e demandas de Compras",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
+        { id:"estoque-resumo",label:"Estoque geral (consulta)",href:"/estoque",Icone:h.Icone,titulo:"Estoque geral",desc:"Consulta dos saldos vindos do Omie/Compras. Para cadastrar produto da Loja, use Loja → Produtos",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
         { id:"estoque-verificacoes",label:"Verificações pendentes",href:"/compras/todas",desc:"Solicitações aguardando conferência do saldo",visivel:comPermissao("compras.operar") },
         { id:"estoque-recebimentos",label:"Recebimentos",href:"/compras/recebimentos",desc:"Entradas aguardadas dos pedidos de compra",visivel:comPermissao("compras.operar") },
       ] : filhosHub(h.key, h.nome, h.Icone, h.desc) };

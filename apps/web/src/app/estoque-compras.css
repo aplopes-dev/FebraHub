@@ -8,3 +8,8 @@
 .es-pag-botoes button:disabled{opacity:.4;cursor:default}
 .es-pag-botoes button svg{width:14px}
 .es-pag-num{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap}
+
+.es-aviso{display:flex;align-items:center;gap:12px;padding:13px 16px;border:1px solid rgb(var(--gold-rgb)/.35);background:rgb(var(--gold-rgb)/.08);border-radius:12px;font-size:13px;line-height:1.4;flex-wrap:wrap}
+.es-aviso>svg{color:var(--gold);flex-shrink:0}
+.es-aviso>div{flex:1;min-width:220px}
+.es-aviso-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;background:var(--gold);color:var(--sobre-ouro);border-radius:9px;padding:9px 13px;font-size:12px;font-weight:800;text-decoration:none}

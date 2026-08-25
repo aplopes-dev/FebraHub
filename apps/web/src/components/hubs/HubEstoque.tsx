@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, Boxes, ChevronLeft, ChevronRight, ClipboardCheck, PackageCheck, Search } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, ChevronLeft, ChevronRight, ClipboardCheck, Info, PackageCheck, Search, Store } from "lucide-react";
 import { comprasListar, produtosEstoque } from "@/services/api/compras";
 import { rotuloCompra } from "@/components/compras/CentralCompras";
 import "@/app/estoque-compras.css";
@@ -37,6 +37,15 @@ export function HubEstoque() {
 
   return <main className="es-page">
     <header className="es-hero"><div><span>ESTOQUE + COMPRAS</span><h1>Controle de estoque</h1><p>Saldo atual do cadastro existente, reservas feitas por Compras e filas que exigem ação.</p></div><Link href="/compras/todas">Abrir operação de Compras <ArrowRight/></Link></header>
+
+    <div className="es-aviso">
+      <Info size={17} />
+      <div>
+        <b>Esta tela é só de consulta</b> — mostra os saldos que vêm do Omie e de Compras.
+        Para <b>cadastrar, editar ou ajustar</b> um produto da Loja (PDV / Cardápio), use a tela de produtos da Loja.
+      </div>
+      <Link href="/loja/produtos" className="es-aviso-btn"><Store size={14}/> Ir para Produtos da Loja</Link>
+    </div>
     <section className="es-kpis">
       <article><Boxes/><div><b>{total.toLocaleString("pt-BR")}</b><span>produtos no catálogo</span></div></article>
       <article><PackageCheck/><div><b>{comSaldo.toLocaleString("pt-BR")}</b><span>produtos com saldo</span></div></article>
