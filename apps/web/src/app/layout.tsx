@@ -3,6 +3,7 @@ import { Manrope, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
+import "./busca-global.css";
 
 /* As duas famílias do design. Antes vinham por @import do Google Fonts dentro
    de um <style> no Shell — o que bloqueia o primeiro paint e depende da rede

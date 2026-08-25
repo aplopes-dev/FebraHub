@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Sun, X } from "lucide-react";
+import { BotaoBuscaGlobal, BuscaGlobal, useBuscaGlobal } from "@/components/shell/BuscaGlobal";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
 import { PerguntaRapida } from "@/components/brain/PerguntaRapida";
@@ -43,6 +44,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const [submenuOculto, setSubmenuOculto] = useState(false);
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [primarioManual, setPrimarioManual] = useState<string | null>(null);
+  const [buscaAberta, setBuscaAberta] = useBuscaGlobal();
 
   useEffect(() => {
     try {
@@ -233,6 +235,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             </div>
 
             <div className="fh-header-dir">
+              <BotaoBuscaGlobal onClick={() => setBuscaAberta((v) => !v)} />
               {pode(perfil, "brain.ver") && <PerguntaRapida />}
               <SinoNotificacoes />
               <div className="fh-header-user">
@@ -295,6 +298,18 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         </div>
 
         {(admin || setores.includes("crm")) && <TeamsWidget />}
+
+        {/* ── Busca Global (Ctrl+K) ── */}
+        {buscaAberta && (
+          <BuscaGlobal
+            ctx={ctxMenu}
+            onFechar={() => setBuscaAberta(false)}
+            onHandler={(handler) => {
+              // Handlers especiais (ex.: abrir modais) podem ser registrados aqui
+              console.info("[BuscaGlobal] handler:", handler);
+            }}
+          />
+        )}
       </div>
     </ProvedorPeriodo>
   );
