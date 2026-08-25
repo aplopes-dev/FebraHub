@@ -168,7 +168,8 @@ export function TarefasCrm({ aoAbrirNegocio, aoAbrirCliente }: {
       </form>
 
       <Estado carregando={tarefas.isLoading} erro={tarefas.error} vazio={!tarefas.data?.length}
-        vazioTitulo={mostrar === "abertas" ? "Nenhuma tarefa aberta" : "Nenhuma tarefa concluída"}>
+        vazioTitulo={mostrar === "abertas" ? "Nenhuma tarefa aberta" : "Nenhuma tarefa concluída"}
+        vazioDica={mostrar === "abertas" ? "Crie uma tarefa no campo acima para não esquecer um follow-up." : "As tarefas concluídas aparecem aqui."}>
         <div style={{ display: "grid", gap: 8 }}>
           {(tarefas.data ?? []).map((t) => (
             <Linha key={t.id} tarefa={t} aoAbrirVinculo={abrirVinculo} />

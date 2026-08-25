@@ -177,9 +177,9 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             })}
           </nav>
           <div className="fh-rail-ajuda">
-            <Link href="/configuracoes/brain" className="fh-rail-item" title="Ajuda / memória">
+            <Link href="/configuracoes/brain" className="fh-rail-item" title="Memória institucional — busca e respostas com a base de conhecimento">
               <BookOpenIcon />
-              <span>Ajuda</span>
+              <span>Memória</span>
             </Link>
           </div>
         </aside>

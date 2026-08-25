@@ -50,7 +50,7 @@ export function DreFinanceiro() {
           {(contas.data ?? []).map((c) => (
             <div key={c.id} className="fin-linha-tot"><span>{c.nome}{c.banco ? ` · ${c.banco}` : ""}</span><b>{brl(c.saldoAtual)}</b></div>
           ))}
-          {!contas.isLoading && !(contas.data ?? []).length && <p className="fin-empty">Nenhuma conta cadastrada.</p>}
+          {!contas.isLoading && !(contas.data ?? []).length && <p className="fin-empty">Nenhuma conta bancária cadastrada ainda. Cadastre em Contas a pagar/receber.</p>}
         </aside>
       </div>
     </main>

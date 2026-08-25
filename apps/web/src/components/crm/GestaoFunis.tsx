@@ -33,7 +33,7 @@ export function GestaoFunis() {
         </button>
       </form>
 
-      <Estado carregando={funis.isLoading} erro={funis.error} vazio={!funis.data?.length} vazioTitulo="Nenhum funil configurado">
+      <Estado carregando={funis.isLoading} erro={funis.error} vazio={!funis.data?.length} vazioTitulo="Nenhum funil configurado" vazioDica="Crie o primeiro funil no campo acima — ele já vem com as etapas básicas.">
         <div style={{ display: "grid", gap: 14 }}>
           {(funis.data ?? []).map((f) => <CartaoFunil key={f.id} funil={f} />)}
         </div>

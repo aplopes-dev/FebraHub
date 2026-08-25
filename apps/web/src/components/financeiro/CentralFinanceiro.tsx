@@ -198,15 +198,15 @@ function ModalLancamento({ operacao, aoFechar, aoCriar }: { operacao: string; ao
         <input className="fin-input" value={descricao} onChange={(e) => setDescricao(e.target.value)} autoFocus />
         <div className="row">
           <div><label>Valor (R$)</label><input className="fin-input" type="number" min={0.01} step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} /></div>
-          <div><label>Contraparte</label><input className="fin-input" value={contraparte} onChange={(e) => setContraparte(e.target.value)} /></div>
+          <div><label>{operacao === "receber" ? "De quem recebe" : "A quem paga"}</label><input className="fin-input" value={contraparte} onChange={(e) => setContraparte(e.target.value)} /><small className="fin-help">Nome da pessoa ou empresa.</small></div>
         </div>
         <div className="row">
-          <div><label>Competência</label><input className="fin-input" type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} /></div>
-          <div><label>Vencimento</label><input className="fin-input" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></div>
+          <div><label>Competência</label><input className="fin-input" type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} /><small className="fin-help">Mês a que o valor se refere.</small></div>
+          <div><label>Vencimento</label><input className="fin-input" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /><small className="fin-help">Data limite para pagar/receber.</small></div>
         </div>
         <div className="row">
-          <div><label>Conta contábil (DRE)</label><select className="fin-select" value={planoContaId} onChange={(e) => setPlano(e.target.value)}><option value="">—</option>{planos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
-          <div><label>Centro de custo</label><select className="fin-select" value={centroCustoId} onChange={(e) => setCentro(e.target.value)}><option value="">—</option>{centros.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+          <div><label>Conta contábil (DRE)</label><select className="fin-select" value={planoContaId} onChange={(e) => setPlano(e.target.value)}><option value="">—</option>{planos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select><small className="fin-help">Em qual categoria entra no resultado. Opcional.</small></div>
+          <div><label>Centro de custo</label><select className="fin-select" value={centroCustoId} onChange={(e) => setCentro(e.target.value)}><option value="">—</option>{centros.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select><small className="fin-help">A qual área/setor pertence. Opcional.</small></div>
         </div>
         {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
         <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={criar.isPending || !descricao || !valor} onClick={() => { setErro(null); criar.mutate(); }}>Criar lançamento</button></div>
