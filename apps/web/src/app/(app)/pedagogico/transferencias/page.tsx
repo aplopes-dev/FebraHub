@@ -19,6 +19,16 @@ export default function TransferenciasPage() {
   const [processando, setProcessando] = useState<string | null>(null);
   const [destinoPorAluno, setDestinoPorAluno] = useState<Record<string, string>>({});
 
+  // solicitar nova transferência
+  const [mostrarSolicitar, setMostrarSolicitar] = useState(false);
+  const [buscaAluno, setBuscaAluno] = useState("");
+  const [candidatos, setCandidatos] = useState<PedagogicoMatricula[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [selecionada, setSelecionada] = useState<PedagogicoMatricula | null>(null);
+  const [destinoNovo, setDestinoNovo] = useState("");
+  const [motivoNovo, setMotivoNovo] = useState("");
+  const [solicitando, setSolicitando] = useState(false);
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
@@ -48,6 +58,51 @@ export default function TransferenciasPage() {
     }
     return null;
   }
+
+  const buscarAluno = async () => {
+    if (buscaAluno.trim().length < 2) return;
+    setBuscando(true);
+    setFeedback(null);
+    try {
+      const res = await pedagogico.matriculas({ busca: buscaAluno.trim(), porPagina: 20 });
+      // só matrículas ativas (com turma) que podem ser transferidas
+      setCandidatos((res.itens ?? []).filter((m) => !["Cancelado", "Concluído", "Transferido"].includes(m.status)));
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro na busca." });
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const solicitar = async () => {
+    if (!selecionada) return;
+    if (!selecionada.turma?.id) {
+      setFeedback({ tipo: "erro", msg: "Esta matrícula não tem turma de origem definida." });
+      return;
+    }
+    setSolicitando(true);
+    setFeedback(null);
+    try {
+      await pedagogico.solicitarTransferencia({
+        matriculaId: selecionada.id,
+        turmaOrigemId: selecionada.turma.id,
+        turmaDestinoId: destinoNovo || undefined,
+        motivo: motivoNovo.trim() || undefined,
+      });
+      setFeedback({ tipo: "ok", msg: `Transferência solicitada para ${selecionada.pessoaNome ?? "aluno"}.` });
+      setMostrarSolicitar(false);
+      setSelecionada(null);
+      setCandidatos([]);
+      setBuscaAluno("");
+      setDestinoNovo("");
+      setMotivoNovo("");
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao solicitar transferência." });
+    } finally {
+      setSolicitando(false);
+    }
+  };
 
   const efetivar = async (m: PedagogicoMatricula) => {
     const turmaDestinoId = destinoPorAluno[m.id];
@@ -95,14 +150,86 @@ export default function TransferenciasPage() {
 
   return (
     <div className="ped-page">
-      <div className="ped-page-header">
-        <h1>Transferências</h1>
-        <p className="ped-page-sub">
-          Solicitações de transferência de turma pendentes. Escolha a turma de destino e efetive, ou cancele.
-        </p>
+      <div className="ped-page-topo">
+        <div className="ped-page-header" style={{ marginBottom: 0 }}>
+          <h1>Transferências</h1>
+          <p className="ped-page-sub">
+            Solicite uma transferência ou trate as pendentes: escolha a turma de destino e efetive, ou cancele.
+          </p>
+        </div>
+        <button className="ped-btn-primario" onClick={() => setMostrarSolicitar((v) => !v)}>
+          {mostrarSolicitar ? "Fechar" : "+ Solicitar transferência"}
+        </button>
       </div>
 
       {feedback && <div className={`ped-feedback ${feedback.tipo}`}>{feedback.msg}</div>}
+
+      {mostrarSolicitar && (
+        <div className="ped-form-card" style={{ marginBottom: "1.25rem" }}>
+          <h3 style={{ marginTop: 0 }}>Solicitar transferência</h3>
+          <div className="ped-filtros-row">
+            <input
+              className="ped-input"
+              placeholder="Buscar aluno por nome ou CPF…"
+              value={buscaAluno}
+              onChange={(e) => setBuscaAluno(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void buscarAluno(); }}
+            />
+            <button className="ped-btn-outline" disabled={buscando || buscaAluno.trim().length < 2} onClick={() => void buscarAluno()}>
+              {buscando ? "Buscando…" : "Buscar"}
+            </button>
+          </div>
+
+          {candidatos.length > 0 && !selecionada && (
+            <div className="ped-tabela-wrapper" style={{ marginBottom: "1rem" }}>
+              <table className="ped-tabela">
+                <thead><tr><th>Aluno</th><th>Curso</th><th>Turma atual</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {candidatos.map((m) => (
+                    <tr key={m.id}>
+                      <td><strong>{m.pessoaNome ?? "—"}</strong></td>
+                      <td>{m.cursoNome ?? m.turma?.cursoNome ?? "—"}</td>
+                      <td>{m.turma?.nome ?? "—"}</td>
+                      <td><span className="ped-badge inativo">{m.status}</span></td>
+                      <td><button className="ped-btn-xs ativo" disabled={!m.turma?.id} onClick={() => setSelecionada(m)}>Selecionar</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {selecionada && (
+            <div>
+              <div className="ped-atencao-box" style={{ background: "#eef2ff", borderColor: "#c7d2fe", color: "#3730a3" }}>
+                Aluno: <strong>{selecionada.pessoaNome}</strong> · Turma de origem: <strong>{selecionada.turma?.nome ?? "—"}</strong>
+                <button className="ped-btn-xs" style={{ marginLeft: ".75rem" }} onClick={() => setSelecionada(null)}>trocar aluno</button>
+              </div>
+              <div className="ped-form-grid">
+                <label className="ped-label">
+                  Turma de destino (opcional)
+                  <select className="ped-select" value={destinoNovo} onChange={(e) => setDestinoNovo(e.target.value)}>
+                    <option value="">Definir depois…</option>
+                    {turmas.filter((t) => t.id !== selecionada.turma?.id).map((t) => (
+                      <option key={t.id} value={t.id}>{t.nome} {t.dataInicio ? `— ${fmtData(t.dataInicio)}` : ""}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="ped-label ped-full">
+                  Motivo
+                  <textarea className="ped-textarea" value={motivoNovo} onChange={(e) => setMotivoNovo(e.target.value)} />
+                </label>
+              </div>
+              <div className="ped-form-acoes">
+                <button className="ped-btn-primario" disabled={solicitando} onClick={() => void solicitar()}>
+                  {solicitando ? "Solicitando…" : "✓ Solicitar transferência"}
+                </button>
+                <button className="ped-btn-outline" onClick={() => setMostrarSolicitar(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="ped-filtros-row">
         <button className="ped-btn-outline" onClick={() => void carregar()}>Atualizar</button>

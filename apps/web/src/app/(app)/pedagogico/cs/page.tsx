@@ -33,6 +33,11 @@ export default function CustomerSuccessPage() {
   const [novo, setNovo] = useState({ pessoaId: "", pessoaNome: "", motivo: "risco_evasao", prioridade: "normal", proxima_acao: "", prazo: "", observacoes: "" });
   const [salvando, setSalvando] = useState(false);
 
+  // edição completa
+  const [editando, setEditando] = useState<CsItem | null>(null);
+  const [formEdit, setFormEdit] = useState({ status: "", prioridade: "", proxima_acao: "", prazo: "", observacoes: "", resultado: "" });
+  const [salvandoEdit, setSalvandoEdit] = useState(false);
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
@@ -86,6 +91,41 @@ export default function CustomerSuccessPage() {
       await carregar();
     } catch (e: unknown) {
       setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao atualizar acompanhamento." });
+    }
+  };
+
+  const abrirEdicao = (c: CsItem) => {
+    setFormEdit({
+      status: c.status ?? "aberto",
+      prioridade: c.prioridade ?? "normal",
+      proxima_acao: c.proximaAcao ?? "",
+      prazo: c.prazo ? String(c.prazo).slice(0, 10) : "",
+      observacoes: c.observacoes ?? "",
+      resultado: "",
+    });
+    setEditando(c);
+  };
+
+  const salvarEdicao = async () => {
+    if (!editando) return;
+    setSalvandoEdit(true);
+    setFeedback(null);
+    try {
+      await pedagogico.atualizarCs(editando.id, {
+        status: formEdit.status || undefined,
+        prioridade: formEdit.prioridade || undefined,
+        proxima_acao: formEdit.proxima_acao.trim() || undefined,
+        prazo: formEdit.prazo || undefined,
+        observacoes: formEdit.observacoes.trim() || undefined,
+        resultado: formEdit.resultado.trim() || undefined,
+      });
+      setFeedback({ tipo: "ok", msg: "Acompanhamento atualizado." });
+      setEditando(null);
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao salvar acompanhamento." });
+    } finally {
+      setSalvandoEdit(false);
     }
   };
 
@@ -201,6 +241,7 @@ export default function CustomerSuccessPage() {
                   <td><span className={`ped-badge ${c.status}`}>{c.status}</span></td>
                   <td>
                     <div className="ped-acoes-row">
+                      <button className="ped-btn-xs" onClick={() => abrirEdicao(c)}>Editar</button>
                       {c.status === "aberto" && (
                         <button className="ped-btn-xs" onClick={() => void mudarStatus(c, "em_andamento")}>Em andamento</button>
                       )}
@@ -216,6 +257,57 @@ export default function CustomerSuccessPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal de edição completa */}
+      {editando && (
+        <div
+          onClick={() => !salvandoEdit && setEditando(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 60, padding: "2rem 1rem", overflowY: "auto" }}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="ped-form-card" style={{ maxWidth: 560, width: "100%" }}>
+            <h3 style={{ marginTop: 0 }}>Editar acompanhamento — {editando.pessoaNome ?? editando.pessoaId}</h3>
+            <div className="ped-form-grid">
+              <label className="ped-label">
+                Status
+                <select className="ped-select" value={formEdit.status} onChange={(e) => setFormEdit({ ...formEdit, status: e.target.value })}>
+                  {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <label className="ped-label">
+                Prioridade
+                <select className="ped-select" value={formEdit.prioridade} onChange={(e) => setFormEdit({ ...formEdit, prioridade: e.target.value })}>
+                  <option value="baixa">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </label>
+              <label className="ped-label ped-full">
+                Próxima ação
+                <input className="ped-input" value={formEdit.proxima_acao} onChange={(e) => setFormEdit({ ...formEdit, proxima_acao: e.target.value })} />
+              </label>
+              <label className="ped-label">
+                Prazo
+                <input type="date" className="ped-input" value={formEdit.prazo} onChange={(e) => setFormEdit({ ...formEdit, prazo: e.target.value })} />
+              </label>
+              <label className="ped-label ped-full">
+                Observações
+                <textarea className="ped-textarea" value={formEdit.observacoes} onChange={(e) => setFormEdit({ ...formEdit, observacoes: e.target.value })} />
+              </label>
+              <label className="ped-label ped-full">
+                Resultado (registrado ao resolver)
+                <textarea className="ped-textarea" value={formEdit.resultado} onChange={(e) => setFormEdit({ ...formEdit, resultado: e.target.value })} />
+              </label>
+            </div>
+            <div className="ped-form-acoes">
+              <button className="ped-btn-primario" disabled={salvandoEdit} onClick={() => void salvarEdicao()}>
+                {salvandoEdit ? "Salvando…" : "✓ Salvar"}
+              </button>
+              <button className="ped-btn-outline" onClick={() => setEditando(null)} disabled={salvandoEdit}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

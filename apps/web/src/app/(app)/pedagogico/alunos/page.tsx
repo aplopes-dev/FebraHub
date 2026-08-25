@@ -1,7 +1,7 @@
 "use client";
 import "@/app/pedagogico.css";
 import React, { useEffect, useState, useCallback } from "react";
-import { pedagogico, PedagogicoMatricula } from "@/services/api/pedagogico";
+import { pedagogico, PedagogicoMatricula, PedagogicoTurma } from "@/services/api/pedagogico";
 
 const ptStatus: Record<string, string> = {
   Matriculado: "Matriculado",
@@ -62,6 +62,14 @@ export default function AlunosPage() {
   const [executandoAcao, setExecutandoAcao] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(null);
 
+  // criar matrícula manual
+  const [turmas, setTurmas] = useState<PedagogicoTurma[]>([]);
+  const [mostrarNovo, setMostrarNovo] = useState(false);
+  const [criandoMat, setCriandoMat] = useState(false);
+  const [novoMat, setNovoMat] = useState({
+    turmaId: "", pessoaId: "", pessoaNome: "", pessoaCpf: "", pessoaEmail: "", pessoaTelefone: "", cursoNome: "",
+  });
+
   const POR_PAGINA = 50;
 
   const carregar = useCallback(async () => {
@@ -85,6 +93,43 @@ export default function AlunosPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
   useEffect(() => { setPagina(1); }, [busca, filtroStatus, filtroCurso, apenasAtencao]);
+
+  // Carrega turmas para o seletor da matrícula manual (uma vez)
+  useEffect(() => {
+    pedagogico.turmas({ porPagina: 200 })
+      .then(r => setTurmas(r.itens ?? []))
+      .catch(() => {});
+  }, []);
+
+  const criarMatricula = async () => {
+    if (!novoMat.turmaId) { setFeedback({ tipo: "erro", msg: "Selecione a turma." }); return; }
+    if (!novoMat.pessoaId.trim() && !novoMat.pessoaNome.trim()) {
+      setFeedback({ tipo: "erro", msg: "Informe ao menos o ID ou o nome do aluno." });
+      return;
+    }
+    setCriandoMat(true);
+    setFeedback(null);
+    try {
+      await pedagogico.criarMatricula({
+        turmaId: novoMat.turmaId,
+        pessoaId: novoMat.pessoaId.trim() || novoMat.pessoaNome.trim(),
+        pessoaNome: novoMat.pessoaNome.trim() || undefined,
+        pessoaCpf: novoMat.pessoaCpf.trim() || undefined,
+        pessoaEmail: novoMat.pessoaEmail.trim() || undefined,
+        pessoaTelefone: novoMat.pessoaTelefone.trim() || undefined,
+        cursoNome: novoMat.cursoNome.trim() || undefined,
+        origem: "manual",
+      });
+      setFeedback({ tipo: "ok", msg: "Matrícula criada." });
+      setMostrarNovo(false);
+      setNovoMat({ turmaId: "", pessoaId: "", pessoaNome: "", pessoaCpf: "", pessoaEmail: "", pessoaTelefone: "", cursoNome: "" });
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao criar matrícula." });
+    } finally {
+      setCriandoMat(false);
+    }
+  };
 
   const toggleSel = (id: string) => {
     setSelecionados(prev => {
@@ -122,10 +167,60 @@ export default function AlunosPage() {
 
   return (
     <div className="ped-page">
-      <div className="ped-page-header">
-        <h1>Alunos / Jornada</h1>
-        <p className="ped-page-sub">Lista operacional de alunos matriculados. Busque, filtre e tome ações em massa.</p>
+      <div className="ped-page-topo">
+        <div className="ped-page-header" style={{ marginBottom: 0 }}>
+          <h1>Alunos / Jornada</h1>
+          <p className="ped-page-sub">Lista operacional de alunos matriculados. Busque, filtre e tome ações em massa.</p>
+        </div>
+        <button className="ped-btn-primario" onClick={() => setMostrarNovo(v => !v)}>
+          {mostrarNovo ? "Fechar" : "+ Nova matrícula"}
+        </button>
       </div>
+
+      {mostrarNovo && (
+        <div className="ped-form-card" style={{ marginBottom: "1.25rem" }}>
+          <h3 style={{ marginTop: 0 }}>Nova matrícula manual</h3>
+          <div className="ped-form-grid">
+            <label className="ped-label ped-full">
+              Turma *
+              <select className="ped-select" value={novoMat.turmaId} onChange={e => setNovoMat({ ...novoMat, turmaId: e.target.value })}>
+                <option value="">Selecionar turma…</option>
+                {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              </select>
+            </label>
+            <label className="ped-label">
+              ID da pessoa
+              <input className="ped-input" value={novoMat.pessoaId} onChange={e => setNovoMat({ ...novoMat, pessoaId: e.target.value })} placeholder="crm_clientes.id / dim_alunos" />
+            </label>
+            <label className="ped-label">
+              Nome do aluno
+              <input className="ped-input" value={novoMat.pessoaNome} onChange={e => setNovoMat({ ...novoMat, pessoaNome: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              CPF
+              <input className="ped-input" value={novoMat.pessoaCpf} onChange={e => setNovoMat({ ...novoMat, pessoaCpf: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              Telefone
+              <input className="ped-input" value={novoMat.pessoaTelefone} onChange={e => setNovoMat({ ...novoMat, pessoaTelefone: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              E-mail
+              <input className="ped-input" value={novoMat.pessoaEmail} onChange={e => setNovoMat({ ...novoMat, pessoaEmail: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              Curso (sobrescreve o da turma)
+              <input className="ped-input" value={novoMat.cursoNome} onChange={e => setNovoMat({ ...novoMat, cursoNome: e.target.value })} />
+            </label>
+          </div>
+          <div className="ped-form-acoes">
+            <button className="ped-btn-primario" disabled={criandoMat} onClick={() => void criarMatricula()}>
+              {criandoMat ? "Salvando…" : "✓ Criar matrícula"}
+            </button>
+            <button className="ped-btn-outline" onClick={() => setMostrarNovo(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
 
       {/* alertas de atenção */}
       {!apenasAtencao && precisamAtencao.length > 0 && (

@@ -72,6 +72,15 @@ const ptStatus: Record<string, string> = {
   Faltou: "Faltou",
 };
 
+// Status válidos no backend (com espaço/acento — o @IsIn exige exatamente estes)
+const STATUS_TURMA_OPCOES = [
+  "Planejada", "Aguardando Validação", "Confirmada",
+  "Em Preparação", "Em Andamento", "Finalizada", "Cancelada",
+];
+
+// Normaliza uma data ISO / Date para o formato YYYY-MM-DD do <input type=date>
+const paraInputData = (s?: string | null) => (s ? String(s).slice(0, 10) : "");
+
 // ─── componente principal ───────────────────────────────────────────────────
 export default function DetalhesTurmaPage() {
   const params = useParams<{ id: string }>();
@@ -83,6 +92,10 @@ export default function DetalhesTurmaPage() {
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
   const [mudandoStatus, setMudandoStatus] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
+  const [formEdit, setFormEdit] = useState<Record<string, string>>({});
 
   const carregar = useCallback(async () => {
     if (!params.id) return;
@@ -108,6 +121,71 @@ export default function DetalhesTurmaPage() {
       await carregar();
     } finally {
       setMudandoStatus(false);
+    }
+  };
+
+  const abrirEdicao = () => {
+    if (!turma) return;
+    setErroEdicao(null);
+    setFormEdit({
+      nome: turma.nome ?? "",
+      cursoNome: turma.cursoNome ?? "",
+      cursoId: turma.cursoId ?? "",
+      turmaIdSf: turma.turmaIdSf ?? "",
+      unidade: turma.unidade ?? "",
+      local: turma.local ?? "",
+      endereco: turma.endereco ?? "",
+      dataInicio: paraInputData(turma.dataInicio),
+      dataFim: paraInputData(turma.dataFim),
+      horarioInicio: turma.horarioInicio ?? "",
+      horarioFim: turma.horarioFim ?? "",
+      horarioCredenciamento: turma.horarioCredenciamento ?? "",
+      treinador: turma.treinador ?? "",
+      capacidade: turma.capacidade != null ? String(turma.capacidade) : "",
+      status: turma.status ?? "Planejada",
+      linkGrupo: turma.linkGrupo ?? "",
+      observacoes: turma.observacoes ?? "",
+    });
+    setEditando(true);
+  };
+
+  const setEdit = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setFormEdit(prev => ({ ...prev, [k]: e.target.value }));
+
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!turma) return;
+    if (!formEdit.nome?.trim()) { setErroEdicao("Nome da turma é obrigatório."); return; }
+    if (!formEdit.cursoNome?.trim()) { setErroEdicao("Nome do curso é obrigatório."); return; }
+    setSalvandoEdicao(true);
+    setErroEdicao(null);
+    try {
+      const payload: Record<string, unknown> = {
+        nome: formEdit.nome.trim(),
+        cursoNome: formEdit.cursoNome.trim(),
+        status: formEdit.status || undefined,
+        capacidade: formEdit.capacidade ? parseInt(formEdit.capacidade) : undefined,
+        cursoId: formEdit.cursoId || undefined,
+        turmaIdSf: formEdit.turmaIdSf || undefined,
+        unidade: formEdit.unidade || undefined,
+        local: formEdit.local || undefined,
+        endereco: formEdit.endereco || undefined,
+        dataInicio: formEdit.dataInicio || undefined,
+        dataFim: formEdit.dataFim || undefined,
+        horarioInicio: formEdit.horarioInicio || undefined,
+        horarioFim: formEdit.horarioFim || undefined,
+        horarioCredenciamento: formEdit.horarioCredenciamento || undefined,
+        treinador: formEdit.treinador || undefined,
+        linkGrupo: formEdit.linkGrupo || undefined,
+        observacoes: formEdit.observacoes || undefined,
+      };
+      await pedagogico.atualizarTurma(turma.id, payload);
+      setEditando(false);
+      await carregar();
+    } catch (err: unknown) {
+      setErroEdicao(err instanceof Error ? err.message : "Erro ao salvar turma.");
+    } finally {
+      setSalvandoEdicao(false);
     }
   };
 
@@ -166,15 +244,18 @@ export default function DetalhesTurmaPage() {
         </div>
         {/* ações de status */}
         <div className="ped-turma-acoes">
-          {["EmPreparacao", "EmAndamento", "Finalizada", "Cancelada"].map(s => (
+          <button className="ped-btn-primario" onClick={abrirEdicao} disabled={mudandoStatus}>
+            ✎ Editar turma
+          </button>
+          {["Em Preparação", "Em Andamento", "Finalizada", "Cancelada"].map(s => (
             <button
               key={s}
               className={`ped-btn-outline ${turma.status === s ? "ativo" : ""}`}
               disabled={mudandoStatus || turma.status === s}
               onClick={() => mudarStatus(s)}
             >
-              {s === "EmPreparacao" ? "↗ Em Preparação"
-                : s === "EmAndamento" ? "▶ Em Andamento"
+              {s === "Em Preparação" ? "↗ Em Preparação"
+                : s === "Em Andamento" ? "▶ Em Andamento"
                 : s === "Finalizada" ? "✓ Finalizar"
                 : "✕ Cancelar"}
             </button>
@@ -527,6 +608,121 @@ export default function DetalhesTurmaPage() {
         )}
 
       </div>
+
+      {/* ── modal de edição da turma ── */}
+      {editando && (
+        <div
+          onClick={() => !salvandoEdicao && setEditando(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 60, padding: "2rem 1rem", overflowY: "auto" }}
+        >
+          <form
+            onClick={e => e.stopPropagation()}
+            onSubmit={salvarEdicao}
+            className="ped-form-card"
+            style={{ maxWidth: 760, width: "100%" }}
+          >
+            <h3 style={{ marginTop: 0 }}>Editar turma</h3>
+            {erroEdicao && <div className="ped-erro">{erroEdicao}</div>}
+
+            <div className="ped-form-section">
+              <h3>Identificação</h3>
+              <div className="ped-form-grid">
+                <label className="ped-label ped-full">
+                  Nome da Turma *
+                  <input className="ped-input" value={formEdit.nome ?? ""} onChange={setEdit("nome")} required />
+                </label>
+                <label className="ped-label">
+                  Curso / Produto *
+                  <input className="ped-input" value={formEdit.cursoNome ?? ""} onChange={setEdit("cursoNome")} required />
+                </label>
+                <label className="ped-label">
+                  ID Salesforce (turma)
+                  <input className="ped-input" value={formEdit.turmaIdSf ?? ""} onChange={setEdit("turmaIdSf")} />
+                </label>
+                <label className="ped-label">
+                  ID do Curso (sistema)
+                  <input className="ped-input" value={formEdit.cursoId ?? ""} onChange={setEdit("cursoId")} />
+                </label>
+                <label className="ped-label">
+                  Status
+                  <select className="ped-select" value={formEdit.status ?? ""} onChange={setEdit("status")}>
+                    {STATUS_TURMA_OPCOES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+                <label className="ped-label">
+                  Capacidade
+                  <input className="ped-input" type="number" min={0} value={formEdit.capacidade ?? ""} onChange={setEdit("capacidade")} />
+                </label>
+              </div>
+            </div>
+
+            <div className="ped-form-section">
+              <h3>Local e Datas</h3>
+              <div className="ped-form-grid">
+                <label className="ped-label">
+                  Unidade
+                  <input className="ped-input" value={formEdit.unidade ?? ""} onChange={setEdit("unidade")} />
+                </label>
+                <label className="ped-label">
+                  Local
+                  <input className="ped-input" value={formEdit.local ?? ""} onChange={setEdit("local")} />
+                </label>
+                <label className="ped-label ped-full">
+                  Endereço
+                  <input className="ped-input" value={formEdit.endereco ?? ""} onChange={setEdit("endereco")} />
+                </label>
+                <label className="ped-label">
+                  Data de Início
+                  <input className="ped-input" type="date" value={formEdit.dataInicio ?? ""} onChange={setEdit("dataInicio")} />
+                </label>
+                <label className="ped-label">
+                  Data de Fim
+                  <input className="ped-input" type="date" value={formEdit.dataFim ?? ""} onChange={setEdit("dataFim")} />
+                </label>
+                <label className="ped-label">
+                  Horário Início
+                  <input className="ped-input" type="time" value={formEdit.horarioInicio ?? ""} onChange={setEdit("horarioInicio")} />
+                </label>
+                <label className="ped-label">
+                  Horário Fim
+                  <input className="ped-input" type="time" value={formEdit.horarioFim ?? ""} onChange={setEdit("horarioFim")} />
+                </label>
+                <label className="ped-label">
+                  Horário Credenciamento
+                  <input className="ped-input" type="time" value={formEdit.horarioCredenciamento ?? ""} onChange={setEdit("horarioCredenciamento")} />
+                </label>
+              </div>
+            </div>
+
+            <div className="ped-form-section">
+              <h3>Equipe e Comunicação</h3>
+              <div className="ped-form-grid">
+                <label className="ped-label">
+                  Treinador
+                  <input className="ped-input" value={formEdit.treinador ?? ""} onChange={setEdit("treinador")} />
+                </label>
+                <label className="ped-label">
+                  Link do Grupo
+                  <input className="ped-input" value={formEdit.linkGrupo ?? ""} onChange={setEdit("linkGrupo")} />
+                </label>
+                <label className="ped-label ped-full">
+                  Observações
+                  <textarea className="ped-textarea" value={formEdit.observacoes ?? ""} onChange={setEdit("observacoes")} rows={3} />
+                </label>
+              </div>
+            </div>
+
+            <div className="ped-form-acoes">
+              <button type="button" className="ped-btn-outline" onClick={() => setEditando(false)} disabled={salvandoEdicao}>
+                Cancelar
+              </button>
+              <button type="submit" className="ped-btn-primario" disabled={salvandoEdicao}>
+                {salvandoEdicao ? "Salvando…" : "✓ Salvar alterações"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
