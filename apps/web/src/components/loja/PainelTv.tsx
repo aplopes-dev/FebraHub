@@ -1,6 +1,9 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Storefront, CookingPot, BellRinging, CheckCircle, Broadcast, CaretDoubleRight,
+} from "@phosphor-icons/react";
 import { cardapioPublico, painelPublico } from "@/services/api/loja-pedidos";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import "@/app/painel.css";
@@ -67,7 +70,7 @@ export function PainelTv({ slug }: { slug?: string }) {
       {/* ---- CABEÇALHO ---- */}
       <header className="tv-top">
         <div className="tv-brand">
-          <div className="tv-logo">🛍️</div>
+          <div className="tv-logo"><Storefront weight="fill" /></div>
           <div className="tv-brand-txt">
             <small>Loja FEBRACIS</small>
             <b>{op.data?.operacao.nome ?? "Retirada de pedidos"}</b>
@@ -84,12 +87,13 @@ export function PainelTv({ slug }: { slug?: string }) {
         {/* PREPARANDO */}
         <section className="tv-col preparando">
           <div className="tv-col-head">
-            <span className="dot" />Preparando
+            <CookingPot weight="duotone" className="ic" />Preparando
             <span className="cnt">{preparando.length}</span>
           </div>
 
           {proximo.length > 0 && (
             <div className="tv-proximo">
+              <CaretDoubleRight weight="bold" className="ic" />
               <span className="lbl">Prepare-se · próximo</span>
               <span className="val">
                 {proximo.map((n) => <span key={n}>{n}</span>)}
@@ -102,31 +106,34 @@ export function PainelTv({ slug }: { slug?: string }) {
               {preparando.map((n) => <span key={n} className="tv-num">{n}</span>)}
             </div>
           ) : (
-            <div className="tv-empty"><span>⏳</span>Nenhum pedido em preparo</div>
+            <div className="tv-empty"><CookingPot weight="duotone" />Nenhum pedido em preparo</div>
           )}
         </section>
 
         {/* PRONTO */}
         <section className="tv-col pronto">
           <div className="tv-col-head">
-            <span className="dot" />Pronto · pode retirar
+            <BellRinging weight="fill" className="ic" />Pronto · pode retirar
             <span className="cnt">{prontos.length}</span>
           </div>
 
           {prontos.length > 0 ? (
             <div className="tv-nums">
               {prontos.map((n) => (
-                <span key={n} className={`tv-num ${n === novoPronto ? "novo" : ""}`}>{n}</span>
+                <span key={n} className={`tv-num ${n === novoPronto ? "novo" : ""}`}>
+                  {n === novoPronto && <BellRinging weight="fill" className="tv-num-ic" />}
+                  {n}
+                </span>
               ))}
             </div>
           ) : (
-            <div className="tv-empty"><span>🔔</span>Aguardando os primeiros pedidos</div>
+            <div className="tv-empty"><CheckCircle weight="duotone" />Aguardando os primeiros pedidos</div>
           )}
         </section>
       </div>
 
       <div className="tv-foot">
-        <span className="live"><span className="dot" />AO VIVO</span>
+        <span className="live"><Broadcast weight="fill" className="ic" />AO VIVO</span>
         · Retire seu pedido no balcão quando sua senha aparecer em verde
       </div>
     </div>
