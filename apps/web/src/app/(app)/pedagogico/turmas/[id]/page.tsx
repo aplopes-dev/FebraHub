@@ -113,6 +113,20 @@ export default function DetalhesTurmaPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  const removerTurma = async () => {
+    if (!turma) return;
+    if (!confirm(`Cancelar (arquivar) a turma "${turma.nome}"? Só é possível se não houver alunos ativos.`)) return;
+    setMudandoStatus(true);
+    setErro(null);
+    try {
+      await pedagogico.removerTurma(turma.id);
+      router.push("/pedagogico/turmas");
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : "Erro ao cancelar a turma.");
+      setMudandoStatus(false);
+    }
+  };
+
   const mudarStatus = async (status: string) => {
     if (!turma) return;
     setMudandoStatus(true);
@@ -247,7 +261,7 @@ export default function DetalhesTurmaPage() {
           <button className="ped-btn-primario" onClick={abrirEdicao} disabled={mudandoStatus}>
             ✎ Editar turma
           </button>
-          {["Em Preparação", "Em Andamento", "Finalizada", "Cancelada"].map(s => (
+          {["Em Preparação", "Em Andamento", "Finalizada"].map(s => (
             <button
               key={s}
               className={`ped-btn-outline ${turma.status === s ? "ativo" : ""}`}
@@ -256,10 +270,17 @@ export default function DetalhesTurmaPage() {
             >
               {s === "Em Preparação" ? "↗ Em Preparação"
                 : s === "Em Andamento" ? "▶ Em Andamento"
-                : s === "Finalizada" ? "✓ Finalizar"
-                : "✕ Cancelar"}
+                : "✓ Finalizar"}
             </button>
           ))}
+          <button
+            className="ped-btn-outline"
+            style={{ color: "#b91c1c", borderColor: "#fca5a5" }}
+            disabled={mudandoStatus || turma.status === "Cancelada"}
+            onClick={removerTurma}
+          >
+            ✕ Cancelar turma
+          </button>
         </div>
       </div>
 

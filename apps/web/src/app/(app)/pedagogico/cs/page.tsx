@@ -94,6 +94,17 @@ export default function CustomerSuccessPage() {
     }
   };
 
+  const descartar = async (c: CsItem) => {
+    if (!confirm(`Descartar o acompanhamento de ${c.pessoaNome ?? c.pessoaId}?`)) return;
+    try {
+      await pedagogico.removerCs(c.id);
+      setFeedback({ tipo: "ok", msg: "Acompanhamento descartado." });
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao descartar." });
+    }
+  };
+
   const abrirEdicao = (c: CsItem) => {
     setFormEdit({
       status: c.status ?? "aberto",
@@ -250,6 +261,9 @@ export default function CustomerSuccessPage() {
                           <button className="ped-btn-xs ativo" onClick={() => void mudarStatus(c, "resolvido")}>Resolver</button>
                           <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(c, "cancelado")}>Cancelar</button>
                         </>
+                      )}
+                      {c.status !== "descartado" && (
+                        <button className="ped-btn-xs perigo" onClick={() => void descartar(c)}>Descartar</button>
                       )}
                     </div>
                   </td>

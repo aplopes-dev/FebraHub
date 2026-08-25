@@ -109,6 +109,27 @@ export default function MonitoresPage() {
     }
   };
 
+  const removerEscala = async (escalaId: string) => {
+    if (!confirm("Remover esta escala do monitor?")) return;
+    try {
+      await pedagogico.removerEscala(escalaId);
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao remover escala." });
+    }
+  };
+
+  const inativar = async (m: Monitor) => {
+    if (!confirm(`Inativar o monitor ${m.nome}?`)) return;
+    try {
+      await pedagogico.removerMonitor(m.id);
+      setFeedback({ tipo: "ok", msg: `${m.nome} inativado.` });
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao inativar monitor." });
+    }
+  };
+
   return (
     <div className="ped-page">
       <div className="ped-page-topo">
@@ -202,15 +223,21 @@ export default function MonitoresPage() {
                             ) : (
                               <button className="ped-btn-xs" onClick={() => void marcarKit(e.id)}>marcar kit</button>
                             )}
+                            <button className="ped-btn-xs perigo" onClick={() => void removerEscala(e.id)}>remover</button>
                           </div>
                         ))}
                       </div>
                     )}
                   </td>
                   <td>
-                    <button className="ped-btn-xs" onClick={() => { setEscalaAlvo(m); setTurmaEscala(""); }}>
-                      Escalar
-                    </button>
+                    <div className="ped-acoes-row">
+                      <button className="ped-btn-xs" onClick={() => { setEscalaAlvo(m); setTurmaEscala(""); }}>
+                        Escalar
+                      </button>
+                      {m.status !== "inativo" && (
+                        <button className="ped-btn-xs perigo" onClick={() => void inativar(m)}>Inativar</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -81,4 +81,28 @@ export class MonitoresService {
       data:  { kitEntregue: true },
     });
   }
+
+  /**
+   * Remove (inativa) um monitor — soft-delete via status 'inativo'.
+   * As escalas são preservadas (histórico da turma). Idempotente.
+   */
+  async remover(id: string, usuario: UsuarioLogado) {
+    const monitor = await this.prisma.pedagogicoMonitor.findUnique({ where: { id } });
+    if (!monitor) throw new NotFoundException({ codigo: 'MONITOR_NAO_ENCONTRADO', message: 'Monitor não encontrado' });
+    if (monitor.status === 'inativo') return { id, status: 'inativo', jaInativo: true };
+
+    await this.prisma.pedagogicoMonitor.update({
+      where: { id },
+      data:  { status: 'inativo', atualizadoEm: new Date() },
+    });
+    return { id, status: 'inativo' };
+  }
+
+  /** Remove uma escala de monitor de uma turma (hard delete — é só um vínculo). */
+  async removerEscala(escalaId: string, usuario: UsuarioLogado) {
+    const escala = await this.prisma.pedagogicoEscala.findUnique({ where: { id: escalaId } });
+    if (!escala) throw new NotFoundException({ codigo: 'ESCALA_NAO_ENCONTRADA', message: 'Escala não encontrada' });
+    await this.prisma.pedagogicoEscala.delete({ where: { id: escalaId } });
+    return { ok: true, id: escalaId };
+  }
 }

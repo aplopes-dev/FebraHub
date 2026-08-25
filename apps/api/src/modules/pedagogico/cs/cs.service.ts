@@ -72,4 +72,20 @@ export class CsService {
       },
     });
   }
+
+  /**
+   * Remove (descarta) um acompanhamento de CS — soft-delete via status 'descartado'.
+   * Idempotente.
+   */
+  async remover(id: string, usuario: UsuarioLogado) {
+    const cs = await this.prisma.pedagogicoCsAcompanhamento.findUnique({ where: { id } });
+    if (!cs) throw new NotFoundException({ codigo: 'CS_NAO_ENCONTRADO', message: 'Acompanhamento não encontrado' });
+    if (cs.status === 'descartado') return { id, status: 'descartado', jaDescartado: true };
+
+    await this.prisma.pedagogicoCsAcompanhamento.update({
+      where: { id },
+      data:  { status: 'descartado', resolvidoEm: new Date(), atualizadoEm: new Date() },
+    });
+    return { id, status: 'descartado' };
+  }
 }

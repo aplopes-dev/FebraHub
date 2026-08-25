@@ -50,4 +50,12 @@ export class SolicitacoesService {
       },
     });
   }
+
+  /** Remove uma solicitação (hard delete — registro leve, sem dependências). */
+  async remover(id: string, usuario: UsuarioLogado) {
+    const sol = await this.prisma.pedagogicoSolicitacao.findUnique({ where: { id } });
+    if (!sol) throw new NotFoundException({ codigo: 'SOLICITACAO_NAO_ENCONTRADA', message: 'Solicitação não encontrada' });
+    await this.prisma.pedagogicoSolicitacao.delete({ where: { id } });
+    return { ok: true, id };
+  }
 }

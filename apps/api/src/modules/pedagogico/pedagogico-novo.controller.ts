@@ -95,6 +95,12 @@ export class PedagogicoNovoController {
     return this.turmas.mudarStatus(id, status, u);
   }
 
+  @Delete('turmas/:id')
+  @ApiOperation({ summary: 'Cancela (arquiva) a turma — soft-delete via status Cancelada' })
+  removerTurma(@Param('id') id: string, @Usuario() u: UsuarioLogado) {
+    return this.turmas.remover(id, u);
+  }
+
   // ================================================================
   // MATRÍCULAS
   // ================================================================
@@ -125,6 +131,16 @@ export class PedagogicoNovoController {
     @Usuario() u: UsuarioLogado,
   ) {
     return this.matriculas.atualizarStatus(id, dto, u);
+  }
+
+  @Delete('matriculas/:id')
+  @ApiOperation({ summary: 'Cancela a matrícula — soft-delete via status Cancelado (preserva histórico)' })
+  removerMatricula(
+    @Param('id') id: string,
+    @Body('motivo') motivo: string | undefined,
+    @Usuario() u: UsuarioLogado,
+  ) {
+    return this.matriculas.remover(id, motivo, u);
   }
 
   @Get('alunos/:pessoaId/jornada')
@@ -266,6 +282,18 @@ export class PedagogicoNovoController {
     return this.monitores.marcarKitEntregue(id, u);
   }
 
+  @Delete('monitores/escala/:id')
+  @ApiOperation({ summary: 'Remove a escala de um monitor em uma turma (hard delete do vínculo)' })
+  removerEscala(@Param('id') id: string, @Usuario() u: UsuarioLogado) {
+    return this.monitores.removerEscala(id, u);
+  }
+
+  @Delete('monitores/:id')
+  @ApiOperation({ summary: 'Inativa um monitor — soft-delete via status inativo' })
+  removerMonitor(@Param('id') id: string, @Usuario() u: UsuarioLogado) {
+    return this.monitores.remover(id, u);
+  }
+
   // ================================================================
   // SOLICITAÇÕES (SECRETARIA)
   // ================================================================
@@ -291,6 +319,12 @@ export class PedagogicoNovoController {
     @Usuario() u: UsuarioLogado,
   ) {
     return this.solicitacoes.atualizarStatus(id, status, resposta, u);
+  }
+
+  @Delete('solicitacoes/:id')
+  @ApiOperation({ summary: 'Remove uma solicitação (hard delete)' })
+  removerSolicitacao(@Param('id') id: string, @Usuario() u: UsuarioLogado) {
+    return this.solicitacoes.remover(id, u);
   }
 
   // ================================================================
@@ -320,5 +354,11 @@ export class PedagogicoNovoController {
     @Usuario() u: UsuarioLogado,
   ) {
     return this.cs.atualizar(id, body, u);
+  }
+
+  @Delete('cs/:id')
+  @ApiOperation({ summary: 'Descarta um acompanhamento de CS — soft-delete via status descartado' })
+  removerCs(@Param('id') id: string, @Usuario() u: UsuarioLogado) {
+    return this.cs.remover(id, u);
   }
 }

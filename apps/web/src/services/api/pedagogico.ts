@@ -167,12 +167,15 @@ export const pedagogico = {
     api.put<PedagogicoTurma>(`${B}/turmas/${id}`, d),
   mudarStatusTurma: (id: string, status: string) =>
     api.patch(`${B}/turmas/${id}/status`, { status }),
+  removerTurma: (id: string) => api.delete(`${B}/turmas/${id}`),
   matriculas: (q?: Record<string, string | number>) =>
     api.get<{ pagina: number; total: number; itens: PedagogicoMatricula[] }>(`${B}/matriculas${p(q)}`),
   matricula: (id: string) => api.get(`${B}/matriculas/${id}`),
   criarMatricula: (d: Record<string, unknown>) => api.post(`${B}/matriculas`, d),
   atualizarStatus: (id: string, status: string, observacao?: string) =>
     api.patch(`${B}/matriculas/${id}/status`, { status, observacao }),
+  removerMatricula: (id: string, motivo?: string) =>
+    api.delete(`${B}/matriculas/${id}`, { corpo: { motivo } }),
   jornada: (pessoaId: string) => api.get(`${B}/alunos/${pessoaId}/jornada`),
   integrarVenda: (d: Record<string, unknown>) =>
     api.post(`${B}/integracoes/venda-aprovada`, d),
@@ -196,11 +199,15 @@ export const pedagogico = {
   criarMonitor: (d: Record<string, unknown>) => api.post(`${B}/monitores`, d),
   escalarMonitor: (d: Record<string, unknown>) => api.post(`${B}/monitores/escala`, d),
   marcarKitEntregue: (id: string) => api.patch(`${B}/monitores/escala/${id}/kit`, {}),
+  removerMonitor: (id: string) => api.delete(`${B}/monitores/${id}`),
+  removerEscala: (id: string) => api.delete(`${B}/monitores/escala/${id}`),
   solicitacoes: (q?: Record<string, string>) => api.get(`${B}/solicitacoes${p(q)}`),
   criarSolicitacao: (d: Record<string, unknown>) => api.post(`${B}/solicitacoes`, d),
   atualizarSolicitacao: (id: string, status: string, resposta?: string) =>
     api.patch(`${B}/solicitacoes/${id}/status`, { status, resposta }),
+  removerSolicitacao: (id: string) => api.delete(`${B}/solicitacoes/${id}`),
   cs: (q?: Record<string, string>) => api.get(`${B}/cs${p(q)}`),
   criarCs: (d: Record<string, unknown>) => api.post(`${B}/cs`, d),
   atualizarCs: (id: string, d: Record<string, unknown>) => api.patch(`${B}/cs/${id}`, d),
+  removerCs: (id: string) => api.delete(`${B}/cs/${id}`),
 };

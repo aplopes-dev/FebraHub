@@ -88,6 +88,17 @@ export default function SolicitacoesPage() {
     }
   };
 
+  const excluir = async (s: Solicitacao) => {
+    if (!confirm(`Excluir definitivamente a solicitação (${s.tipo}) de ${s.matricula?.pessoaNome ?? s.pessoaId}?`)) return;
+    try {
+      await pedagogico.removerSolicitacao(s.id);
+      setFeedback({ tipo: "ok", msg: "Solicitação excluída." });
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao excluir solicitação." });
+    }
+  };
+
   const abertas = lista.filter((s) => ["aberta", "em_analise"].includes(s.status)).length;
 
   return (
@@ -198,6 +209,7 @@ export default function SolicitacoesPage() {
                           <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(s, "cancelada")}>Cancelar</button>
                         </>
                       )}
+                      <button className="ped-btn-xs perigo" onClick={() => void excluir(s)}>Excluir</button>
                     </div>
                   </td>
                 </tr>

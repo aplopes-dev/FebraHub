@@ -181,6 +181,36 @@ export class TurmasService {
     });
   }
 
+  /**
+   * Remove (arquiva) uma turma — soft-delete via status 'Cancelada'.
+   * Bloqueia se houver matrículas ativas (não canceladas/transferidas),
+   * pois cancelar a turma deixaria alunos órfãos.
+   */
+  async remover(id: string, usuario: UsuarioLogado) {
+    const turma = await this.prisma.pedagogicoTurma.findUnique({ where: { id } });
+    if (!turma) throw new NotFoundException({ codigo: 'TURMA_NAO_ENCONTRADA', message: 'Turma não encontrada' });
+
+    if (turma.status === 'Cancelada') {
+      throw new BadRequestException({ codigo: 'JA_CANCELADA', message: 'Turma já está cancelada' });
+    }
+
+    const ativas = await this.prisma.pedagogicoMatricula.count({
+      where: { turmaId: id, status: { notIn: ['Cancelado', 'Transferido'] } },
+    });
+    if (ativas > 0) {
+      throw new BadRequestException({
+        codigo: 'TURMA_COM_ALUNOS',
+        message: `Não é possível cancelar: a turma tem ${ativas} matrícula(s) ativa(s). Transfira ou cancele os alunos primeiro.`,
+      });
+    }
+
+    await this.prisma.pedagogicoTurma.update({
+      where: { id },
+      data: { status: 'Cancelada', atualizadoEm: new Date() },
+    });
+    return { ok: true, id, status: 'Cancelada' };
+  }
+
   private formatarTurma(turma: any, statusContagem: Record<string, number>) {
     const total = Object.values(statusContagem).reduce((a, b) => a + b, 0);
     return {

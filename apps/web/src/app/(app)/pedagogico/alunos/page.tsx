@@ -375,6 +375,23 @@ export default function AlunosPage() {
                         >
                           Confirmar
                         </button>
+                        <button
+                          className="ped-btn-xs perigo"
+                          disabled={m.status === "Cancelado"}
+                          onClick={async () => {
+                            if (!confirm(`Cancelar a matrícula de ${m.pessoaNome ?? "aluno"}? O histórico é preservado.`)) return;
+                            const motivo = prompt("Motivo do cancelamento (opcional):") ?? undefined;
+                            try {
+                              await pedagogico.removerMatricula(m.id, motivo);
+                              setFeedback({ tipo: "ok", msg: "Matrícula cancelada." });
+                              await carregar();
+                            } catch (err: unknown) {
+                              setFeedback({ tipo: "erro", msg: err instanceof Error ? err.message : "Erro ao cancelar matrícula." });
+                            }
+                          }}
+                        >
+                          Cancelar
+                        </button>
                       </div>
                     </td>
                   </tr>

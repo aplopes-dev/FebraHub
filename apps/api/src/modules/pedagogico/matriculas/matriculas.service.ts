@@ -153,6 +153,30 @@ export class MatriculasService {
     return { id, status: dto.status };
   }
 
+  /**
+   * Remove (cancela) uma matrícula — soft-delete via status 'Cancelado'.
+   * Preserva o histórico/timeline. Idempotente.
+   */
+  async remover(id: string, motivo: string | undefined, usuario: UsuarioLogado) {
+    const matricula = await this.prisma.pedagogicoMatricula.findUnique({ where: { id } });
+    if (!matricula) throw new NotFoundException({ codigo: 'MATRICULA_NAO_ENCONTRADA', message: 'Matrícula não encontrada' });
+
+    if (matricula.status === 'Cancelado') {
+      return { id, status: 'Cancelado', jaCancelada: true };
+    }
+
+    const statusAnterior = matricula.status;
+    await this.prisma.pedagogicoMatricula.update({
+      where: { id },
+      data: { status: 'Cancelado', atualizadoEm: new Date() },
+    });
+
+    await this.registrarHistorico(id, 'cancelamento', usuario.id,
+      motivo ?? 'Matrícula cancelada', statusAnterior, 'Cancelado', 'usuario');
+
+    return { id, status: 'Cancelado' };
+  }
+
   /** Integração Salesforce: VENDA_APROVADA → cria ou atualiza matrícula de forma idempotente */
   async integrarVenda(dto: IntegrarVendaDto, usuario: UsuarioLogado) {
     // Log de integração (idempotência via UNIQUE)
