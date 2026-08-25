@@ -9,5 +9,6 @@ import { WhatsappService } from './whatsapp.service';
   imports: [StorageModule],
   controllers: [WhatsappController],
   providers: [WhatsappEventos, BaileysManager, WhatsappService],
+  exports: [WhatsappService],
 })
 export class WhatsappModule {}

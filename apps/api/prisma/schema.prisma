@@ -2318,6 +2318,7 @@ model LojaProduto {
   saldos            LojaEstoqueSaldo[]
   movimentos        LojaEstoqueMovimento[]
   vendaItens        PdvVendaItem[]
+  pedidoItens       LojaPedidoItem[]
 
   @@index([categoriaId])
   @@index([ativo, ordem, nome])
@@ -2358,6 +2359,147 @@ model LojaEstoqueMovimento {
   @@index([local, criadoEm(sort: Desc)])
   @@index([origem, referenciaId])
   @@map("loja_estoque_movimentos")
+}
+
+// -------------------- LOJA: PEDIDOS --------------------
+
+model LojaOperacao {
+  id            String    @id @default(uuid()) @db.Uuid
+  nome          String
+  descricao     String    @default("")
+  modo          String    @default("RETIRADA_BALCAO")
+  status        String    @default("ativa")
+  slug          String?   @unique
+  inicio        DateTime? @db.Timestamptz(6)
+  fim           DateTime? @db.Timestamptz(6)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pedidos       LojaPedido[]
+  numeracao     LojaNumeracaoPedido?
+
+  @@index([status])
+  @@map("loja_operacoes")
+}
+
+model LojaPedido {
+  id                String    @id @default(uuid()) @db.Uuid
+  numero            Int
+  operacaoId        String?   @map("operacao_id") @db.Uuid
+  canal             String    @default("CARDAPIO_DIGITAL")
+  status            String    @default("AGUARDANDO_PAGAMENTO")
+  clienteNome       String    @default("") @map("cliente_nome")
+  clienteTel        String?   @map("cliente_tel")
+  operadorId        String?   @map("operador_id") @db.Uuid
+  operadorNome      String?   @map("operador_nome")
+  subtotal          Decimal   @default(0) @db.Decimal(14, 2)
+  desconto          Decimal   @default(0) @db.Decimal(14, 2)
+  total             Decimal   @default(0) @db.Decimal(14, 2)
+  posicaoFila       Int?      @map("posicao_fila")
+  precisaPreparacao Boolean   @default(false) @map("precisa_preparacao")
+  confirmadoEm      DateTime? @map("confirmado_em") @db.Timestamptz(6)
+  entrouFilaEm      DateTime? @map("entrou_fila_em") @db.Timestamptz(6)
+  preparacaoEm      DateTime? @map("preparacao_em") @db.Timestamptz(6)
+  prontoEm          DateTime? @map("pronto_em") @db.Timestamptz(6)
+  retiradoEm        DateTime? @map("retirado_em") @db.Timestamptz(6)
+  canceladoEm       DateTime? @map("cancelado_em") @db.Timestamptz(6)
+  motivoCancel      String?   @map("motivo_cancel")
+  lancamentoId      String?   @map("lancamento_id") @db.Uuid
+  observacoes       String    @default("")
+  criadoEm          DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  operacao          LojaOperacao?         @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+  itens             LojaPedidoItem[]
+  pagamentos        LojaPedidoPagamento[]
+  historico         LojaPedidoHistorico[]
+
+  @@unique([operacaoId, numero])
+  @@index([status, posicaoFila])
+  @@index([operacaoId, status, criadoEm(sort: Desc)])
+  @@index([canal, status, criadoEm(sort: Desc)])
+  @@map("loja_pedidos")
+}
+
+model LojaPedidoItem {
+  id          String     @id @default(uuid()) @db.Uuid
+  pedidoId    String     @map("pedido_id") @db.Uuid
+  produtoId   String     @map("produto_id") @db.Uuid
+  descricao   String
+  quantidade  Decimal    @db.Decimal(12, 3)
+  precoUnit   Decimal    @map("preco_unit") @db.Decimal(14, 2)
+  total       Decimal    @db.Decimal(14, 2)
+  observacao  String     @default("")
+  pedido      LojaPedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto     LojaProduto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  @@index([pedidoId])
+  @@index([produtoId])
+  @@map("loja_pedido_itens")
+}
+
+model LojaPedidoPagamento {
+  id              String    @id @default(uuid()) @db.Uuid
+  pedidoId        String    @map("pedido_id") @db.Uuid
+  provider        String    @default("manual")
+  forma           String
+  status          String    @default("PENDENTE")
+  valor           Decimal   @db.Decimal(14, 2)
+  gatewayId       String?   @map("gateway_id")
+  gatewayPayload  Json?     @map("gateway_payload")
+  pixQrcode       String?   @map("pix_qrcode")
+  pixCopiaCola    String?   @map("pix_copia_cola")
+  pixExpiracao    DateTime? @map("pix_expiracao") @db.Timestamptz(6)
+  confirmadoEm    DateTime? @map("confirmado_em") @db.Timestamptz(6)
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pedido          LojaPedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([pedidoId])
+  @@index([gatewayId])
+  @@map("loja_pedido_pagamentos")
+}
+
+model LojaPedidoHistorico {
+  id          String    @id @default(uuid()) @db.Uuid
+  pedidoId    String    @map("pedido_id") @db.Uuid
+  deStatus    String?   @map("de_status")
+  paraStatus  String    @map("para_status")
+  origem      String    @default("sistema")
+  usuarioId   String?   @map("usuario_id") @db.Uuid
+  observacao  String    @default("")
+  criadoEm   DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  pedido      LojaPedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([pedidoId, criadoEm(sort: Desc)])
+  @@map("loja_pedido_historico")
+}
+
+model LojaNumeracaoPedido {
+  operacaoId  String       @id @map("operacao_id") @db.Uuid
+  ultimo      Int          @default(0)
+  operacao    LojaOperacao @relation(fields: [operacaoId], references: [id], onDelete: Cascade)
+
+  @@map("loja_numeracao_pedido")
+}
+
+/// Auditoria de eventos criticos da Loja (PRD §48). Registro imutavel de
+/// quem fez o que, quando, sobre qual entidade, com antes/depois.
+model LojaAuditoria {
+  id           String   @id @default(uuid()) @db.Uuid
+  entidade     String
+  entidadeId   String?  @map("entidade_id") @db.Uuid
+  acao         String
+  origem       String   @default("sistema")
+  usuarioId    String?  @map("usuario_id") @db.Uuid
+  usuarioNome  String?  @map("usuario_nome")
+  antes        Json?
+  depois       Json?
+  observacao   String   @default("")
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([entidade, entidadeId, criadoEm(sort: Desc)])
+  @@index([acao, criadoEm(sort: Desc)])
+  @@index([criadoEm(sort: Desc)])
+  @@map("loja_auditoria")
 }
 
 // --------------------------------------------------------------------

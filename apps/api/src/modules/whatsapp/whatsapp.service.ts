@@ -564,4 +564,68 @@ export class WhatsappService implements OnModuleInit {
       .aggregate({ where: { excluidaEm: null }, _sum: { naoLidas: true } })
       .then((r) => ({ total: r._sum.naoLidas ?? 0 }));
   }
+
+  /**
+   * Envio PROATIVO iniciado pelo sistema (sem UsuarioLogado) — a régua da Loja
+   * (pagamento confirmado, é o próximo, em preparação, pronto) avisa o cliente
+   * pelo WhatsApp corporativo.
+   *
+   * É BEST-EFFORT por decisão: nunca lança. A venda/pedido não pode quebrar
+   * porque o número não tem WhatsApp, a conta está restrita (463) ou a sessão
+   * caiu. Devolve `{ enviado, motivo? }` para quem quiser registrar/observar.
+   * Quando há sessão conectada, também espelha a bolha na conversa (para o
+   * atendimento ver o que foi disparado).
+   */
+  async enviarProativo(
+    telefone: string,
+    texto: string,
+  ): Promise<{ enviado: boolean; motivo?: string }> {
+    const digitos = soDigitos(telefone ?? '');
+    if (digitos.length < 8) return { enviado: false, motivo: 'telefone_invalido' };
+    if (!this.manager.conectado) return { enviado: false, motivo: 'whatsapp_desconectado' };
+
+    try {
+      const jid = await this.manager.resolverJid(digitos);
+      if (!jid) return { enviado: false, motivo: 'sem_whatsapp' };
+
+      const providerId = await this.manager.enviarTexto(jid, texto);
+
+      // Espelha na conversa (achada/criada pelo telefone) para o inbox mostrar.
+      // Falha aqui não invalida o envio — a mensagem já saiu.
+      try {
+        const telNorm = digitos;
+        let conversa = await this.prisma.waConversa.findFirst({ where: { telefone: telNorm } });
+        if (!conversa) {
+          conversa = await this.prisma.waConversa.create({
+            data: { telefone: telNorm, jid, status: 'aberta' },
+          });
+        }
+        await this.prisma.waMensagem.create({
+          data: {
+            conversaId: conversa.id,
+            direcao: 'saida',
+            tipoRemetente: 'sistema',
+            tipoConteudo: 'texto',
+            texto,
+            remoteJid: jid,
+            providerMessageId: providerId,
+            deMim: true,
+            status: providerId ? 'enviada' : 'enviando',
+          },
+        });
+        await this.prisma.waConversa.update({
+          where: { id: conversa.id },
+          data: { ultimaMsg: texto.slice(0, 200), ultimaMsgEm: new Date() },
+        });
+        this.eventos.emitir({ tipo: 'mensagem', conversaId: conversa.id });
+      } catch (erroEspelho) {
+        this.logger.warn(`enviarProativo: falha ao espelhar bolha — ${String(erroEspelho).slice(0, 200)}`);
+      }
+
+      return { enviado: true };
+    } catch (erro) {
+      this.logger.warn(`enviarProativo: falha no envio — ${String(erro).slice(0, 200)}`);
+      return { enviado: false, motivo: 'erro_envio' };
+    }
+  }
 }
