@@ -76,25 +76,54 @@ export class AsaasProvider implements PaymentProvider {
 
   async criarCobranca(dados: CriarCobrancaEntrada): Promise<CobrancaCriada> {
     const clienteId = await this.garantirCliente(dados.clienteNome, dados.clienteTel);
+    const ehCartao = dados.forma === 'CARTAO_CREDITO' || dados.forma === 'CARTAO_DEBITO';
     const billingType = dados.forma === 'PIX' ? 'PIX' : dados.forma === 'CARTAO_DEBITO' ? 'DEBIT_CARD' : 'CREDIT_CARD';
     const vencimento = new Date().toISOString().slice(0, 10);
 
+    // Corpo base; para cartão, anexa os dados tokenizados (creditCard +
+    // creditCardHolderInfo). A cobrança de cartão já retorna CONFIRMED/RECEIVED
+    // quando aprovada — não depende de webhook para o "caminho feliz".
+    const corpo: Record<string, unknown> = {
+      customer: clienteId ?? undefined,
+      billingType,
+      value: dados.valor,
+      dueDate: vencimento,
+      description: `Pedido Loja FEBRACIS #${dados.pedidoNumero}`,
+      externalReference: dados.pagamentoId,
+    };
+
+    if (ehCartao && dados.cartao) {
+      const c = dados.cartao;
+      if (dados.forma === 'CARTAO_CREDITO' && dados.parcelas && dados.parcelas > 1) {
+        corpo.installmentCount = dados.parcelas;
+        corpo.installmentValue = +(dados.valor / dados.parcelas).toFixed(2);
+      }
+      corpo.creditCard = {
+        holderName: c.titular,
+        number: c.numero.replace(/\s+/g, ''),
+        expiryMonth: c.validadeMes,
+        expiryYear: c.validadeAno,
+        ccv: c.cvv,
+      };
+      corpo.creditCardHolderInfo = {
+        name: c.titular,
+        email: c.email || 'loja@febracis.com',
+        cpfCnpj: (c.cpfCnpj ?? '').replace(/\D/g, ''),
+        postalCode: (c.cep ?? '').replace(/\D/g, ''),
+        addressNumber: c.numeroEndereco || '0',
+        phone: (c.telefone ?? dados.clienteTel ?? '').replace(/\D/g, '') || undefined,
+      };
+    }
+
     const cobranca = await this.chamar<AsaasCobranca>('/payments', {
       method: 'POST',
-      body: JSON.stringify({
-        customer: clienteId ?? undefined,
-        billingType,
-        value: dados.valor,
-        dueDate: vencimento,
-        description: `Pedido Loja FEBRACIS #${dados.pedidoNumero}`,
-        externalReference: dados.pagamentoId,
-      }),
+      body: JSON.stringify(corpo),
     });
 
     const resultado: CobrancaCriada = { gatewayId: cobranca.id, payload: cobranca };
 
-    // Para PIX, busca o QR Code copia-e-cola.
     if (dados.forma === 'PIX') {
+      // Para PIX, busca o QR Code copia-e-cola.
       try {
         const qr = await this.chamar<AsaasPixQr>(`/payments/${cobranca.id}/pixQrCode`, { method: 'GET' });
         resultado.pixQrcode = qr.encodedImage ? `data:image/png;base64,${qr.encodedImage}` : null;
@@ -103,6 +132,9 @@ export class AsaasProvider implements PaymentProvider {
       } catch (e) {
         this.logger.warn(`ASAAS: QR PIX não obtido para ${cobranca.id}: ${String(e).slice(0, 120)}`);
       }
+    } else if (ehCartao) {
+      // Cartão confirma na hora: traduz o status retornado para o domínio.
+      resultado.statusImediato = this.traduzirStatus(cobranca.status);
     }
     return resultado;
   }

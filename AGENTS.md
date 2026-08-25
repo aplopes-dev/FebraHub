@@ -303,3 +303,51 @@ Builds verdes IdeaPad (nest+next exit 0). Sem migration nova (reusa loja_pedido_
 - **QR Code do cardápio (PRD §11)** feito por mim: API `GET /loja-pedidos/operacoes/:slug/qrcode` (auth `loja.pedidos.ver`) → `{slug, operacao, url, pngDataUrl, svg}`. URL = `${FRONTEND_URL||APP_URL||Origin}/cardapio/:slug`. Usa lib `qrcode` (já em apps/api, como o WhatsApp: `import * as QRCode`). Web: `qrcodeCardapio()` em services/api/loja-pedidos.ts + `components/loja/QrCardapioModal.tsx` (preview + baixar PNG/SVG + imprimir) plugado em `OperacoesLoja.tsx` (botão "QR" ao lado de Cardápio/TV).
 - Verificado: API tsc, Web tsc, permissoes.spec (16/16) — todos verdes localmente (VPS nova ssh.aplopesserver.dpdns.org inacessível: só IPs Cloudflare, porta 22 filtrada).
 - GAPS restantes do P0: cartão ASAAS (tokenização/checkout — só PIX pronto); `loja.pedidos.*` não concedido a diretoria/gestor (só admin) — falta migration aditiva `*_permissoes`.
+
+## LOJA — auditoria de preço/estoque no catálogo CONCLUÍDO (commit 22f68504)
+Fecha §48 no módulo loja-produtos. LojaProdutosService.auditar() escreve DIRETO em loja_auditoria (não acopla a loja-pedidos; best-effort). Hooks: preco.alterado (antes/depois em atualizarProduto), produto.criado/alterado/inativado, estoque.ajustado. AuditoriaLoja.tsx ganhou rótulos. nest+next build verdes na IdeaPad.
+- Coordenação: pnpm-lock foi regenerado upstream pelo Deploy Bot (commit a6519ed2) — não precisa mais deixar de fora. Jabson tem WIP não-commitado em perfis-padrao.ts + migration 38 (loja_pedidos_permissoes) — NÃO commitei (preservados via autostash no rebase).
+
+## LOJA · permissões da fila concedidas (migration 38)
+- Gap resolvido: `loja.pedidos.*` estava no catálogo (cat 68-72) e nas tabelas (mig 36) mas NÃO era semeado nos perfis — só admin via a fila. Migration **38_loja_pedidos_permissoes** (aditiva, padrão das *_permissoes) concede: diretoria/gestor = ver+operar+gerenciar; equipe (balcão) = ver+operar. `perfis-padrao.ts` sincronizado igual. `permissoes.spec` verde 16/16 (a asserção "bate com o que as migrations semeiam" valida o casamento). Menu (apps/web/src/lib/menu.ts) já gateava fila/operações por loja.pedidos.* → agora aparece p/ esses perfis sem mudança de menu.
+- Próximo gap P0 aberto: checkout de CARTÃO ASAAS (tokenização) — hoje só PIX ponta a ponta.
+
+## LOJA · cartão ASAAS (tokenização) — checkout completo
+- Gap P0 fechado: cartão de crédito ponta a ponta no Cardápio Digital.
+- `pagamentos/payment-provider.ts`: interface `DadosCartao` + campos `cartao?`/`parcelas?` em `CriarCobrancaEntrada`; `statusImediato?` em `CobrancaCriada` (cartão confirma na hora, sem webhook).
+- `asaas.provider.ts`: `criarCobranca` monta `creditCard`+`creditCardHolderInfo` (+`installmentCount`/`installmentValue` p/ parcelas) quando forma=CARTAO_*; devolve `statusImediato = traduzirStatus(cobranca.status)`. NADA de cartão é persistido (PRD §18).
+- `loja-pedidos.dto.ts`: `CartaoDto` (numero/titular/validadeMes/validadeAno/cvv/cpfCnpj/cep/numeroEndereco/telefone/email) + `cartao?` em `IniciarPagamentoDto`.
+- `loja-pedidos.service.ts` `iniciarPagamento`: repassa `cartao`/`parcelas`; se `statusImediato==='CONFIRMADO'` chama `confirmarPagamento(...,'webhook')` na hora (baixa estoque, recebível, fila); se 'RECUSADO' → BadRequest amigável.
+- Web `CardapioPublico.tsx`: seletor PIX/Cartão na etapa identificar + form de cartão (numero/titular/validade MM/AA/cvv/cpf); cartão aprovado → `router.push(/pedido/:id)`. `services/api/loja-pedidos.ts`: `DadosCartaoInput` + `cartao?` em `iniciarPagamento`.
+- Verificado: API tsc ✅, Web tsc ✅ (ambos exit 0). Editei arquivos que o Vitor tocava (asaas.provider/service/dto/CardapioPublico) — coordenei: a sessão dele estava inativa (última edição 30min antes); edições aditivas/cirúrgicas p/ minimizar conflito.
+- P0 da Loja agora COMPLETO: produto+estoque LOJA/DEPÓSITO, ASAAS PIX+cartão+webhook, QR cardápio, fila/TV/acompanhamento SSE, WhatsApp proativo, permissões da fila, dashboard, auditoria.
+
+## Testes de integração LOJA em Postgres real (IdeaPad 172.17.0.1) — 2026-08-25
+- Conexão IdeaPad OK via `172.17.0.1:2222` (root/root). Tem Docker 29 + psql 18. `febrahub_postgres`/`febrahub_minio` já rodam lá (db `febrahub`, user `febrahub`), mas o febrahub_postgres estava com só migrations 00-01 e sem tabelas — não confiável p/ teste.
+- Método: subi `postgres:16` em Docker (porta 55432), copiei migrations e apliquei via psql. Resultados:
+  - **mig 31** (loja_produtos/categorias/estoque LOJA·DEPOSITO) aplica rc=0, semeia 8 categorias. **mig 32/36/38** rc=0.
+  - Permissões por perfil conferem: admin/diretoria/gestor = loja.pedidos ver+operar+gerenciar; **equipe = ver+operar**; consulta/integracoes = nenhuma.
+  - Estoque LOJA/DEPOSITO: saldo→reserva→venda com disponivel=fisico-reservado por local ✓. Constraint `loja_estoque_reservado_ok` REJEITA reservado>fisico (anti-overselling no banco) ✓.
+- **GOTCHA de arquitetura (importante p/ deploy limpo):** as migrations Prisma NÃO aplicam sozinhas num Postgres cru — a **mig 01 indexa `fato_negocio_lead`** e outras `fato_*` que a **init NÃO cria** (init só faz 7 tabelas de auth/arquivos). Os fatos vêm de FORA (dumps Supabase / `db/`). Logo, deploy limpo precisa carregar o dump base ANTES de `prisma migrate deploy`. As migrations da Loja (31/32/36/38) são autossuficientes e aplicam isoladas.
+- Limpei o container de teste e /tmp após validar.
+
+## GOTCHA e2e/DB local — migrations dependem do dump Supabase
+Tentativa de homologação e2e na IdeaPad (Postgres+MinIO já sobem via docker, healthy). `prisma migrate deploy` do zero FALHA: migration 00000000000001_indices_negocio (e 9 outras, incl. 030_pdv_financeiro, 031_loja_produtos_estoque, 033, 035 — no caminho da Loja) referenciam tabelas fato_/dim_/vw_ que vêm do DUMP do Supabase (25MB, gitignored, não está na IdeaPad), não das migrations. Erro P3018/42P01 "relation fato_negocio_lead does not exist". => e2e real da Loja exige o dump carregado primeiro. Deixei o DB destravado (migrate resolve --rolled-back na 01) mas ele fica com só ~7 tabelas. NÃO é bug do código da Loja; é bootstrap de dados/infra. Para e2e: carregar o dump Supabase no febrahub_postgres antes de migrate deploy.
+
+## Coordenação: Jabson estendendo pagamentos (cartão) — WIP não-commitado
+Jabson adicionou pagamento por CARTÃO (crédito/débito) tokenizado sobre a arquitetura PaymentProvider: DadosCartao/CartaoDto (não persistido, PRD §18), CobrancaCriada.statusImediato (cartão confirma na hora sem webhook), iniciarPagamento trata statusImediato CONFIRMADO/RECUSADO. Bem-feito e aditivo. NÃO commitar/mexer nos arquivos pagamentos/*, loja-pedidos.{service,dto}.ts, CardapioPublico.tsx, services/api/loja-pedidos.ts enquanto ele estiver ativo. Combined tree (card dele + meu código) builda verde (nest exit 0).
+
+## HOMOLOGAÇÃO HTTP Loja (IdeaPad, banco homolog) — 2026-08-25
+Subi a API real (dist/main.js) na IdeaPad contra um banco `homolog` (schema gerado via `prisma migrate diff --from-empty` + seeds das migrations 14/30/31/32/38). Boot OK, Prisma conectado, rotas mapeadas (incl. minha /operacoes/:slug/qrcode e cartão).
+
+### ✅ Cenário A (cardápio→pagamento) PASSOU ponta a ponta HTTP:
+checkout → reserva estoque LOJA (disp 5→3) → iniciarPagamento PIX (provider manual, copia-e-cola) → confirmarPagamentoPublico → status PRONTO → estoque físico 5→3 reservado=0 → recebível R$160 em financeiro_lancamentos. Tudo correto.
+
+### 🔴 ACHADO CRÍTICO — checkout NÃO é atômico contra concorrência (PRD §9 overselling):
+`LojaPedidosService.checkout` valida `disponivel = fisico - reservado` (passo 1) e depois faz `increment reservado` (passo 4), MAS o advisory lock só cobre a NUMERAÇÃO (passo 2), não a validação+reserva. Dois checkouts simultâneos leem o mesmo `disponivel` e ambos reservam → OVERSELL.
+- Teste D (3 em estoque, 2 pedidos de qtd 2): SEM a CHECK constraint → reservado=4 > fisico=3 (oversold silencioso). COM a constraint `loja_estoque_reservado_ok` (que a migration 31 cria mas o `migrate diff` NÃO gera) → banco bloqueia, mas AMBOS retornam ERRO_INTERNO (500) em vez de 1 sucesso + 1 "Estoque insuficiente".
+- **GOTCHA**: `prisma migrate diff --from-schema` NÃO emite CHECK constraints (não estão no schema.prisma, só no SQL da migration 31). Banco de teste feito assim fica SEM a proteção — atenção em qualquer validação por diff.
+- **CORREÇÃO recomendada p/ Vitor** (arquivo que ele edita ativamente — NÃO editei p/ evitar clobber): serializar a reserva com `pg_advisory_xact_lock` por produto (ou por operação) ANTES da validação de disponível dentro da tx, OU `SELECT ... FOR UPDATE` nas linhas de loja_estoque_saldos; e traduzir violação da CHECK (Prisma P2010/SQLSTATE 23514) para ConflictException("Estoque insuficiente"). Assim: 1 pedido conclui, o outro recebe erro amigável.
+- Vitor tocou o checkout (upsert→update) 22min atrás mas isso NÃO resolve a race; o problema persiste.
+
+Ambiente limpo após teste (API parada, DB homolog dropado, .env.homolog removido).

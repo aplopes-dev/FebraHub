@@ -155,6 +155,17 @@ export class LojaPedidosService {
     if (operacao.status !== 'ativa') throw new BadRequestException('Esta operação não está aberta.');
 
     return this.prisma.$transaction(async (tx) => {
+      // 0) SERIALIZA a reserva por produto (PRD §9 — overselling é proibido).
+      //    Sem isto, dois checkouts simultâneos leem o mesmo `disponivel` e ambos
+      //    reservam → estoque negativo (oversell). O advisory lock por produto faz
+      //    o 2º checkout esperar o 1º confirmar a reserva e então reler o saldo
+      //    já atualizado — aí a validação abaixo recusa com erro amigável.
+      //    Ordena os ids para evitar deadlock quando carrinhos se cruzam.
+      const idsOrdenados = [...new Set(dto.itens.map((i) => i.produtoId))].sort();
+      for (const pid of idsOrdenados) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`loja_estoque_${pid}`}))`;
+      }
+
       // 1) Carrega produtos e valida estoque disponível (físico − reservado).
       let subtotal = 0;
       let precisaPreparacao = false;
@@ -204,11 +215,27 @@ export class LojaPedidosService {
       // 4) RESERVA de estoque (não baixa ainda) + ledger de reserva.
       for (const l of linhas) {
         if (!l.controla) continue;
-        await tx.lojaEstoqueSaldo.upsert({
-          where: { produtoId_local: { produtoId: l.produtoId, local: 'LOJA' } },
-          create: { produtoId: l.produtoId, local: 'LOJA', reservado: D(l.quantidade) },
-          update: { reservado: { increment: D(l.quantidade) } },
-        });
+        // A validação de disponibilidade acima garante que existe uma linha de
+        // saldo com saldo_fisico >= quantidade (senão disponivel seria < qtd e o
+        // checkout teria recusado). Por isso é UPDATE, não upsert: um upsert
+        // compila para INSERT ... ON CONFLICT, e o INSERT tentativo violaria o
+        // CHECK loja_estoque_reservado_ok (reservado <= saldo_fisico) antes do
+        // ON CONFLICT — o saldo_fisico do payload de create seria 0.
+        try {
+          await tx.lojaEstoqueSaldo.update({
+            where: { produtoId_local: { produtoId: l.produtoId, local: 'LOJA' } },
+            data: { reservado: { increment: D(l.quantidade) } },
+          });
+        } catch (e) {
+          // Defesa em profundidade: se ainda assim a reserva estourar o físico,
+          // o CHECK loja_estoque_reservado_ok dispara — traduz para erro amigável
+          // (ConflictException) em vez de 500. Detecta pelo nome da constraint na
+          // mensagem (robusto a variações de código Prisma para CHECK violation).
+          if (e instanceof Prisma.PrismaClientKnownRequestError && String(e.message).includes('loja_estoque_reservado_ok')) {
+            throw new ConflictException(`Estoque insuficiente para "${l.descricao}".`);
+          }
+          throw e;
+        }
         await tx.lojaEstoqueMovimento.create({
           data: { produtoId: l.produtoId, local: 'LOJA', tipo: 'reserva', quantidade: D(l.quantidade), origem: 'cardapio', referenciaId: `PED-${pedido.numero}`, observacao: `Reserva pedido #${pedido.numero}` },
         });
@@ -251,6 +278,7 @@ export class LojaPedidosService {
       const cobranca = await provider.criarCobranca({
         pagamentoId: pagamento.id, pedidoNumero: pedido.numero, forma: dto.forma as FormaPagamento,
         valor: Number(pedido.total), clienteNome: pedido.clienteNome, clienteTel: pedido.clienteTel, expiraMin: 30,
+        parcelas: dto.parcelas, cartao: dto.cartao,
       });
       const atualizado = await this.prisma.lojaPedidoPagamento.update({
         where: { id: pagamento.id },
@@ -260,8 +288,20 @@ export class LojaPedidosService {
           pixQrcode: cobranca.pixQrcode ?? undefined,
           pixCopiaCola: cobranca.pixCopiaCola ?? undefined,
           pixExpiracao: cobranca.pixExpiracao ?? undefined,
+          ...(cobranca.statusImediato && cobranca.statusImediato !== 'PENDENTE' ? { status: cobranca.statusImediato } : {}),
         },
       });
+
+      // Cartão aprovado confirma na hora (não há webhook no caminho feliz):
+      // baixa estoque, gera recebível e entra na fila — como o webhook faria.
+      if (cobranca.statusImediato === 'CONFIRMADO') {
+        await this.confirmarPagamento(pedidoId, { pagamentoId: pagamento.id, gatewayId: cobranca.gatewayId ?? undefined }, 'webhook');
+        return jsonSeguro(await this.prisma.lojaPedidoPagamento.findUnique({ where: { id: pagamento.id } }));
+      }
+      // Cartão recusado: erro amigável (o pedido segue aguardando pagamento).
+      if (cobranca.statusImediato === 'RECUSADO') {
+        throw new BadRequestException('Pagamento com cartão recusado. Confira os dados ou tente outra forma.');
+      }
       return jsonSeguro(atualizado);
     } catch (e) {
       // Falhou no gateway: marca o pagamento como recusado e propaga um erro

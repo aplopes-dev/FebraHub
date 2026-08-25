@@ -7,8 +7,14 @@ import type {
 // -------------------- público (cardápio / cliente) --------------------
 export const cardapioPublico = (slug: string) => api.get<CardapioPublico>(`/loja-pedidos/publico/cardapio/${slug}`);
 export const checkout = (d: CheckoutInput) => api.post<LojaPedido>('/loja-pedidos/publico/checkout', d);
-export const iniciarPagamento = (id: string, d: { forma: string; provider?: string; parcelas?: number }) =>
-  api.post<LojaPedidoPagamento>(`/loja-pedidos/publico/pedidos/${id}/pagamento`, d);
+export interface DadosCartaoInput {
+  numero: string; titular: string; validadeMes: string; validadeAno: string; cvv: string;
+  cpfCnpj?: string; cep?: string; numeroEndereco?: string; telefone?: string; email?: string;
+}
+export const iniciarPagamento = (
+  id: string,
+  d: { forma: string; provider?: string; parcelas?: number; cartao?: DadosCartaoInput },
+) => api.post<LojaPedidoPagamento>(`/loja-pedidos/publico/pedidos/${id}/pagamento`, d);
 export const confirmarPagamentoPublico = (id: string, d: { pagamentoId?: string; gatewayId?: string } = {}) =>
   api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/pagamento/confirmar`, d);
 export const acompanharPedido = (id: string) => api.get<AcompanharPedido>(`/loja-pedidos/publico/pedidos/${id}/acompanhar`);

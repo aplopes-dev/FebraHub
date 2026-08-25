@@ -40,10 +40,27 @@ export class CheckoutDto {
 
 export const FORMAS_PAGAMENTO = ['PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'DINHEIRO'] as const;
 
+/** Dados do cartão no checkout público. NÃO são persistidos: o backend repassa
+ *  ao gateway (ASAAS) e descarta — PRD §18 (nunca guardar CVV/número). */
+export class CartaoDto {
+  @IsString() @IsNotEmpty() numero!: string;
+  @IsString() @IsNotEmpty() titular!: string;
+  @IsString() @IsNotEmpty() validadeMes!: string;
+  @IsString() @IsNotEmpty() validadeAno!: string;
+  @IsString() @IsNotEmpty() cvv!: string;
+  @IsOptional() @IsString() cpfCnpj?: string;
+  @IsOptional() @IsString() cep?: string;
+  @IsOptional() @IsString() numeroEndereco?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() email?: string;
+}
+
 export class IniciarPagamentoDto {
   @IsIn(FORMAS_PAGAMENTO) forma!: string;
   @IsOptional() @IsIn(['manual', 'asaas', 'stone', 'pagarme']) provider?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) parcelas?: number;
+  /** Presente só nas formas CARTAO_*. Validado como objeto aninhado. */
+  @IsOptional() @ValidateNested() @Type(() => CartaoDto) cartao?: CartaoDto;
 }
 
 /** Confirmação manual (operador do PDV, ou simulação do gateway em homolog). */

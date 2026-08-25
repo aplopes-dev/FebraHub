@@ -20,6 +20,8 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const [pedidoId, setPedidoId] = useState<string | null>(null);
   const [pix, setPix] = useState<LojaPedidoPagamento | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [forma, setForma] = useState<"PIX" | "CARTAO_CREDITO">("PIX");
+  const [cartao, setCartao] = useState({ numero: "", titular: "", validade: "", cvv: "", cpfCnpj: "" });
 
   const cardapio = useQuery({
     queryKey: ["cardapio", slug],
@@ -69,6 +71,12 @@ export function CardapioPublico({ slug }: { slug: string }) {
 
   async function finalizar() {
     setErro(null);
+    if (forma === "CARTAO_CREDITO") {
+      const [mes, ano] = cartao.validade.split("/").map((s) => s.trim());
+      if (cartao.numero.replace(/\s/g, "").length < 13 || !cartao.titular || !mes || !ano || cartao.cvv.length < 3) {
+        setErro("Preencha os dados do cartão corretamente."); return;
+      }
+    }
     setOcupado(true);
     try {
       const itens = Object.entries(carrinho).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
@@ -80,13 +88,30 @@ export function CardapioPublico({ slug }: { slug: string }) {
         itens,
       });
       setPedidoId(pedido.id);
-      // Gera a cobrança PIX no gateway (ASAAS) e mostra o QR + copia-e-cola.
+
+      if (forma === "CARTAO_CREDITO") {
+        // Cartão: o backend cobra tokenizado no ASAAS e confirma na hora.
+        const [mes, ano] = cartao.validade.split("/").map((s) => s.trim());
+        await iniciarPagamento(pedido.id, {
+          forma: "CARTAO_CREDITO",
+          cartao: {
+            numero: cartao.numero.replace(/\s/g, ""), titular: cartao.titular,
+            validadeMes: mes, validadeAno: ano.length === 2 ? `20${ano}` : ano,
+            cvv: cartao.cvv, cpfCnpj: cartao.cpfCnpj, telefone: tel.replace(/\D/g, ""),
+          },
+        });
+        // Aprovado → o pedido sai de AGUARDANDO_PAGAMENTO; leva ao acompanhamento.
+        router.push(`/pedido/${pedido.id}`);
+        return;
+      }
+
+      // PIX: gera a cobrança no gateway (ASAAS) e mostra o QR + copia-e-cola.
       const pagamento = await iniciarPagamento(pedido.id, { forma: "PIX" });
       setPix(pagamento);
       setEtapa("pix");
     } catch (e) {
       setErro(e instanceof ErroApi ? e.mensagem : "Não foi possível finalizar o pedido.");
-      setEtapa("catalogo");
+      setEtapa("identificar");
     } finally {
       setOcupado(false);
     }
@@ -125,12 +150,43 @@ export function CardapioPublico({ slug }: { slug: string }) {
             <label style={{ fontSize: 12 }}>WhatsApp
               <input value={tel} onChange={(e) => setTel(e.target.value)} placeholder="(71) 90000-0000" inputMode="tel" style={inputStyle} />
             </label>
+
+            <div>
+              <p style={{ fontSize: 12, color: "#9a9aa2", margin: "4px 0 8px" }}>Forma de pagamento</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className={`loja-btn ${forma === "PIX" ? "ouro" : ""}`} style={{ flex: 1, justifyContent: "center" }} onClick={() => setForma("PIX")}>PIX</button>
+                <button type="button" className={`loja-btn ${forma === "CARTAO_CREDITO" ? "ouro" : ""}`} style={{ flex: 1, justifyContent: "center" }} onClick={() => setForma("CARTAO_CREDITO")}>Cartão</button>
+              </div>
+            </div>
+
+            {forma === "CARTAO_CREDITO" && (
+              <div style={{ display: "grid", gap: 10 }}>
+                <label style={{ fontSize: 12 }}>Número do cartão
+                  <input value={cartao.numero} onChange={(e) => setCartao((c) => ({ ...c, numero: e.target.value }))} placeholder="0000 0000 0000 0000" inputMode="numeric" style={inputStyle} />
+                </label>
+                <label style={{ fontSize: 12 }}>Nome impresso no cartão
+                  <input value={cartao.titular} onChange={(e) => setCartao((c) => ({ ...c, titular: e.target.value }))} placeholder="Como está no cartão" style={inputStyle} />
+                </label>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <label style={{ fontSize: 12, flex: 1 }}>Validade
+                    <input value={cartao.validade} onChange={(e) => setCartao((c) => ({ ...c, validade: e.target.value }))} placeholder="MM/AA" inputMode="numeric" style={inputStyle} />
+                  </label>
+                  <label style={{ fontSize: 12, flex: 1 }}>CVV
+                    <input value={cartao.cvv} onChange={(e) => setCartao((c) => ({ ...c, cvv: e.target.value }))} placeholder="123" inputMode="numeric" style={inputStyle} />
+                  </label>
+                </div>
+                <label style={{ fontSize: 12 }}>CPF do titular
+                  <input value={cartao.cpfCnpj} onChange={(e) => setCartao((c) => ({ ...c, cpfCnpj: e.target.value }))} placeholder="000.000.000-00" inputMode="numeric" style={inputStyle} />
+                </label>
+                <p style={{ fontSize: 11, color: "#6f6f78" }}>Pagamento seguro via ASAAS. Não guardamos os dados do seu cartão.</p>
+              </div>
+            )}
           </div>
           {erro && <p style={{ color: "#e06c75", fontSize: 13 }}>{erro}</p>}
           <button className="loja-btn ouro" style={{ width: "100%", justifyContent: "center" }}
             disabled={ocupado || nome.trim().length < 2}
             onClick={finalizar}>
-            {ocupado ? "Processando…" : `Pagar ${brl(total)}`}
+            {ocupado ? "Processando…" : forma === "PIX" ? `Pagar ${brl(total)} com PIX` : `Pagar ${brl(total)} no cartão`}
           </button>
           <button className="loja-btn" style={{ width: "100%", justifyContent: "center", marginTop: 8 }} onClick={() => setEtapa("catalogo")}>Voltar</button>
         </div>

@@ -6,6 +6,23 @@
 
 export type FormaPagamento = 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'DINHEIRO';
 
+/** Dados do cartão para cobrança tokenizada no gateway. O backend NUNCA
+ *  persiste isto (nem CVV, nem número) — repassa direto ao provider e descarta.
+ *  Ver PRD §18: nada sensível é gravado no nosso banco. */
+export interface DadosCartao {
+  numero: string;
+  titular: string;
+  validadeMes: string;
+  validadeAno: string;
+  cvv: string;
+  /** Dados do portador exigidos pelo ASAAS na cobrança de cartão. */
+  cpfCnpj?: string;
+  cep?: string;
+  numeroEndereco?: string;
+  telefone?: string;
+  email?: string;
+}
+
 export interface CriarCobrancaEntrada {
   /** Nosso id do pagamento (idempotência / referência externa). */
   pagamentoId: string;
@@ -16,6 +33,10 @@ export interface CriarCobrancaEntrada {
   clienteTel?: string | null;
   /** Minutos até o PIX expirar. */
   expiraMin?: number;
+  /** Parcelas para cartão de crédito (1 = à vista). */
+  parcelas?: number;
+  /** Dados do cartão — presente só nas formas CARTAO_*. Nunca persistido. */
+  cartao?: DadosCartao;
 }
 
 export interface CobrancaCriada {
@@ -26,6 +47,10 @@ export interface CobrancaCriada {
   /** Código PIX copia-e-cola. */
   pixCopiaCola?: string | null;
   pixExpiracao?: Date | null;
+  /** Status já resolvido pelo gateway na criação (cartão confirma na hora;
+   *  PIX fica PENDENTE até o webhook). Quando presente e CONFIRMADO, o serviço
+   *  confirma o pedido sem esperar webhook. */
+  statusImediato?: StatusPagamentoGateway | null;
   /** Resposta bruta do gateway (auditoria). */
   payload?: unknown;
 }
