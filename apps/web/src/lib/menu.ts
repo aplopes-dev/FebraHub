@@ -223,6 +223,14 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Investimento e resultado das campanhas sociais",
         visivel: comPermissao("social.ver"),
       },
+      {
+        id: "mkt-config-conexao",
+        label: "Configurar conexão",
+        href: "/configuracoes/redes-sociais",
+        titulo: "Conexão das redes",
+        desc: "Chave do Zernio e conta usada para publicar",
+        visivel: comPermissao("social.ver", "social.gerenciar"),
+      },
     );
   }
 
@@ -305,8 +313,8 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
         label: "Fontes de dados",
         href: "/integracoes",
         Icone: PAGINA_INTEGRACOES.Icone,
-        titulo: PAGINA_INTEGRACOES.nome,
-        desc: PAGINA_INTEGRACOES.desc,
+        titulo: "Fontes de dados",
+        desc: "Conexões com sistemas externos (ex.: Conta Azul). Verde = funcionando",
         visivel: comPermissao("integracoes.ver", "integracoes.gerenciar"),
       },
       {
@@ -384,10 +392,11 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       },
       {
         id: "comunicados",
-        label: "Notificações",
+        label: "Enviar comunicado",
         href: "/configuracoes/notificacoes",
+        titulo: "Comunicados",
         Icone: Bell,
-        desc: "Comunicados enviados para o hub",
+        desc: "Envie avisos para um perfil, setor, pessoa ou todos",
         visivel: comPermissao("notificacoes.enviar"),
       },
       {
