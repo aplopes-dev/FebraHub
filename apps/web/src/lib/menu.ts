@@ -62,6 +62,14 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.produtos.ver"),
       },
       {
+        id: "loja-dashboard",
+        label: "Dashboard",
+        href: "/loja/dashboard",
+        titulo: "Dashboard da Loja",
+        desc: "Faturamento, mais vendidos, PIX × cartão, canal e tempos médios",
+        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
+      },
+      {
         id: "loja-balcao",
         label: "Balcão (PDV)",
         href: "/loja/balcao",
@@ -91,6 +99,22 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         href: "/loja/operacoes",
         titulo: "Operações da Loja",
         desc: "Eventos, cardápio digital público e painel/TV",
+        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
+      },
+      {
+        id: "loja-cardapio",
+        label: "Abrir cardápio",
+        href: "/loja/cardapio",
+        titulo: "Cardápio digital",
+        desc: "Abre o cardápio público da operação ativa (para conferir/testar)",
+        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
+      },
+      {
+        id: "loja-tv",
+        label: "Painel / TV",
+        href: "/loja/tv",
+        titulo: "Painel público (TV)",
+        desc: "Fila em tela cheia — só número e status, legível à distância",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
       },
       {

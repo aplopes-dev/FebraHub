@@ -36,6 +36,26 @@
 .balcao-total{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--card-line);padding-top:10px;font-size:15px}
 .balcao-total b{font-size:20px}
 
+/* ==================== DASHBOARD ==================== */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.dash-titulo{margin:0 0 14px;font-size:12px;letter-spacing:.06em;color:var(--gold);font-weight:800;display:flex;align-items:center;gap:7px}
+.dash-titulo svg{color:var(--gold)}
+.dash-barra{margin-bottom:12px}
+.dash-barra-topo{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.dash-barra-topo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%}
+.dash-barra-trilha{height:8px;border-radius:6px;background:rgb(var(--gold-rgb)/.1);overflow:hidden}
+.dash-barra-fill{height:100%;border-radius:6px;background:var(--gold)}
+.dash-barra small{font-size:11px;color:var(--muted)}
+.dash-linha{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--card-line);font-size:13px}
+.dash-linha:first-of-type{border-top:none}
+.dash-linha-dir{text-align:right}
+.dash-linha-dir small{display:block;font-size:11px;color:var(--muted)}
+.dash-tempo{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--card-line)}
+.dash-tempo:first-of-type{border-top:none}
+.dash-tempo svg{color:var(--gold)}
+.dash-tempo b{font-size:20px;display:block}
+.dash-tempo small{font-size:11px;color:var(--muted)}
+
 /* ==================== AUDITORIA ==================== */
 .auditoria-tabela{width:100%;border-collapse:collapse;font-size:12.5px}
 .auditoria-tabela th{text-align:left;padding:11px 14px;background:rgb(var(--gold-rgb)/.05);color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
