@@ -84,7 +84,7 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
               <td className="num">{brl(restante(l))}</td>
               <td><span className={`fin-badge ${l.situacao === "pago" ? "pago" : vencido(l) ? "venc" : "pend"}`}>{l.situacao === "pago" ? "pago" : vencido(l) ? "vencido" : "pendente"}</span></td>
               {podeGerir && <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                {l.situacao !== "pago" && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setPagar(l)}>Baixar</button>}
+                {l.situacao !== "pago" && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setPagar(l)}>Registrar pagamento</button>}
                 {editavel && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setEditar(l)}>Editar</button>}
                 {editavel && <button className="fin-btn" style={{ padding: "5px 9px", color: "var(--down)" }} disabled={excluir.isPending} onClick={() => { if (window.confirm(`Excluir o lançamento "${l.descricao}"?`)) excluir.mutate(l.id); }}>Excluir</button>}
               </td>}
@@ -152,7 +152,7 @@ function ModalPagar({ lancamento, aoFechar, aoPagar }: { lancamento: FinLancamen
   return (
     <div className="fin-modal-bg" onClick={aoFechar}>
       <div className="fin-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Baixar título</h3>
+        <h3>Registrar pagamento</h3>
         <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>{lancamento.descricao} · em aberto {brl(aberto)}</p>
         <label>Valor pago (R$)</label>
         <input className="fin-input" type="number" min={0.01} step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
@@ -161,7 +161,7 @@ function ModalPagar({ lancamento, aoFechar, aoPagar }: { lancamento: FinLancamen
           <div><label>Conta</label><select className="fin-select" value={conta} onChange={(e) => setConta(e.target.value)}><option value="">—</option>{(cadastros.data?.contas ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
         </div>
         {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
-        <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={pagar.isPending} onClick={() => { setErro(null); pagar.mutate(); }}>Confirmar baixa</button></div>
+        <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={pagar.isPending} onClick={() => { setErro(null); pagar.mutate(); }}>Confirmar pagamento</button></div>
       </div>
     </div>
   );

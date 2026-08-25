@@ -151,8 +151,8 @@ export function HubFinanceiro() {
     <>
       {/* Faixa de KPIs compactos — âncora dourada + 4 métricas do mês */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <ChipKpi hero Icone={Wallet} label="Receita reconhecida" valor={moeda(categorias.total)} nota={rotulo} />
-        <ChipKpi Icone={Clock} label="Sem status" valor={pagTot.pctSem != null ? pagTot.pctSem.toFixed(1) : "—"} unidade="%" nota="posição atual" />
+        <ChipKpi hero Icone={Wallet} label="Receita confirmada" valor={moeda(categorias.total)} nota={rotulo} />
+        <ChipKpi Icone={Clock} label="Sem baixa registrada" valor={pagTot.pctSem != null ? pagTot.pctSem.toFixed(1) : "—"} unidade="%" nota="posição atual" />
         <ChipKpi Icone={AlertTriangle} label="Em aberto" valor={pagTot.pctEmAberto != null ? pagTot.pctEmAberto.toFixed(1) : "—"} unidade="%" nota="posição atual" />
         <ChipKpi Icone={Receipt} label="Ticket médio" valor={ticket != null ? moeda(ticket) : "—"} nota={rotulo} />
         <ChipKpi Icone={Hourglass} label="A receber" valor={moeda(aReceber)} nota="CisPay · posição atual" />
@@ -198,9 +198,9 @@ export function HubFinanceiro() {
             <div style={{ display: "flex", gap: 9, padding: "8px 0" }}>
               <Database size={15} style={{ color: C.faint, marginTop: 2, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Aguardando a view mensal</div>
+                <div style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Sem histórico mensal ainda</div>
                 <div style={{ fontSize: 11.5, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
-                  Quando <b style={{ color: C.muted }}>vw_financeiro_receita_mensal</b> existir, a linha aparece aqui — com o mês em curso tracejado (parcial).
+                  Assim que houver receita registrada por mês, o gráfico aparece aqui — com o mês em andamento tracejado.
                 </div>
               </div>
             </div>

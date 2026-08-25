@@ -56,7 +56,7 @@ function CorpoCrm() {
     <div className="fh-exec">
       <Estado carregando={resumo.isLoading} erro={resumo.error} vazio={false}>
         <div className="fh-terr-kpis" style={{ marginBottom: 16 }}>
-          <Cartao rotulo="Pipeline aberto" valor={r ? centavos(pipeline) : "—"} cor={C.gold} />
+          <Cartao rotulo="Em negociação" valor={r ? centavos(pipeline) : "—"} cor={C.gold} />
           <Cartao rotulo="Negócios abertos" valor={r ? String(abertos) : "—"} />
           <Cartao rotulo="Ganhos no mês" valor={r ? centavos(r.ganhosNoMes.valorCentavos) : "—"} cor={C.up} />
           <Cartao rotulo="Leads" valor={r ? String(leads) : "—"} />

@@ -41,7 +41,7 @@ export function DreFinanceiro() {
               {g.contas.map((c) => <div key={c.conta} className="conta"><span>{c.conta}</span><span>{brl(c.valor)}</span></div>)}
             </div>
           ))}
-          {!dre.isLoading && !(d?.linhas ?? []).length && <p className="fin-empty">Sem lançamentos com rateio no período.</p>}
+          {!dre.isLoading && !(d?.linhas ?? []).length && <p className="fin-empty">Nenhum lançamento classificado por conta neste período.</p>}
           {d && (d.linhas.length > 0) && <div className="resultado"><span>Resultado do período</span><span className={d.resultado >= 0 ? "fin-pos" : "fin-neg"}>{brl(d.resultado)}</span></div>}
         </section>
 
