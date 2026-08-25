@@ -122,6 +122,9 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
 
   const mostraPeriodo = !!ativoId?.endsWith("-resumo") && ativoId !== "crm-resumo";
   const mostraCategoria = ativoId === "comercial-resumo" || ativoId === "comercial";
+  // Páginas "tela cheia": ocupam toda a área do conteúdo, sem o cabeçalho
+  // genérico nem o max-width — para experiências imersivas tipo caixa (PDV).
+  const paginaCheia = caminho.startsWith("/loja/balcao");
 
   return (
     <ProvedorPeriodo>
@@ -264,22 +267,24 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
           </header>
 
           <main className="fh-main rolagem">
-            <div className="subir fh-main-inner">
-              <div className="fh-page-topo">
-                <div style={{ minWidth: 0 }}>
-                  <div className="fh-page-data">{hoje}</div>
-                  <h1 className="fh-page-titulo">
-                    {ativoId === "executivo" ? `${saudacao}, ${primeiroNome}.` : tituloPagina}
-                  </h1>
-                  {ativoId !== "executivo" && descPagina && (
-                    <div className="fh-page-desc">{descPagina}</div>
-                  )}
+            <div className={`subir ${paginaCheia ? "fh-main-cheia" : "fh-main-inner"}`}>
+              {!paginaCheia && (
+                <div className="fh-page-topo">
+                  <div style={{ minWidth: 0 }}>
+                    <div className="fh-page-data">{hoje}</div>
+                    <h1 className="fh-page-titulo">
+                      {ativoId === "executivo" ? `${saudacao}, ${primeiroNome}.` : tituloPagina}
+                    </h1>
+                    {ativoId !== "executivo" && descPagina && (
+                      <div className="fh-page-desc">{descPagina}</div>
+                    )}
+                  </div>
+                  <div className="fh-page-acoes">
+                    {mostraPeriodo && <SeletorPeriodo />}
+                    {mostraCategoria && <SeletorCategoria />}
+                  </div>
                 </div>
-                <div className="fh-page-acoes">
-                  {mostraPeriodo && <SeletorPeriodo />}
-                  {mostraCategoria && <SeletorCategoria />}
-                </div>
-              </div>
+              )}
               {children}
             </div>
           </main>

@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
-  Plug, Receipt, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
+  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -285,13 +285,6 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
     ] }];
   }),
   {
-    id: "pdv", label: "PDV", Icone: Receipt, visivel: comPermissao("pdv.ver"), filhos: [
-      { id: "pdv-resumo", label: "Resumo", href: "/pdv", Icone: Receipt, titulo: "Ponto de venda", desc: "Vendas do balcão, caixa e formas de pagamento", visivel: comPermissao("pdv.ver") },
-      { id: "pdv-caixa", label: "Frente de caixa", href: "/pdv/caixa", desc: "Abrir caixa, vender e fechar", visivel: comPermissao("pdv.operar") },
-      { id: "pdv-vendas", label: "Vendas", href: "/pdv/vendas", desc: "Histórico de cupons", visivel: comPermissao("pdv.ver") },
-    ],
-  },
-  {
     id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
       { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },
       { id: "fin-erp-dre", label: "DRE", href: "/financeiro-erp/dre", desc: "Demonstrativo de resultado por competência", visivel: comPermissao("financeiro.erp.ver") },
@@ -344,6 +337,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       ctx.pode("usuarios.gerenciar") ||
       ctx.pode("notificacoes.enviar") ||
       ctx.pode("social.ver", "social.gerenciar") ||
+      ctx.pode("fiscal.emitir", "fiscal.gerenciar") ||
       ctx.pode("processos.ver"),
     filhos: [
       {
@@ -379,6 +373,14 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
         Icone: Users,
         desc: "Quem entra, com qual perfil e em quais setores",
         visivel: comPermissao("usuarios.gerenciar"),
+      },
+      {
+        id: "fiscal-config",
+        label: "Fiscal — cupom e nota",
+        href: "/configuracoes/fiscal",
+        Icone: FileText,
+        desc: "Cupom fiscal (NFC-e) e cupom não fiscal: certificado A1, CSC e emitente",
+        visivel: comPermissao("fiscal.gerenciar", "fiscal.emitir"),
       },
       {
         id: "comunicados",

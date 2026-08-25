@@ -3,10 +3,10 @@
    badge de estoque, carrinho rico com thumbnail e stepper, seletor de forma
    de pagamento, toggle de split e barra de status da fila no rodapé. */
 
-/* Vive dentro do Shell (que já rola). Usa a altura da viewport disponível
-   para o layout tipo-caixa (grid + barra inferior) sem depender do pai ter
-   altura fixa. O negativo desconta o cabeçalho/rodapé do Shell. */
-.bal-page{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:min(760px,calc(100vh - 220px));margin:-4px -2px 0;background:var(--fundo-app);border:1px solid var(--card-line);border-radius:16px;overflow:hidden}
+/* Tela cheia dentro do Shell (Shell aplica .fh-main-cheia: sem cabeçalho nem
+   max-width). O PDV ocupa toda a área de conteúdo, edge-to-edge, com o grid
+   rolável e a barra de status fixa no rodapé — experiência de caixa. */
+.bal-page{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%;min-height:0;background:var(--fundo-app)}
 
 /* ---- topo ---- */
 .bal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 26px 14px}
