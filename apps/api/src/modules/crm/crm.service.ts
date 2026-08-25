@@ -10,6 +10,7 @@
  */
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -214,6 +215,78 @@ export class CrmService {
       include: { etapas: { orderBy: { ordem: 'asc' } } },
       orderBy: { criadoEm: 'asc' },
     });
+  }
+
+  /* -------- CRUD de funis e etapas (configuração do pipeline) -------- */
+
+  async criarFunil(u: UsuarioLogado, dado: { nome: string; cor?: string }, ip?: string) {
+    const funil = await this.prisma.crmFunil.create({
+      data: {
+        nome: dado.nome, cor: dado.cor ?? null,
+        // Todo funil nasce com um esqueleto útil de etapas.
+        etapas: { create: [
+          { nome: 'Novo', cor: '#3976a8', ordem: 0, tipo: 'aberta', probabilidade: 10 },
+          { nome: 'Em andamento', cor: '#8A6410', ordem: 1, tipo: 'aberta', probabilidade: 50 },
+          { nome: 'Ganho', cor: '#2E7D32', ordem: 2, tipo: 'ganha', probabilidade: 100, sistema: true },
+          { nome: 'Perdido', cor: '#C0392B', ordem: 3, tipo: 'perdida', probabilidade: 0, sistema: true },
+        ] },
+      },
+      include: { etapas: { orderBy: { ordem: 'asc' } } },
+    });
+    await this.auditar(u, 'crm_funil_criado', `crm/funis/${funil.id}`, { nome: dado.nome }, ip);
+    return funil;
+  }
+
+  async atualizarFunil(u: UsuarioLogado, id: string, dado: { nome?: string; cor?: string }, ip?: string) {
+    const funil = await this.prisma.crmFunil.update({
+      where: { id },
+      data: { ...(dado.nome !== undefined ? { nome: dado.nome } : {}), ...(dado.cor !== undefined ? { cor: dado.cor } : {}) },
+    });
+    await this.auditar(u, 'crm_funil_atualizado', `crm/funis/${id}`, { ...dado }, ip);
+    return funil;
+  }
+
+  async removerFunil(u: UsuarioLogado, id: string, ip?: string) {
+    const emUso = await this.prisma.crmNegocio.count({ where: { funilId: id } });
+    if (emUso) throw new ConflictException(`Este funil tem ${emUso} negócio(s). Mova-os antes de arquivar.`);
+    const ativos = await this.prisma.crmFunil.count({ where: { status: 'ativo' } });
+    if (ativos <= 1) throw new ConflictException('Não é possível arquivar o único funil ativo.');
+    await this.prisma.crmFunil.update({ where: { id }, data: { status: 'arquivado' } });
+    await this.auditar(u, 'crm_funil_arquivado', `crm/funis/${id}`, {}, ip);
+  }
+
+  async criarEtapa(u: UsuarioLogado, funilId: string, dado: { nome: string; cor?: string; probabilidade?: number }, ip?: string) {
+    const max = await this.prisma.crmEtapa.aggregate({ where: { funilId }, _max: { ordem: true } });
+    // Insere antes das etapas de sistema (ganha/perdida ficam no fim).
+    const etapa = await this.prisma.crmEtapa.create({
+      data: { funilId, nome: dado.nome, cor: dado.cor ?? '#3976a8', probabilidade: dado.probabilidade ?? 0, tipo: 'aberta', ordem: (max._max.ordem ?? 0) + 1 },
+    });
+    await this.auditar(u, 'crm_etapa_criada', `crm/etapas/${etapa.id}`, { nome: dado.nome, funilId }, ip);
+    return etapa;
+  }
+
+  async atualizarEtapa(u: UsuarioLogado, id: string, dado: { nome?: string; cor?: string; probabilidade?: number; ordem?: number }, ip?: string) {
+    const etapa = await this.prisma.crmEtapa.update({
+      where: { id },
+      data: {
+        ...(dado.nome !== undefined ? { nome: dado.nome } : {}),
+        ...(dado.cor !== undefined ? { cor: dado.cor } : {}),
+        ...(dado.probabilidade !== undefined ? { probabilidade: dado.probabilidade } : {}),
+        ...(dado.ordem !== undefined ? { ordem: dado.ordem } : {}),
+      },
+    });
+    await this.auditar(u, 'crm_etapa_atualizada', `crm/etapas/${id}`, { ...dado }, ip);
+    return etapa;
+  }
+
+  async removerEtapa(u: UsuarioLogado, id: string, ip?: string) {
+    const etapa = await this.prisma.crmEtapa.findUnique({ where: { id } });
+    if (!etapa) throw new NotFoundException('Etapa não encontrada.');
+    if (etapa.sistema) throw new ConflictException('As etapas de ganho e perda não podem ser removidas.');
+    const emUso = await this.prisma.crmNegocio.count({ where: { etapaId: id } });
+    if (emUso) throw new ConflictException(`Esta etapa tem ${emUso} negócio(s). Mova-os antes de remover.`);
+    await this.prisma.crmEtapa.delete({ where: { id } });
+    await this.auditar(u, 'crm_etapa_removida', `crm/etapas/${id}`, { nome: etapa.nome }, ip);
   }
 
   /* ------------------------------ negócios ----------------------------- */
@@ -425,5 +498,32 @@ export class CrmService {
 
   reabrirTarefa(id: string) {
     return this.prisma.crmTarefa.update({ where: { id }, data: { concluidaEm: null, resultado: null } });
+  }
+
+  async atualizarTarefa(
+    u: UsuarioLogado,
+    id: string,
+    dado: { titulo?: string; tipo?: string; prioridade?: string; venceEm?: string; responsavelId?: string },
+    ip?: string,
+  ) {
+    const tarefa = await this.prisma.crmTarefa.update({
+      where: { id },
+      data: {
+        ...(dado.titulo !== undefined ? { titulo: dado.titulo } : {}),
+        ...(dado.tipo !== undefined ? { tipo: dado.tipo } : {}),
+        ...(dado.prioridade !== undefined ? { prioridade: dado.prioridade } : {}),
+        ...(dado.venceEm !== undefined ? { venceEm: dado.venceEm ? new Date(dado.venceEm) : null } : {}),
+        ...(dado.responsavelId !== undefined ? { responsavelId: dado.responsavelId } : {}),
+      },
+    });
+    await this.auditar(u, 'crm_tarefa_atualizada', `crm/tarefas/${id}`, { ...dado }, ip);
+    return tarefa;
+  }
+
+  async removerTarefa(u: UsuarioLogado, id: string, ip?: string) {
+    const tarefa = await this.prisma.crmTarefa.findUnique({ where: { id } });
+    if (!tarefa) throw new NotFoundException('Tarefa não encontrada.');
+    await this.prisma.crmTarefa.delete({ where: { id } });
+    await this.auditar(u, 'crm_tarefa_removida', `crm/tarefas/${id}`, { titulo: tarefa.titulo }, ip);
   }
 }

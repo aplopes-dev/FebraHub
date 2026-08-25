@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
-import { CentroCustoDto, ContaBancariaDto, LancamentoDto, PagarLancamentoDto, PlanoContaDto } from './financeiro.dto';
+import { AtualizarLancamentoDto, CentroCustoDto, ContaBancariaDto, LancamentoDto, PagarLancamentoDto, PlanoContaDto } from './financeiro.dto';
 
 const gestor = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('financeiro.gerenciar');
 const D = (n: number | string) => new Prisma.Decimal(n);
@@ -83,6 +83,30 @@ export class FinanceiroService {
     if (!l) throw new NotFoundException('Lançamento não encontrado.');
     if (l.origem === 'pdv') throw new BadRequestException('Lançamento gerado pelo PDV — cancele a venda para estorná-lo.');
     return this.prisma.financeiroLancamento.update({ where: { id }, data: { excluidoEm: new Date() } });
+  }
+
+  async atualizar(id: string, dto: AtualizarLancamentoDto, u: UsuarioLogado) {
+    this.exigeGestor(u);
+    const l = await this.prisma.financeiroLancamento.findFirst({ where: { id, excluidoEm: null } });
+    if (!l) throw new NotFoundException('Lançamento não encontrado.');
+    // Lançamentos do PDV são espelho da venda — editar aqui divergiria da origem.
+    if (l.origem === 'pdv') throw new BadRequestException('Lançamento gerado pelo PDV não pode ser editado aqui — ajuste pela venda.');
+    if (l.situacao === 'pago') throw new BadRequestException('Lançamento quitado não pode ser editado. Estorne o pagamento antes.');
+    return this.prisma.financeiroLancamento.update({
+      where: { id },
+      data: {
+        ...(dto.descricao !== undefined ? { descricao: dto.descricao } : {}),
+        ...(dto.valor !== undefined ? { valor: D(dto.valor) } : {}),
+        ...(dto.juros !== undefined ? { juros: D(dto.juros) } : {}),
+        ...(dto.multa !== undefined ? { multa: D(dto.multa) } : {}),
+        ...(dto.dataCompetencia !== undefined ? { dataCompetencia: new Date(dto.dataCompetencia) } : {}),
+        ...(dto.dataVencimento !== undefined ? { dataVencimento: new Date(dto.dataVencimento) } : {}),
+        ...(dto.contraparte !== undefined ? { contraparte: dto.contraparte } : {}),
+        ...(dto.contaBancariaId !== undefined ? { contaBancariaId: dto.contaBancariaId } : {}),
+        ...(dto.observacao !== undefined ? { observacao: dto.observacao } : {}),
+      },
+      include: { rateios: true },
+    });
   }
 
   // -------------------- INDICADORES / DRE --------------------

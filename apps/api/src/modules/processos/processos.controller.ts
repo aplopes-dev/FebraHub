@@ -16,4 +16,6 @@ export class ProcessosController {
   @Patch(':id') @ExigePermissao('processos.mapear') atualizar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AtualizarProcessoDto, @Usuario() u: UsuarioLogado) { return this.service.atualizar(id, dto, u); }
   @Post(':id/transicoes') @ExigePermissao('processos.mapear', 'processos.validar') transicao(@Param('id', ParseUUIDPipe) id: string, @Body() dto: TransicaoDto, @Usuario() u: UsuarioLogado) { return this.service.transicionar(id, dto, u); }
   @Post(':id/nova-versao') @ExigePermissao('processos.mapear') novaVersao(@Param('id', ParseUUIDPipe) id: string, @Body('motivo') motivo: string, @Usuario() u: UsuarioLogado) { return this.service.novaVersao(id, motivo, u); }
+  @Post(':id/arquivar') @ExigePermissao('processos.administrar') arquivar(@Param('id', ParseUUIDPipe) id: string, @Body('motivo') motivo: string, @Usuario() u: UsuarioLogado) { return this.service.arquivar(id, motivo, u); }
+  @Post(':id/restaurar') @ExigePermissao('processos.administrar') restaurar(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.service.restaurar(id, u); }
 }

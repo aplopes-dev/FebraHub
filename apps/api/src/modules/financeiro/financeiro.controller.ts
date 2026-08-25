@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
-import { CentroCustoDto, ContaBancariaDto, LancamentoDto, PagarLancamentoDto, PlanoContaDto } from './financeiro.dto';
+import { AtualizarLancamentoDto, CentroCustoDto, ContaBancariaDto, LancamentoDto, PagarLancamentoDto, PlanoContaDto } from './financeiro.dto';
 import { FinanceiroService } from './financeiro.service';
 
 /** Central financeira do ERP: contas a pagar/receber, DRE e cadastros.
@@ -20,6 +20,7 @@ export class FinanceiroController {
   @Get('lancamentos/:id') obter(@Param('id', ParseUUIDPipe) id: string) { return this.s.obter(id); }
 
   @Post('lancamentos') @ExigePermissao('financeiro.gerenciar') criar(@Body() dto: LancamentoDto, @Usuario() u: UsuarioLogado) { return this.s.criar(dto, u); }
+  @Patch('lancamentos/:id') @ExigePermissao('financeiro.gerenciar') atualizar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AtualizarLancamentoDto, @Usuario() u: UsuarioLogado) { return this.s.atualizar(id, dto, u); }
   @Post('lancamentos/:id/pagar') @ExigePermissao('financeiro.gerenciar') pagar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PagarLancamentoDto, @Usuario() u: UsuarioLogado) { return this.s.pagar(id, dto, u); }
   @Delete('lancamentos/:id') @ExigePermissao('financeiro.gerenciar') excluir(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.excluir(id, u); }
 

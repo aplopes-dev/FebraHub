@@ -72,6 +72,29 @@ export class ProcessosService {
     return this.prisma.processo.update({ where: { id }, data: { versaoAtual: { increment: 1 }, situacao: 'rascunho', atualizadoPor: u.id, revisao: { increment: 1 }, auditoria: { create: { usuarioId: u.id, acao: 'nova_versao', motivo, versao: p.versaoAtual + 1 } } } });
   }
 
+  /** Arquiva: nao apaga, muda a situacao para 'arquivado' (sai das listas
+   *  ativas mas preserva versoes/auditoria). Reversivel por restaurar(). */
+  async arquivar(id: string, motivo: string, u: UsuarioLogado) {
+    const p = await this.obter(id);
+    if (p.situacao === 'arquivado') throw new ConflictException('Processo já está arquivado.');
+    return this.prisma.processo.update({
+      where: { id },
+      data: { situacao: 'arquivado', atualizadoPor: u.id, revisao: { increment: 1 },
+        auditoria: { create: { usuarioId: u.id, acao: 'arquivado', anterior: json({ situacao: p.situacao }), novo: json({ situacao: 'arquivado' }), motivo, versao: p.versaoAtual } } },
+    });
+  }
+
+  /** Restaura um processo arquivado, voltando para rascunho. */
+  async restaurar(id: string, u: UsuarioLogado) {
+    const p = await this.obter(id);
+    if (p.situacao !== 'arquivado') throw new ConflictException('Só é possível restaurar um processo arquivado.');
+    return this.prisma.processo.update({
+      where: { id },
+      data: { situacao: 'rascunho', atualizadoPor: u.id, revisao: { increment: 1 },
+        auditoria: { create: { usuarioId: u.id, acao: 'restaurado', anterior: json({ situacao: 'arquivado' }), novo: json({ situacao: 'rascunho' }), versao: p.versaoAtual } } },
+    });
+  }
+
   async implantacao() {
     const entregas = await this.prisma.implantacaoEntrega.findMany({ orderBy: [{ setor: 'asc' }, { pilar: 'asc' }] });
     const pendencias = await this.prisma.implantacaoPendencia.findMany({ where: { situacao: { not: 'resolvida' } }, orderBy: { prazo: 'asc' } });

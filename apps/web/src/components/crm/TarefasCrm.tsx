@@ -4,12 +4,12 @@
    com resultado, criação rápida. */
 
 import { useState } from "react";
-import { Check, Plus, RotateCcw } from "lucide-react";
+import { Check, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
 import { inputAv } from "@/components/ui/estilos";
 import { C, alfaDe } from "@/lib/tema";
 import type { CrmTarefa } from "@/types/crm";
-import { crmConcluirTarefa, crmCriarTarefa, crmReabrirTarefa } from "@/services/api/crm";
+import { crmAtualizarTarefa, crmConcluirTarefa, crmCriarTarefa, crmReabrirTarefa, crmRemoverTarefa } from "@/services/api/crm";
 import { useCrmTarefas, useMutacaoCrm } from "@/hooks/crm";
 import { dataHora } from "./formatos";
 
@@ -20,9 +20,41 @@ function Linha({ tarefa, aoAbrirVinculo }: { tarefa: CrmTarefa; aoAbrirVinculo: 
     crmConcluirTarefa(id, resultado)
   );
   const reabrir = useMutacaoCrm((id: string) => crmReabrirTarefa(id));
+  const editar = useMutacaoCrm(({ id, dado }: { id: string; dado: { titulo?: string; prioridade?: string; venceEm?: string | null } }) =>
+    crmAtualizarTarefa(id, dado)
+  );
+  const remover = useMutacaoCrm((id: string) => crmRemoverTarefa(id));
   const [resultado, setResultado] = useState("");
   const [concluindo, setConcluindo] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [titEdit, setTitEdit] = useState(tarefa.titulo);
+  const [prioEdit, setPrioEdit] = useState<string>(tarefa.prioridade);
+  const [venceEdit, setVenceEdit] = useState(tarefa.venceEm ? new Date(tarefa.venceEm).toISOString().slice(0, 16) : "");
   const atrasada = !tarefa.concluidaEm && tarefa.venceEm && new Date(tarefa.venceEm) < new Date();
+
+  if (editando) {
+    return (
+      <div className="fh-exec-alerta" style={{ borderLeftColor: C.gold }}>
+        <div style={{ display: "grid", gap: 8 }}>
+          <input value={titEdit} onChange={(e) => setTitEdit(e.target.value)} style={inputAv} aria-label="Título" placeholder="Título da tarefa" />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <select value={prioEdit} onChange={(e) => setPrioEdit(e.target.value)} style={{ ...inputAv, width: 130 }} aria-label="Prioridade">
+              <option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option>
+            </select>
+            <input type="datetime-local" value={venceEdit} onChange={(e) => setVenceEdit(e.target.value)} style={{ ...inputAv, width: 200 }} aria-label="Prazo" />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" className="fh-exec-chip" style={{ color: C.gold, borderColor: alfaDe(C.gold, 0.45) }}
+              disabled={editar.isPending || titEdit.trim().length < 2}
+              onClick={() => editar.mutate({ id: tarefa.id, dado: { titulo: titEdit.trim(), prioridade: prioEdit, venceEm: venceEdit ? new Date(venceEdit).toISOString() : null } }, { onSuccess: () => setEditando(false) })}>
+              <Check size={12} /> Salvar
+            </button>
+            <button type="button" className="fh-exec-chip" onClick={() => setEditando(false)}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fh-exec-alerta" style={{ borderLeftColor: tarefa.concluidaEm ? C.up : atrasada ? C.down : COR_PRIORIDADE[tarefa.prioridade] }}>
@@ -69,6 +101,18 @@ function Linha({ tarefa, aoAbrirVinculo }: { tarefa: CrmTarefa; aoAbrirVinculo: 
           <button type="button" className="fh-exec-chip" disabled={reabrir.isPending} onClick={() => reabrir.mutate(tarefa.id)}>
             <RotateCcw size={12} /> Reabrir
           </button>
+        )}
+        {!concluindo && (
+          <>
+            <button type="button" className="fh-exec-chip" onClick={() => { setTitEdit(tarefa.titulo); setPrioEdit(tarefa.prioridade); setVenceEdit(tarefa.venceEm ? new Date(tarefa.venceEm).toISOString().slice(0, 16) : ""); setEditando(true); }}>
+              <Pencil size={12} /> Editar
+            </button>
+            <button type="button" className="fh-exec-chip" style={{ color: C.down, borderColor: alfaDe(C.down, 0.5) }}
+              disabled={remover.isPending}
+              onClick={() => { if (window.confirm(`Excluir a tarefa "${tarefa.titulo}"?`)) remover.mutate(tarefa.id); }}>
+              <Trash2 size={12} />
+            </button>
+          </>
         )}
       </div>
     </div>

@@ -9,6 +9,7 @@ export const finLancamentos = (operacao?: string, situacao?: string, busca?: str
 export const finLancamento = (id: string) => api.get<FinLancamento>(`/financeiro-erp/lancamentos/${id}`);
 
 export const finCriarLancamento = (d: unknown) => api.post<FinLancamento>('/financeiro-erp/lancamentos', d);
+export const finAtualizarLancamento = (id: string, d: { descricao?: string; valor?: number; juros?: number; multa?: number; dataCompetencia?: string; dataVencimento?: string; contraparte?: string; contaBancariaId?: string; observacao?: string }) => api.patch<FinLancamento>(`/financeiro-erp/lancamentos/${id}`, d);
 export const finPagarLancamento = (id: string, d: { valor: number; pagoEm: string; formaPagamento: string; contaBancariaId?: string }) => api.post<FinLancamento>(`/financeiro-erp/lancamentos/${id}/pagar`, d);
 export const finExcluirLancamento = (id: string) => api.delete(`/financeiro-erp/lancamentos/${id}`);
 export const finCriarConta = (d: { nome: string; banco?: string; saldoInicial?: number }) => api.post('/financeiro-erp/contas', d);

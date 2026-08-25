@@ -4,7 +4,7 @@
    motivo), timeline de atividades, tarefas do negócio. */
 
 import { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
 import { inputAv, labelAv } from "@/components/ui/estilos";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
@@ -13,6 +13,7 @@ import {
   crmCriarAtividadeNegocio,
   crmCriarTarefa,
   crmMoverNegocio,
+  crmRemoverNegocio,
 } from "@/services/api/crm";
 import { useCrmNegocio, useMutacaoCrm } from "@/hooks/crm";
 import { centavos, dataHora, paraCentavos } from "./formatos";
@@ -37,6 +38,7 @@ export function DrawerNegocio({
     crmCriarAtividadeNegocio(nid, texto)
   );
   const novaTarefa = useMutacaoCrm(crmCriarTarefa);
+  const remover = useMutacaoCrm((nid: string) => crmRemoverNegocio(nid));
 
   const [valorTexto, setValorTexto] = useState("");
   const [texto, setTexto] = useState("");
@@ -207,6 +209,20 @@ export function DrawerNegocio({
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* excluir negócio */}
+              <section style={{ borderTop: `1px solid ${C.cardLine}`, paddingTop: 14 }}>
+                <button type="button" className="fh-exec-chip"
+                  style={{ color: C.down, borderColor: alfaDe(C.down, 0.5) }}
+                  disabled={remover.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Excluir o negócio "${d.titulo}"? Esta ação não pode ser desfeita.`)) {
+                      remover.mutate(d.id, { onSuccess: aoFechar });
+                    }
+                  }}>
+                  <Trash2 size={12} /> {remover.isPending ? "Excluindo…" : "Excluir negócio"}
+                </button>
               </section>
             </div>
           )}

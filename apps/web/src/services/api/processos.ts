@@ -7,4 +7,6 @@ export const processoObter = (id: string) => api.get<Processo>(`/processos/${id}
 export const processoAtualizar = (id: string, dados: Record<string, unknown>) => api.patch<Processo>(`/processos/${id}`, dados);
 export const processoTransicionar = (id: string, acao: string, motivo?: string) => api.post<Processo>(`/processos/${id}/transicoes`, { acao, motivo });
 export const processoNovaVersao = (id: string, motivo: string) => api.post<Processo>(`/processos/${id}/nova-versao`, { motivo });
+export const processoArquivar = (id: string, motivo?: string) => api.post<Processo>(`/processos/${id}/arquivar`, { motivo });
+export const processoRestaurar = (id: string) => api.post<Processo>(`/processos/${id}/restaurar`);
 export const implantacaoObter = () => api.get<Implantacao>('/processos/implantacao');

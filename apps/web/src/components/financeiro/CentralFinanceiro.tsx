@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, Plus } from "lucide-react";
-import { finCadastros, finCriarLancamento, finIndicadores, finLancamentos, finPagarLancamento } from "@/services/api/financeiro-erp";
+import { finAtualizarLancamento, finCadastros, finCriarLancamento, finExcluirLancamento, finIndicadores, finLancamentos, finPagarLancamento } from "@/services/api/financeiro-erp";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { FinLancamento } from "@/types/financeiro-erp";
@@ -63,12 +63,19 @@ export function CentralFinanceiro() {
 
 function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { lancamentos: FinLancamento[]; carregando: boolean; podeGerir: boolean; aoMudar: () => void }) {
   const [pagar, setPagar] = useState<FinLancamento | null>(null);
+  const [editar, setEditar] = useState<FinLancamento | null>(null);
+  const excluir = useMutation({
+    mutationFn: (id: string) => finExcluirLancamento(id),
+    onSuccess: aoMudar,
+  });
   return (
     <>
       <table className="fin-table">
         <thead><tr><th>Descrição</th><th>Contraparte</th><th>Vencimento</th><th className="num">Valor</th><th className="num">Em aberto</th><th>Situação</th>{podeGerir && <th></th>}</tr></thead>
         <tbody>
-          {lancamentos.map((l) => (
+          {lancamentos.map((l) => {
+            const editavel = l.origem !== "pdv" && l.situacao !== "pago";
+            return (
             <tr key={l.id}>
               <td><b>{l.descricao}</b>{l.origem === "pdv" && <span className="fin-badge pend" style={{ marginLeft: 6 }}>PDV</span>}</td>
               <td>{l.contraparte || "—"}</td>
@@ -76,14 +83,57 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
               <td className="num">{brl(Number(l.valor) + Number(l.juros) + Number(l.multa))}</td>
               <td className="num">{brl(restante(l))}</td>
               <td><span className={`fin-badge ${l.situacao === "pago" ? "pago" : vencido(l) ? "venc" : "pend"}`}>{l.situacao === "pago" ? "pago" : vencido(l) ? "vencido" : "pendente"}</span></td>
-              {podeGerir && <td>{l.situacao !== "pago" && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setPagar(l)}>Baixar</button>}</td>}
+              {podeGerir && <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                {l.situacao !== "pago" && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setPagar(l)}>Baixar</button>}
+                {editavel && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setEditar(l)}>Editar</button>}
+                {editavel && <button className="fin-btn" style={{ padding: "5px 9px", color: "var(--down)" }} disabled={excluir.isPending} onClick={() => { if (window.confirm(`Excluir o lançamento "${l.descricao}"?`)) excluir.mutate(l.id); }}>Excluir</button>}
+              </td>}
             </tr>
-          ))}
+          );})}
         </tbody>
       </table>
       {!carregando && !lancamentos.length && <p className="fin-empty">Nenhum título neste filtro.</p>}
       {pagar && <ModalPagar lancamento={pagar} aoFechar={() => setPagar(null)} aoPagar={() => { setPagar(null); aoMudar(); }} />}
+      {editar && <ModalEditarLancamento lancamento={editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); aoMudar(); }} />}
     </>
+  );
+}
+
+function ModalEditarLancamento({ lancamento, aoFechar, aoSalvar }: { lancamento: FinLancamento; aoFechar: () => void; aoSalvar: () => void }) {
+  const cadastros = useQuery({ queryKey: ["fin", "cadastros"], queryFn: finCadastros });
+  const [descricao, setDescricao] = useState(lancamento.descricao);
+  const [valor, setValor] = useState(String(lancamento.valor));
+  const [contraparte, setContraparte] = useState(lancamento.contraparte ?? "");
+  const [competencia, setCompetencia] = useState(String(lancamento.dataCompetencia).slice(0, 10));
+  const [vencimento, setVencimento] = useState(String(lancamento.dataVencimento).slice(0, 10));
+  const [conta, setConta] = useState(lancamento.contaBancaria?.id ?? "");
+  const [erro, setErro] = useState<string | null>(null);
+  const salvar = useMutation({
+    mutationFn: () => finAtualizarLancamento(lancamento.id, {
+      descricao, valor: Number(valor) || undefined, contraparte, dataCompetencia: competencia, dataVencimento: vencimento, contaBancariaId: conta || undefined,
+    }),
+    onSuccess: aoSalvar,
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao salvar."),
+  });
+  return (
+    <div className="fin-modal-bg" onClick={aoFechar}>
+      <div className="fin-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Editar lançamento</h3>
+        <label>Descrição</label>
+        <input className="fin-input" value={descricao} onChange={(e) => setDescricao(e.target.value)} autoFocus />
+        <div className="row">
+          <div><label>Valor (R$)</label><input className="fin-input" type="number" min={0.01} step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} /></div>
+          <div><label>Contraparte</label><input className="fin-input" value={contraparte} onChange={(e) => setContraparte(e.target.value)} /></div>
+        </div>
+        <div className="row">
+          <div><label>Competência</label><input className="fin-input" type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} /></div>
+          <div><label>Vencimento</label><input className="fin-input" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></div>
+        </div>
+        <div><label>Conta bancária</label><select className="fin-select" value={conta} onChange={(e) => setConta(e.target.value)}><option value="">—</option>{(cadastros.data?.contas ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+        {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
+        <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={salvar.isPending || !descricao || !valor} onClick={() => { setErro(null); salvar.mutate(); }}>Salvar</button></div>
+      </div>
+    </div>
   );
 }
 

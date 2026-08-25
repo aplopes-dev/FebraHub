@@ -104,8 +104,36 @@ class TarefaDto {
   @IsOptional() @IsUUID() responsavelId?: string;
 }
 
+class TarefaParcialDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(200) titulo?: string;
+  @IsOptional() @IsIn(['ligacao', 'reuniao', 'follow_up']) tipo?: string;
+  @IsOptional() @IsIn(['alta', 'media', 'baixa']) prioridade?: string;
+  @IsOptional() @IsISO8601() venceEm?: string;
+  @IsOptional() @IsUUID() responsavelId?: string;
+}
+
 class ConcluirDto {
   @IsOptional() @IsString() @MaxLength(500) resultado?: string;
+}
+
+class FunilDto {
+  @IsString() @MinLength(2) @MaxLength(80) nome!: string;
+  @IsOptional() @IsString() @MaxLength(20) cor?: string;
+}
+class FunilParcialDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(80) nome?: string;
+  @IsOptional() @IsString() @MaxLength(20) cor?: string;
+}
+class EtapaDto {
+  @IsString() @MinLength(2) @MaxLength(80) nome!: string;
+  @IsOptional() @IsString() @MaxLength(20) cor?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(100) probabilidade?: number;
+}
+class EtapaParcialDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(80) nome?: string;
+  @IsOptional() @IsString() @MaxLength(20) cor?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(100) probabilidade?: number;
+  @IsOptional() @IsInt() @Min(0) ordem?: number;
 }
 
 class ListaClientesQuery {
@@ -139,6 +167,33 @@ export class CrmController {
   @ApiOperation({ summary: 'Funis ativos com etapas ordenadas' })
   funis() {
     return this.crm.funis();
+  }
+
+  @Post('funis')
+  criarFunil(@Usuario() u: UsuarioLogado, @Body() dado: FunilDto, @Req() req: FastifyRequest) {
+    return this.crm.criarFunil(u, dado, req.ip);
+  }
+  @Patch('funis/:id')
+  atualizarFunil(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Body() dado: FunilParcialDto, @Req() req: FastifyRequest) {
+    return this.crm.atualizarFunil(u, id, dado, req.ip);
+  }
+  @Delete('funis/:id')
+  @HttpCode(204)
+  removerFunil(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Req() req: FastifyRequest) {
+    return this.crm.removerFunil(u, id, req.ip);
+  }
+  @Post('funis/:id/etapas')
+  criarEtapa(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Body() dado: EtapaDto, @Req() req: FastifyRequest) {
+    return this.crm.criarEtapa(u, id, dado, req.ip);
+  }
+  @Patch('etapas/:id')
+  atualizarEtapa(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Body() dado: EtapaParcialDto, @Req() req: FastifyRequest) {
+    return this.crm.atualizarEtapa(u, id, dado, req.ip);
+  }
+  @Delete('etapas/:id')
+  @HttpCode(204)
+  removerEtapa(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Req() req: FastifyRequest) {
+    return this.crm.removerEtapa(u, id, req.ip);
   }
 
   /* clientes */
@@ -291,5 +346,16 @@ export class CrmController {
   @Post('tarefas/:id/reabrir')
   reabrir(@Param('id', ParseUUIDPipe) id: string) {
     return this.crm.reabrirTarefa(id);
+  }
+
+  @Patch('tarefas/:id')
+  atualizarTarefa(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Body() dado: TarefaParcialDto, @Req() req: FastifyRequest) {
+    return this.crm.atualizarTarefa(u, id, dado, req.ip);
+  }
+
+  @Delete('tarefas/:id')
+  @HttpCode(204)
+  removerTarefa(@Usuario() u: UsuarioLogado, @Param('id', ParseUUIDPipe) id: string, @Req() req: FastifyRequest) {
+    return this.crm.removerTarefa(u, id, req.ip);
   }
 }

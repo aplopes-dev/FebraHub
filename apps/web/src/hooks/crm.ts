@@ -9,7 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/api/crm";
 
-export type AbaCrm = "funil" | "clientes" | "tarefas" | "conversas";
+export type AbaCrm = "funil" | "clientes" | "tarefas" | "conversas" | "funis";
 
 export function useEstadoCrm() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export function useEstadoCrm() {
 
   return useMemo(
     () => ({
-      aba: (["funil", "clientes", "tarefas", "conversas"] as const).includes(aba as AbaCrm) ? (aba as AbaCrm) : "funil",
+      aba: (["funil", "clientes", "tarefas", "conversas", "funis"] as const).includes(aba as AbaCrm) ? (aba as AbaCrm) : "funil",
       cliente,
       negocio,
       irAba: (a: AbaCrm) => gravar((qs) => (a === "funil" ? qs.delete("aba") : qs.set("aba", a))),

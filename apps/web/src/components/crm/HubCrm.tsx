@@ -14,6 +14,7 @@ import { useCrmResumo, useEstadoCrm, type AbaCrm } from "@/hooks/crm";
 import { KanbanFunil } from "./KanbanFunil";
 import { ListaClientes } from "./ListaClientes";
 import { TarefasCrm } from "./TarefasCrm";
+import { GestaoFunis } from "./GestaoFunis";
 import { DrawerCliente } from "./DrawerCliente";
 import { DrawerNegocio } from "./DrawerNegocio";
 import ConversationsView from "@/components/conversations/conversations-view";
@@ -24,6 +25,7 @@ const ABAS: { id: AbaCrm; rotulo: string }[] = [
   { id: "clientes", rotulo: "Clientes" },
   { id: "tarefas", rotulo: "Tarefas" },
   { id: "conversas", rotulo: "Conversas" },
+  { id: "funis", rotulo: "Configurar funis" },
 ];
 
 function Cartao({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: string }) {
@@ -83,6 +85,7 @@ function CorpoCrm() {
         <TarefasCrm aoAbrirNegocio={estado.abrirNegocio} aoAbrirCliente={estado.abrirCliente} />
       )}
       {estado.aba === "conversas" && <ConversationsView />}
+      {estado.aba === "funis" && <GestaoFunis />}
 
       <DrawerCliente id={estado.cliente} aoFechar={() => estado.abrirCliente(null)} aoAbrirNegocio={estado.abrirNegocio} />
       <DrawerNegocio id={estado.negocio} aoFechar={() => estado.abrirNegocio(null)} aoAbrirCliente={estado.abrirCliente} />

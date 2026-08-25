@@ -19,6 +19,17 @@ export class LancamentoDto {
   @IsOptional() @IsString() observacao?: string;
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => RateioDto) rateios?: RateioDto[];
 }
+export class AtualizarLancamentoDto {
+  @IsOptional() @IsString() @IsNotEmpty() descricao?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0.01) valor?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) juros?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) multa?: number;
+  @IsOptional() @IsDateString() dataCompetencia?: string;
+  @IsOptional() @IsDateString() dataVencimento?: string;
+  @IsOptional() @IsString() contraparte?: string;
+  @IsOptional() @IsUUID() contaBancariaId?: string;
+  @IsOptional() @IsString() observacao?: string;
+}
 export class PagarLancamentoDto {
   @Type(() => Number) @IsNumber() @Min(0.01) valor!: number;
   @IsDateString() pagoEm!: string;

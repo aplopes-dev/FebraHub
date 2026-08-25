@@ -18,6 +18,13 @@ export const crmResumo = (): Promise<CrmResumo> => api.get("/crm/resumo");
 export const crmUsuarios = (): Promise<CrmUsuario[]> => api.get("/crm/usuarios");
 export const crmFunis = (): Promise<CrmFunil[]> => api.get("/crm/funis");
 
+export const crmCriarFunil = (dado: { nome: string; cor?: string }): Promise<CrmFunil> => api.post("/crm/funis", dado);
+export const crmAtualizarFunil = (id: string, dado: { nome?: string; cor?: string }): Promise<CrmFunil> => api.patch(`/crm/funis/${id}`, dado);
+export const crmRemoverFunil = (id: string): Promise<void> => api.delete(`/crm/funis/${id}`);
+export const crmCriarEtapa = (funilId: string, dado: { nome: string; cor?: string; probabilidade?: number }): Promise<unknown> => api.post(`/crm/funis/${funilId}/etapas`, dado);
+export const crmAtualizarEtapa = (id: string, dado: { nome?: string; cor?: string; probabilidade?: number; ordem?: number }): Promise<unknown> => api.patch(`/crm/etapas/${id}`, dado);
+export const crmRemoverEtapa = (id: string): Promise<void> => api.delete(`/crm/etapas/${id}`);
+
 export const crmClientes = (args: {
   estagio?: string;
   busca?: string;
@@ -89,3 +96,10 @@ export const crmConcluirTarefa = (id: string, resultado?: string): Promise<CrmTa
   api.post(`/crm/tarefas/${id}/concluir`, { resultado });
 
 export const crmReabrirTarefa = (id: string): Promise<CrmTarefa> => api.post(`/crm/tarefas/${id}/reabrir`);
+
+export const crmAtualizarTarefa = (
+  id: string,
+  dado: { titulo?: string; tipo?: string; prioridade?: string; venceEm?: string | null; responsavelId?: string },
+): Promise<CrmTarefa> => api.patch(`/crm/tarefas/${id}`, dado);
+
+export const crmRemoverTarefa = (id: string): Promise<void> => api.delete(`/crm/tarefas/${id}`);
