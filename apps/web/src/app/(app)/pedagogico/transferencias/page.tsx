@@ -5,9 +5,6 @@ import { pedagogico, type PedagogicoMatricula, type PedagogicoTurma } from "@/se
 
 const fmtData = (s?: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR") : "—");
 
-// Status de matrícula relacionados a transferência
-const STATUS_TRANSFER = ["Transferência Solicitada", "Transferido"];
-
 type JornadaTransf = {
   id: string;
   status: string;
