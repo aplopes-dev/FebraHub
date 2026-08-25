@@ -90,3 +90,117 @@ export async function salvarRetencao(registro: RetencaoParaGravar): Promise<void
   if (id != null) await api.put<void>(`/pedagogico/retencao/${id}`, campos);
   else await api.post<void>("/pedagogico/retencao", campos);
 }
+
+// ============================================================
+// PEDAGÓGICO P0 — Secretaria Digital do Aluno
+// ============================================================
+
+export interface PedagogicoTurma {
+  id: string; nome: string; cursoNome: string; cursoId?: string | null;
+  turmaIdSf?: string | null; unidade?: string | null; local?: string | null;
+  endereco?: string | null; dataInicio?: string | null; dataFim?: string | null;
+  horarioInicio?: string | null; horarioFim?: string | null;
+  horarioCredenciamento?: string | null; treinador?: string | null;
+  responsavelId?: string | null; capacidade?: number | null; status: string;
+  linkGrupo?: string | null; observacoes?: string | null;
+  criadoEm?: string | null; atualizadoEm?: string | null;
+  matriculados?: number; confirmados?: number; presentes?: number;
+  represados?: number; credenciados?: number;
+}
+
+export interface PedagogicoMatricula {
+  id: string; pessoaId: string; pessoaNome?: string | null;
+  pessoaCpf?: string | null; pessoaEmail?: string | null;
+  pessoaTelefone?: string | null; status: string;
+  dataCompra?: string | null; dataMatricula?: string | null;
+  validadeFim?: string | null; origem?: string | null;
+  cursoNome?: string | null; unidade?: string | null; criadoEm?: string | null;
+  turma?: { id: string; nome: string; cursoNome: string; dataInicio?: string | null; dataFim?: string | null; unidade?: string | null; status: string } | null;
+  credenciado?: boolean; credenciadoEm?: string | null;
+  totalPresencas?: number;
+  ultimaConfirmacao?: { status: string; canal: string; criadoEm: string } | null;
+}
+
+export interface PedagogicoDashboard {
+  turmasProximas: Array<{ id: string; nome: string; cursoNome: string; unidade?: string | null; dataInicio?: string | null; dataFim?: string | null; capacidade?: number | null; status: string; matriculados: number; credenciados: number }>;
+  cards: { totalTurmas: number; matriculados: number; confirmados: number; aguardandoContato: number; aguardandoResposta: number; naoResponderam: number; presentes: number; faltantes: number; represados: number; transferidos: number; cancelados: number; represadosVencendo: number; solicitacoesAbertas: number };
+  taxas: { confirmacao?: string | null; comparecimentoSobreConfirmados?: string | null; comparecimentoSobreVendidos?: string | null };
+  exigeAtencao: { naoResponderam: number; aguardandoContato: number; represadosVencendo: number; solicitacoesAbertas: number };
+}
+
+export interface ResultadoBuscaCredenciamento {
+  matriculaId: string; pessoaId: string; pessoaNome?: string | null;
+  pessoaCpf?: string | null; pessoaTelefone?: string | null;
+  status: string; cursoNome?: string | null; turmaId?: string;
+  turmaNome?: string | null; credenciado: boolean; credenciadoEm?: string | null; tokenQr: string;
+}
+
+export interface PedagogicoRepresado {
+  id: string; pessoaNome?: string | null; pessoaCpf?: string | null;
+  pessoaTelefone?: string | null; pessoaEmail?: string | null;
+  cursoNome?: string | null; dataCompra?: string | null;
+  validadeFim?: string | null; diasRestantes?: number | null;
+  alertaVencimento: boolean; turmaNome?: string | null;
+  turmaInicio?: string | null; transferencias: number; unidade?: string | null;
+}
+
+const B = '/pedagogico/v2';
+const p = (o?: Record<string, string | number | undefined>) => {
+  if (!o) return '';
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(o)) { if (v != null && v !== '') sp.set(k, String(v)); }
+  const s = sp.toString(); return s ? `?${s}` : '';
+};
+
+export const pedagogico = {
+  dashboard: (q?: Record<string, string>) =>
+    api.get<PedagogicoDashboard>(`${B}/dashboard${p(q)}`),
+  represados: (q?: Record<string, string>) =>
+    api.get<PedagogicoRepresado[]>(`${B}/represados${p(q)}`),
+  turmas: (q?: Record<string, string | number>) =>
+    api.get<{ pagina: number; total: number; itens: PedagogicoTurma[] }>(`${B}/turmas${p(q)}`),
+  turma: (id: string) =>
+    api.get<PedagogicoTurma & { matriculas: PedagogicoMatricula[] }>(`${B}/turmas/${id}`),
+  criarTurma: (d: Record<string, unknown>) =>
+    api.post<PedagogicoTurma>(`${B}/turmas`, d),
+  atualizarTurma: (id: string, d: Record<string, unknown>) =>
+    api.put<PedagogicoTurma>(`${B}/turmas/${id}`, d),
+  mudarStatusTurma: (id: string, status: string) =>
+    api.patch(`${B}/turmas/${id}/status`, { status }),
+  matriculas: (q?: Record<string, string | number>) =>
+    api.get<{ pagina: number; total: number; itens: PedagogicoMatricula[] }>(`${B}/matriculas${p(q)}`),
+  matricula: (id: string) => api.get(`${B}/matriculas/${id}`),
+  criarMatricula: (d: Record<string, unknown>) => api.post(`${B}/matriculas`, d),
+  atualizarStatus: (id: string, status: string, observacao?: string) =>
+    api.patch(`${B}/matriculas/${id}/status`, { status, observacao }),
+  jornada: (pessoaId: string) => api.get(`${B}/alunos/${pessoaId}/jornada`),
+  integrarVenda: (d: Record<string, unknown>) =>
+    api.post(`${B}/integracoes/venda-aprovada`, d),
+  buscarParaCredenciar: (q: string, turmaId?: string) =>
+    api.get<ResultadoBuscaCredenciamento[]>(`${B}/credenciamento/buscar${p({ q, turmaId })}`),
+  credenciar: (turmaId: string, d: Record<string, unknown>) =>
+    api.post(`${B}/credenciamento/${turmaId}`, d),
+  checkinQr: (d: Record<string, unknown>) => api.post(`${B}/checkin/qr`, d),
+  gerarQr: (matriculaId: string) => api.get(`${B}/matriculas/${matriculaId}/qr`),
+  registrarPresenca: (d: Record<string, unknown>) => api.post(`${B}/presencas`, d),
+  confirmacoes: (q?: Record<string, string>) => api.get(`${B}/confirmacoes${p(q)}`),
+  registrarConfirmacao: (d: Record<string, unknown>) => api.post(`${B}/confirmacoes`, d),
+  atualizarConfirmacao: (id: string, status: string, resposta?: string) =>
+    api.patch(`${B}/confirmacoes/${id}/status`, { status, resposta }),
+  solicitarTransferencia: (d: Record<string, unknown>) => api.post(`${B}/transferencias`, d),
+  efetivarTransferencia: (id: string, d: Record<string, unknown>) =>
+    api.post(`${B}/transferencias/${id}/efetivar`, d),
+  cancelarTransferencia: (id: string) => api.delete(`${B}/transferencias/${id}`),
+  monitores: (q?: Record<string, string>) =>
+    api.get<{ id: string; nome: string; email?: string | null; status: string; cursosHabilitados: string[] }[]>(`${B}/monitores${p(q)}`),
+  criarMonitor: (d: Record<string, unknown>) => api.post(`${B}/monitores`, d),
+  escalarMonitor: (d: Record<string, unknown>) => api.post(`${B}/monitores/escala`, d),
+  marcarKitEntregue: (id: string) => api.patch(`${B}/monitores/escala/${id}/kit`, {}),
+  solicitacoes: (q?: Record<string, string>) => api.get(`${B}/solicitacoes${p(q)}`),
+  criarSolicitacao: (d: Record<string, unknown>) => api.post(`${B}/solicitacoes`, d),
+  atualizarSolicitacao: (id: string, status: string, resposta?: string) =>
+    api.patch(`${B}/solicitacoes/${id}/status`, { status, resposta }),
+  cs: (q?: Record<string, string>) => api.get(`${B}/cs${p(q)}`),
+  criarCs: (d: Record<string, unknown>) => api.post(`${B}/cs`, d),
+  atualizarCs: (id: string, d: Record<string, unknown>) => api.patch(`${B}/cs/${id}`, d),
+};

@@ -1,0 +1,330 @@
+/* ============================================================
+   PEDAGÓGICO — CSS do módulo Secretaria Digital do Aluno
+   Escopo: .ped-* + .pg-*
+   Tema: light (usa variáveis do globals.css)
+   ============================================================ */
+
+/* ---- Layout base ---- */
+.ped-page {
+  padding: 1.5rem 2rem;
+  max-width: 1400px;
+}
+
+@media (max-width: 768px) {
+  .ped-page { padding: 1rem; }
+}
+
+/* ---- Cards de KPI (dashboard) ---- */
+.ped-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: .75rem;
+  margin-bottom: 1.5rem;
+}
+
+.ped-kpi {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: .75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+
+.ped-kpi-valor {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--foreground, #111);
+}
+
+.ped-kpi-label {
+  font-size: .75rem;
+  color: var(--muted-foreground, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.ped-kpi.alerta .ped-kpi-valor  { color: #dc2626; }
+.ped-kpi.aviso  .ped-kpi-valor  { color: #d97706; }
+.ped-kpi.ok     .ped-kpi-valor  { color: #16a34a; }
+
+/* ---- Exige atenção (badge com ação) ---- */
+.ped-atencao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ped-atencao-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 2rem;
+  padding: .3rem .75rem;
+  font-size: .82rem;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.ped-atencao-item:hover { background: #fee2e2; }
+.ped-atencao-item.aviso { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.ped-atencao-item.aviso:hover { background: #fef3c7; }
+
+/* ---- Tabela operacional (alunos, transferências, etc.) ---- */
+.ped-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: .75rem;
+}
+
+.ped-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+
+.ped-table th {
+  background: var(--muted, #f9fafb);
+  text-align: left;
+  padding: .6rem 1rem;
+  font-weight: 600;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted-foreground, #6b7280);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  white-space: nowrap;
+}
+
+.ped-table td {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  vertical-align: middle;
+}
+
+.ped-table tr:last-child td { border-bottom: none; }
+.ped-table tr:hover td { background: var(--muted, #f9fafb); }
+
+/* ---- Badges de status ---- */
+.ped-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .2rem .6rem;
+  border-radius: 2rem;
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ped-badge.matriculado        { background: #dbeafe; color: #1d4ed8; }
+.ped-badge.confirmado         { background: #dcfce7; color: #15803d; }
+.ped-badge.aguardando         { background: #fef9c3; color: #92400e; }
+.ped-badge.nao-respondeu      { background: #fee2e2; color: #b91c1c; }
+.ped-badge.credenciado        { background: #e0e7ff; color: #4338ca; }
+.ped-badge.em-curso           { background: #ecfeff; color: #0e7490; }
+.ped-badge.concluido          { background: #f0fdf4; color: #166534; }
+.ped-badge.faltou             { background: #fef2f2; color: #991b1b; }
+.ped-badge.represado          { background: #fff7ed; color: #c2410c; }
+.ped-badge.transferido        { background: #f5f3ff; color: #6d28d9; }
+.ped-badge.cancelado          { background: #f1f5f9; color: #475569; }
+.ped-badge.planejada          { background: #f1f5f9; color: #64748b; }
+.ped-badge.em-preparacao      { background: #fef3c7; color: #92400e; }
+.ped-badge.em-andamento       { background: #dcfce7; color: #15803d; }
+.ped-badge.finalizada         { background: #e0e7ff; color: #4338ca; }
+.ped-badge.aberta             { background: #dbeafe; color: #1d4ed8; }
+.ped-badge.urgente            { background: #fee2e2; color: #b91c1c; }
+.ped-badge.alta               { background: #fff7ed; color: #c2410c; }
+
+/* ---- Credenciamento (tela de check-in) ---- */
+.ped-check-wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.ped-check-busca {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ped-check-busca input {
+  flex: 1;
+  font-size: 1.1rem;
+  padding: .6rem 1rem;
+  border: 2px solid var(--border, #e5e7eb);
+  border-radius: .75rem;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.ped-check-busca input:focus {
+  border-color: #6366f1;
+}
+
+.ped-check-card {
+  background: var(--card, #fff);
+  border: 2px solid var(--border, #e5e7eb);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: border-color .15s;
+}
+
+.ped-check-card.credenciado {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.ped-check-nome {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--foreground, #111);
+}
+
+.ped-check-info {
+  font-size: .9rem;
+  color: var(--muted-foreground, #6b7280);
+}
+
+.ped-check-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: .75rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.ped-check-btn:hover:not(:disabled) { background: #4338ca; }
+.ped-check-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ped-check-btn.ok { background: #16a34a; }
+
+/* ---- Timeline ---- */
+.ped-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.ped-timeline::before {
+  content: '';
+  position: absolute;
+  left: .35rem;
+  top: .5rem;
+  bottom: .5rem;
+  width: 2px;
+  background: var(--border, #e5e7eb);
+}
+
+.ped-timeline-item {
+  display: flex;
+  gap: .75rem;
+  padding: .5rem 0;
+  position: relative;
+}
+
+.ped-timeline-dot {
+  width: .75rem;
+  height: .75rem;
+  border-radius: 50%;
+  background: #6366f1;
+  flex-shrink: 0;
+  margin-top: .2rem;
+  position: absolute;
+  left: -1.25rem;
+}
+
+.ped-timeline-corpo {
+  flex: 1;
+}
+
+.ped-timeline-data {
+  font-size: .72rem;
+  color: var(--muted-foreground, #6b7280);
+}
+
+.ped-timeline-desc {
+  font-size: .875rem;
+  color: var(--foreground, #111);
+}
+
+/* ---- Turmas (grid card) ---- */
+.ped-turmas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.ped-turma-card {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: .875rem;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ped-turma-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  border-color: #6366f1;
+}
+
+.ped-turma-nome {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--foreground, #111);
+}
+
+.ped-turma-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  font-size: .8rem;
+  color: var(--muted-foreground, #6b7280);
+}
+
+.ped-turma-indicadores {
+  display: flex;
+  gap: .75rem;
+  font-size: .82rem;
+}
+
+.ped-turma-indicadores span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ped-turma-indicadores strong {
+  font-size: 1.1rem;
+  color: var(--foreground, #111);
+}
+
+/* ---- Mobile-first ajustes ---- */
+@media (max-width: 640px) {
+  .ped-kpis { grid-template-columns: repeat(2, 1fr); }
+  .ped-turmas-grid { grid-template-columns: 1fr; }
+}

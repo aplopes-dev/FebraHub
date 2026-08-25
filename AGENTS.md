@@ -66,3 +66,36 @@ Modal spotlight + botão "Buscar…" no header. `apps/web/src/lib/acoes-catalogo
 No tema claro `--gold` é MARROM ESCURO (#8A6A1E). Fundo dourado de botão SEM `color` faz o texto herdar `--text` (quase preto) → marrom+texto-preto ilegível. **REGRA:** botão/ação com fundo dourado usa **fundo `var(--gold)` (ou gradiente `--gold-top`/`--gold-base`) + texto/ícone `var(--sobre-ouro)`** (#100c04, contraste 8.9:1, igual nos 2 temas). Tints translúcidos `rgb(var(--gold-rgb)/.xx)` levam texto `var(--gold)` (é fundo de página, ok).
 - Helper: **`.fh-btn-ouro`** em `globals.css` (background gold + color/svg sobre-ouro). Preferir essa classe ou os `.ouro` locais (`.bal-mbtn.ouro`/`.fin-btn.ouro`/`.loja-btn.ouro`/`.pdv-btn.ouro`, já corretos). Tokens em `lib/tema.ts` (`C.gold`, `SOBRE_OURO`, `C.goldTop/goldBase`).
 - Sistema de tema em `globals.css`: `:root` claro / `:root[data-tema="escuro"]` / `@media(prefers-color-scheme:dark)`. Cada cor publica `--x` e `--x-rgb`. `alfa()` monta `rgb(var(--x-rgb)/α)`.
+
+## Loja — upload de imagem de produto com remoção de fundo (homolog, deployado via push)
+No modal "Editar/Novo produto" (`apps/web/src/components/loja/CatalogoLoja.tsx` → componente `UploaderImagem`) o operador envia a foto e o fundo é removido **no navegador** por `@imgly/background-removal` (WASM/ONNX, `import()` dinâmico → só baixa o modelo quando usado; se falhar, envia a imagem original). Toggle "Remover fundo" (ligado por padrão). Resultado é PNG transparente enviado à API.
+- **API**: `POST /loja/produtos/imagem` (multipart `arquivo`, perm `loja.produtos.gerenciar`) em `loja-produtos.controller.ts`/`.service.ts` (`enviarImagem`). Valida PNG/JPG/WEBP, sobe pro MinIO prefixo público `loja/produtos/` sob UUID, devolve `{ url }` público que vai em `imagemUrl`.
+- **StorageService** ganhou `urlObjetoPublico(chave)` (`${MINIO_PUBLIC_URL}/${bucket}/${chave}`, encodeURIComponent por segmento; null se sem MINIO_PUBLIC_URL) e `garantirPrefixoPublico(prefixo)` (idempotente: lê/edita bucket policy p/ `s3:GetObject` anônimo). Ambos chamados no upload.
+- Client fn `lojaEnviarImagemProduto(blob, nome)` usa `api.enviarArquivo`. CSS `.loja-uploader*` em `app/loja.css`. GOTCHA: `MINIO_PUBLIC_URL` precisa estar setado no env da 66 p/ a URL pública abrir; senão cai p/ URL assinada 1h (não persiste bem em imagemUrl).
+
+## Módulo Comercial (implementado)
+
+### Arquivos criados
+- `apps/web/src/services/api/comercial.ts` — client completo para `/comercial/*` usando `api.*` do client padrão
+- `apps/web/src/app/comercial.css` — estilos com escopo `.com-*` (KPI cards, kanban board, timeline, badges, tabela, formulário)
+- `apps/web/src/app/(app)/comercial/page.tsx` — Dashboard com KPIs + Minha Operação + atalhos
+- `apps/web/src/app/(app)/comercial/pipeline/page.tsx` — Kanban/Lista com toggle, funis, busca, paginação
+- `apps/web/src/app/(app)/comercial/oportunidades/[id]/page.tsx` — Detalhe 360°: header, infos, timeline, ações, negociação (accordion), venda
+- `apps/web/src/app/(app)/comercial/vendas/page.tsx` — Lista com filtros (status comercial/financeiro/turma), paginação
+- `apps/web/src/app/(app)/comercial/leads/page.tsx` — Formulário de captura rápida, deduplicação
+
+### Arquivos modificados
+- `apps/web/src/lib/menu.ts` — grupo `comercial-hub` com 4 filhos adicionado antes de `financeiro-erp`; importou `TrendingUp` de lucide-react
+- `apps/web/src/lib/acoes-catalogo.ts` — tipo `AcaoGrupo` + array `acoes_comercial` + `GRUPO_LABEL`; grupo `"comercial"` inserido no catálogo
+- `apps/web/src/app/(app)/layout.tsx` — `import "@/app/comercial.css"` adicionado
+
+### Permissões usadas
+- `comercial.ver`, `comercial.operar`, `comercial.gerenciar`, `comercial.vendas.aprovar`, `comercial.relatorios`
+
+### Padrões respeitados
+- `api.get/post/patch` do client (cookie httpOnly, sem fetch direto)
+- `GuardaPermissao` envolve cada página
+- `useQuery` + `useMutation` do TanStack Query
+- CSS variables do tema (`var(--gold)`, `var(--card)`, etc.) — sem hardcode de cor
+- Valores em centavos formatados com `(v/100).toLocaleString('pt-BR', {style:'currency',...})`
+- Params de rota dinâmica com `use(params)` (Next.js App Router pattern)

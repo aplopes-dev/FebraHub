@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
-  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
+  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, TrendingUp, Users, Wallet, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -162,6 +162,96 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
 
   if (key === "pedagogico") {
     base.push(
+      // ---- P0 — Secretaria Digital ----
+      {
+        id: "ped-dashboard",
+        label: "Dashboard Pedagógico",
+        href: "/pedagogico/dashboard",
+        titulo: "Dashboard Pedagógico",
+        desc: "Turmas, alunos, confirmações e indicadores em tempo real",
+        visivel: comPermissao("pedagogico.ver"),
+      },
+      {
+        id: "ped-turmas",
+        label: "Turmas",
+        href: "/pedagogico/turmas",
+        titulo: "Agenda e Turmas",
+        desc: "Calendário, abertura, gestão de turmas e escala de monitores",
+        visivel: comPermissao("pedagogico.ver"),
+      },
+      {
+        id: "ped-alunos",
+        label: "Alunos / Jornada",
+        href: "/pedagogico/alunos",
+        titulo: "Alunos e Jornada",
+        desc: "Lista operacional de alunos, confirmações e status da jornada",
+        visivel: comPermissao("pedagogico.ver"),
+      },
+      {
+        id: "ped-credenciamento",
+        label: "Credenciamento",
+        href: "/pedagogico/credenciamento",
+        titulo: "Credenciamento",
+        desc: "Check-in rápido via QR Code, CPF ou nome — mobile-first",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-presenca",
+        label: "Presença",
+        href: "/pedagogico/presenca",
+        titulo: "Presença",
+        desc: "Registro de presença por dia e sessão",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-represados",
+        label: "Represados",
+        href: "/pedagogico/represados",
+        titulo: "Alunos Represados",
+        desc: "Alunos com validade em risco — atenção prioritária",
+        visivel: comPermissao("pedagogico.ver"),
+      },
+      {
+        id: "ped-transferencias",
+        label: "Transferências",
+        href: "/pedagogico/transferencias",
+        titulo: "Transferências de Turma",
+        desc: "Solicitações, aprovações e histórico de transferências",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-monitores",
+        label: "Monitores",
+        href: "/pedagogico/monitores",
+        titulo: "Monitores",
+        desc: "Cadastro, seleção e escala de monitores por turma",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-secretaria",
+        label: "Secretaria do Aluno",
+        href: "/pedagogico/secretaria",
+        titulo: "Secretaria do Aluno",
+        desc: "Visão 360° do aluno: treinamentos, presença, certificados e histórico",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-solicitacoes",
+        label: "Solicitações",
+        href: "/pedagogico/solicitacoes",
+        titulo: "Central de Solicitações",
+        desc: "Certificados, declarações, transferências e suporte",
+        visivel: comPermissao("pedagogico.operar"),
+      },
+      {
+        id: "ped-cs",
+        label: "Customer Success",
+        href: "/pedagogico/cs",
+        titulo: "Customer Success",
+        desc: "Alunos que exigem atenção: não compareceu, validade próxima, etc.",
+        visivel: comPermissao("pedagogico.cs"),
+      },
+      // ---- Legado: avaliações ----
       {
         id: "ped-avaliacoes",
         label: "Avaliações de curso",
@@ -292,6 +382,68 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       { id: "compras-config", label: "Configurações", href: "/compras/configuracoes", visivel: (ctx: ContextoMenu) => ctx.admin },
     ] }];
   }),
+  {
+    id: "comercial-hub",
+    label: "Comercial",
+    Icone: TrendingUp,
+    visivel: (ctx) =>
+      ctx.pode(
+        "comercial.ver",
+        "comercial.operar",
+        "comercial.gerenciar",
+        "comercial.vendas.aprovar",
+        "comercial.relatorios",
+      ),
+    filhos: [
+      {
+        id: "com-dashboard",
+        label: "Dashboard",
+        href: "/comercial",
+        Icone: TrendingUp,
+        titulo: "Comercial",
+        desc: "KPIs, pipeline e minha operação",
+        visivel: (ctx) =>
+          ctx.pode(
+            "comercial.ver",
+            "comercial.operar",
+            "comercial.gerenciar",
+            "comercial.vendas.aprovar",
+            "comercial.relatorios",
+          ),
+      },
+      {
+        id: "com-pipeline",
+        label: "Pipeline",
+        href: "/comercial/pipeline",
+        titulo: "Pipeline Comercial",
+        desc: "Kanban e lista de oportunidades por funil",
+        visivel: (ctx) =>
+          ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
+      },
+      {
+        id: "com-leads",
+        label: "Novo Lead",
+        href: "/comercial/leads",
+        titulo: "Novo Lead",
+        desc: "Captura rápida de um novo lead",
+        visivel: (ctx) => ctx.pode("comercial.operar", "comercial.gerenciar"),
+      },
+      {
+        id: "com-vendas",
+        label: "Vendas",
+        href: "/comercial/vendas",
+        titulo: "Vendas",
+        desc: "Lista, status e aprovação de vendas fechadas",
+        visivel: (ctx) =>
+          ctx.pode(
+            "comercial.ver",
+            "comercial.gerenciar",
+            "comercial.vendas.aprovar",
+            "comercial.relatorios",
+          ),
+      },
+    ],
+  },
   {
     id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
       { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },

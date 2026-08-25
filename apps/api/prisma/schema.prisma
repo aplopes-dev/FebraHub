@@ -1222,6 +1222,12 @@ model CrmCliente {
   tarefas    CrmTarefa[]
   conversasWa WaConversa[]
 
+  /// Relações do módulo Comercial (Pessoa Única — PRD §3)
+  oportunidades    ComOportunidade[]
+  vendasComprador  ComVenda[] @relation("VendasComprador")
+  vendasBeneficiario ComVenda[] @relation("VendasBeneficiario")
+  leadsOrigem      ComLeadOrigem[]
+
   @@index([estagio])
   @@index([nome])
   @@index([responsavelId])
@@ -2659,4 +2665,910 @@ model PerfilSetorLegado {
 
   @@id([perfilId, setor])
   @@map("perfil_setores")
+}
+
+// --------------------------------------------------------------------
+// PEDAGÓGICO P0 — Secretaria Digital do Aluno FEBRACIS
+// --------------------------------------------------------------------
+
+/// Turma operacional gerenciada pelo ERP. Distinta de DimTurma (legado
+/// Salesforce somente leitura). É a entidade central do módulo pedagógico.
+model PedagogicoTurma {
+  id                     String    @id @default(uuid()) @db.Uuid
+  /// ID Salesforce para sync idempotente (nullable: turma pode nascer no ERP)
+  turmaIdSf              String?   @unique @map("turma_id_sf")
+  /// FK fraca para dim_turmas.turma_id (sem constraint — dados legados)
+  dimTurmaId             String?   @map("dim_turma_id")
+  /// FK fraca para dim_cursos.curso_id
+  cursoId                String?   @map("curso_id")
+  nome                   String
+  cursoNome              String    @map("curso_nome")
+  unidade                String?
+  local                  String?
+  endereco               String?
+  dataInicio             DateTime? @map("data_inicio") @db.Date
+  dataFim                DateTime? @map("data_fim") @db.Date
+  horarioInicio          String?   @map("horario_inicio")
+  horarioFim             String?   @map("horario_fim")
+  horarioCredenciamento  String?   @map("horario_credenciamento")
+  treinador              String?
+  /// FK fraca para usuarios.id (responsável pedagógico)
+  responsavelId          String?   @map("responsavel_id") @db.Uuid
+  capacidade             Int?      @default(30)
+  /// Planejada|Aguardando Validação|Confirmada|Em Preparação|Em Andamento|Finalizada|Cancelada
+  status                 String    @default("Planejada")
+  linkGrupo              String?   @map("link_grupo")
+  linkExterno            String?   @map("link_externo")
+  sigla                  String?
+  anoFiscal              Int?      @map("ano_fiscal")
+  observacoes            String?
+  criadoPor              String?   @map("criado_por") @db.Uuid
+  criadoEm               DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm           DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  matriculas      PedagogicoMatricula[]
+  credenciamentos PedagogicoCredenciamento[]
+  presencas       PedagogicoPresenca[]
+  transferenciasOrigem  PedagogicoTransferencia[] @relation("TransfOrigem")
+  transferenciasDestino PedagogicoTransferencia[] @relation("TransfDestino")
+  escalas         PedagogicoEscala[]
+
+  @@index([status, dataInicio])
+  @@index([unidade, status])
+  @@index([dimTurmaId])
+  @@index([cursoId])
+  @@map("pedagogico_turmas")
+}
+
+/// Vínculo acadêmico: Pessoa ↔ Curso ↔ Turma.
+/// pessoa_id é TEXT (FK fraca) pois aceita UUID do crm_clientes OU
+/// aluno_id string do dim_alunos — ERP em transição.
+model PedagogicoMatricula {
+  id              String    @id @default(uuid()) @db.Uuid
+  /// FK fraca: crm_clientes.id (UUID) ou dim_alunos.aluno_id (string)
+  pessoaId        String    @map("pessoa_id")
+  pessoaNome      String?   @map("pessoa_nome")
+  pessoaCpf       String?   @map("pessoa_cpf")
+  pessoaEmail     String?   @map("pessoa_email")
+  pessoaTelefone  String?   @map("pessoa_telefone")
+  turmaId         String    @map("turma_id") @db.Uuid
+  /// ID Salesforce da matrícula — idempotência (§9 PRD)
+  matriculaSfId   String?   @unique @map("matricula_sf_id")
+  vendaId         String?   @map("venda_id")
+  cursoId         String?   @map("curso_id")
+  cursoNome       String?   @map("curso_nome")
+  dataCompra      DateTime? @map("data_compra") @db.Date
+  dataMatricula   DateTime? @default(dbgenerated("CURRENT_DATE")) @map("data_matricula") @db.Date
+  validadeInicio  DateTime? @map("validade_inicio") @db.Date
+  validadeFim     DateTime? @map("validade_fim") @db.Date
+  dataConclusao   DateTime? @map("data_conclusao") @db.Date
+  /// Matriculado|Aguardando Contato|Aguardando Resposta|Confirmado|Não Respondeu|
+  /// Próxima Turma|Transferência Solicitada|Transferência Pendente|Transferido|
+  /// Cancelamento Solicitado|Cancelado|Credenciado|Em Curso|Concluído|Faltou|Represado
+  status          String    @default("Matriculado")
+  /// salesforce|manual|portal|importacao
+  origem          String?   @default("manual")
+  unidade         String?
+  vendedor        String?
+  criadoPor       String?   @map("criado_por") @db.Uuid
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  turma           PedagogicoTurma    @relation(fields: [turmaId], references: [id], onDelete: Restrict)
+  historico       PedagogicoMatriculaHistorico[]
+  confirmacoes    PedagogicoConfirmacao[]
+  credenciamento  PedagogicoCredenciamento?
+  presencas       PedagogicoPresenca[]
+  transferencias  PedagogicoTransferencia[]
+  solicitacoes    PedagogicoSolicitacao[]
+  cs              PedagogicoCsAcompanhamento[]
+
+  @@index([pessoaId])
+  @@index([turmaId])
+  @@index([status])
+  @@index([pessoaCpf])
+  @@index([validadeFim])
+  @@index([pessoaId, status])
+  @@map("pedagogico_matriculas")
+}
+
+/// Timeline de cada matrícula — cada evento relevante produz uma linha.
+model PedagogicoMatriculaHistorico {
+  id             BigInt   @id @default(autoincrement())
+  matriculaId    String   @map("matricula_id") @db.Uuid
+  /// status_mudou|venda_aprovada|matricula_criada|confirmado|nao_respondeu|
+  /// credenciado|presenca|transferencia|cancelamento|conclusao|certificado|
+  /// contato_registrado|observacao
+  tipo           String
+  descricao      String?
+  valorAnterior  String?  @map("valor_anterior")
+  valorNovo      String?  @map("valor_novo")
+  usuarioId      String?  @map("usuario_id") @db.Uuid
+  /// sistema|usuario|integracao|webhook|automacao
+  origem         String?  @default("sistema")
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@index([matriculaId, criadoEm(sort: Desc)])
+  @@map("pedagogico_matricula_historico")
+}
+
+/// Registro de cada tentativa de contato para confirmar participação.
+model PedagogicoConfirmacao {
+  id            String    @id @default(uuid()) @db.Uuid
+  matriculaId   String    @map("matricula_id") @db.Uuid
+  /// whatsapp|email|ligacao|manual
+  canal         String    @default("whatsapp")
+  /// enviado|entregue|lido|respondido|confirmado|nao_respondeu|invalido|erro
+  status        String    @default("enviado")
+  mensagem      String?
+  templateTipo  String?   @map("template_tipo")
+  usuarioId     String?   @map("usuario_id") @db.Uuid
+  resposta      String?
+  respondidoEm  DateTime? @map("respondido_em") @db.Timestamptz(6)
+  tentativaNum  Int       @default(1) @map("tentativa_num")
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@index([matriculaId])
+  @@index([status])
+  @@map("pedagogico_confirmacoes")
+}
+
+/// Check-in do aluno no evento. UNIQUE em matricula_id impede duplo credenciamento.
+model PedagogicoCredenciamento {
+  id          String   @id @default(uuid()) @db.Uuid
+  matriculaId String   @unique @map("matricula_id") @db.Uuid
+  turmaId     String   @map("turma_id") @db.Uuid
+  pessoaId    String   @map("pessoa_id")
+  /// credenciamento|recredenciamento
+  tipo        String   @default("credenciamento")
+  dispositivo String?
+  usuarioId   String?  @map("usuario_id") @db.Uuid
+  observacoes String?
+  criadoEm    DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula @relation(fields: [matriculaId], references: [id], onDelete: Restrict)
+  turma     PedagogicoTurma     @relation(fields: [turmaId], references: [id], onDelete: Restrict)
+
+  @@index([turmaId])
+  @@map("pedagogico_credenciamentos")
+}
+
+/// Presença por aluno + turma + dia + sessão (não um booleano global).
+/// UNIQUE(matriculaId, diaNume, sessao) impede duplicidade de registro.
+model PedagogicoPresenca {
+  id          String    @id @default(uuid()) @db.Uuid
+  matriculaId String    @map("matricula_id") @db.Uuid
+  turmaId     String    @map("turma_id") @db.Uuid
+  pessoaId    String    @map("pessoa_id")
+  diaNume     Int       @default(1) @map("dia_num")
+  /// geral|manha|tarde|noite
+  sessao      String    @default("geral")
+  /// presente|ausente|justificado|atrasado
+  status      String    @default("presente")
+  entradaEm   DateTime? @map("entrada_em") @db.Timestamptz(6)
+  dispositivo String?
+  usuarioId   String?   @map("usuario_id") @db.Uuid
+  observacoes String?
+  criadoEm    DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula @relation(fields: [matriculaId], references: [id], onDelete: Restrict)
+  turma     PedagogicoTurma     @relation(fields: [turmaId], references: [id], onDelete: Restrict)
+
+  @@unique([matriculaId, diaNume, sessao])
+  @@index([turmaId])
+  @@index([matriculaId])
+  @@map("pedagogico_presencas")
+}
+
+/// Transferência de turma. Preserva o histórico completo — nunca sobrescreve.
+model PedagogicoTransferencia {
+  id              String         @id @default(uuid()) @db.Uuid
+  matriculaId     String         @map("matricula_id") @db.Uuid
+  turmaOrigemId   String         @map("turma_origem_id") @db.Uuid
+  turmaDestinoId  String?        @map("turma_destino_id") @db.Uuid
+  motivo          String?
+  /// solicitada|aprovada|efetivada|cancelada
+  status          String         @default("solicitada")
+  taxaCobrada     Boolean        @default(false) @map("taxa_cobrada")
+  valorTaxa       Decimal?       @map("valor_taxa") @db.Decimal(10, 2)
+  pagamentoId     String?        @map("pagamento_id")
+  usuarioId       String?        @map("usuario_id") @db.Uuid
+  aprovadoPor     String?        @map("aprovado_por") @db.Uuid
+  observacoes     String?
+  criadoEm        DateTime       @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime       @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  matricula     PedagogicoMatricula @relation(fields: [matriculaId], references: [id], onDelete: Restrict)
+  turmaOrigem   PedagogicoTurma     @relation("TransfOrigem", fields: [turmaOrigemId], references: [id], onDelete: Restrict)
+  turmaDestino  PedagogicoTurma?    @relation("TransfDestino", fields: [turmaDestinoId], references: [id], onDelete: SetNull)
+
+  @@index([matriculaId])
+  @@index([status])
+  @@map("pedagogico_transferencias")
+}
+
+/// Monitor vinculado a cursos e turmas. pessoa_id é FK fraca.
+model PedagogicoMonitor {
+  id                 String   @id @default(uuid()) @db.Uuid
+  /// FK fraca para usuarios.id
+  usuarioId          String?  @map("usuario_id") @db.Uuid
+  /// FK fraca: crm_clientes.id ou dim_alunos.aluno_id
+  pessoaId           String   @map("pessoa_id")
+  nome               String
+  email              String?
+  telefone           String?
+  /// ativo|inativo|suspenso
+  status             String   @default("ativo")
+  cursosHabilitados  String[] @default([]) @map("cursos_habilitados")
+  observacoes        String?
+  criadoEm           DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  escalas PedagogicoEscala[]
+
+  @@index([usuarioId])
+  @@index([pessoaId])
+  @@index([status])
+  @@map("pedagogico_monitores")
+}
+
+/// Escala de monitor em uma turma. UNIQUE(turmaId, monitorId).
+model PedagogicoEscala {
+  id           String   @id @default(uuid()) @db.Uuid
+  turmaId      String   @map("turma_id") @db.Uuid
+  monitorId    String   @map("monitor_id") @db.Uuid
+  /// monitor|lider|apoio|coordenador
+  funcao       String?  @default("monitor")
+  dataInicio   DateTime? @map("data_inicio") @db.Date
+  dataFim      DateTime? @map("data_fim") @db.Date
+  horario      String?
+  kitEntregue  Boolean  @default(false) @map("kit_entregue")
+  observacoes  String?
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  turma   PedagogicoTurma    @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  monitor PedagogicoMonitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@unique([turmaId, monitorId])
+  @@index([monitorId])
+  @@map("pedagogico_escalas")
+}
+
+/// Política configurável de validade, transferência e presença por curso.
+model PedagogicoPolitica {
+  id                   String         @id @default(uuid()) @db.Uuid
+  /// FK fraca — aceita dim_cursos.curso_id ou nome livre
+  cursoId              String         @unique @map("curso_id")
+  cursoNome            String         @map("curso_nome")
+  validadeQuantidade   Int            @default(12) @map("validade_quantidade")
+  /// dias|meses
+  validadeUnidade      String         @default("meses") @map("validade_unidade")
+  /// data_compra|data_matricula|data_conclusao
+  validadeRegra        String         @default("data_compra") @map("validade_regra")
+  toleranciaDias       Int            @default(0) @map("tolerancia_dias")
+  presencaMinimaPct    Decimal?       @default(75) @map("presenca_minima_pct") @db.Decimal(5, 2)
+  taxaTransferencia    Decimal?       @default(200.00) @map("taxa_transferencia") @db.Decimal(10, 2)
+  permiteTransferencia Boolean        @default(true) @map("permite_transferencia")
+  maxTransferencias    Int?           @default(2) @map("max_transferencias")
+  ativo                Boolean        @default(true)
+  criadoPor            String?        @map("criado_por") @db.Uuid
+  criadoEm             DateTime       @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm         DateTime       @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([ativo])
+  @@map("pedagogico_politicas")
+}
+
+/// Log de integração com Salesforce e sistemas externos.
+/// UNIQUE(sistemaOrigem, evento, idExterno) garante idempotência.
+model PedagogicoIntegracaoLog {
+  id            BigInt    @id @default(autoincrement())
+  sistemaOrigem String    @default("salesforce") @map("sistema_origem")
+  /// VENDA_APROVADA|VENDA_CANCELADA|SYNC_TURMA|SYNC_MATRICULA|etc.
+  evento        String
+  idExterno     String?   @map("id_externo")
+  payload       Json?
+  /// pendente|ok|erro|ignorado
+  resultado     String    @default("pendente")
+  matriculaId   String?   @map("matricula_id") @db.Uuid
+  turmaId       String?   @map("turma_id") @db.Uuid
+  erroMsg       String?   @map("erro_msg")
+  tentativas    Int       @default(1)
+  processadoEm  DateTime? @map("processado_em") @db.Timestamptz(6)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@unique([sistemaOrigem, evento, idExterno])
+  @@index([sistemaOrigem, resultado])
+  @@index([idExterno])
+  @@index([matriculaId])
+  @@index([turmaId])
+  @@map("pedagogico_integracao_logs")
+}
+
+/// Central de solicitações: certificado, declaração, transferência, etc.
+model PedagogicoSolicitacao {
+  id            String    @id @default(uuid()) @db.Uuid
+  matriculaId   String?   @map("matricula_id") @db.Uuid
+  pessoaId      String    @map("pessoa_id")
+  /// certificado|declaracao|transferencia|cancelamento|titularidade|suporte
+  tipo          String
+  /// aberta|em_analise|aprovada|rejeitada|concluida
+  status        String    @default("aberta")
+  descricao     String?
+  resposta      String?
+  responsavelId String?   @map("responsavel_id") @db.Uuid
+  /// baixa|normal|alta|urgente
+  prioridade    String    @default("normal")
+  prazo         DateTime? @db.Date
+  resolvidoEm   DateTime? @map("resolvido_em") @db.Timestamptz(6)
+  criadoPor     String?   @map("criado_por") @db.Uuid
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula? @relation(fields: [matriculaId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([tipo])
+  @@index([pessoaId])
+  @@index([responsavelId])
+  @@map("pedagogico_solicitacoes")
+}
+
+/// Customer Success: alunos que precisam de atenção proativa.
+model PedagogicoCsAcompanhamento {
+  id            String    @id @default(uuid()) @db.Uuid
+  matriculaId   String?   @map("matricula_id") @db.Uuid
+  pessoaId      String    @map("pessoa_id")
+  pessoaNome    String?   @map("pessoa_nome")
+  /// nao_compareceu|nao_confirmou|nao_concluiu|transferencias_repetidas|
+  /// reclamacao|validade_proxima|coaching_parado|pendencia
+  motivo        String
+  prioridade    String    @default("normal")
+  /// aberto|em_acompanhamento|resolvido|descartado
+  status        String    @default("aberto")
+  responsavelId String?   @map("responsavel_id") @db.Uuid
+  proximaAcao   String?   @map("proxima_acao")
+  prazo         DateTime? @db.Date
+  observacoes   String?
+  resultado     String?
+  resolvidoEm   DateTime? @map("resolvido_em") @db.Timestamptz(6)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  matricula PedagogicoMatricula? @relation(fields: [matriculaId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([motivo])
+  @@index([responsavelId])
+  @@index([pessoaId])
+  @@map("pedagogico_cs_acompanhamentos")
+}
+
+// ====================================================================
+// COMERCIAL CRM — módulo de pipeline de vendas (migration 41/42)
+// Entidade central: CrmCliente (já existe em crm_clientes)
+// ====================================================================
+
+/// Funil comercial configurável. Separado de CrmFunil (B2B genérico).
+model ComFunil {
+  id          String   @id @default(uuid()) @db.Uuid
+  nome        String
+  descricao   String?
+  cor         String   @default("#B8934A")
+  /// vendas | relacionamento | pos_venda
+  tipo        String   @default("vendas")
+  ativo       Boolean  @default(true)
+  ordem       Int      @default(0)
+  criadoPor   String?  @map("criado_por") @db.Uuid
+  criadoEm    DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  etapas        ComEtapa[]
+  oportunidades ComOportunidade[]
+
+  @@map("com_funis")
+}
+
+/// Etapa do funil comercial (configurável, sem hardcode).
+model ComEtapa {
+  id            String   @id @default(uuid()) @db.Uuid
+  funilId       String   @map("funil_id") @db.Uuid
+  nome          String
+  descricao     String?
+  cor           String   @default("#6B7280")
+  /// aberta | ganha | perdida
+  tipo          String   @default("aberta")
+  probabilidade Int      @default(0)
+  ordem         Int      @default(0)
+  /// etapa de sistema: nome/exclusão travados
+  sistema       Boolean  @default(false)
+  exigeMotivo   Boolean  @default(false) @map("exige_motivo")
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  funil         ComFunil          @relation(fields: [funilId], references: [id], onDelete: Cascade)
+  oportunidades ComOportunidade[]
+
+  @@index([funilId, ordem])
+  @@map("com_etapas")
+}
+
+/// Catálogo configurável de motivos de perda de oportunidade.
+model ComMotivoPerdaOp {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  oportunidades ComOportunidade[]
+
+  @@map("com_motivos_perda")
+}
+
+/// Catálogo de produtos/serviços comerciais (treinamentos, cursos, coaching).
+/// NÃO é a loja (mercadorias). Compartilha a base mas tem atributos próprios.
+model ComProduto {
+  id             String   @id @default(uuid()) @db.Uuid
+  codigo         String?  @unique
+  nome           String
+  descricao      String?
+  /// educacional | servico | outro
+  tipo           String   @default("educacional")
+  precoCentavos  BigInt   @default(0) @map("preco_centavos")
+  ativo          Boolean  @default(true)
+  /// ID externo Salesforce (Product2.Id)
+  sfProdutoId    String?  @unique @map("sf_produto_id")
+  /// FK fraca para dim_cursos.curso_id (dado legado)
+  dimCursoId     String?  @map("dim_curso_id")
+  criadoPor      String?  @map("criado_por") @db.Uuid
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  oportunidades ComOportunidade[]
+  negociacoes   ComNegociacao[]
+  vendas        ComVenda[]
+  metas         ComMeta[]
+
+  @@index([tipo, ativo])
+  @@map("com_produtos")
+}
+
+/// Pipeline de oportunidades comerciais.
+/// Uma Pessoa (CrmCliente) pode ter múltiplas oportunidades ao longo do tempo.
+model ComOportunidade {
+  id                  String    @id @default(uuid()) @db.Uuid
+
+  /// Pessoa corporativa única (via crm_clientes)
+  pessoaId            String    @map("pessoa_id") @db.Uuid
+  pessoa              CrmCliente @relation(fields: [pessoaId], references: [id], onDelete: Restrict)
+
+  produtoId           String?   @map("produto_id") @db.Uuid
+  produto             ComProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  /// Desnormalizado para histórico (produto pode ser removido)
+  produtoNome         String?   @map("produto_nome")
+
+  funilId             String    @map("funil_id") @db.Uuid
+  funil               ComFunil  @relation(fields: [funilId], references: [id])
+  etapaId             String    @map("etapa_id") @db.Uuid
+  etapa               ComEtapa  @relation(fields: [etapaId], references: [id])
+
+  /// Responsável comercial (FK fraca — pode ser externo ao sistema)
+  responsavelId       String?   @map("responsavel_id") @db.Uuid
+
+  unidade             String?
+
+  valorEstimadoCentavos BigInt  @default(0) @map("valor_estimado_centavos")
+  probabilidade       Int       @default(0)
+
+  /// Rastreabilidade de origem (nunca apagar após conversão — PRD §5/41)
+  origem              String?
+  canal               String?
+  campanha            String?
+  eventoRef           String?   @map("evento_ref")
+  utmSource           String?   @map("utm_source")
+  utmMedium           String?   @map("utm_medium")
+  utmCampaign         String?   @map("utm_campaign")
+  utmContent          String?   @map("utm_content")
+  utmTerm             String?   @map("utm_term")
+
+  /// Salesforce
+  sfOportunidadeId    String?   @unique @map("sf_oportunidade_id")
+  sfLeadId            String?   @map("sf_lead_id")
+
+  dataPrevistaFechamento DateTime? @map("data_prevista_fechamento") @db.Date
+  ultimaInteracaoEm   DateTime? @map("ultima_interacao_em") @db.Timestamptz(6)
+  proximaAcaoEm       DateTime? @map("proxima_acao_em") @db.Timestamptz(6)
+  proximaAcaoDescricao String?  @map("proxima_acao_descricao")
+  fechadaEm           DateTime? @map("fechada_em") @db.Timestamptz(6)
+
+  /// aberta | ganha | perdida | arquivada
+  status              String    @default("aberta")
+
+  motivoPerdaId       String?   @map("motivo_perda_id") @db.Uuid
+  motivoPerda         ComMotivoPerdaOp? @relation(fields: [motivoPerdaId], references: [id], onDelete: SetNull)
+  motivoPerdaTexto    String?   @map("motivo_perda_texto")
+
+  /// Turma do produto educacional (FK fraca → pedagogico_turmas)
+  turmaId             String?   @map("turma_id") @db.Uuid
+  turmaADefinir       Boolean   @default(true) @map("turma_a_definir")
+
+  observacao          String?
+  temAlerta           Boolean   @default(false) @map("tem_alerta")
+
+  criadoPor           String?   @map("criado_por") @db.Uuid
+  criadoEm            DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  historico           ComOportunidadeHistorico[]
+  responsavelHistorico ComResponsavelHistorico[]
+  proximasAcoes       ComProximaAcao[]
+  negociacao          ComNegociacao?
+  venda               ComVenda?
+  leadsOrigem         ComLeadOrigem[]
+
+  @@index([pessoaId])
+  @@index([funilId, etapaId])
+  @@index([responsavelId])
+  @@index([status, fechadaEm])
+  @@index([criadoEm(sort: Desc)])
+  @@map("com_oportunidades")
+}
+
+/// Timeline 360° de cada oportunidade — cada evento relevante gera uma linha.
+model ComOportunidadeHistorico {
+  id              BigInt   @id @default(autoincrement())
+  oportunidadeId  String   @map("oportunidade_id") @db.Uuid
+  oportunidade    ComOportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+
+  /// lead_recebido | atribuido | etapa_mudou | interacao | proxima_acao
+  /// nota | ligacao | whatsapp | email | reuniao | proposta
+  /// venda_criada | venda_aprovada | venda_cancelada | perdida | reaberta
+  /// turma_definida | transferencia_responsavel | sistema | salesforce
+  tipo            String
+  titulo          String?
+  descricao       String?
+
+  etapaAnterior   String?  @map("etapa_anterior")
+  etapaNova       String?  @map("etapa_nova")
+  responsavelAnterior String? @map("responsavel_anterior") @db.Uuid
+  responsavelNovo String?  @map("responsavel_novo") @db.Uuid
+
+  campo           String?
+  valorAnterior   String?  @map("valor_anterior")
+  valorNovo       String?  @map("valor_novo")
+  canal           String?
+
+  usuarioId       String?  @map("usuario_id") @db.Uuid
+  /// sistema | usuario | salesforce | webhook | automatico
+  origem          String   @default("usuario")
+
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([oportunidadeId, criadoEm(sort: Desc)])
+  @@index([tipo, criadoEm(sort: Desc)])
+  @@map("com_oportunidade_historico")
+}
+
+/// Trilha de transferências de responsável por oportunidade.
+model ComResponsavelHistorico {
+  id                  BigInt   @id @default(autoincrement())
+  oportunidadeId      String   @map("oportunidade_id") @db.Uuid
+  oportunidade        ComOportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  responsavelAnterior String?  @map("responsavel_anterior") @db.Uuid
+  responsavelNovo     String?  @map("responsavel_novo") @db.Uuid
+  alteradoPor         String?  @map("alterado_por") @db.Uuid
+  motivo              String?
+  criadoEm            DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([oportunidadeId, criadoEm(sort: Desc)])
+  @@map("com_responsavel_historico")
+}
+
+/// Próximas ações / tarefas comerciais vinculadas a oportunidade + pessoa.
+model ComProximaAcao {
+  id              String   @id @default(uuid()) @db.Uuid
+  oportunidadeId  String   @map("oportunidade_id") @db.Uuid
+  oportunidade    ComOportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  pessoaId        String   @map("pessoa_id") @db.Uuid
+  responsavelId   String?  @map("responsavel_id") @db.Uuid
+
+  /// ligar | whatsapp | email | reuniao | proposta | follow_up | outro
+  tipo            String   @default("follow_up")
+  titulo          String
+  descricao       String?
+
+  venceEm         DateTime @map("vence_em") @db.Timestamptz(6)
+  /// alta | media | baixa
+  prioridade      String   @default("media")
+
+  concluidaEm     DateTime? @map("concluida_em") @db.Timestamptz(6)
+  resultado       String?
+
+  criadoPor       String?  @map("criado_por") @db.Uuid
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([oportunidadeId])
+  @@index([responsavelId, venceEm])
+  @@map("com_proximas_acoes")
+}
+
+/// Condições comerciais da oportunidade em negociação (1:1 com oportunidade).
+model ComNegociacao {
+  id                      String   @id @default(uuid()) @db.Uuid
+  oportunidadeId          String   @unique @map("oportunidade_id") @db.Uuid
+  oportunidade            ComOportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+
+  produtoId               String?  @map("produto_id") @db.Uuid
+  produto                 ComProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  produtoNome             String?  @map("produto_nome")
+  quantidade              Int      @default(1)
+
+  /// Valores em centavos — OBRIGATÓRIO manter integridade (PRD §23)
+  precoTabelaCentavos     BigInt   @default(0) @map("preco_tabela_centavos")
+  descontoCentavos        BigInt   @default(0) @map("desconto_centavos")
+  descontoPercentual      Decimal  @default(0) @map("desconto_percentual") @db.Decimal(5, 2)
+  valorNegociadoCentavos  BigInt   @default(0) @map("valor_negociado_centavos")
+  entradaCentavos         BigInt   @default(0) @map("entrada_centavos")
+  saldoCentavos           BigInt   @default(0) @map("saldo_centavos")
+
+  numParcelas             Int      @default(1) @map("num_parcelas")
+  valorParcelaCentavos    BigInt   @default(0) @map("valor_parcela_centavos")
+
+  /// pix | cartao_credito | cartao_debito | boleto | dinheiro | transferencia | cortesia | outro
+  formaPagamento          String   @default("pix") @map("forma_pagamento")
+  vencimentos             Json     @default("[]")
+
+  condicaoEspecial        String?  @map("condicao_especial")
+  observacao              String?
+
+  /// Turma educacional (FK fraca para pedagogico_turmas)
+  turmaId                 String?  @map("turma_id") @db.Uuid
+  turmaADefinir           Boolean  @default(true) @map("turma_a_definir")
+
+  /// Aprovação de desconto
+  descontoAprovadoPor     String?  @map("desconto_aprovado_por") @db.Uuid
+  descontoAprovadoEm      DateTime? @map("desconto_aprovado_em") @db.Timestamptz(6)
+  descontoMotivo          String?  @map("desconto_motivo")
+
+  /// rascunho | em_analise | aprovada | recusada
+  statusAprovacao         String   @default("rascunho") @map("status_aprovacao")
+
+  criadoPor               String?  @map("criado_por") @db.Uuid
+  criadoEm                DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm            DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  venda ComVenda?
+
+  @@map("com_negociacoes")
+}
+
+/// Venda fechada — entidade imutável após aprovação.
+/// Status COMERCIAL ≠ Status FINANCEIRO (PRD §24 obrigatório).
+/// Valor integral SEMPRE preservado (PRD §23 obrigatório).
+model ComVenda {
+  id                      String   @id @default(uuid()) @db.Uuid
+
+  /// Número sequencial humano (VND-AAAA-NNNN)
+  numero                  String   @unique
+
+  /// Vínculos de origem
+  oportunidadeId          String?  @unique @map("oportunidade_id") @db.Uuid
+  oportunidade            ComOportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: Restrict)
+  negociacaoId            String?  @unique @map("negociacao_id") @db.Uuid
+  negociacao              ComNegociacao? @relation(fields: [negociacaoId], references: [id], onDelete: Restrict)
+
+  /// Comprador (quem paga — PRD §31)
+  compradorId             String   @map("comprador_id") @db.Uuid
+  comprador               CrmCliente @relation("VendasComprador", fields: [compradorId], references: [id], onDelete: Restrict)
+
+  /// Beneficiário (quem usa — pode ser diferente do comprador — PRD §31)
+  beneficiarioId          String?  @map("beneficiario_id") @db.Uuid
+  beneficiario            CrmCliente? @relation("VendasBeneficiario", fields: [beneficiarioId], references: [id], onDelete: SetNull)
+  beneficiarioNome        String?  @map("beneficiario_nome")
+
+  vendedorId              String?  @map("vendedor_id") @db.Uuid
+  relacionadoraId         String?  @map("relacionadora_id") @db.Uuid
+  unidade                 String?
+
+  produtoId               String?  @map("produto_id") @db.Uuid
+  produto                 ComProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  produtoNome             String
+  quantidade              Int      @default(1)
+
+  /// Valores (OBRIGATÓRIOS — PRD §23)
+  precoTabelaCentavos     BigInt   @default(0) @map("preco_tabela_centavos")
+  descontoCentavos        BigInt   @default(0) @map("desconto_centavos")
+  descontoPercentual      Decimal  @default(0) @map("desconto_percentual") @db.Decimal(5, 2)
+  valorNegociadoCentavos  BigInt   @default(0) @map("valor_negociado_centavos")
+  entradaCentavos         BigInt   @default(0) @map("entrada_centavos")
+  saldoCentavos           BigInt   @default(0) @map("saldo_centavos")
+
+  numParcelas             Int      @default(1) @map("num_parcelas")
+  valorParcelaCentavos    BigInt   @default(0) @map("valor_parcela_centavos")
+  formaPagamento          String   @default("pix") @map("forma_pagamento")
+  vencimentos             Json     @default("[]")
+
+  turmaId                 String?  @map("turma_id") @db.Uuid
+  turmaADefinir           Boolean  @default(true) @map("turma_a_definir")
+
+  /// Rastreabilidade preservada
+  origem                  String?
+  campanha                String?
+  eventoRef               String?  @map("evento_ref")
+  utmSource               String?  @map("utm_source")
+
+  /// Status COMERCIAL: rascunho | aguardando_aprovacao | aprovada | cancelada
+  statusComercial         String   @default("aguardando_aprovacao") @map("status_comercial")
+
+  /// Status FINANCEIRO: pendente | parcial | quitado | inadimplente | estornado
+  /// Atualizado PELO MÓDULO FINANCEIRO — não pelo Comercial (PRD §24/28)
+  statusFinanceiro        String   @default("pendente") @map("status_financeiro")
+
+  aprovadoPor             String?  @map("aprovado_por") @db.Uuid
+  aprovadoEm              DateTime? @map("aprovado_em") @db.Timestamptz(6)
+
+  canceladoPor            String?  @map("cancelado_por") @db.Uuid
+  canceladoEm             DateTime? @map("cancelado_em") @db.Timestamptz(6)
+  motivoCancelamento      String?  @map("motivo_cancelamento")
+
+  /// Salesforce
+  sfVendaId               String?  @unique @map("sf_venda_id")
+  sfOportunidadeId        String?  @map("sf_oportunidade_id")
+
+  /// Integração: IDs gerados pelo Financeiro/Pedagógico
+  financeiroLancamentoId  String?  @map("financeiro_lancamento_id")
+  pedagogicoMatriculaId   String?  @map("pedagogico_matricula_id") @db.Uuid
+
+  /// Controle de eventos corporativos disparados
+  eventoAprovadaEm        DateTime? @map("evento_aprovada_em") @db.Timestamptz(6)
+  eventoCanceladaEm       DateTime? @map("evento_cancelada_em") @db.Timestamptz(6)
+
+  condicaoEspecial        String?  @map("condicao_especial")
+  observacao              String?
+
+  criadoPor               String?  @map("criado_por") @db.Uuid
+  criadoEm                DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm            DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  historico               ComVendaHistorico[]
+
+  @@index([compradorId])
+  @@index([statusComercial, statusFinanceiro])
+  @@index([vendedorId])
+  @@index([criadoEm(sort: Desc)])
+  @@map("com_vendas")
+}
+
+/// Auditoria completa da venda (PRD §50 obrigatório).
+model ComVendaHistorico {
+  id          BigInt   @id @default(autoincrement())
+  vendaId     String   @map("venda_id") @db.Uuid
+  venda       ComVenda @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  tipo        String
+  titulo      String?
+  descricao   String?
+  campo       String?
+  valorAnterior String? @map("valor_anterior")
+  valorNovo   String?  @map("valor_novo")
+  usuarioId   String?  @map("usuario_id") @db.Uuid
+  origem      String   @default("usuario")
+  criadoEm    DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([vendaId, criadoEm(sort: Desc)])
+  @@map("com_venda_historico")
+}
+
+/// Fila de eventos corporativos para integração assíncrona.
+/// VENDA_APROVADA → Financeiro + Pedagógico (PRD §27/54).
+model ComEventoCorporativo {
+  id             BigInt   @id @default(autoincrement())
+  tipo           String
+  payload        Json     @default("{}")
+  referenciaId   String   @map("referencia_id")
+  referenciaTipo String   @map("referencia_tipo")
+  consumidores   Json     @default("{}")
+  /// pendente | processando | processado | erro | ignorado
+  status         String   @default("pendente")
+  tentativas     Int      @default(0)
+  erroMensagem   String?  @map("erro_mensagem")
+  processadoEm   DateTime? @map("processado_em") @db.Timestamptz(6)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@unique([tipo, referenciaTipo, referenciaId], map: "ux_com_evento_ref")
+  @@index([status, tentativas])
+  @@index([tipo, criadoEm(sort: Desc)])
+  @@map("com_eventos_corporativos")
+}
+
+/// Mapeamento de IDs Salesforce ↔ ERP (PRD §52/53).
+model ComSalesforceSync {
+  id             String   @id @default(uuid()) @db.Uuid
+  entidadeTipo   String   @map("entidade_tipo")
+  entidadeId     String   @map("entidade_id")
+  sfId           String   @map("sf_id")
+  sfObjeto       String?  @map("sf_objeto")
+  ultimaSyncEm   DateTime? @map("ultima_sync_em") @db.Timestamptz(6)
+  /// erp_para_sf | sf_para_erp | bidirecional
+  direcao        String   @default("sf_para_erp")
+  /// ok | erro | pendente | conflito
+  status         String   @default("ok")
+  erroMensagem   String?  @map("erro_mensagem")
+  sistemaOrigem  String?  @map("sistema_origem")
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@unique([entidadeTipo, entidadeId], map: "ux_com_sf_sync_entidade")
+  @@unique([sfId, entidadeTipo], map: "ux_com_sf_sync_sfid")
+  @@index([status, ultimaSyncEm])
+  @@map("com_salesforce_sync")
+}
+
+/// Carteiras comerciais por responsável.
+model ComCarteira {
+  id              String   @id @default(uuid()) @db.Uuid
+  nome            String
+  responsavelId   String?  @map("responsavel_id") @db.Uuid
+  /// consultor | relacionadora | gestor
+  tipoResponsavel String   @default("consultor") @map("tipo_responsavel")
+  ativo           Boolean  @default(true)
+  descricao       String?
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([responsavelId])
+  @@map("com_carteiras")
+}
+
+/// Metas comerciais configuráveis por vendedor/unidade/produto/período.
+model ComMeta {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// mes | trimestre | ano
+  escopo         String   @default("mes")
+  competencia    DateTime @db.Date
+  usuarioId      String?  @map("usuario_id") @db.Uuid
+  unidade        String?
+  produtoId      String?  @map("produto_id") @db.Uuid
+  produto        ComProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  /// leads | oportunidades | vendas | valor_vendido | valor_recebido
+  tipoMeta       String   @map("tipo_meta")
+  valorCentavos  BigInt   @default(0) @map("valor_centavos")
+  observacao     String?
+  criadoPor      String?  @map("criado_por") @db.Uuid
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([usuarioId, competencia])
+  @@index([unidade, competencia])
+  @@map("com_metas")
+}
+
+/// Rastreabilidade de entrada de leads (origem nunca apagada — PRD §5).
+model ComLeadOrigem {
+  id              String   @id @default(uuid()) @db.Uuid
+  pessoaId        String   @map("pessoa_id") @db.Uuid
+  pessoa          CrmCliente @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  oportunidadeId  String?  @map("oportunidade_id") @db.Uuid
+  oportunidade    ComOportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: SetNull)
+
+  /// salesforce | meta | google | whatsapp | instagram | manychat | sympla
+  /// palestra | evento | indicacao | formulario | importacao | manual | outro
+  canal           String   @default("manual")
+  campanha        String?
+  eventoRef       String?  @map("evento_ref")
+  utmSource       String?  @map("utm_source")
+  utmMedium       String?  @map("utm_medium")
+  utmCampaign     String?  @map("utm_campaign")
+  utmContent      String?  @map("utm_content")
+  utmTerm         String?  @map("utm_term")
+  dadosExtras     Json     @default("{}") @map("dados_extras")
+  sfLeadId        String?  @map("sf_lead_id")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([pessoaId, criadoEm(sort: Desc)])
+  @@index([canal, criadoEm(sort: Desc)])
+  @@map("com_leads_origem")
 }

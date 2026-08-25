@@ -41,6 +41,42 @@ const HUBS: { chave: string; nome: string }[] = [
 
 export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
   {
+    id: 'comercial',
+    nome: 'Comercial — CRM de Vendas',
+    descricao: 'Pipeline de oportunidades, negociação, fechamento de vendas, follow-up e integração Salesforce/Financeiro/Pedagógico.',
+    permissoes: [
+      { id: 'comercial.ver',            nome: 'Consultar pipeline',         descricao: 'Ver dashboard, oportunidades, kanban, negociações e histórico da carteira autorizada.' },
+      { id: 'comercial.operar',         nome: 'Operar o pipeline',          descricao: 'Criar lead, registrar interações, mover etapas, criar próxima ação, negociar e fechar vendas dentro da alçada.' },
+      { id: 'comercial.gerenciar',      nome: 'Gerenciar configurações',    descricao: 'Criar e editar funis, etapas, produtos, motivos de perda e carteiras.' },
+      { id: 'comercial.vendas.aprovar', nome: 'Aprovar / cancelar vendas',  descricao: 'Aprovar vendas aguardando autorização e cancelar vendas com motivo.' },
+      { id: 'comercial.relatorios',     nome: 'Relatórios comerciais',      descricao: 'Acessar dashboards avançados, análise de conversão, performance individual e metas.' },
+    ],
+  },
+  {
+    id: 'pedagogico',
+    nome: 'Pedagógico — Secretaria Digital',
+    descricao: 'Gestão da jornada completa do aluno: turmas, matrículas, credenciamento, presença, confirmações, transferências e Customer Success.',
+    permissoes: [
+      { id: 'pedagogico.ver',       nome: 'Consultar turmas e alunos',     descricao: 'Ver dashboard, turmas, matrículas, represados e indicadores.' },
+      { id: 'pedagogico.operar',    nome: 'Operar a secretaria',           descricao: 'Confirmar participação, credenciar, registrar presença e abrir solicitações.' },
+      { id: 'pedagogico.gerenciar', nome: 'Gerenciar turmas e matrículas', descricao: 'Criar e editar turmas, matricular alunos, efetivar transferências e cancelamentos.' },
+      { id: 'pedagogico.monitores', nome: 'Acesso de monitor',             descricao: 'Check-in e presença somente nas turmas sob responsabilidade do monitor.' },
+      { id: 'pedagogico.cs',        nome: 'Customer Success',              descricao: 'Acompanhar e resolver casos de alunos que exigem atenção especial.' },
+    ],
+  },
+  {
+    id: 'comercial',
+    nome: 'Comercial — CRM de Vendas',
+    descricao: 'Pipeline de oportunidades, negociações, aprovação de vendas e relatórios comerciais.',
+    permissoes: [
+      { id: 'comercial.ver',            nome: 'Consultar o comercial',       descricao: 'Ver dashboard, pipeline, oportunidades, negociações e relatórios.' },
+      { id: 'comercial.operar',         nome: 'Operar o comercial',          descricao: 'Criar leads, oportunidades, interações, próximas ações, negociações e fechar vendas.' },
+      { id: 'comercial.gerenciar',      nome: 'Gerenciar o comercial',       descricao: 'Configurar funis, produtos e motivos de perda.' },
+      { id: 'comercial.vendas.aprovar', nome: 'Aprovar e cancelar vendas',   descricao: 'Alterar o status comercial de vendas (aprovar ou cancelar).' },
+      { id: 'comercial.relatorios',     nome: 'Relatórios comerciais',       descricao: 'Acessar relatórios consolidados de conversão, metas e desempenho.' },
+    ],
+  },
+  {
     id: 'compras', nome: 'Compras e Estoque', descricao: 'Fluxo operacional da solicitação ao recebimento e encerramento.',
     permissoes: [
       { id: 'compras.ver', nome: 'Consultar solicitações', descricao: 'Acompanhar solicitações de compras e materiais.' },

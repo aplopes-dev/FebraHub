@@ -16,6 +16,7 @@ export type AcaoGrupo =
   | "compras"
   | "estoque"
   | "financeiro"
+  | "comercial"
   | "crm"
   | "marketing"
   | "pedagogico"
@@ -389,6 +390,61 @@ const acoes_marketing: Acao[] = [
   },
 ];
 
+// ─── COMERCIAL ────────────────────────────────────────────────────────────────
+const acoes_comercial: Acao[] = [
+  {
+    id: "com-dashboard",
+    label: "Dashboard Comercial",
+    desc: "KPIs de leads, pipeline, vendas e conversão",
+    keywords: ["comercial", "pipeline", "leads", "vendas", "dashboard", "kpi"],
+    href: "/comercial",
+    icone: "TrendingUp",
+    grupo: "comercial",
+    visivel: comPermissao(
+      "comercial.ver",
+      "comercial.operar",
+      "comercial.gerenciar",
+      "comercial.vendas.aprovar",
+      "comercial.relatorios",
+    ),
+  },
+  {
+    id: "com-pipeline",
+    label: "Pipeline Comercial",
+    desc: "Kanban e lista de oportunidades por funil",
+    keywords: ["pipeline", "kanban", "oportunidade", "funil", "comercial"],
+    href: "/comercial/pipeline",
+    icone: "Kanban",
+    grupo: "comercial",
+    visivel: comPermissao("comercial.ver", "comercial.operar", "comercial.gerenciar"),
+  },
+  {
+    id: "com-novo-lead",
+    label: "Novo Lead",
+    desc: "Capturar rapidamente um novo lead no pipeline",
+    keywords: ["lead", "novo", "capturar", "prospect", "comercial", "cliente"],
+    href: "/comercial/leads",
+    icone: "UserPlus",
+    grupo: "comercial",
+    visivel: comPermissao("comercial.operar", "comercial.gerenciar"),
+  },
+  {
+    id: "com-vendas",
+    label: "Vendas",
+    desc: "Lista, status e aprovação de vendas fechadas",
+    keywords: ["venda", "vendas", "comercial", "aprovar", "fechamento"],
+    href: "/comercial/vendas",
+    icone: "ShoppingBag",
+    grupo: "comercial",
+    visivel: comPermissao(
+      "comercial.ver",
+      "comercial.gerenciar",
+      "comercial.vendas.aprovar",
+      "comercial.relatorios",
+    ),
+  },
+];
+
 // ─── PEDAGÓGICO ───────────────────────────────────────────────────────────────
 const acoes_pedagogico: Acao[] = [
   {
@@ -419,6 +475,7 @@ export const ACOES_CATALOGO: readonly Acao[] = [
   ...acoes_compras,
   ...acoes_estoque,
   ...acoes_financeiro,
+  ...acoes_comercial,
   ...acoes_configuracoes,
   ...acoes_integracoes,
   ...acoes_marketing,
@@ -431,6 +488,7 @@ export const GRUPO_LABEL: Record<AcaoGrupo, string> = {
   compras: "Compras",
   estoque: "Estoque",
   financeiro: "Financeiro",
+  comercial: "Comercial",
   crm: "CRM",
   marketing: "Marketing",
   pedagogico: "Pedagógico",

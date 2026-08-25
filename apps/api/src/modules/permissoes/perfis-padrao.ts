@@ -50,6 +50,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     descricao: 'Todos os painéis e todos os setores, sem a administração de acessos.',
     sistema: false,
     permissoes: [
+      'pedagogico.ver', 'pedagogico.operar', 'pedagogico.gerenciar', 'pedagogico.cs',
       'compras.ver', 'compras.solicitar', 'compras.operar', 'compras.aprovar',
       'pdv.ver', 'pdv.operar', 'pdv.gerenciar',
       'loja.produtos.ver', 'loja.produtos.gerenciar',
@@ -82,6 +83,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'Hub Executivo com metas e organograma. Os dados continuam recortados pelo setor do cadastro.',
     sistema: false,
     permissoes: [
+      'pedagogico.ver', 'pedagogico.operar', 'pedagogico.gerenciar', 'pedagogico.cs',
       'compras.ver', 'compras.solicitar', 'compras.operar', 'compras.aprovar',
       'pdv.ver', 'pdv.operar',
       'loja.produtos.ver', 'loja.produtos.gerenciar',
@@ -104,7 +106,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     nome: 'Equipe',
     descricao: 'O hub do próprio setor e o organograma. É o perfil padrão de quem entra.',
     sistema: false,
-    permissoes: ['compras.ver', 'compras.solicitar', 'loja.pedidos.ver', 'loja.pedidos.operar', 'fiscal.emitir', 'processos.ver', 'organograma.ver', 'brain.ver'],
+    permissoes: ['pedagogico.ver', 'pedagogico.operar', 'pedagogico.monitores', 'compras.ver', 'compras.solicitar', 'loja.pedidos.ver', 'loja.pedidos.operar', 'fiscal.emitir', 'processos.ver', 'organograma.ver', 'brain.ver'],
   },
   {
     slug: 'integracoes',
