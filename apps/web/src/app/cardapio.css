@@ -56,6 +56,7 @@
   color: var(--cdp-on-gold); box-shadow: 0 8px 22px rgba(233, 193, 92, 0.28);
 }
 .cdp-hero-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: 16px; }
+.cdp-hero-mark svg { width: 30px; height: 30px; }
 .cdp-hero-txt { min-width: 0; flex: 1; }
 .cdp-hero-tag {
   display: inline-flex; align-items: center; gap: 6px;
@@ -132,10 +133,11 @@
 }
 .cdp-card-media img { width: 100%; height: 100%; object-fit: cover; }
 .cdp-card-media .ph {
-  font-size: 34px; opacity: 0.22;
+  opacity: 0.22;
   background: linear-gradient(150deg, rgba(233, 193, 92, 0.1), transparent);
   width: 100%; height: 100%; display: grid; place-items: center;
 }
+.cdp-card-media .ph svg { width: 38px; height: 38px; }
 .cdp-card-tag {
   position: absolute; top: 10px; left: 10px; padding: 4px 9px; border-radius: 999px;
   font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
@@ -200,6 +202,7 @@
 .cdp-cart-item:last-child { border-bottom: 0; }
 .cdp-cart-thumb { width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: #101015; display: grid; place-items: center; }
 .cdp-cart-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cdp-cart-thumb-ph { width: 20px; height: 20px; opacity: 0.3; }
 .cdp-cart-item .nm { min-width: 0; }
 .cdp-cart-item .nm b { display: block; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdp-cart-item .nm small { font-size: 11.5px; color: var(--cdp-muted); }

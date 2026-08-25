@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Storefront, ForkKnife } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
@@ -190,7 +191,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
       {/* ---- HERO ---- */}
       <header className="cdp-hero">
         <div className="cdp-hero-inner">
-          <div className="cdp-hero-mark">🛍️</div>
+          <div className="cdp-hero-mark"><Storefront weight="fill" /></div>
           <div className="cdp-hero-txt">
             <span className="cdp-hero-tag">Loja FEBRACIS</span>
             <h1>{nomeOperacao}</h1>
@@ -246,7 +247,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
                     return (
                       <article key={p.produtoId} className={`cdp-card ${p.esgotado ? "esgotado" : ""}`}>
                         <div className="cdp-card-media">
-                          {p.imagemUrl ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" /> : <div className="ph">🍽️</div>}
+                          {p.imagemUrl ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" /> : <div className="ph"><ForkKnife weight="fill" /></div>}
                           {p.esgotado ? (
                             <span className="cdp-card-tag zero">Esgotado</span>
                           ) : baixo ? (
@@ -297,7 +298,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
               ) : (
                 itensCarrinho.map((p) => (
                   <div key={p.produtoId} className="cdp-cart-item">
-                    <div className="cdp-cart-thumb">{p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span style={{ opacity: 0.3 }}>🍽️</span>}</div>
+                    <div className="cdp-cart-thumb">{p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <ForkKnife className="cdp-cart-thumb-ph" weight="fill" />}</div>
                     <div className="nm">
                       <b>{p.nome}</b>
                       <small>{brl(p.preco)} · un.</small>
