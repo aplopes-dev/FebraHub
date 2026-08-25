@@ -2,11 +2,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Plus } from "lucide-react";
+import { BarChart3, Plus, Settings2 } from "lucide-react";
 import { finAtualizarLancamento, finCadastros, finCriarLancamento, finExcluirLancamento, finIndicadores, finLancamentos, finPagarLancamento } from "@/services/api/financeiro-erp";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { FinLancamento } from "@/types/financeiro-erp";
+import { CadastrosFinanceiro } from "./CadastrosFinanceiro";
 import "@/app/financeiro-erp.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -20,6 +21,7 @@ export function CentralFinanceiro() {
   const podeGerir = pode(perfil.data, "financeiro.gerenciar");
   const [aba, setAba] = useState<"receber" | "pagar">("receber");
   const [novo, setNovo] = useState(false);
+  const [cadastros, setCadastros] = useState(false);
 
   const ind = useQuery({ queryKey: ["fin", "indicadores"], queryFn: finIndicadores });
   const lanc = useQuery({ queryKey: ["fin", "lancamentos", aba], queryFn: () => finLancamentos(aba) });
@@ -35,6 +37,7 @@ export function CentralFinanceiro() {
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/financeiro-erp/dre" className="fin-btn"><BarChart3 size={15} /> DRE</Link>
+          {podeGerir && <button className="fin-btn" onClick={() => setCadastros(true)}><Settings2 size={15} /> Cadastros</button>}
           {podeGerir && <button className="fin-btn ouro" onClick={() => setNovo(true)}><Plus size={15} /> Novo lançamento</button>}
         </div>
       </header>
@@ -57,6 +60,7 @@ export function CentralFinanceiro() {
       </section>
 
       {novo && <ModalLancamento operacao={aba} aoFechar={() => setNovo(false)} aoCriar={() => { setNovo(false); qc.invalidateQueries({ queryKey: ["fin"] }); }} />}
+      {cadastros && <CadastrosFinanceiro aoFechar={() => setCadastros(false)} />}
     </main>
   );
 }
