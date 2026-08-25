@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { pedagogico, PedagogicoTurma, PedagogicoMatricula } from "@/services/api/pedagogico";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -365,7 +366,7 @@ export default function DetalhesTurmaPage() {
         {/* === CREDENCIAMENTO === */}
         {aba === "credenciamento" && (
           <div>
-            <p className="ped-desc-aba">Situação de credenciamento dos alunos. Para credenciar, use a <a href="/pedagogico/credenciamento">tela de Credenciamento</a>.</p>
+            <p className="ped-desc-aba">Situação de credenciamento dos alunos. Para credenciar, use a <Link href="/pedagogico/credenciamento">tela de Credenciamento</Link>.</p>
             <div className="ped-tabela-wrapper">
               <table className="ped-tabela">
                 <thead>
@@ -405,7 +406,7 @@ export default function DetalhesTurmaPage() {
           <div>
             <p className="ped-desc-aba">
               Registro de presença por aluno/dia/sessão. Para registrar presença, use a{" "}
-              <a href="/pedagogico/presenca">tela de Presença</a>.
+              <Link href="/pedagogico/presenca">tela de Presença</Link>.
             </p>
             <div className="ped-tabela-wrapper">
               <table className="ped-tabela">
@@ -439,7 +440,7 @@ export default function DetalhesTurmaPage() {
         {/* === MONITORES === */}
         {aba === "monitores" && (
           <div>
-            <p className="ped-desc-aba">Escala de monitores desta turma. Gerencie a equipe em <a href="/pedagogico/monitores">Monitores</a>.</p>
+            <p className="ped-desc-aba">Escala de monitores desta turma. Gerencie a equipe em <Link href="/pedagogico/monitores">Monitores</Link>.</p>
             <div className="ped-empty">Escala de monitores em desenvolvimento. Use a tela de Monitores para gerenciar.</div>
           </div>
         )}
