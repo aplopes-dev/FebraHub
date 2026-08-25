@@ -105,7 +105,7 @@ export function CrudAvaliacoes() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(560px, 100%)", maxHeight: "90dvh", overflow: "auto",
-              background: C.panel, borderRadius: 14, border: `1px solid ${C.cardLine}`,
+              background: C.modalFundo, borderRadius: 14, border: `1px solid ${C.cardLine}`,
               padding: 18,
             }}
           >

@@ -52,7 +52,7 @@
 .loja-empty{font-size:12px;color:var(--muted);padding:20px 4px;text-align:center}
 
 .loja-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px}
-.loja-modal{background:var(--card);border:1px solid var(--card-line);border-radius:16px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto}
+.loja-modal{background:var(--modal-fundo);box-shadow:var(--sombra-modal);border:1px solid var(--card-line);border-radius:16px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto}
 .loja-modal.lg{max-width:720px}
 .loja-modal h3{margin:0 0 14px;font-size:18px}
 .loja-modal label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin:10px 0 4px}

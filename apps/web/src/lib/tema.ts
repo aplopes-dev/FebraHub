@@ -11,6 +11,10 @@
 export const C = {
   void: "var(--void)",
   panel: "var(--panel)",
+  /** Superfície OPACA para modais/dialogs (sobre o véu). --panel e --card são
+   *  translúcidos de propósito para cards sobre a página; usados como fundo de
+   *  modal deixam o conteúdo "vazar" e parecer transparente. Use este. */
+  modalFundo: "var(--modal-fundo)",
   card: "var(--card)",
   cardLine: "var(--card-line)",
   hair: "var(--hair)",

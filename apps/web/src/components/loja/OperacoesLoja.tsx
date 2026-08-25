@@ -99,7 +99,7 @@ function FormOperacao({
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "grid", placeItems: "center", zIndex: 50 }} onClick={onCancelar}>
-      <div className="loja-card" style={{ width: "min(460px,92vw)", display: "grid", gap: 12 }} onClick={(e) => e.stopPropagation()}>
+      <div className="loja-card" style={{ width: "min(460px,92vw)", display: "grid", gap: 12, background: "var(--modal-fundo)", boxShadow: "var(--sombra-modal)" }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ margin: 0 }}>{op ? "Editar operação" : "Nova operação"}</h2>
         <label style={{ fontSize: 12 }}>Nome
           <input value={nome} onChange={(e) => setNome(e.target.value)} style={campo} placeholder="CIS Externo Ago/2026" />

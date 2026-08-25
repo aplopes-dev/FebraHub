@@ -70,7 +70,7 @@ export function FormCrud({
         onSubmit={submit}
         style={{
           width: "min(440px, 100%)", height: "100%",
-          background: C.panel, borderLeft: `1px solid ${C.cardLine}`,
+          background: C.modalFundo, borderLeft: `1px solid ${C.cardLine}`,
           display: "flex", flexDirection: "column",
           boxShadow: "-12px 0 40px rgba(0,0,0,.25)",
         }}
