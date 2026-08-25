@@ -1,0 +1,223 @@
+"use client";
+import "@/app/pedagogico.css";
+import { useCallback, useEffect, useState } from "react";
+import { pedagogico } from "@/services/api/pedagogico";
+
+const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
+
+type CsItem = {
+  id: string;
+  pessoaId: string;
+  pessoaNome?: string | null;
+  motivo: string;
+  status: string;
+  prioridade: string;
+  proximaAcao?: string | null;
+  prazo?: string | null;
+  observacoes?: string | null;
+  criadoEm?: string | null;
+  matricula?: { id: string; pessoaNome?: string | null; cursoNome?: string | null; validadeFim?: string | null; status?: string } | null;
+};
+
+const STATUS = ["aberto", "em_andamento", "resolvido", "cancelado"];
+const MOTIVOS = ["risco_evasao", "represado", "insatisfacao", "financeiro", "retencao", "outro"];
+
+export default function CustomerSuccessPage() {
+  const [lista, setLista] = useState<CsItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroMotivo, setFiltroMotivo] = useState("");
+  const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(null);
+
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [novo, setNovo] = useState({ pessoaId: "", pessoaNome: "", motivo: "risco_evasao", prioridade: "normal", proxima_acao: "", prazo: "", observacoes: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    try {
+      const q: Record<string, string> = {};
+      if (filtroStatus) q.status = filtroStatus;
+      if (filtroMotivo) q.motivo = filtroMotivo;
+      const res = (await pedagogico.cs(Object.keys(q).length ? q : undefined)) as CsItem[];
+      setLista(res ?? []);
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao carregar acompanhamentos." });
+    } finally {
+      setCarregando(false);
+    }
+  }, [filtroStatus, filtroMotivo]);
+
+  useEffect(() => { void carregar(); }, [carregar]);
+
+  const criar = async () => {
+    if (!novo.pessoaId.trim() || !novo.motivo) {
+      setFeedback({ tipo: "erro", msg: "ID da pessoa e motivo são obrigatórios." });
+      return;
+    }
+    setSalvando(true);
+    setFeedback(null);
+    try {
+      await pedagogico.criarCs({
+        pessoaId: novo.pessoaId.trim(),
+        pessoaNome: novo.pessoaNome.trim() || undefined,
+        motivo: novo.motivo,
+        prioridade: novo.prioridade,
+        proxima_acao: novo.proxima_acao.trim() || undefined,
+        prazo: novo.prazo || undefined,
+        observacoes: novo.observacoes.trim() || undefined,
+      });
+      setFeedback({ tipo: "ok", msg: "Acompanhamento aberto." });
+      setNovo({ pessoaId: "", pessoaNome: "", motivo: "risco_evasao", prioridade: "normal", proxima_acao: "", prazo: "", observacoes: "" });
+      setMostrarForm(false);
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao abrir acompanhamento." });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const mudarStatus = async (c: CsItem, status: string) => {
+    let resultado: string | undefined;
+    if (status === "resolvido") resultado = prompt("Resultado do acompanhamento (opcional):") ?? undefined;
+    try {
+      await pedagogico.atualizarCs(c.id, { status, resultado });
+      await carregar();
+    } catch (e: unknown) {
+      setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao atualizar acompanhamento." });
+    }
+  };
+
+  const abertos = lista.filter((c) => ["aberto", "em_andamento"].includes(c.status)).length;
+
+  return (
+    <div className="ped-page">
+      <div className="ped-page-topo">
+        <div className="ped-page-header" style={{ marginBottom: 0 }}>
+          <h1>Customer Success</h1>
+          <p className="ped-page-sub">Acompanhamento de alunos que exigem atenção: risco de evasão, represados e retenção.</p>
+        </div>
+        <button className="ped-btn-primario" onClick={() => setMostrarForm((v) => !v)}>
+          {mostrarForm ? "Fechar" : "+ Novo acompanhamento"}
+        </button>
+      </div>
+
+      {abertos > 0 && (
+        <div className="ped-atencao-box">{abertos} acompanhamento(s) em aberto.</div>
+      )}
+
+      {feedback && <div className={`ped-feedback ${feedback.tipo}`}>{feedback.msg}</div>}
+
+      {mostrarForm && (
+        <div className="ped-form-card" style={{ marginBottom: "1.25rem" }}>
+          <div className="ped-form-grid">
+            <label className="ped-label">
+              ID da pessoa*
+              <input className="ped-input" value={novo.pessoaId} onChange={(e) => setNovo({ ...novo, pessoaId: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              Nome do aluno
+              <input className="ped-input" value={novo.pessoaNome} onChange={(e) => setNovo({ ...novo, pessoaNome: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              Motivo
+              <select className="ped-select" value={novo.motivo} onChange={(e) => setNovo({ ...novo, motivo: e.target.value })}>
+                {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+            <label className="ped-label">
+              Prioridade
+              <select className="ped-select" value={novo.prioridade} onChange={(e) => setNovo({ ...novo, prioridade: e.target.value })}>
+                <option value="baixa">Baixa</option>
+                <option value="normal">Normal</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </label>
+            <label className="ped-label">
+              Próxima ação
+              <input className="ped-input" value={novo.proxima_acao} onChange={(e) => setNovo({ ...novo, proxima_acao: e.target.value })} />
+            </label>
+            <label className="ped-label">
+              Prazo
+              <input type="date" className="ped-input" value={novo.prazo} onChange={(e) => setNovo({ ...novo, prazo: e.target.value })} />
+            </label>
+            <label className="ped-label ped-full">
+              Observações
+              <textarea className="ped-textarea" value={novo.observacoes} onChange={(e) => setNovo({ ...novo, observacoes: e.target.value })} />
+            </label>
+          </div>
+          <div className="ped-form-acoes">
+            <button className="ped-btn-primario" disabled={salvando} onClick={() => void criar()}>
+              {salvando ? "Salvando…" : "Abrir acompanhamento"}
+            </button>
+            <button className="ped-btn-outline" onClick={() => setMostrarForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      <div className="ped-filtros-row">
+        <select className="ped-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select className="ped-select" value={filtroMotivo} onChange={(e) => setFiltroMotivo(e.target.value)}>
+          <option value="">Todos os motivos</option>
+          {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <span className="ped-total-label">{lista.length} acompanhamento(s)</span>
+      </div>
+
+      {carregando ? (
+        <div className="ped-loading"><span className="ped-spinner" />Carregando acompanhamentos…</div>
+      ) : lista.length === 0 ? (
+        <div className="ped-empty">Nenhum acompanhamento encontrado.</div>
+      ) : (
+        <div className="ped-tabela-wrapper">
+          <table className="ped-tabela">
+            <thead>
+              <tr>
+                <th>Aluno</th>
+                <th>Motivo</th>
+                <th>Prioridade</th>
+                <th>Próxima ação</th>
+                <th>Prazo</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((c) => (
+                <tr key={c.id} className={["aberto", "em_andamento"].includes(c.status) ? "ped-row-atencao" : ""}>
+                  <td>
+                    <strong>{c.pessoaNome ?? c.matricula?.pessoaNome ?? c.pessoaId}</strong>
+                    {c.matricula?.cursoNome && <div style={{ fontSize: ".75rem", color: "var(--muted-foreground)" }}>{c.matricula.cursoNome}</div>}
+                  </td>
+                  <td>{c.motivo}</td>
+                  <td><span className={`ped-badge ${c.prioridade}`}>{c.prioridade}</span></td>
+                  <td style={{ maxWidth: 240 }}>{c.proximaAcao ?? "—"}</td>
+                  <td>{fmtData(c.prazo)}</td>
+                  <td><span className={`ped-badge ${c.status}`}>{c.status}</span></td>
+                  <td>
+                    <div className="ped-acoes-row">
+                      {c.status === "aberto" && (
+                        <button className="ped-btn-xs" onClick={() => void mudarStatus(c, "em_andamento")}>Em andamento</button>
+                      )}
+                      {["aberto", "em_andamento"].includes(c.status) && (
+                        <>
+                          <button className="ped-btn-xs ativo" onClick={() => void mudarStatus(c, "resolvido")}>Resolver</button>
+                          <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(c, "cancelado")}>Cancelar</button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

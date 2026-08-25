@@ -323,8 +323,218 @@
   color: var(--foreground, #111);
 }
 
+/* ============================================================
+   COMPLEMENTO — classes usadas pelas telas operacionais
+   (alunos, turmas, represados, transferências, monitores,
+    solicitações, secretaria, CS, presença)
+   ============================================================ */
+
+/* ---- Cabeçalho de página ---- */
+.ped-page-header { margin-bottom: 1.25rem; }
+.ped-page-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--foreground, #111); }
+.ped-page-sub { color: var(--muted-foreground, #6b7280); font-size: .875rem; margin: .25rem 0 0; }
+
+.ped-page-topo {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+
+/* ---- Filtros ---- */
+.ped-filtros-row {
+  display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ped-input, .ped-select, .ped-textarea {
+  padding: .5rem .75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: .5rem;
+  font-size: .875rem;
+  background: var(--card, #fff);
+  color: var(--foreground, #111);
+  outline: none;
+  transition: border-color .15s;
+}
+.ped-input { min-width: 240px; flex: 1; }
+.ped-input:focus, .ped-select:focus, .ped-textarea:focus { border-color: #6366f1; }
+.ped-textarea { width: 100%; resize: vertical; min-height: 72px; font-family: inherit; }
+
+.ped-total-label { font-size: .8rem; color: var(--muted-foreground, #6b7280); margin-left: auto; }
+
+/* ---- Botões ---- */
+.ped-btn-primario {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: .5rem; border: none;
+  background: #4f46e5; color: #fff; font-size: .875rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.ped-btn-primario:hover:not(:disabled) { background: #4338ca; }
+.ped-btn-primario:disabled { opacity: .5; cursor: not-allowed; }
+
+.ped-btn-outline {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: .5rem;
+  border: 1px solid var(--border, #e5e7eb); background: transparent;
+  color: var(--foreground, #111); font-size: .875rem; font-weight: 500;
+  cursor: pointer; transition: border-color .15s, background .15s; text-decoration: none;
+}
+.ped-btn-outline:hover:not(:disabled) { border-color: #6366f1; background: var(--muted, #f9fafb); }
+.ped-btn-outline:disabled { opacity: .5; cursor: not-allowed; }
+
+.ped-btn-xs {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .28rem .6rem; border-radius: .4rem;
+  border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff);
+  color: var(--foreground, #111); font-size: .75rem; font-weight: 600;
+  cursor: pointer; transition: border-color .15s, background .15s; text-decoration: none;
+}
+.ped-btn-xs:hover:not(:disabled) { border-color: #6366f1; background: var(--muted, #f9fafb); }
+.ped-btn-xs:disabled { opacity: .45; cursor: not-allowed; }
+.ped-btn-xs.ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
+.ped-btn-xs.perigo { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+
+.ped-back-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .82rem; color: var(--muted-foreground, #6b7280);
+  text-decoration: none; margin-bottom: .75rem; background: none; border: none; cursor: pointer;
+}
+.ped-back-btn:hover { color: #6366f1; }
+
+/* ---- Ações em massa ---- */
+.ped-massa-bar {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  background: #eef2ff; border: 1px solid #c7d2fe; border-radius: .6rem;
+  padding: .6rem .9rem; margin-bottom: 1rem; font-size: .85rem;
+}
+
+/* ---- Feedback / erro ---- */
+.ped-feedback {
+  padding: .7rem 1rem; border-radius: .6rem; margin-bottom: 1rem; font-size: .875rem; font-weight: 500;
+}
+.ped-feedback.ok  { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
+.ped-feedback.erro { background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; }
+.ped-erro { padding: 1rem; color: #b91c1c; background: #fef2f2; border: 1px solid #fca5a5; border-radius: .6rem; }
+
+/* ---- Estados ---- */
+.ped-loading {
+  display: flex; align-items: center; justify-content: center; gap: .6rem;
+  padding: 2.5rem; color: var(--muted-foreground, #6b7280); font-size: .9rem;
+}
+.ped-spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border, #e5e7eb); border-top-color: #6366f1;
+  animation: spin 1s linear infinite; display: inline-block;
+}
+.ped-empty, .ped-empty-inline {
+  text-align: center; color: var(--muted-foreground, #6b7280);
+  padding: 2.5rem; border: 1px dashed var(--border, #e5e7eb); border-radius: .75rem;
+  font-size: .9rem;
+}
+.ped-empty-inline { padding: 1.25rem; }
+
+/* ---- Tabela (alias da .ped-table para o markup existente) ---- */
+.ped-tabela-wrapper, .ped-info-tabela {
+  overflow-x: auto; border: 1px solid var(--border, #e5e7eb); border-radius: .75rem;
+}
+.ped-tabela { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.ped-tabela th {
+  background: var(--muted, #f9fafb); text-align: left; padding: .6rem 1rem;
+  font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted-foreground, #6b7280); border-bottom: 1px solid var(--border, #e5e7eb); white-space: nowrap;
+}
+.ped-tabela td { padding: .65rem 1rem; border-bottom: 1px solid var(--border, #e5e7eb); vertical-align: middle; }
+.ped-tabela tr:last-child td { border-bottom: none; }
+.ped-tabela tbody tr:hover td { background: var(--muted, #f9fafb); }
+.ped-row-atencao td { background: #fffbeb !important; }
+.ped-acoes-row { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+/* ---- Banner de atenção ---- */
+.ped-atencao-banner {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: .6rem;
+  padding: .7rem 1rem; margin-bottom: 1rem; font-size: .875rem; color: #92400e; cursor: pointer;
+}
+.ped-atencao-banner.ativo { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; cursor: default; }
+.ped-atencao-link { margin-left: auto; font-weight: 600; color: #b45309; }
+.ped-atencao-box {
+  background: #fef2f2; border: 1px solid #fca5a5; border-radius: .6rem;
+  padding: .75rem 1rem; margin-bottom: 1rem; color: #b91c1c; font-size: .875rem;
+}
+
+/* ---- Paginação ---- */
+.ped-paginacao {
+  display: flex; align-items: center; justify-content: center; gap: 1rem;
+  margin-top: 1.25rem; font-size: .85rem; color: var(--muted-foreground, #6b7280);
+}
+
+/* ---- KPIs mini (cabeçalhos de tela) ---- */
+.ped-kpis-grid, .ped-turma-kpis, .ped-geral-grid, .ped-pos-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: .75rem; margin-bottom: 1.25rem;
+}
+.ped-kpi-card, .ped-kpi-mini, .ped-card-info {
+  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
+  border-radius: .75rem; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: .25rem;
+}
+.ped-kpi-numero, .ped-kpi-valor { font-size: 1.6rem; font-weight: 700; line-height: 1; color: var(--foreground, #111); }
+.ped-kpi-rot, .ped-kpi-label { font-size: .72rem; color: var(--muted-foreground, #6b7280); text-transform: uppercase; letter-spacing: .04em; }
+.ped-kpi-card.alerta .ped-kpi-numero { color: #dc2626; }
+.ped-kpi-card.aviso  .ped-kpi-numero { color: #d97706; }
+.ped-kpi-card.ok     .ped-kpi-numero { color: #16a34a; }
+
+/* ---- Formulários ---- */
+.ped-form-card {
+  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
+  border-radius: .75rem; padding: 1.5rem; max-width: 720px;
+}
+.ped-form-section { margin-bottom: 1.25rem; }
+.ped-form-section > h3 { font-size: .95rem; font-weight: 600; margin: 0 0 .75rem; }
+.ped-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
+.ped-label { display: flex; flex-direction: column; gap: .3rem; font-size: .8rem; font-weight: 600; color: var(--muted-foreground, #6b7280); }
+.ped-full { grid-column: 1 / -1; }
+.ped-form-acoes { display: flex; gap: .6rem; margin-top: 1.25rem; }
+
+/* ---- Abas ---- */
+.ped-abas { display: flex; gap: .25rem; border-bottom: 1px solid var(--border, #e5e7eb); margin-bottom: 1.25rem; flex-wrap: wrap; }
+.ped-aba-btn {
+  padding: .55rem 1rem; border: none; background: none; cursor: pointer;
+  font-size: .875rem; font-weight: 600; color: var(--muted-foreground, #6b7280);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.ped-aba-btn.ativo { color: #4f46e5; border-bottom-color: #4f46e5; }
+.ped-aba-conteudo { padding-top: .25rem; }
+.ped-desc-aba { color: var(--muted-foreground, #6b7280); font-size: .82rem; margin: 0 0 1rem; }
+
+/* ---- Detalhe de turma ---- */
+.ped-turma-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.ped-turma-titulo { font-size: 1.4rem; font-weight: 700; margin: 0; }
+.ped-turma-acoes { display: flex; gap: .5rem; flex-wrap: wrap; }
+.ped-pendencia-row td { background: #fffbeb !important; }
+
+/* ---- Timeline extra ---- */
+.ped-tl-data { font-size: .72rem; color: var(--muted-foreground, #6b7280); }
+.ped-tl-conteudo { font-size: .875rem; color: var(--foreground, #111); }
+
+/* ---- Badges de prioridade / status operacionais ---- */
+.ped-badge.ativo      { background: #dcfce7; color: #15803d; }
+.ped-badge.inativo    { background: #f1f5f9; color: #475569; }
+.ped-badge.pendente   { background: #fef9c3; color: #92400e; }
+.ped-badge.normal     { background: #dbeafe; color: #1d4ed8; }
+.ped-badge.baixa      { background: #f1f5f9; color: #475569; }
+.ped-badge.solicitada { background: #fef9c3; color: #92400e; }
+.ped-badge.aprovada   { background: #dbeafe; color: #1d4ed8; }
+.ped-badge.efetivada  { background: #dcfce7; color: #15803d; }
+.ped-badge.em_analise, .ped-badge.em-analise { background: #fef3c7; color: #92400e; }
+.ped-badge.concluida  { background: #dcfce7; color: #15803d; }
+.ped-badge.resolvido  { background: #dcfce7; color: #15803d; }
+.ped-badge.aberto     { background: #dbeafe; color: #1d4ed8; }
+.ped-badge.enviado    { background: #e0e7ff; color: #4338ca; }
+.ped-badge.presente   { background: #dcfce7; color: #15803d; }
+.ped-badge.ausente    { background: #fee2e2; color: #b91c1c; }
+
 /* ---- Mobile-first ajustes ---- */
 @media (max-width: 640px) {
   .ped-kpis { grid-template-columns: repeat(2, 1fr); }
   .ped-turmas-grid { grid-template-columns: 1fr; }
+  .ped-input { min-width: 0; width: 100%; }
 }

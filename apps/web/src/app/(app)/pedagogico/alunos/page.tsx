@@ -67,10 +67,10 @@ export default function AlunosPage() {
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const q: Record<string, string | number> = { pagina, limite: POR_PAGINA };
-      if (busca) q.q = busca;
+      const q: Record<string, string | number> = { pagina, porPagina: POR_PAGINA };
+      if (busca) q.busca = busca;
       if (filtroStatus) q.status = filtroStatus;
-      if (filtroCurso) q.curso = filtroCurso;
+      if (filtroCurso) q.cursoId = filtroCurso;
       const res = await pedagogico.matriculas(q);
       let itens = res.itens ?? [];
       if (apenasAtencao) itens = itens.filter(m => STATUS_QUE_PRECISAM_ACAO.includes(m.status));
