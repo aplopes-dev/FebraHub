@@ -626,7 +626,7 @@ function ModalPagamento({
             </button>
           </div>
           <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 4 }}>
-            Use "Confirmar recebimento" se o cliente pagou mas o sistema ainda não detectou.
+            Use &quot;Confirmar recebimento&quot; se o cliente pagou mas o sistema ainda não detectou.
           </p>
         </div>
       </div>
