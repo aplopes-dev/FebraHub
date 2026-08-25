@@ -187,23 +187,10 @@ export function PainelOrganograma() {
 
   return (
     <div style={{ fontFamily: GROTESK }}>
-      {/* cabeçalho no padrão da casa */}
-      <div className="fh-page-topo">
-        <div>
-          <div className="fh-page-data">Diretoria · Estrutura</div>
-          <h1 className="fh-page-titulo">Organograma</h1>
-          <p className="fh-page-desc">
-            Setores, cargos, funcionários e agentes de IA — a operação inteira num só mapa.
-          </p>
-        </div>
-        <div className="fh-page-acoes">
-          <button className="fh-btn-ouro" onClick={abrirNovo}>
-            <Plus size={15} strokeWidth={2.6} /> Adicionar membro
-          </button>
-        </div>
-      </div>
+      {/* NB: o cabeçalho de página (data + título "Organograma" + descrição)
+          já vem do Shell para toda rota — não repetir aqui, senão duplica. */}
 
-      {/* barra de contadores + modos */}
+      {/* barra de contadores + modos + CTA */}
       <div className="org-topo">
         <span className="org-contador is-pessoa">
           <UserRound strokeWidth={2.2} /> <b>{contagem.funcionarios}</b> funcionários
@@ -241,6 +228,9 @@ export function PainelOrganograma() {
             <Layers /> Cargos
           </button>
         </div>
+        <button className="fh-btn-ouro org-cta" onClick={abrirNovo}>
+          <Plus size={15} strokeWidth={2.6} /> Adicionar membro
+        </button>
       </div>
 
       <div className="org-corpo">

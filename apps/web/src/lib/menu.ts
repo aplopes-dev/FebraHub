@@ -333,7 +333,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
         id: "organograma",
         label: "Organograma",
         href: "/organograma",
-        desc: "Setores, funções, funcionários e agentes de IA",
+        desc: "Setores, cargos, funcionários e agentes de IA",
         visivel: comPermissao("organograma.ver"),
       },
     ],

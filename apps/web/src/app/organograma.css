@@ -12,6 +12,8 @@
   margin-bottom: 16px;
 }
 .org-topo .org-espaco { flex: 1; }
+/* CTA "Adicionar membro" na barra — herda .fh-btn-ouro (gradiente + texto). */
+.org-cta { height: 34px; }
 
 /* Contador (funcionários / agentes / cargos) — pílula discreta de leitura. */
 .org-contador {
