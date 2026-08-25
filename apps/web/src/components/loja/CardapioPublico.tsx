@@ -188,24 +188,26 @@ export function CardapioPublico({ slug }: { slug: string }) {
 
   return (
     <div className="cdp">
-      {/* ---- HERO ---- */}
-      <header className="cdp-hero">
-        <div className="cdp-hero-inner">
-          <div className="cdp-hero-mark cdp-hero-logo">
+      {/* ---- CAPA + CARTÃO DA LOJA (padrão iFood) ---- */}
+      <div className="cdp-cover" />
+      <div className="cdp-store">
+        <div className="cdp-store-card">
+          <div className="cdp-store-logo">
             <img src="/logo-febracis.webp" alt="FEBRACIS Bahia" />
           </div>
-          <div className="cdp-hero-txt">
-            <span className="cdp-hero-tag">Loja FEBRACIS</span>
+          <div className="cdp-store-info">
+            <span className="cdp-store-tag">Loja FEBRACIS</span>
             <h1>{nomeOperacao}</h1>
-            <p className="cdp-hero-sub">Escolha seus itens e finalize pelo celular</p>
-            <div className="cdp-hero-badges">
-              <span className="cdp-hero-badge"><Icon.pin />{modo === "SERVICO_MESA" ? "Serviço na mesa" : "Retirada no balcão"}</span>
-              <span className="cdp-hero-badge"><Icon.clock />Pronto na hora</span>
-              <span className="cdp-hero-badge"><Icon.pix />PIX & Cartão</span>
+            <div className="cdp-store-meta">
+              <span className="cdp-chip-info"><Icon.pin />{modo === "SERVICO_MESA" ? "Serviço na mesa" : "Retirada no balcão"}</span>
+              <span className="dot" />
+              <span className="cdp-chip-info"><Icon.clock />Pronto na hora</span>
+              <span className="dot" />
+              <span className="cdp-chip-info"><Icon.pix />PIX & Cartão</span>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ---- NAV DE CATEGORIAS ---- */}
       {categorias.length > 1 && (
@@ -248,14 +250,6 @@ export function CardapioPublico({ slug }: { slug: string }) {
                     const baixo = !p.esgotado && p.disponivel != null && p.disponivel <= 5;
                     return (
                       <article key={p.produtoId} className={`cdp-card ${p.esgotado ? "esgotado" : ""}`}>
-                        <div className="cdp-card-media">
-                          {p.imagemUrl ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" /> : <div className="ph"><ForkKnife weight="fill" /></div>}
-                          {p.esgotado ? (
-                            <span className="cdp-card-tag zero">Esgotado</span>
-                          ) : baixo ? (
-                            <span className="cdp-card-tag baixo">Últimas unidades</span>
-                          ) : null}
-                        </div>
                         <div className="cdp-card-body">
                           <h3 className="cdp-card-nome">{p.nome}</h3>
                           {p.descricao && <p className="cdp-card-desc">{p.descricao}</p>}
@@ -265,18 +259,26 @@ export function CardapioPublico({ slug }: { slug: string }) {
                             ) : (
                               <span className="cdp-preco">{brl(p.preco)}</span>
                             )}
-                            {!p.esgotado && (q === 0 ? (
-                              <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
-                                <Icon.plus />Adicionar
-                              </button>
-                            ) : (
-                              <div className="cdp-step">
-                                <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
-                                <b>{q}</b>
-                                <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
-                              </div>
-                            ))}
                           </div>
+                        </div>
+                        <div className="cdp-card-media">
+                          {p.imagemUrl ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" /> : <div className="ph"><ForkKnife weight="fill" /></div>}
+                          {p.esgotado ? (
+                            <span className="cdp-card-tag zero">Esgotado</span>
+                          ) : baixo ? (
+                            <span className="cdp-card-tag baixo">Últimas</span>
+                          ) : null}
+                          {!p.esgotado && (q === 0 ? (
+                            <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
+                              <Icon.plus />
+                            </button>
+                          ) : (
+                            <div className="cdp-step">
+                              <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
+                              <b>{q}</b>
+                              <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
+                            </div>
+                          ))}
                         </div>
                       </article>
                     );
@@ -289,13 +291,13 @@ export function CardapioPublico({ slug }: { slug: string }) {
           {/* ---- CARRINHO LATERAL (desktop) ---- */}
           <aside className="cdp-cart-side">
             <div className="cdp-cart-head">
-              <Icon.cart />Seu pedido
+              <Icon.cart />Sacola
               <span>{qtdTotal} {qtdTotal === 1 ? "item" : "itens"}</span>
             </div>
             <div className="cdp-cart-body">
               {itensCarrinho.length === 0 ? (
                 <div className="cdp-cart-empty">
-                  <Icon.cart /><p>Seu carrinho está vazio.<br />Adicione itens do cardápio.</p>
+                  <Icon.cart /><p>Sua sacola está vazia.<br />Adicione itens do cardápio.</p>
                 </div>
               ) : (
                 itensCarrinho.map((p) => (
@@ -331,7 +333,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
       {qtdTotal > 0 && etapa === "catalogo" && (
         <div className="cdp-cart-bar">
           <button onClick={() => setEtapa("identificar")}>
-            <span className="qtd"><span className="pill">{qtdTotal}</span>Ver pedido</span>
+            <span className="qtd"><span className="pill">{qtdTotal}</span>Ver sacola</span>
             <span className="val">{brl(total)}<Icon.arrow /></span>
           </button>
         </div>
