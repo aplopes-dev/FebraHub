@@ -7,7 +7,8 @@ export const compraContexto=()=>api.get<ContextoCompra>('/compras/formulario/con
 export const compraObter=(id:string)=>api.get<CompraSolicitacao>(`/compras/${id}`);
 export const compraCriar=(d:unknown)=>api.post<CompraSolicitacao>('/compras',d);
 export const compraAgir=(id:string,acao:string,d:Record<string,unknown>={})=>api.post<CompraSolicitacao>(`/compras/${id}/acoes`,{acao,...d});
-export const produtosEstoque=(busca?:string)=>api.get<ProdutoEstoque[]>('/compras/produtos/estoque',{parametros:{busca}});
+export interface ProdutosEstoquePagina{itens:ProdutoEstoque[];total:number;comSaldo:number;pagina:number;porPagina:number;totalPaginas:number}
+export const produtosEstoque=(busca?:string,pagina=1,porPagina=50)=>api.get<ProdutosEstoquePagina>('/compras/produtos/estoque',{parametros:{busca,pagina,porPagina}});
 export const compraEstoque=(id:string,itemId:string,d:unknown)=>api.patch<CompraItem>(`/compras/${id}/itens/${itemId}/estoque`,d);
 export const compraCotar=(id:string,d:unknown)=>api.post<CompraCotacao>(`/compras/${id}/cotacoes`,d);
 export const compraEscolherCotacao=(id:string,cotacaoId:string,d:unknown)=>api.post<CompraCotacao>(`/compras/${id}/cotacoes/${cotacaoId}/escolher`,d);

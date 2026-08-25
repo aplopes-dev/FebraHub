@@ -50,9 +50,25 @@ export class ComprasService {
       return jsonSeguro(s);
     });
   }
-  async produtos(busca = '') {
-    const produtos = await this.prisma.fatoLojaEstoque.findMany({ where: busca ? { OR: [{ descricao: { contains: busca, mode: 'insensitive' } }, { codigo: { contains: busca, mode: 'insensitive' } }] } : {}, orderBy: { descricao: 'asc' }, take: 30 });
-    return produtos.map((produto) => ({ ...produto, produtoId: produto.produtoId.toString() }));
+  async produtos(busca = '', pagina = 1, porPagina = 50) {
+    const where = busca
+      ? { OR: [{ descricao: { contains: busca, mode: 'insensitive' as const } }, { codigo: { contains: busca, mode: 'insensitive' as const } }] }
+      : {};
+    const tamanho = Math.min(Math.max(porPagina, 1), 200);
+    const p = Math.max(pagina, 1);
+    const [total, comSaldo, itens] = await this.prisma.$transaction([
+      this.prisma.fatoLojaEstoque.count({ where }),
+      this.prisma.fatoLojaEstoque.count({ where: { ...where, saldo: { gt: 0 } } }),
+      this.prisma.fatoLojaEstoque.findMany({ where, orderBy: { descricao: 'asc' }, skip: (p - 1) * tamanho, take: tamanho }),
+    ]);
+    return {
+      itens: itens.map((produto) => ({ ...produto, produtoId: produto.produtoId.toString() })),
+      total,
+      comSaldo,
+      pagina: p,
+      porPagina: tamanho,
+      totalPaginas: Math.max(1, Math.ceil(total / tamanho)),
+    };
   }
 
   async estoque(id: string, itemId: string, dto: EstoqueItemDto, u: UsuarioLogado) {

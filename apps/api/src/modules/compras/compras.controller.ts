@@ -8,7 +8,7 @@ export class ComprasController { constructor(private readonly s:ComprasService){
   @Get() listar(@Usuario() u:UsuarioLogado,@Query('escopo') escopo?:string,@Query('situacao') situacao?:string,@Query('busca') busca?:string){return this.s.listar(u,escopo,situacao,busca)}
   @Get('indicadores') indicadores(@Usuario() u:UsuarioLogado){return this.s.indicadores(u)}
   @Get('formulario/contexto') contexto(@Usuario() u:UsuarioLogado){return this.s.contextoFormulario(u)}
-  @Get('produtos/estoque') produtos(@Query('busca') busca?:string){return this.s.produtos(busca)}
+  @Get('produtos/estoque') produtos(@Query('busca') busca?:string,@Query('pagina') pagina?:string,@Query('porPagina') porPagina?:string){return this.s.produtos(busca, pagina?Number(pagina):1, porPagina?Number(porPagina):50)}
   @Get(':id') obter(@Param('id',ParseUUIDPipe) id:string,@Usuario() u:UsuarioLogado){return this.s.obter(id,u)}
   @Post() @ExigePermissao('compras.solicitar') criar(@Body() dto:CriarSolicitacaoDto,@Usuario() u:UsuarioLogado){return this.s.criar(dto,u)}
   @Patch(':id/itens/:itemId/estoque') @ExigePermissao('compras.operar') estoque(@Param('id',ParseUUIDPipe) id:string,@Param('itemId',ParseUUIDPipe) itemId:string,@Body() dto:EstoqueItemDto,@Usuario() u:UsuarioLogado){return this.s.estoque(id,itemId,dto,u)}
