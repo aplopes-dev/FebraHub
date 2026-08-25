@@ -32,6 +32,10 @@ import {
 import { BrainGraphView } from "./os/BrainGraphView";
 import { GestaoCargos } from "./GestaoCargos";
 import { COR_SETOR, adaptarOrganograma } from "./os-adaptador";
+// A ORDEM importa: organograma-os.css traz os tokens/estilos do bloco /brain
+// (o grafo usa as utilities os-* do Tailwind escopadas por .fh-os); sem ele o
+// grafo renderiza sem estilo e o layout quebra. organograma.css é só a casca.
+import "@/app/organograma-os.css";
 import "@/app/organograma.css";
 
 /* A tipografia do terminal do OS — a variável --font-mono alimenta as
