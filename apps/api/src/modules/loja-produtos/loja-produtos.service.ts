@@ -31,6 +31,27 @@ export class LojaProdutosService {
     if (!gestor(u)) throw new ForbiddenException('Esta ação exige gestão do catálogo da Loja.');
   }
 
+  /** Trilha de auditoria (PRD §48). Escreve direto na tabela compartilhada
+   *  loja_auditoria — o catálogo não depende do módulo de pedidos. Best-effort:
+   *  uma falha de auditoria nunca invalida a operação que a originou. */
+  private async auditar(e: {
+    entidadeId?: string | null; acao: string; antes?: unknown; depois?: unknown; observacao?: string;
+  }, u: UsuarioLogado): Promise<void> {
+    try {
+      await this.prisma.lojaAuditoria.create({
+        data: {
+          entidade: 'produto', entidadeId: e.entidadeId ?? null, acao: e.acao, origem: 'operador',
+          usuarioId: u.id, usuarioNome: u.nome,
+          antes: e.antes === undefined ? undefined : (jsonSeguro(e.antes) as Prisma.InputJsonValue),
+          depois: e.depois === undefined ? undefined : (jsonSeguro(e.depois) as Prisma.InputJsonValue),
+          observacao: e.observacao ?? '',
+        },
+      });
+    } catch {
+      /* auditoria é acessória: silencia para não derrubar o cadastro */
+    }
+  }
+
   // ==================== CATEGORIAS ====================
 
   listarCategorias() {
@@ -154,6 +175,7 @@ export class LojaProdutosService {
       data: LOCAIS.map((local) => ({ produtoId: criado.id, local })),
       skipDuplicates: true,
     });
+    void this.auditar({ entidadeId: criado.id, acao: 'produto.criado', depois: { nome: criado.nome, preco: Number(criado.preco) } }, u);
     return this.obterProduto(criado.id);
   }
 
@@ -163,6 +185,19 @@ export class LojaProdutosService {
     if (!atual) throw new NotFoundException('Produto não encontrado.');
     if (dto.categoriaId) await this.exigeCategoria(dto.categoriaId);
     await this.prisma.lojaProduto.update({ where: { id }, data: this.dadosProduto(dto, u) });
+
+    // Auditoria de PREÇO (PRD §48): quando o preço muda, registra antes/depois.
+    const precoAntes = Number(atual.preco);
+    const precoDepois = Number(dto.preco);
+    if (precoAntes !== precoDepois) {
+      void this.auditar({
+        entidadeId: id, acao: 'preco.alterado',
+        antes: { preco: precoAntes }, depois: { preco: precoDepois },
+        observacao: `${atual.nome}: ${precoAntes.toFixed(2)} → ${precoDepois.toFixed(2)}`,
+      }, u);
+    } else {
+      void this.auditar({ entidadeId: id, acao: 'produto.alterado', observacao: atual.nome }, u);
+    }
     return this.obterProduto(id);
   }
 
@@ -172,6 +207,7 @@ export class LojaProdutosService {
     const p = await this.prisma.lojaProduto.findUnique({ where: { id } });
     if (!p) throw new NotFoundException('Produto não encontrado.');
     await this.prisma.lojaProduto.update({ where: { id }, data: { ativo: false } });
+    void this.auditar({ entidadeId: id, acao: 'produto.inativado', antes: { ativo: true }, depois: { ativo: false }, observacao: p.nome }, u);
     return { ok: true };
   }
 
@@ -257,6 +293,9 @@ export class LojaProdutosService {
         await this.registrar(tx, produtoId, dto.local, dto.tipo, delta, 'manual', u, dto.observacao ?? '');
       }
       return this.obterProdutoTx(tx, produtoId);
+    }).then((res) => {
+      void this.auditar({ entidadeId: produtoId, acao: 'estoque.ajustado', depois: { tipo: dto.tipo, local: dto.local, quantidade: dto.quantidade }, observacao: `${p.nome} · ${dto.tipo} ${dto.quantidade} em ${dto.local}` }, u);
+      return res;
     });
   }
 

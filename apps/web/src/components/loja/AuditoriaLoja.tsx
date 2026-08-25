@@ -15,6 +15,11 @@ const ACAO_ROTULO: Record<string, string> = {
   "config.alterada": "Operação alterada",
   "config.criada": "Operação criada",
   "webhook.recebido": "Webhook recebido",
+  "preco.alterado": "Preço alterado",
+  "produto.criado": "Produto criado",
+  "produto.alterado": "Produto alterado",
+  "produto.inativado": "Produto inativado",
+  "estoque.ajustado": "Estoque ajustado",
 };
 
 export function AuditoriaLoja() {
