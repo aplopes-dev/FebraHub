@@ -57,6 +57,13 @@
 }
 .cdp-hero-mark img { width: 100%; height: 100%; object-fit: contain; border-radius: 16px; }
 .cdp-hero-mark svg { width: 30px; height: 30px; }
+/* Logo FEBRACIS (águia dourada transparente) → precisa de fundo escuro p/ contraste */
+.cdp-hero-logo {
+  background: linear-gradient(155deg, #14120c, #0b0b10);
+  border: 1px solid rgba(233, 193, 92, 0.32);
+  box-shadow: 0 8px 22px rgba(233, 193, 92, 0.2);
+  padding: 7px;
+}
 .cdp-hero-txt { min-width: 0; flex: 1; }
 .cdp-hero-tag {
   display: inline-flex; align-items: center; gap: 6px;

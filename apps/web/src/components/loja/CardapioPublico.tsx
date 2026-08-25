@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Storefront, ForkKnife } from "@phosphor-icons/react";
+import { ForkKnife } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
@@ -191,7 +191,9 @@ export function CardapioPublico({ slug }: { slug: string }) {
       {/* ---- HERO ---- */}
       <header className="cdp-hero">
         <div className="cdp-hero-inner">
-          <div className="cdp-hero-mark"><Storefront weight="fill" /></div>
+          <div className="cdp-hero-mark cdp-hero-logo">
+            <img src="/logo-febracis.webp" alt="FEBRACIS Bahia" />
+          </div>
           <div className="cdp-hero-txt">
             <span className="cdp-hero-tag">Loja FEBRACIS</span>
             <h1>{nomeOperacao}</h1>
