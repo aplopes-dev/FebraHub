@@ -83,7 +83,7 @@ export class TurmasService {
           },
         },
         escalas: {
-          include: { monitor: { select: { id: true, nome: true, email: true, funcao: true } } },
+          include: { monitor: { select: { id: true, nome: true, email: true } } },
           orderBy: { criadoEm: 'asc' },
         },
         _count: { select: { matriculas: true, credenciamentos: true } },
