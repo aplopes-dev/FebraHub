@@ -6,6 +6,7 @@ import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { LojaPedidosService } from './loja-pedidos.service';
 import { AsaasProvider } from './pagamentos/asaas.provider';
 import { ManualProvider } from './pagamentos/manual.provider';
+import { StoneProvider } from './pagamentos/stone.provider';
 import { PagamentosService } from './pagamentos/pagamentos.service';
 
 @Module({
@@ -13,7 +14,7 @@ import { PagamentosService } from './pagamentos/pagamentos.service';
   controllers: [LojaPedidosController],
   providers: [
     LojaPedidosService, LojaPedidosEventos, LojaPedidosCron,
-    PagamentosService, AsaasProvider, ManualProvider,
+    PagamentosService, AsaasProvider, ManualProvider, StoneProvider,
   ],
 })
 export class LojaPedidosModule {}

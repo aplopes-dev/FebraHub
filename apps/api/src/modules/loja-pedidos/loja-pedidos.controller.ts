@@ -54,6 +54,17 @@ export class LojaPedidosController {
     return this.s.processarWebhook('asaas', payload);
   }
 
+  /** WEBHOOK do gateway Stone / Pagar.me. Autenticado pelo header
+   *  `x-pagarme-signature` (ou token customizado em STONE_WEBHOOK_SECRET).
+   *  A rota aceita chamadas sem assinatura quando STONE_WEBHOOK_SECRET não
+   *  está configurado (não bloqueia). Idempotente. */
+  @Publica() @Post('publico/webhook/stone')
+  webhookStone(@Headers('x-pagarme-signature') sig: string | undefined, @Body() payload: unknown) {
+    const esperado = process.env.STONE_WEBHOOK_SECRET;
+    if (esperado && sig !== esperado) throw new ForbiddenException('Webhook Stone não autorizado.');
+    return this.s.processarWebhook('stone', payload);
+  }
+
   @Publica() @Get('publico/pedidos/:id/acompanhar')
   acompanhar(@Param('id', ParseUUIDPipe) id: string) { return this.s.acompanhar(id); }
 
