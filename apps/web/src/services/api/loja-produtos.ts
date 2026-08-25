@@ -6,10 +6,12 @@ import type {
   LojaMovimento,
   LojaProduto,
   ProdutoInput,
+  ReposicaoResposta,
 } from '@/types/loja-produtos';
 
 // -------------------- consultas --------------------
 export const lojaIndicadores = () => api.get<LojaIndicadores>('/loja/indicadores');
+export const lojaReposicao = () => api.get<ReposicaoResposta>('/loja/reposicao');
 export const lojaCategorias = () => api.get<LojaCategoria[]>('/loja/categorias');
 export const lojaProdutos = (p: { busca?: string; categoriaId?: string; situacao?: string } = {}) =>
   api.get<LojaProduto[]>('/loja/produtos', { parametros: p });

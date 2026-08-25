@@ -23,6 +23,9 @@ export class LojaProdutosController {
   @Get('indicadores') @ApiOperation({ summary: 'Indicadores do catálogo e estoque' })
   indicadores() { return this.s.indicadores(); }
 
+  @Get('reposicao') @ApiOperation({ summary: 'Sugestão de reposição (itens no/abaixo do mínimo)' })
+  reposicao() { return this.s.listarReposicao(); }
+
   @Get('categorias') categorias() { return this.s.listarCategorias(); }
 
   @Get('produtos') produtos(@Query() q: ListaProdutosQuery) { return this.s.listarProdutos(q); }

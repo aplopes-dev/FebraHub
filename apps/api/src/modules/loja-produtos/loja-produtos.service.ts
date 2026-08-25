@@ -328,6 +328,46 @@ export class LojaProdutosService {
     return jsonSeguro(this.comEstoque(p!));
   }
 
+  // ==================== SUGESTÃO DE REPOSIÇÃO ====================
+
+  /**
+   * Itens ativos que controlam estoque e cujo saldo TOTAL (Loja+Depósito)
+   * está no/abaixo do mínimo. Sugere a quantidade a repor para voltar ao
+   * mínimo (o ponto de reposição fica para evolução). Não gera compra —
+   * é uma sugestão que o operador transforma em Solicitação de Compra.
+   */
+  async listarReposicao() {
+    const controlados = await this.prisma.lojaProduto.findMany({
+      where: { ativo: true, controlaEstoque: true, estoqueMinimo: { gt: 0 } },
+      include: { categoria: { select: { nome: true } }, saldos: true },
+      orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
+    });
+    const itens = controlados
+      .map((p) => {
+        const loja = Number(p.saldos.find((s) => s.local === 'LOJA')?.saldoFisico ?? 0);
+        const deposito = Number(p.saldos.find((s) => s.local === 'DEPOSITO')?.saldoFisico ?? 0);
+        const total = loja + deposito;
+        const minimo = Number(p.estoqueMinimo);
+        return {
+          id: p.id,
+          nome: p.nome,
+          sku: p.sku,
+          unidade: p.unidade,
+          categoria: p.categoria?.nome ?? null,
+          minimo,
+          saldoLoja: loja,
+          saldoDeposito: deposito,
+          saldoTotal: total,
+          sugestaoRepor: Math.max(0, minimo - total),
+          // Há saldo no depósito que cobriria a falta na loja? Dica p/ transferir.
+          podeTransferirDoDeposito: loja < minimo && deposito > 0,
+        };
+      })
+      .filter((x) => x.saldoTotal <= x.minimo)
+      .sort((a, b) => a.saldoTotal - a.minimo - (b.saldoTotal - b.minimo));
+    return { total: itens.length, itens };
+  }
+
   // ==================== INDICADORES ====================
 
   async indicadores() {

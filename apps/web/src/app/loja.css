@@ -68,3 +68,15 @@
 .loja-mov .linha{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--hair)}
 .loja-mov small{color:var(--muted);font-size:10px}
 @media(max-width:720px){.loja-grid2,.loja-grid3,.loja-flags{grid-template-columns:1fr}}
+
+/* Tabela de estoque (tela /estoque) */
+.loja-tabela-wrap{overflow-x:auto;margin-top:8px}
+.loja-tabela{width:100%;border-collapse:collapse;font-size:13px}
+.loja-tabela th{text-align:left;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);font-weight:800;padding:8px 12px;border-bottom:1px solid var(--card-line)}
+.loja-tabela td{padding:10px 12px;border-bottom:1px solid var(--hair);vertical-align:middle}
+.loja-tabela th.dir,.loja-tabela td.dir{text-align:right}
+.loja-tabela tbody tr:hover{background:color-mix(in srgb,var(--gold) 5%,transparent)}
+.loja-tabela tr.baixo td:first-child{box-shadow:inset 3px 0 0 var(--down)}
+.loja-tabela small{font-size:10px}
+.loja-tabela .down{color:var(--down)}
+.loja-tabela .loja-btn{padding:5px 10px;font-size:12px;white-space:nowrap}

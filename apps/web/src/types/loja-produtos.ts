@@ -65,6 +65,25 @@ export interface LojaIndicadores {
   porLocal: Array<{ local: LojaLocal; saldoFisico: number; reservado: number }>;
 }
 
+export interface ReposicaoItem {
+  id: string;
+  nome: string;
+  sku?: string | null;
+  unidade: string;
+  categoria?: string | null;
+  minimo: number;
+  saldoLoja: number;
+  saldoDeposito: number;
+  saldoTotal: number;
+  sugestaoRepor: number;
+  podeTransferirDoDeposito: boolean;
+}
+
+export interface ReposicaoResposta {
+  total: number;
+  itens: ReposicaoItem[];
+}
+
 export interface ProdutoInput {
   nome: string;
   sku?: string;
