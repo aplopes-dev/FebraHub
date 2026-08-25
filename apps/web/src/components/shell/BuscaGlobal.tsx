@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * BuscaGlobal — Spotlight do FebraHub (Ctrl+K / ⌘K)
+ * BuscaGlobal — Spotlight do FebraHub (Ctrl+L / ⌘L)
  * ===================================================
  * Busca unificada de MENU e AÇÕES/FUNÇÕES do sistema.
  *
- * • Atalho: Ctrl+K (Windows/Linux) | ⌘K (macOS)
+ * • Atalho: Ctrl+L (Windows/Linux) | ⌘L (macOS)
  * • Botão visual no header (lupa)
  * • Resultados divididos em: Páginas (menu) + Ações/Funções
  * • Filtrado por permissão do usuário atual (ctx de menu)
@@ -154,7 +154,7 @@ export function BuscaGlobal({ ctx, onHandler, onFechar }: Props) {
   // ── Atalho de teclado global ──────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key === "l") {
         e.preventDefault();
         setAberto((v) => !v);
       }
@@ -409,7 +409,7 @@ export function BuscaGlobal({ ctx, onHandler, onFechar }: Props) {
           <span><kbd>Esc</kbd> fechar</span>
           <span className="bg-footer-sep" />
           <span className="bg-footer-atalho">
-            <kbd>Ctrl</kbd><kbd>K</kbd> abrir/fechar
+            <kbd>Ctrl</kbd><kbd>L</kbd> abrir/fechar
           </span>
         </div>
       </div>
@@ -424,12 +424,12 @@ export function BotaoBuscaGlobal({ onClick }: { onClick: () => void }) {
       type="button"
       className="bg-trigger"
       onClick={onClick}
-      aria-label="Busca global (Ctrl+K)"
-      title="Buscar páginas e funções (Ctrl+K)"
+      aria-label="Busca global (Ctrl+L)"
+      title="Buscar páginas e funções (Ctrl+L)"
     >
       <Search size={15} />
       <span className="bg-trigger-label">Buscar…</span>
-      <kbd className="bg-trigger-kbd">Ctrl K</kbd>
+      <kbd className="bg-trigger-kbd">Ctrl L</kbd>
     </button>
   );
 }
@@ -442,7 +442,7 @@ export function useBuscaGlobal() {
   const [aberto, setAberto] = useState(false);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key === "l") {
         e.preventDefault();
         setAberto((v) => !v);
       }
