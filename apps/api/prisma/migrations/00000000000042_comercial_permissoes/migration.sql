@@ -23,7 +23,7 @@ WHERE slug = 'admin'
 -- Perfil: Consultor Comercial
 INSERT INTO public.perfis_acesso (id, slug, nome, descricao, sistema, permissoes, criado_em, atualizado_em)
 VALUES (
-  'p0000041-0000-4000-8000-000000000001',
+  'c0000041-0000-4000-8000-000000000001',
   'consultor-comercial',
   'Consultor Comercial',
   'Acesso à carteira própria, leads atribuídos, pipeline, negociação e fechamento dentro da alçada.',
@@ -40,7 +40,7 @@ VALUES (
 -- Perfil: Gestor Comercial
 INSERT INTO public.perfis_acesso (id, slug, nome, descricao, sistema, permissoes, criado_em, atualizado_em)
 VALUES (
-  'p0000041-0000-4000-8000-000000000002',
+  'c0000041-0000-4000-8000-000000000002',
   'gestor-comercial',
   'Gestor Comercial',
   'Visão da equipe, redistribuição de leads, aprovação de descontos, metas e dashboards.',
@@ -60,7 +60,7 @@ VALUES (
 -- Perfil: Relacionadora Comercial
 INSERT INTO public.perfis_acesso (id, slug, nome, descricao, sistema, permissoes, criado_em, atualizado_em)
 VALUES (
-  'p0000041-0000-4000-8000-000000000003',
+  'c0000041-0000-4000-8000-000000000003',
   'relacionadora-comercial',
   'Relacionadora Comercial',
   'Carteira de relacionamento, follow-up, oportunidades e registro de interações.',
