@@ -71,6 +71,14 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         visivel: (ctx: ContextoMenu) => ctx.pode("loja.pedidos.operar"),
       },
       {
+        id: "loja-retirada",
+        label: "Retirada por QR",
+        href: "/loja/retirada",
+        titulo: "Retirada por QR",
+        desc: "Escaneie o comprovante do cliente para conferir a compra e entregar",
+        visivel: (ctx: ContextoMenu) => ctx.pode("loja.pedidos.operar"),
+      },
+      {
         id: "loja-fila",
         label: "Fila de preparação",
         href: "/loja/fila",

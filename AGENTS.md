@@ -74,6 +74,15 @@ No modal "Editar/Novo produto" (`apps/web/src/components/loja/CatalogoLoja.tsx` 
 - **StorageService** ganhou `urlObjetoPublico(chave)` (`${MINIO_PUBLIC_URL}/${bucket}/${chave}`, encodeURIComponent por segmento; null se sem MINIO_PUBLIC_URL) e `garantirPrefixoPublico(prefixo)` (idempotente: lê/edita bucket policy p/ `s3:GetObject` anônimo). Ambos chamados no upload.
 - Client fn `lojaEnviarImagemProduto(blob, nome)` usa `api.enviarArquivo`. CSS `.loja-uploader*` em `app/loja.css`. GOTCHA: `MINIO_PUBLIC_URL` precisa estar setado no env da 66 p/ a URL pública abrir; senão cai p/ URL assinada 1h (não persiste bem em imagemUrl).
 
+## 🔁 REGRA CRUD COMPLETO — obrigatória em todo módulo/feature
+**Sempre que implementar qualquer entidade ou feature, garantir CRUD completo antes de considerar pronto:**
+- **C** — Create: endpoint `POST`, DTO de criação, validação, permissão `*.operar`, botão/modal "Novo" na UI.
+- **R** — Read (list + detail): `GET /` (lista paginada + filtros) + `GET /:id` (detalhe), tela de listagem + tela/modal de detalhe na UI.
+- **U** — Update: `PATCH /:id` (parcial) ou `PUT /:id`, DTO de atualização, botão "Editar" na UI (mesmo modal de criação ou tela própria).
+- **D** — Delete (ou arquivar/inativar): `DELETE /:id` ou patch de `situacao/ativo`, confirmação na UI, soft-delete preferido (campo `deletedAt` ou `situacao`).
+- **Checklist extra:** migration + schema Prisma, permissões no catálogo (`catalogo.ts` + `perfis-padrao.ts`), item no menu.ts (se for seção nova), ação no `acoes-catalogo.ts`, client em `services/api/`.
+- **NÃO entregar** nenhum módulo sem todos os 4 pontos. Se o tempo/escopo não permitir, deixar TODO explícito no código e no AGENTS.md.
+
 ## Módulo Comercial (implementado)
 
 ### Arquivos criados
@@ -100,3 +109,11 @@ No modal "Editar/Novo produto" (`apps/web/src/components/loja/CatalogoLoja.tsx` 
 - CSS variables do tema (`var(--gold)`, `var(--card)`, etc.) — sem hardcode de cor
 - Valores em centavos formatados com `(v/100).toLocaleString('pt-BR', {style:'currency',...})`
 - Params de rota dinâmica com `use(params)` (Next.js App Router pattern)
+
+## Módulo PEDAGÓGICO — telas web (homolog, deployado via push homolog)
+Backend `apps/api/src/modules/pedagogico/` (controller v2 `pedagogico-novo.controller.ts`, base `/pedagogico/v2`, `@ExigeSetor('pedagogico')`); client `apps/web/src/services/api/pedagogico.ts` (obj `pedagogico.*`). Telas em `apps/web/src/app/(app)/pedagogico/*` usam CSS único `app/pedagogico.css` (escopo `.ped-*`) — **todas as classes usadas estão definidas lá** (tabela=`.ped-tabela`/`.ped-tabela-wrapper`, form=`.ped-form-card`/`.ped-form-grid`/`.ped-label`/`.ped-input`/`.ped-select`/`.ped-textarea`, botões `.ped-btn-primario|outline|xs`, abas `.ped-aba-*`, KPIs, banners, timeline). Sem GuardaPermissao no front (confia no menu + setor no back).
+- **Telas criadas** (antes davam 404 — pastas sem page.tsx): represados, transferencias, monitores, solicitacoes, secretaria (jornada 360° via `/alunos/:pessoaId/jornada`), cs, presenca. + já existiam: dashboard, turmas (lista/novo/[id]), alunos, credenciamento, cadastros/avaliacoes*.
+- **CRUD completo** dentro do que o back expõe: turma [id] tem **Editar** (modal, `atualizarTurma`/PUT) + mudar status; alunos tem **criar matrícula manual** (`criarMatricula`); CS tem **edição completa** (status/prioridade/próxima ação/prazo/obs/resultado via `atualizarCs`); transferencias tem **solicitar** (`solicitarTransferencia`) + efetivar/cancelar (acha a transf pendente via jornada, pois NÃO há GET list de transferências).
+- **DELETE (soft-delete, sem migration — reusa status existentes)**: `DELETE /turmas/:id` (status→'Cancelada', BLOQUEIA se houver matrícula ativa notIn Cancelado/Transferido), `DELETE /matriculas/:id` (status→'Cancelado', preserva histórico, aceita body `{motivo}`), `DELETE /monitores/:id` (status→'inativo'), `DELETE /monitores/escala/:id` (HARD delete do vínculo), `DELETE /solicitacoes/:id` (HARD delete — registro leve), `DELETE /cs/:id` (status→'descartado'). Todos idempotentes. Client `pedagogico.remover*`. Botões na UI (Cancelar turma / Cancelar matrícula / Inativar monitor / remover escala / Excluir solicitação / Descartar CS). `api.delete(url, { corpo })` suporta body.
+- **GOTCHAS**: (1) Status de turma no `@IsIn` exige strings COM espaço/acento — `'Aguardando Validação'`, `'Em Preparação'`, `'Em Andamento'` (o form antigo mandava `EmPreparacao` etc. e o back rejeitava). (2) Filtros de matrícula/turma usam `busca` e `porPagina` (DTO whitelist) — `q`/`limite` são ignorados silenciosamente (bug pré-existente já corrigido em alunos). (3) `<input type=date>` precisa `YYYY-MM-DD` → `String(iso).slice(0,10)`.
+- Depende de dados nas tabelas `pedagogico_*` (do dump); no homolog telas podem aparecer vazias se não houver seed pedagógico — é o comportamento correto, não 404.

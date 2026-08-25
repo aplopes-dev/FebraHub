@@ -65,6 +65,16 @@ const acoes_loja: Acao[] = [
     visivel: comPermissao("loja.pedidos.operar"),
   },
   {
+    id: "loja-retirada",
+    label: "Retirada por QR",
+    desc: "Escanear o comprovante do cliente e entregar",
+    keywords: ["retirada", "qr", "qrcode", "comprovante", "escanear", "resgatar", "entregar", "receita"],
+    href: "/loja/retirada",
+    icone: "QrCode",
+    grupo: "loja",
+    visivel: comPermissao("loja.pedidos.operar"),
+  },
+  {
     id: "loja-fila",
     label: "Fila de preparação",
     desc: "Acompanhar pedidos em tempo real",

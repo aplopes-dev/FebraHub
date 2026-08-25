@@ -68,6 +68,15 @@ export class LojaPedidosController {
   @Publica() @Get('publico/pedidos/:id/acompanhar')
   acompanhar(@Param('id', ParseUUIDPipe) id: string) { return this.s.acompanhar(id); }
 
+  /** Comprovante do cliente (a "receita" com o QR de retirada). Público por
+   *  desenho — o cliente abre no próprio aparelho depois de pagar. Só expõe
+   *  dados do pedido + o QR; o token embutido só serve para o vendedor
+   *  autenticado resgatar no balcão. */
+  @Publica() @Get('publico/pedidos/:id/comprovante')
+  comprovante(@Param('id', ParseUUIDPipe) id: string, @Headers('origin') origem?: string) {
+    return this.s.comprovante(id, origem);
+  }
+
   @Publica() @Get('publico/painel')
   painel(@Query('operacaoId') operacaoId?: string) { return this.s.painelTv(operacaoId); }
 
@@ -120,6 +129,18 @@ export class LojaPedidosController {
   pronto(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.marcarPronto(id, u); }
   @Post('pedidos/:id/retirar') @ExigePermissao('loja.pedidos.operar')
   retirar(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.confirmarRetirada(id, u); }
+
+  // -------------------- RETIRADA POR QR (vendedor escaneia o comprovante) --------------------
+
+  /** Consulta o pedido pelo TOKEN do QR do comprovante. Só leitura — devolve o
+   *  veredito (`podeRetirar`) e o motivo do bloqueio quando não. Exige operar. */
+  @Get('retirada/:token') @ExigePermissao('loja.pedidos.operar')
+  consultarRetirada(@Param('token') token: string) { return this.s.consultarRetirada(token); }
+
+  /** Resgata a retirada pelo TOKEN do QR: valida pago/não-retirado e marca
+   *  RETIRADO gravando quem resgatou. Idempotente (409 em QR reapresentado). */
+  @Post('retirada/:token/confirmar') @ExigePermissao('loja.pedidos.operar')
+  resgatarRetirada(@Param('token') token: string, @Usuario() u: UsuarioLogado) { return this.s.resgatarRetirada(token, u); }
 
   // -------------------- GESTÃO (exige loja.pedidos.gerenciar) --------------------
 

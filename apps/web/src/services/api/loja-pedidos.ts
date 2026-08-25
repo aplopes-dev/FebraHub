@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
-  AcompanharPedido, CardapioPublico, CheckoutInput, LojaAuditoria, LojaOperacao, LojaPedido,
-  LojaPedidoPagamento, LojaPedidosDashboard, LojaPedidosIndicadores, PainelTv, VendaPdvInput,
+  AcompanharPedido, CardapioPublico, CheckoutInput, Comprovante, LojaAuditoria, LojaOperacao, LojaPedido,
+  LojaPedidoPagamento, LojaPedidosDashboard, LojaPedidosIndicadores, PainelTv, RetiradaConsulta, VendaPdvInput,
 } from '@/types/loja-pedidos';
 import type { PdvProduto } from '@/types/pdv';
 
@@ -19,6 +19,8 @@ export const iniciarPagamento = (
 export const confirmarPagamentoPublico = (id: string, d: { pagamentoId?: string; gatewayId?: string } = {}) =>
   api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/pagamento/confirmar`, d);
 export const acompanharPedido = (id: string) => api.get<AcompanharPedido>(`/loja-pedidos/publico/pedidos/${id}/acompanhar`);
+/** Comprovante do cliente (a "receita" com QR de retirada). Público. */
+export const comprovantePedido = (id: string) => api.get<Comprovante>(`/loja-pedidos/publico/pedidos/${id}/comprovante`);
 export const painelPublico = (operacaoId?: string) => api.get<PainelTv>('/loja-pedidos/publico/painel', { parametros: { operacaoId } });
 
 // -------------------- produtos do balcão (autenticado, sem pdv.ver) --------------------
@@ -40,6 +42,10 @@ export const iniciarPreparacao = (id: string) => api.post<LojaPedido>(`/loja-ped
 export const marcarPronto = (id: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/pronto`);
 export const confirmarRetirada = (id: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/retirar`);
 export const cancelarPedido = (id: string, motivo: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/cancelar`, { motivo });
+
+// -------------------- retirada por QR (vendedor escaneia o comprovante) --------------------
+export const consultarRetirada = (token: string) => api.get<RetiradaConsulta>(`/loja-pedidos/retirada/${encodeURIComponent(token)}`);
+export const resgatarRetirada = (token: string) => api.post<Comprovante>(`/loja-pedidos/retirada/${encodeURIComponent(token)}/confirmar`);
 
 // -------------------- venda PDV (fila unificada + split) --------------------
 export const vendaPdvFila = (d: VendaPdvInput) => api.post<LojaPedido>('/loja-pedidos/pdv/venda', d);

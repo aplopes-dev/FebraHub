@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw } from "lucide-react";
+import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode } from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import {
   cancelarPedido, confirmarPagamento, confirmarRetirada, iniciarPreparacao,
@@ -85,9 +85,16 @@ export function FilaLoja() {
           <h1>Fila de preparação</h1>
           <p>Pagamento → fila → preparação → pronto → retirada, em tempo real.</p>
         </div>
-        <button className="loja-btn" onClick={() => qc.invalidateQueries({ queryKey: ["loja-pedidos"] })}>
-          <RefreshCw /> Atualizar
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {podeOperar && (
+            <a className="loja-btn ouro" href="/loja/retirada">
+              <QrCode /> Escanear retirada
+            </a>
+          )}
+          <button className="loja-btn" onClick={() => qc.invalidateQueries({ queryKey: ["loja-pedidos"] })}>
+            <RefreshCw /> Atualizar
+          </button>
+        </div>
       </header>
 
       {i && (

@@ -2442,6 +2442,13 @@ model LojaPedido {
   preparacaoEm      DateTime? @map("preparacao_em") @db.Timestamptz(6)
   prontoEm          DateTime? @map("pronto_em") @db.Timestamptz(6)
   retiradoEm        DateTime? @map("retirado_em") @db.Timestamptz(6)
+  /// Token opaco (base64url) impresso no QR do comprovante do cliente. O
+  /// vendedor escaneia e resgata a retirada por ele. Gerado na confirmacao do
+  /// pagamento; unico; nunca reutilizado. Prova de compra paga.
+  tokenRetirada     String?   @unique @map("token_retirada")
+  /// Quem (usuario) e quando resgatou a retirada pelo QR.
+  retiradoPorId     String?   @map("retirado_por_id") @db.Uuid
+  retiradoPorNome   String?   @map("retirado_por_nome")
   canceladoEm       DateTime? @map("cancelado_em") @db.Timestamptz(6)
   motivoCancel      String?   @map("motivo_cancel")
   lancamentoId      String?   @map("lancamento_id") @db.Uuid

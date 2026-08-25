@@ -1,6 +1,7 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import * as QRCode from 'qrcode';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
@@ -16,6 +17,11 @@ import {
 const D = (n: number | string) => new Prisma.Decimal(n);
 const jsonSeguro = <T>(v: T): T =>
   JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x)));
+
+/** Token opaco do QR de retirada: 32 bytes aleatórios em base64url (~43 chars,
+ *  256 bits de entropia — não adivinhável). Impresso no comprovante do cliente
+ *  e escaneado pelo vendedor no balcão para resgatar a retirada. */
+const gerarTokenRetirada = () => randomBytes(32).toString('base64url');
 
 const opera = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('pdv.operar') || u.permissoes.includes('loja.pedidos.operar');
 const gerencia = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('loja.produtos.gerenciar') || u.permissoes.includes('loja.pedidos.gerenciar');
@@ -419,6 +425,8 @@ export class LojaPedidosService {
         where: { id: pedido.id },
         data: {
           status: novoStatus, lancamentoId: lanc.id, confirmadoEm: new Date(),
+          // Comprovante com QR: o cliente pagou → gera o token de retirada.
+          tokenRetirada: pedido.tokenRetirada ?? gerarTokenRetirada(),
           ...(novoStatus === 'NA_FILA' ? { entrouFilaEm: new Date(), posicaoFila: posicao } : { prontoEm: new Date() }),
           historico: { create: [
             { deStatus: 'AGUARDANDO_PAGAMENTO', paraStatus: 'PAGAMENTO_CONFIRMADO', origem, usuarioId: u?.id, observacao: `Pagamento ${pagamento.forma} confirmado` },
@@ -541,6 +549,9 @@ export class LojaPedidosService {
           operadorId: u.id, operadorNome: u.nome,
           subtotal: D(subtotal), desconto: D(desconto), total: D(total),
           precisaPreparacao, posicaoFila: posicao, lancamentoId: lanc.id,
+          // Só gera token de retirada quando o pedido vai para a fila (o cliente
+          // sai e volta). Se entrega na hora (ENTREGAR_AGORA) já nasce RETIRADO.
+          ...(enviarPreparacao ? { tokenRetirada: gerarTokenRetirada() } : {}),
           confirmadoEm: agora, ...(enviarPreparacao ? { entrouFilaEm: agora } : { prontoEm: agora, retiradoEm: agora }),
           observacoes: dto.observacoes ?? '',
           itens: { create: linhas.map((l) => ({ produtoId: l.produtoId, descricao: l.descricao, quantidade: D(l.quantidade), precoUnit: D(l.precoUnit), total: D(l.total), observacao: l.observacao })) },
@@ -723,6 +734,158 @@ export class LojaPedidosService {
       posicaoAtual = aFrente + naFilaAntes + 1;
     }
     return { id: p.id, numero: p.numero, status: p.status, posicao: p.status === 'NA_FILA' ? posicaoAtual : null };
+  }
+
+  // ==================== COMPROVANTE + RETIRADA POR QR ====================
+
+  /**
+   * Comprovante PÚBLICO do pedido (a "receita" que o cliente carrega). Só existe
+   * depois de PAGO — é a prova de compra. Traz o QR de retirada: um token opaco
+   * que o vendedor escaneia no balcão para conferir e resgatar. Aqui devolvemos:
+   *  - dados do pedido (número, itens, total, forma, status, operação);
+   *  - `pago` e `retirado` (flags claras para a UI);
+   *  - `token`, `urlRetirada` (deep-link para a tela do vendedor) e o QR já
+   *    renderizado (PNG dataURL para <img> e SVG para impressão nítida).
+   * Não expõe nada administrativo. Antes de pagar, devolve o comprovante SEM QR
+   * (para a UI mostrar "aguardando pagamento").
+   */
+  async comprovante(pedidoId: string, origem?: string) {
+    const p = await this.prisma.lojaPedido.findUnique({
+      where: { id: pedidoId },
+      include: {
+        itens: true,
+        operacao: { select: { nome: true, slug: true } },
+        pagamentos: { where: { status: 'CONFIRMADO' }, orderBy: { confirmadoEm: 'desc' }, take: 1 },
+      },
+    });
+    if (!p) throw new NotFoundException('Pedido não encontrado.');
+
+    const pago = !!p.confirmadoEm && p.status !== 'AGUARDANDO_PAGAMENTO' && p.status !== 'CANCELADO';
+    const retirado = p.status === 'RETIRADO';
+    const cancelado = p.status === 'CANCELADO';
+
+    const base = { ...this.comprovanteBase(p), pago, retirado, cancelado };
+
+    // Sem token → sem QR (ainda não pago, ou cancelado). Devolve o essencial.
+    if (!p.tokenRetirada || cancelado) {
+      return jsonSeguro({ ...base, token: null, urlRetirada: null, qrPngDataUrl: null, qrSvg: null });
+    }
+
+    const publica = this.basePublica(origem);
+    const urlRetirada = publica ? `${publica}/loja/retirada/${p.tokenRetirada}` : p.tokenRetirada;
+    const opcoes = { errorCorrectionLevel: 'M' as const, margin: 1, width: 420 };
+    const [qrPngDataUrl, qrSvg] = await Promise.all([
+      QRCode.toDataURL(urlRetirada, opcoes),
+      QRCode.toString(urlRetirada, { ...opcoes, type: 'svg' }),
+    ]);
+    return jsonSeguro({ ...base, token: p.tokenRetirada, urlRetirada, qrPngDataUrl, qrSvg });
+  }
+
+  /** Recorte comum do comprovante (cliente/vendedor). Sem dados sensíveis. */
+  private comprovanteBase(p: {
+    id: string; numero: number; status: string; total: Prisma.Decimal; subtotal: Prisma.Decimal;
+    desconto: Prisma.Decimal; clienteNome: string; criadoEm: Date; confirmadoEm: Date | null;
+    prontoEm: Date | null; retiradoEm: Date | null; observacoes: string;
+    itens: { id: string; descricao: string; quantidade: Prisma.Decimal; precoUnit: Prisma.Decimal; total: Prisma.Decimal }[];
+    operacao: { nome: string; slug: string | null } | null;
+    pagamentos: { forma: string; confirmadoEm: Date | null }[];
+  }) {
+    return {
+      id: p.id, numero: p.numero, status: p.status,
+      operacao: p.operacao?.nome ?? 'Loja FEBRACIS',
+      clienteNome: p.clienteNome || 'Consumidor',
+      subtotal: p.subtotal, desconto: p.desconto, total: p.total,
+      formaPagamento: p.pagamentos[0]?.forma ?? null,
+      criadoEm: p.criadoEm, confirmadoEm: p.confirmadoEm, prontoEm: p.prontoEm, retiradoEm: p.retiradoEm,
+      observacoes: p.observacoes,
+      itens: p.itens.map((it) => ({
+        id: it.id, descricao: it.descricao, quantidade: it.quantidade, precoUnit: it.precoUnit, total: it.total,
+      })),
+    };
+  }
+
+  /**
+   * Consulta de retirada pelo TOKEN do QR (tela do vendedor). Só leitura — não
+   * muda nada. Devolve o veredito para o balcão decidir: `podeRetirar` é true
+   * só quando está pago, não cancelado e ainda não retirado. Informa também
+   * quando/quem já retirou (para o caso de QR reapresentado).
+   */
+  async consultarRetirada(token: string) {
+    const p = await this.buscarPorToken(token);
+    const pago = !!p.confirmadoEm && p.status !== 'AGUARDANDO_PAGAMENTO' && p.status !== 'CANCELADO';
+    const retirado = p.status === 'RETIRADO';
+    const cancelado = p.status === 'CANCELADO';
+    return jsonSeguro({
+      ...this.comprovanteBase(p),
+      pago, retirado, cancelado,
+      podeRetirar: pago && !retirado && !cancelado,
+      posicaoFila: p.posicaoFila,
+      // motivo legível quando NÃO pode retirar
+      bloqueio: cancelado ? 'Pedido cancelado.'
+        : !pago ? 'Pagamento ainda não confirmado.'
+        : retirado ? `Já retirado${p.retiradoPorNome ? ` por ${p.retiradoPorNome}` : ''}${p.retiradoEm ? ` em ${new Date(p.retiradoEm).toLocaleString('pt-BR')}` : ''}.`
+        : null,
+      retiradoPorNome: p.retiradoPorNome,
+      retiradoEm: p.retiradoEm,
+    });
+  }
+
+  /**
+   * RESGATE da retirada pelo QR (ação do vendedor). Transação com trava por
+   * pedido: valida que está pago, não cancelado e não retirado; então marca
+   * RETIRADO gravando QUEM resgatou. Idempotência dura: se dois vendedores
+   * escanearem o mesmo QR quase juntos, só o primeiro retira — o segundo recebe
+   * um 409 claro ("já retirado"). Audita o resgate.
+   */
+  async resgatarRetirada(token: string, u: UsuarioLogado) {
+    if (!opera(u)) throw new ForbiddenException('Seu perfil não pode confirmar retiradas.');
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const p = await tx.lojaPedido.findUnique({ where: { tokenRetirada: token }, include: { itens: true } });
+      if (!p) throw new NotFoundException('Comprovante inválido — pedido não encontrado.');
+      if (p.status === 'CANCELADO') throw new BadRequestException('Pedido cancelado — não pode ser retirado.');
+      if (!p.confirmadoEm || p.status === 'AGUARDANDO_PAGAMENTO') {
+        throw new BadRequestException('Pagamento não confirmado — não é possível retirar.');
+      }
+      if (p.status === 'RETIRADO') {
+        // Idempotente: já retirado. Sinaliza para a UI (não é erro de infra).
+        throw new ConflictException(
+          `Este pedido já foi retirado${p.retiradoPorNome ? ` por ${p.retiradoPorNome}` : ''}.`,
+        );
+      }
+      const agora = new Date();
+      const atualizado = await tx.lojaPedido.update({
+        where: { id: p.id },
+        data: {
+          status: 'RETIRADO', retiradoEm: agora, posicaoFila: null,
+          retiradoPorId: u.id, retiradoPorNome: u.nome,
+          historico: { create: { deStatus: p.status, paraStatus: 'RETIRADO', origem: 'operador', usuarioId: u.id, observacao: 'Retirada por QR (comprovante do cliente)' } },
+        },
+        include: { itens: true, operacao: { select: { nome: true, slug: true } }, pagamentos: { where: { status: 'CONFIRMADO' }, orderBy: { confirmadoEm: 'desc' }, take: 1 } },
+      });
+      return atualizado;
+    });
+
+    this.eventos.emitir({ tipo: 'fila', operacaoId: resultado.operacaoId ?? undefined });
+    this.eventos.emitir({ tipo: 'pedido', pedidoId: resultado.id });
+    void this.auditar(
+      { entidade: 'pedido', entidadeId: resultado.id, acao: 'pedido.retirado', origem: 'operador', depois: { numero: resultado.numero, via: 'qrcode' } },
+      u,
+    );
+    return jsonSeguro({ ...this.comprovanteBase(resultado), pago: true, retirado: true, cancelado: false });
+  }
+
+  private async buscarPorToken(token: string) {
+    const p = await this.prisma.lojaPedido.findUnique({
+      where: { tokenRetirada: token },
+      include: {
+        itens: true,
+        operacao: { select: { nome: true, slug: true } },
+        pagamentos: { where: { status: 'CONFIRMADO' }, orderBy: { confirmadoEm: 'desc' }, take: 1 },
+      },
+    });
+    if (!p) throw new NotFoundException('Comprovante inválido — nenhum pedido para este QR.');
+    return p;
   }
 
   /** Painel público / TV: números por status, SEM dados pessoais. */

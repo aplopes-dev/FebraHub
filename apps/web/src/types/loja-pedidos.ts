@@ -83,6 +83,50 @@ export interface AcompanharPedido {
   posicao: number | null;
 }
 
+export interface ComprovanteItem {
+  id: string;
+  descricao: string;
+  quantidade: string;
+  precoUnit: string;
+  total: string;
+}
+
+/** Comprovante do cliente (a "receita" com QR) e o payload de verificação do
+ *  vendedor — os dois compartilham o mesmo formato base. */
+export interface Comprovante {
+  id: string;
+  numero: number;
+  status: LojaPedidoStatus;
+  operacao: string;
+  clienteNome: string;
+  subtotal: string;
+  desconto: string;
+  total: string;
+  formaPagamento: string | null;
+  criadoEm: string;
+  confirmadoEm: string | null;
+  prontoEm: string | null;
+  retiradoEm: string | null;
+  observacoes: string;
+  itens: ComprovanteItem[];
+  pago: boolean;
+  retirado: boolean;
+  cancelado: boolean;
+  // Só no comprovante do cliente (endpoint público):
+  token?: string | null;
+  urlRetirada?: string | null;
+  qrPngDataUrl?: string | null;
+  qrSvg?: string | null;
+}
+
+/** Veredito da consulta de retirada pelo QR (tela do vendedor). */
+export interface RetiradaConsulta extends Comprovante {
+  podeRetirar: boolean;
+  posicaoFila: number | null;
+  bloqueio: string | null;
+  retiradoPorNome: string | null;
+}
+
 export interface PainelTv {
   naFila: number[];
   proximo: number[];
