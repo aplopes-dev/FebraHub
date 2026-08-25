@@ -36,6 +36,11 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY patches ./patches
 COPY apps/api/package.json apps/api/
 RUN pnpm install --filter @febrahub/api... --prod --frozen-lockfile
+# libxmljs2 é módulo NATIVO (node-gyp) e o pnpm ignora scripts de build por
+# padrão — sem este rebuild o addon .node não existe e o boot da API morre no
+# xsd-validator (validação do XML fiscal). A toolchain (python3/make/g++) já
+# está instalada acima. Fiscal (NFC-e) depende disto.
+RUN pnpm rebuild libxmljs2
 # O client é gerado de novo aqui em vez de copiado do estágio de build: com
 # pnpm ele nasce dentro do store (node_modules/.pnpm/@prisma+client@.../),
 # não em apps/api/node_modules/.prisma, e copiar o caminho errado quebra o
@@ -59,6 +64,10 @@ COPY --from=build --chown=febra:febra /app/apps/api/dist ./dist
 COPY --from=build --chown=febra:febra /app/apps/api/package.json ./package.json
 # As migrations vão junto: o deploy roda `prisma migrate deploy` deste container.
 COPY --from=build --chown=febra:febra /app/apps/api/prisma ./prisma
+# Recursos fiscais (XSD/WSDL da NF-e e cadeia ICP-Brasil). Resolvidos via
+# process.cwd() = /app/apps/api — sem eles a validação XSD e o TLS com o SVRS
+# falham. CMD roda com WORKDIR /app/apps/api, então o cwd bate.
+COPY --from=build --chown=febra:febra /app/apps/api/resources ./resources
 
 # O diretório da sessão do WhatsApp já nasce do usuário certo: um volume
 # novo herda a posse do que existe na imagem — sem isto, o primeiro mkdir
