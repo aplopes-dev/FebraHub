@@ -31,6 +31,7 @@ import { C, FUNDO_APP, SANS } from "@/lib/tema";
 import type { Perfil } from "@/types/views";
 
 const CHAVE_SUBMENU = "febrahub:submenu-oculto";
+const CHAVE_MENU_TOTAL = "febrahub:menu-oculto-total";
 
 /** Shell dual: rail de ícones + submenu + header + footer. */
 export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNode }) {
@@ -42,6 +43,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   useSessaoViva();
 
   const [submenuOculto, setSubmenuOculto] = useState(false);
+  const [menuOcultoTotal, setMenuOcultoTotal] = useState(false);
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [primarioManual, setPrimarioManual] = useState<string | null>(null);
   const [buscaAberta, setBuscaAberta] = useBuscaGlobal();
@@ -49,6 +51,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   useEffect(() => {
     try {
       setSubmenuOculto(localStorage.getItem(CHAVE_SUBMENU) === "1");
+      setMenuOcultoTotal(localStorage.getItem(CHAVE_MENU_TOTAL) === "1");
     } catch { /* ok */ }
   }, []);
 
@@ -99,10 +102,12 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
     router.replace("/login");
   };
 
-  const alternarSubmenu = () => {
-    setSubmenuOculto((v) => {
+  /** Oculta/restaura COMPLETAMENTE o menu do ERP (rail + submenu), devolvendo
+   *  toda a largura ao conteúdo (PRD PDV §5). Persiste na sessão; sem reload. */
+  const alternarMenuTotal = () => {
+    setMenuOcultoTotal((v) => {
       const novo = !v;
-      try { localStorage.setItem(CHAVE_SUBMENU, novo ? "1" : "0"); } catch { /* ok */ }
+      try { localStorage.setItem(CHAVE_MENU_TOTAL, novo ? "1" : "0"); } catch { /* ok */ }
       return novo;
     });
   };
@@ -130,7 +135,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
 
   return (
     <ProvedorPeriodo>
-      <div className={`fh-shell${submenuOculto ? " fh-shell-sem-sub" : ""}`} style={{
+      <div className={`fh-shell${submenuOculto ? " fh-shell-sem-sub" : ""}${menuOcultoTotal ? " fh-shell-sem-menu" : ""}`} style={{
         minHeight: "100dvh", display: "flex", color: C.text, fontFamily: SANS,
         background: FUNDO_APP,
       }}>
@@ -220,12 +225,12 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
               <button
                 type="button"
                 className="fh-so-desktop fh-toque"
-                onClick={alternarSubmenu}
-                aria-label={submenuOculto ? "Mostrar submenu" : "Ocultar submenu"}
-                title={submenuOculto ? "Mostrar submenu" : "Ocultar submenu"}
+                onClick={alternarMenuTotal}
+                aria-label={menuOcultoTotal ? "Mostrar menu" : "Ocultar menu"}
+                title={menuOcultoTotal ? "Mostrar menu" : "Ocultar menu (tela cheia)"}
                 style={{ ...botaoIcone, color: C.muted }}
               >
-                {submenuOculto ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+                {menuOcultoTotal ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
               </button>
               <img src="/logo-febracis.webp" alt="" width={24} height={24} className="fh-header-logo" />
               <div className="fh-header-marca">
@@ -296,6 +301,19 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             © {new Date().getFullYear()} Febracis · FebraHub — Central de Inteligência
           </footer>
         </div>
+
+        {/* Botão flutuante para restaurar o menu quando totalmente oculto. */}
+        {menuOcultoTotal && (
+          <button
+            type="button"
+            className="fh-restaurar-menu fh-toque"
+            onClick={alternarMenuTotal}
+            aria-label="Mostrar menu"
+            title="Mostrar menu"
+          >
+            <Menu size={20} />
+          </button>
+        )}
 
         {(admin || setores.includes("crm")) && <TeamsWidget />}
 

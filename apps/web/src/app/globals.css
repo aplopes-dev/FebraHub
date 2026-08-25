@@ -368,6 +368,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   border-right: 1px solid var(--card-line); z-index: 35;
 }
 .fh-shell-sem-sub .fh-submenu { display: none; }
+/* Menu totalmente oculto (PDV tela cheia): some rail + submenu, conteúdo usa
+   toda a largura. Sem faixa residual. Botão flutuante restaura. */
+.fh-shell-sem-menu .fh-rail,
+.fh-shell-sem-menu .fh-submenu { display: none !important; }
+.fh-restaurar-menu {
+  position: fixed; left: 14px; bottom: 16px; z-index: 60;
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--card-line);
+  background: var(--card); color: var(--text); display: grid; place-items: center;
+  cursor: pointer; box-shadow: 0 6px 18px rgb(0 0 0 / .18); backdrop-filter: blur(8px);
+}
+.fh-restaurar-menu:hover { border-color: var(--gold); color: var(--gold); }
 .fh-submenu-cabeca {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 16px 12px; font-size: 11px; font-weight: 800;

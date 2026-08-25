@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote, Bell, Check, ChefHat, CreditCard, MoreVertical, Plus, QrCode,
-  ScanLine, Search, Trash2, Truck, X,
+  Banknote, Bell, Check, ChefHat, CreditCard, MoreVertical, Percent, Plus, QrCode,
+  ScanLine, Search, Trash2, X,
 } from "lucide-react";
 import { pdvProdutos } from "@/services/api/pdv";
 import { lojaCategorias } from "@/services/api/loja-produtos";
@@ -21,15 +21,19 @@ const FORMAS: { forma: FormaPagamento; label: string; Icone: typeof Banknote }[]
   { forma: "PIX", label: "PIX", Icone: QrCode },
 ];
 
-interface LinhaCarrinho { produto: PdvProduto; quantidade: number }
+interface LinhaCarrinho { produto: PdvProduto; quantidade: number; descItem: number }
 interface Split { forma: FormaPagamento; valor: number }
 
-/** Selo de estoque conforme o disponível (mesma semântica do mockup). */
 function selo(p: PdvProduto): { txt: string; cls: string } | null {
   if (!p.controlaEstoque) return null;
   if (p.disponivel <= 0) return { txt: "Esgotado", cls: "zero" };
   if (p.disponivel <= 5) return { txt: "Últimas unidades", cls: "baixo" };
   return { txt: "Em estoque", cls: "ok" };
+}
+
+/** Slug da categoria para diferenciação visual sutil por grupo (PRD §9). */
+function grupoDe(cat?: string | null): string {
+  return (cat ?? "outros").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, "") || "outros";
 }
 
 export function BalcaoPdv() {
@@ -40,15 +44,16 @@ export function BalcaoPdv() {
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState<string>("");
   const [carrinho, setCarrinho] = useState<Record<string, LinhaCarrinho>>({});
-  const [desconto, setDesconto] = useState(0);
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+  const [descontoTotal, setDescontoTotal] = useState(0);
   const [forma, setForma] = useState<FormaPagamento>("DINHEIRO");
   const [splitOn, setSplitOn] = useState(false);
   const [splits, setSplits] = useState<Split[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
+  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar">(null);
   const buscaRef = useRef<HTMLInputElement>(null);
-  const descontoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { const t = setInterval(() => setAgora(new Date()), 30_000); return () => clearInterval(t); }, []);
 
@@ -63,20 +68,26 @@ export function BalcaoPdv() {
 
   const linhas = Object.values(carrinho);
   const temItens = linhas.length > 0;
-  const subtotal = useMemo(() => linhas.reduce((s, l) => s + l.produto.preco * l.quantidade, 0), [linhas]);
-  const total = Math.max(0, +(subtotal - desconto).toFixed(2));
+  const brutoTotal = useMemo(() => linhas.reduce((s, l) => s + l.produto.preco * l.quantidade, 0), [linhas]);
+  const descItens = useMemo(() => linhas.reduce((s, l) => s + l.descItem, 0), [linhas]);
+  const total = Math.max(0, +(brutoTotal - descItens - descontoTotal).toFixed(2));
   const pago = +splits.reduce((s, p) => s + p.valor, 0).toFixed(2);
   const falta = +(total - pago).toFixed(2);
   const qtdItens = linhas.reduce((s, l) => s + l.quantidade, 0);
+  const itemSel = selecionado ? carrinho[selecionado] : null;
 
-  const add = (p: PdvProduto) => { if (p.controlaEstoque && p.disponivel <= 0) return; setCarrinho((c) => ({ ...c, [p.produtoId]: { produto: p, quantidade: (c[p.produtoId]?.quantidade ?? 0) + 1 } })); };
+  const add = (p: PdvProduto) => {
+    if (p.controlaEstoque && p.disponivel <= 0) return;
+    setCarrinho((c) => ({ ...c, [p.produtoId]: { produto: p, quantidade: (c[p.produtoId]?.quantidade ?? 0) + 1, descItem: c[p.produtoId]?.descItem ?? 0 } }));
+    setSelecionado(p.produtoId);
+  };
   const setQty = (id: string, q: number) => setCarrinho((c) => {
     if (q <= 0) { const cp = { ...c }; delete cp[id]; return cp; }
     return { ...c, [id]: { ...c[id], quantidade: q } };
   });
-  const remover = (id: string) => setCarrinho((c) => { const cp = { ...c }; delete cp[id]; return cp; });
-  const removerUltimo = () => { const ids = Object.keys(carrinho); if (ids.length) remover(ids[ids.length - 1]); };
-  const limpar = () => { setCarrinho({}); setSplits([]); setDesconto(0); setSplitOn(false); };
+  const remover = (id: string) => { setCarrinho((c) => { const cp = { ...c }; delete cp[id]; return cp; }); setSelecionado((s) => (s === id ? null : s)); };
+  const removerSelecionado = () => { if (selecionado) remover(selecionado); };
+  const limpar = () => { setCarrinho({}); setSplits([]); setDescontoTotal(0); setSplitOn(false); setSelecionado(null); };
 
   const addSplit = () => setSplits((s) => [...s, { forma: "DINHEIRO", valor: Math.max(0, falta) }]);
   const setSplit = (i: number, patch: Partial<Split>) => setSplits((s) => s.map((x, k) => (k === i ? { ...x, ...patch } : x)));
@@ -85,7 +96,7 @@ export function BalcaoPdv() {
   const venda = useMutation({
     mutationFn: (modo: VendaPdvInput["modo"]) => {
       const pagamentos = splitOn && splits.length ? splits : [{ forma, valor: total }];
-      return vendaPdvFila({ modo, desconto, itens: linhas.map((l) => ({ produtoId: l.produto.produtoId, quantidade: l.quantidade })), pagamentos });
+      return vendaPdvFila({ modo, desconto: +(descontoTotal + descItens).toFixed(2), itens: linhas.map((l) => ({ produtoId: l.produto.produtoId, quantidade: l.quantidade })), pagamentos });
     },
     onSuccess: (p) => {
       setErro(null); setOk(`Pedido #${p.numero} registrado.`);
@@ -99,27 +110,33 @@ export function BalcaoPdv() {
 
   const precisaPreparo = linhas.some((l) => l.produto.precisaPreparacao);
   const pagamentoOk = splitOn ? (splits.length > 0 && Math.abs(falta) < 0.01) : true;
-  const podeFinalizar = temItens && pagamentoOk;
-  const finalizar = () => { if (podeOperar && podeFinalizar && !venda.isPending) venda.mutate("ENTREGAR_AGORA"); };
+  const podeFinalizar = temItens && pagamentoOk && podeOperar;
+  const focarBusca = () => { buscaRef.current?.focus(); buscaRef.current?.select(); };
 
-  // -------- Atalhos de teclado (F1–F12), inspirados no Omie PDV --------
+  // -------- Atalhos de teclado (PRD §23) --------
   const ATALHOS: { tecla: string; label: string; onClick: () => void; ativo: boolean }[] = [
-    { tecla: "F2", label: "Buscar produto", onClick: () => buscaRef.current?.focus(), ativo: true },
-    { tecla: "F6", label: "Pesquisa produto", onClick: () => buscaRef.current?.focus(), ativo: true },
-    { tecla: "F7", label: "Encerra venda", onClick: finalizar, ativo: podeFinalizar },
-    { tecla: "F8", label: "Cancela item", onClick: removerUltimo, ativo: temItens },
-    { tecla: "F9", label: "Cancela venda", onClick: limpar, ativo: temItens },
-    { tecla: "F10", label: "Desconto", onClick: () => descontoRef.current?.focus(), ativo: temItens },
+    { tecla: "F1", label: "Cliente", onClick: () => { setErro("Identificação de cliente — em breve"); setTimeout(() => setErro(null), 2500); }, ativo: true },
+    { tecla: "F6", label: "Produto", onClick: focarBusca, ativo: true },
+    { tecla: "F7", label: "Finalizar", onClick: () => { if (podeFinalizar && !venda.isPending) venda.mutate("ENTREGAR_AGORA"); }, ativo: podeFinalizar },
+    { tecla: "F8", label: "Remover item", onClick: removerSelecionado, ativo: !!selecionado },
+    { tecla: "F9", label: "Cancelar venda", onClick: () => setModal("cancelar"), ativo: temItens },
+    { tecla: "F10", label: "Desconto total", onClick: () => { if (temItens) setModal("descTotal"); }, ativo: temItens },
   ];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (modal) { if (e.key === "Escape") { e.preventDefault(); setModal(null); } return; }
+      if (e.key === "F2") { e.preventDefault(); focarBusca(); return; }
       const a = ATALHOS.find((x) => x.tecla === e.key);
-      if (a) { e.preventDefault(); if (a.ativo) a.onClick(); }
+      if (a) { e.preventDefault(); if (a.ativo) a.onClick(); return; }
+      const alvo = e.target as HTMLElement | null;
+      const digitando = !!alvo && ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName);
+      if (e.key === "-" && !digitando && selecionado) { e.preventDefault(); setModal("descItem"); return; }
+      if (e.key === "Delete" && !digitando && selecionado) { e.preventDefault(); removerSelecionado(); return; }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [temItens, podeFinalizar, carrinho]);
+  }, [modal, selecionado, temItens, podeFinalizar, carrinho, splitOn, splits, forma]);
 
   const ind = indicadores.data;
 
@@ -133,6 +150,7 @@ export function BalcaoPdv() {
         </div>
         <div className="bal-topright">
           <span className="bal-caixa"><span className="dot" /> CAIXA ABERTO</span>
+          <div className="bal-op"><small>Atendimento</small><b>{perfil?.nome?.split(/[\s.]+/)[0] ?? "Operador"}</b></div>
           <button className="bal-iconbtn" title="Ler código de barras"><ScanLine size={18} /></button>
           <button className="bal-iconbtn" title="Notificações"><Bell size={18} /></button>
           <button className="bal-iconbtn"><MoreVertical size={18} /></button>
@@ -149,7 +167,9 @@ export function BalcaoPdv() {
         <div className="bal-catalogo">
           <label className="bal-busca">
             <Search />
-            <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, SKU ou código de barras" />
+            <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome, SKU ou código de barras  ·  F6"
+              onKeyDown={(e) => { if (e.key === "Enter" && lista.length === 1) { add(lista[0]); setBusca(""); } }} />
             <button className="bal-scan" title="Escanear"><ScanLine size={16} /></button>
           </label>
 
@@ -166,7 +186,7 @@ export function BalcaoPdv() {
                 const s = selo(p);
                 const esgotado = !!p.controlaEstoque && p.disponivel <= 0;
                 return (
-                  <button key={p.produtoId} className="bal-card" disabled={esgotado} onClick={() => add(p)}>
+                  <button key={p.produtoId} className={`bal-card grupo-${grupoDe(p.categoria)}`} disabled={esgotado} onClick={() => add(p)}>
                     <div className="bal-thumb">
                       {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
                     </div>
@@ -190,94 +210,85 @@ export function BalcaoPdv() {
           <aside className="bal-cart">
             <div className="bal-cart-head">
               <h2>Carrinho <small>({qtdItens} {qtdItens === 1 ? "item" : "itens"})</small></h2>
-              <button className="bal-limpar" onClick={limpar}>Limpar <Trash2 size={13} /></button>
+              <button className="bal-limpar" onClick={() => setModal("cancelar")}>Limpar <Trash2 size={13} /></button>
             </div>
 
             <div className="bal-itens">
-              {linhas.map((l) => (
-                <div key={l.produto.produtoId} className="bal-item">
-                  <div className="bal-item-thumb">{l.produto.imagemUrl ? <img src={l.produto.imagemUrl} alt="" /> : <span>🛍️</span>}</div>
-                  <div>
-                    <div className="nome">{l.produto.descricao}<button className="x" onClick={() => remover(l.produto.produtoId)}><X size={14} /></button></div>
-                    <div className="bal-item-foot">
-                      <div className="bal-step">
-                        <button onClick={() => setQty(l.produto.produtoId, l.quantidade - 1)}>−</button>
-                        <b>{l.quantidade}</b>
-                        <button onClick={() => setQty(l.produto.produtoId, l.quantidade + 1)}>+</button>
+              {linhas.map((l) => {
+                const totLinha = l.produto.preco * l.quantidade - l.descItem;
+                const sel = selecionado === l.produto.produtoId;
+                return (
+                  <div key={l.produto.produtoId} className={`bal-item ${sel ? "sel" : ""}`} onClick={() => setSelecionado(l.produto.produtoId)}>
+                    <div className="bal-item-thumb">{l.produto.imagemUrl ? <img src={l.produto.imagemUrl} alt="" /> : <span>🛍️</span>}{sel && <span className="tick"><Check size={11} /></span>}</div>
+                    <div>
+                      <div className="nome">{l.produto.descricao}<button className="x" onClick={(e) => { e.stopPropagation(); remover(l.produto.produtoId); }}><X size={14} /></button></div>
+                      <div className="un">{brl(l.produto.preco)}{l.descItem > 0 && <span className="descq"> · −{brl(l.descItem)}</span>}</div>
+                      <div className="bal-item-foot">
+                        <div className="bal-step" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setQty(l.produto.produtoId, l.quantidade - 1)}>−</button>
+                          <b>{l.quantidade}</b>
+                          <button onClick={() => setQty(l.produto.produtoId, l.quantidade + 1)}>+</button>
+                        </div>
+                        <span className="lt">{brl(totLinha)}</span>
                       </div>
-                      <span className="lt">{brl(l.produto.preco * l.quantidade)}</span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="bal-tot">
-              <div className="row"><span>Subtotal</span><span>{brl(subtotal)}</span></div>
-              <div className="row"><span>Desconto</span>
-                <input ref={descontoRef} type="number" min={0} step="0.01" value={desconto} onChange={(e) => setDesconto(Math.max(0, Number(e.target.value)))} />
-              </div>
-              <div className="row grande"><span>Total</span><span>{brl(total)}</span></div>
-            </div>
-
-            <div className="bal-pay">
-              <label>Pagamento</label>
-              <div className="bal-formas">
-                {FORMAS.map((f) => (
-                  <button key={f.forma} className={`bal-forma ${!splitOn && forma === f.forma ? "on" : ""}`} disabled={splitOn} onClick={() => setForma(f.forma)}>
-                    <f.Icone /> {f.label}
-                  </button>
-                ))}
+            {/* rodapé sticky: total + pagamento + finalizar (PRD §21,50) */}
+            <div className="bal-checkout">
+              <div className="bal-tot">
+                <div className="row"><span>Subtotal</span><span>{brl(brutoTotal)}</span></div>
+                <div className="row"><span>Desconto</span><span className="desc">− {brl(descItens + descontoTotal)}</span></div>
+                <div className="row grande"><span>Total</span><span>{brl(total)}</span></div>
               </div>
 
-              <div className="bal-split-toggle">
-                <div>
-                  <b>Split de pagamento</b>
-                  <small>Mais de uma forma</small>
-                </div>
-                <button className={`bal-switch ${splitOn ? "on" : ""}`} onClick={() => { setSplitOn((v) => !v); setSplits([]); }}><span className="knob" /></button>
-              </div>
-
-              {splitOn && (
-                <div>
-                  {splits.map((s, i) => (
-                    <div key={i} className="bal-splitrow">
-                      <select value={s.forma} onChange={(e) => setSplit(i, { forma: e.target.value as FormaPagamento })}>
-                        {FORMAS.map((f) => <option key={f.forma} value={f.forma}>{f.label}</option>)}
-                        <option value="CARTAO_DEBITO">Débito</option>
-                      </select>
-                      <input type="number" min={0} step="0.01" value={s.valor} onChange={(e) => setSplit(i, { valor: Number(e.target.value) })} />
-                      <button className="rm" onClick={() => rmSplit(i)}><Trash2 size={15} /></button>
-                    </div>
-                  ))}
-                  <button className="bal-addsplit" onClick={addSplit}>+ Adicionar forma {falta > 0 ? `· falta ${brl(falta)}` : ""}</button>
-                </div>
-              )}
-
-              {podeOperar ? (
-                <>
-                  <button className="bal-finalizar ouro" disabled={!podeFinalizar || venda.isPending} onClick={() => venda.mutate("ENTREGAR_AGORA")}>
-                    <Truck size={17} /> {precisaPreparo ? "Entregar agora" : "Finalizar venda"} <Check size={16} />
-                  </button>
-                  {precisaPreparo && (
-                    <button className="bal-finalizar dupla" disabled={!podeFinalizar || venda.isPending} onClick={() => venda.mutate("ENVIAR_PREPARACAO")}>
-                      <ChefHat size={17} /> Enviar para preparação
+              <div className="bal-pay">
+                <div className="bal-formas">
+                  {FORMAS.map((f) => (
+                    <button key={f.forma} className={`bal-forma ${!splitOn && forma === f.forma ? "on" : ""}`} disabled={splitOn} onClick={() => setForma(f.forma)}>
+                      <f.Icone /> {f.label}
                     </button>
-                  )}
-                </>
-              ) : (
-                <button className="bal-finalizar" disabled>Sem permissão para operar o caixa</button>
-              )}
+                  ))}
+                  <button className={`bal-forma ${splitOn ? "on" : ""}`} onClick={() => { setSplitOn((v) => !v); setSplits([]); }}><Plus /> Split</button>
+                </div>
 
-              {ok && <p className="bal-ok">{ok}</p>}
-              {erro && <p className="bal-err">{erro}</p>}
-              {!ok && !erro && <p className="bal-hint">{podeFinalizar ? "F7 finaliza a venda" : splitOn && !pagamentoOk ? "Ajuste o split para fechar o total" : "Selecione a forma de pagamento"}</p>}
+                {splitOn && (
+                  <div className="bal-splits">
+                    {splits.map((s, i) => (
+                      <div key={i} className="bal-splitrow">
+                        <select value={s.forma} onChange={(e) => setSplit(i, { forma: e.target.value as FormaPagamento })}>
+                          {FORMAS.map((f) => <option key={f.forma} value={f.forma}>{f.label}</option>)}
+                          <option value="CARTAO_DEBITO">Débito</option>
+                        </select>
+                        <input type="number" min={0} step="0.01" value={s.valor} onChange={(e) => setSplit(i, { valor: Number(e.target.value) })} />
+                        <button className="rm" onClick={() => rmSplit(i)}><Trash2 size={15} /></button>
+                      </div>
+                    ))}
+                    <button className="bal-addsplit" onClick={addSplit}>+ Adicionar forma {falta > 0.001 ? `· falta ${brl(falta)}` : falta < -0.001 ? `· excede ${brl(-falta)}` : "· fecha ✓"}</button>
+                  </div>
+                )}
+
+                <button className="bal-finalizar" disabled={!podeFinalizar || venda.isPending} onClick={() => venda.mutate("ENTREGAR_AGORA")}>
+                  <Check size={18} /> Finalizar venda · {brl(total)}
+                </button>
+                {precisaPreparo && (
+                  <button className="bal-preparar" disabled={!podeFinalizar || venda.isPending} onClick={() => venda.mutate("ENVIAR_PREPARACAO")}>
+                    <ChefHat size={16} /> Enviar para preparação
+                  </button>
+                )}
+                {ok && <p className="bal-ok">{ok}</p>}
+                {erro && <p className="bal-err">{erro}</p>}
+                {!ok && !erro && !podeOperar && <p className="bal-hint">Sem permissão para operar o caixa</p>}
+              </div>
             </div>
           </aside>
         )}
       </div>
 
-      {/* ---------------- rodapé: atalhos F# + status da fila ---------------- */}
+      {/* ---------------- rodapé: atalhos F# + fila ---------------- */}
       <footer className="bal-status">
         <div className="bal-atalhos">
           {ATALHOS.map((a) => (
@@ -285,6 +296,12 @@ export function BalcaoPdv() {
               <kbd>{a.tecla}</kbd><span>{a.label}</span>
             </button>
           ))}
+          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={() => selecionado && setModal("descItem")} title="Desconto do item selecionado">
+            <kbd>−</kbd><span>Desc. item</span>
+          </button>
+          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={removerSelecionado} title="Apagar item selecionado">
+            <kbd>Del</kbd><span>Apagar</span>
+          </button>
         </div>
         <div className="bal-fila">
           <span className="it"><ChefHat size={15} /> Fila <b>{ind?.aguardandoFila ?? 0}</b></span>
@@ -292,6 +309,78 @@ export function BalcaoPdv() {
           <span className="it"><Check size={15} /> Prontos <b>{ind?.prontos ?? 0}</b></span>
         </div>
       </footer>
+
+      {/* ---------------- modais ---------------- */}
+      {modal === "descItem" && itemSel && (
+        <ModalDesconto
+          titulo="Desconto do item"
+          subtitulo={itemSel.produto.descricao ?? "Item"}
+          base={itemSel.produto.preco * itemSel.quantidade}
+          onFechar={() => setModal(null)}
+          onAplicar={(v) => { const id = itemSel.produto.produtoId; setCarrinho((c) => ({ ...c, [id]: { ...c[id], descItem: v } })); setModal(null); }}
+        />
+      )}
+      {modal === "descTotal" && (
+        <ModalDesconto
+          titulo="Desconto na venda"
+          subtitulo="Aplicado sobre o total"
+          base={brutoTotal - descItens}
+          onFechar={() => setModal(null)}
+          onAplicar={(v) => { setDescontoTotal(v); setModal(null); }}
+        />
+      )}
+      {modal === "cancelar" && (
+        <div className="bal-modal-bg" onClick={() => setModal(null)}>
+          <div className="bal-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Cancelar venda?</h3>
+            <p>Todos os itens do carrinho serão removidos.</p>
+            <div className="fim">
+              <button className="bal-mbtn" onClick={() => setModal(null)}>Voltar</button>
+              <button className="bal-mbtn perigo" onClick={() => { limpar(); setModal(null); }}>Cancelar venda</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== Modal de desconto (item ou total) ====================
+function ModalDesconto({ titulo, subtitulo, base, onFechar, onAplicar }: {
+  titulo: string; subtitulo: string; base: number; onFechar: () => void; onAplicar: (valorEmReais: number) => void;
+}) {
+  const [tipo, setTipo] = useState<"reais" | "pct">("reais");
+  const [valor, setValor] = useState("");
+  const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const num = Number(valor.replace(",", ".")) || 0;
+  const descReais = tipo === "reais" ? Math.min(num, base) : +(base * Math.min(num, 100) / 100).toFixed(2);
+  const final = Math.max(0, base - descReais);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  const aplicar = () => onAplicar(descReais);
+
+  return (
+    <div className="bal-modal-bg" onClick={onFechar}>
+      <div className="bal-modal" onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); aplicar(); } if (e.key === "Escape") { e.preventDefault(); onFechar(); } }}>
+        <h3>{titulo}</h3>
+        <p>{subtitulo} · atual <b>{fmt(base)}</b></p>
+        <div className="bal-desc-tipo">
+          <button className={tipo === "reais" ? "on" : ""} onClick={() => setTipo("reais")}>R$</button>
+          <button className={tipo === "pct" ? "on" : ""} onClick={() => setTipo("pct")}><Percent size={13} /> %</button>
+        </div>
+        <input ref={inputRef} className="bal-desc-input" inputMode="decimal" value={valor}
+          onChange={(e) => setValor(e.target.value)} placeholder={tipo === "reais" ? "0,00" : "0"} />
+        <div className="bal-desc-resumo">
+          <div><span>Original</span><b>{fmt(base)}</b></div>
+          <div><span>Desconto</span><b className="down">− {fmt(descReais)}</b></div>
+          <div><span>Final</span><b className="up">{fmt(final)}</b></div>
+        </div>
+        <div className="fim">
+          <button className="bal-mbtn" onClick={onFechar}>Cancelar <kbd>ESC</kbd></button>
+          <button className="bal-mbtn ouro" onClick={aplicar}>Aplicar <kbd>Enter</kbd></button>
+        </div>
+      </div>
     </div>
   );
 }
