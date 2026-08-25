@@ -3,6 +3,7 @@ import type {
   AcompanharPedido, CardapioPublico, CheckoutInput, LojaAuditoria, LojaOperacao, LojaPedido,
   LojaPedidoPagamento, LojaPedidosDashboard, LojaPedidosIndicadores, PainelTv, VendaPdvInput,
 } from '@/types/loja-pedidos';
+import type { PdvProduto } from '@/types/pdv';
 
 // -------------------- público (cardápio / cliente) --------------------
 export const cardapioPublico = (slug: string) => api.get<CardapioPublico>(`/loja-pedidos/publico/cardapio/${slug}`);
@@ -19,6 +20,10 @@ export const confirmarPagamentoPublico = (id: string, d: { pagamentoId?: string;
   api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/pagamento/confirmar`, d);
 export const acompanharPedido = (id: string) => api.get<AcompanharPedido>(`/loja-pedidos/publico/pedidos/${id}/acompanhar`);
 export const painelPublico = (operacaoId?: string) => api.get<PainelTv>('/loja-pedidos/publico/painel', { parametros: { operacaoId } });
+
+// -------------------- produtos do balcão (autenticado, sem pdv.ver) --------------------
+export const lojaProdutosBalcao = (busca?: string) =>
+  api.get<PdvProduto[]>('/loja-pedidos/balcao/produtos', { parametros: { busca } });
 
 // -------------------- consultas (autenticadas) --------------------
 export const lojaPedidosIndicadores = (operacaoId?: string) => api.get<LojaPedidosIndicadores>('/loja-pedidos/indicadores', { parametros: { operacaoId } });

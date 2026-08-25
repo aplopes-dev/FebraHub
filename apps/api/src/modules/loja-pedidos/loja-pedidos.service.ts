@@ -647,6 +647,50 @@ export class LojaPedidosService {
     });
   }
 
+  // ==================== PRODUTOS DO BALCÃO ====================
+
+  /** Lista produtos disponíveis para venda no balcão (vendePdv=true, ativo=true).
+   *  Requer apenas loja.pedidos.ver — sem necessidade de pdv.ver. */
+  async produtosBalcao(busca = '') {
+    const rows = await this.prisma.lojaProduto.findMany({
+      where: {
+        ativo: true,
+        vendePdv: true,
+        ...(busca ? {
+          OR: [
+            { nome: { contains: busca, mode: 'insensitive' } },
+            { sku: { contains: busca, mode: 'insensitive' } },
+            { codigoBarras: { contains: busca, mode: 'insensitive' } },
+          ],
+        } : {}),
+      },
+      include: {
+        saldos: { where: { local: 'LOJA' } },
+        categoria: { select: { nome: true, cor: true } },
+      },
+      orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
+      take: 100,
+    });
+    return rows.map((p) => {
+      const saldo = p.saldos[0];
+      const saldoFisico = Number(saldo?.saldoFisico ?? 0);
+      const reservado = Number(saldo?.reservado ?? 0);
+      return {
+        produtoId: p.id,
+        codigo: p.sku ?? p.codigoBarras ?? '',
+        descricao: p.nome,
+        preco: Number(p.preco),
+        saldo: saldoFisico,
+        reservado,
+        disponivel: saldoFisico - reservado,
+        categoria: p.categoria?.nome ?? null,
+        precisaPreparacao: p.precisaPreparacao,
+        controlaEstoque: p.controlaEstoque,
+        imagemUrl: p.imagemUrl ?? null,
+      };
+    });
+  }
+
   // ==================== CONSULTAS ====================
 
   async listar(operacaoId?: string, status?: string) {

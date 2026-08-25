@@ -5,9 +5,8 @@ import {
   Banknote, Bell, Check, ChefHat, CreditCard, MoreVertical, Percent, Plus, QrCode,
   ScanLine, Search, Trash2, X,
 } from "lucide-react";
-import { pdvProdutos } from "@/services/api/pdv";
 import { lojaCategorias } from "@/services/api/loja-produtos";
-import { lojaPedidosIndicadores, vendaPdvFila } from "@/services/api/loja-pedidos";
+import { lojaPedidosIndicadores, lojaProdutosBalcao, vendaPdvFila } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { PdvProduto } from "@/types/pdv";
@@ -59,7 +58,7 @@ export function BalcaoPdv() {
 
   const categorias = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });
   const indicadores = useQuery({ queryKey: ["loja-pedidos", "indicadores"], queryFn: () => lojaPedidosIndicadores(), refetchInterval: 15_000 });
-  const produtos = useQuery({ queryKey: ["pdv-produtos", busca], queryFn: () => pdvProdutos(busca) });
+  const produtos = useQuery({ queryKey: ["pdv-produtos", busca], queryFn: () => lojaProdutosBalcao(busca) });
 
   const lista = useMemo(() => {
     const rows = produtos.data ?? [];

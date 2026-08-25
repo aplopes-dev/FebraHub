@@ -66,6 +66,10 @@ export class LojaPedidosController {
 
   // -------------------- CONSULTAS (autenticadas) --------------------
 
+  /** Produtos do balcão — exige apenas loja.pedidos.ver (não pdv.ver). */
+  @Get('balcao/produtos')
+  produtosBalcao(@Query('busca') busca?: string) { return this.s.produtosBalcao(busca); }
+
   @Get('indicadores') indicadores(@Query('operacaoId') operacaoId?: string) { return this.s.indicadores(operacaoId); }
   @Get('dashboard') dashboard(@Query('operacaoId') operacaoId?: string) { return this.s.dashboard(operacaoId); }
   @Get('operacoes') operacoes() { return this.s.listarOperacoes(); }
