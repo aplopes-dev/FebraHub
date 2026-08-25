@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   baileys@7.0.0-rc13:
-    hash: wjyjeqma4dtbauey4ctyf7tfga
+    hash: baaf97bc2550c05deb061eab90d47a91be848090016d20a443727387440854d2
     path: patches/baileys@7.0.0-rc13.patch
 
 importers:
@@ -69,7 +69,7 @@ importers:
         version: 0.41.1
       baileys:
         specifier: 7.0.0-rc13
-        version: 7.0.0-rc13(patch_hash=wjyjeqma4dtbauey4ctyf7tfga)(sharp@0.34.5)
+        version: 7.0.0-rc13(patch_hash=baaf97bc2550c05deb061eab90d47a91be848090016d20a443727387440854d2)(sharp@0.34.5)
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -8058,7 +8058,7 @@ snapshots:
       babel-plugin-jest-hoist: 29.6.3
       babel-preset-current-node-syntax: 1.2.0(@babel/core@7.29.7)
 
-  baileys@7.0.0-rc13(patch_hash=wjyjeqma4dtbauey4ctyf7tfga)(sharp@0.34.5):
+  baileys@7.0.0-rc13(patch_hash=baaf97bc2550c05deb061eab90d47a91be848090016d20a443727387440854d2)(sharp@0.34.5):
     dependencies:
       '@cacheable/node-cache': 1.7.6
       '@hapi/boom': 9.1.4
