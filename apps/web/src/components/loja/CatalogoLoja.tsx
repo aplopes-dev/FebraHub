@@ -44,7 +44,7 @@ export function CatalogoLoja() {
         <div>
           <span className="tag">LOJA · CATÁLOGO E ESTOQUE</span>
           <h1>Produtos da Loja</h1>
-          <p>Cadastro único para PDV e Cardápio. Estoque operacional dividido em Loja e Depósito, independente do Omie.</p>
+          <p>Cadastro único para PDV e Cardápio. Estoque operacional dividido em Loja e Depósito, com entrada, saída e transferência entre os dois.</p>
         </div>
         {podeGerir && (
           <div className="acoes">

@@ -36,13 +36,13 @@ export function HubEstoque() {
   const ate = Math.min(pagina * POR_PAGINA, total);
 
   return <main className="es-page">
-    <header className="es-hero"><div><span>ESTOQUE + COMPRAS</span><h1>Controle de estoque</h1><p>Saldo atual do cadastro existente, reservas feitas por Compras e filas que exigem ação.</p></div><Link href="/compras/todas">Abrir operação de Compras <ArrowRight/></Link></header>
+    <header className="es-hero"><div><span>ESTOQUE + COMPRAS</span><h1>Controle de estoque</h1><p>Visão geral dos saldos de produtos, reservas feitas por Compras e filas que exigem ação. O estoque operacional (Loja / Depósito) fica em Loja → Produtos.</p></div><Link href="/compras/todas">Abrir operação de Compras <ArrowRight/></Link></header>
 
     <div className="es-aviso">
       <Info size={17} />
       <div>
-        <b>Esta tela é só de consulta</b> — mostra os saldos que vêm do Omie e de Compras.
-        Para <b>cadastrar, editar ou ajustar</b> um produto da Loja (PDV / Cardápio), use a tela de produtos da Loja.
+        <b>Esta é a visão geral de consulta</b> — mostra o saldo dos produtos e as reservas feitas por Compras.
+        O estoque operacional da Loja fica separado em <b>Loja</b> e <b>Depósito</b>: para <b>cadastrar produto, dar entrada/saída ou transferir entre Loja e Depósito</b>, use a tela de Produtos da Loja.
       </div>
       <Link href="/loja/produtos" className="es-aviso-btn"><Store size={14}/> Ir para Produtos da Loja</Link>
     </div>

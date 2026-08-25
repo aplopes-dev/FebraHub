@@ -274,7 +274,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
     const hub: MenuPrimario = { id: h.key, label: h.nome, Icone: h.Icone,
       visivel: h.key === "marketing" ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver") : h.key === "estoque" ? (ctx: ContextoMenu) => doSetor("estoque")(ctx) || ctx.pode("compras.operar") : doSetor(h.key),
       filhos: h.key === "estoque" ? [
-        { id:"estoque-resumo",label:"Estoque geral (consulta)",href:"/estoque",Icone:h.Icone,titulo:"Estoque geral",desc:"Consulta dos saldos vindos do Omie/Compras. Para cadastrar produto da Loja, use Loja → Produtos",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
+        { id:"estoque-resumo",label:"Estoque geral (consulta)",href:"/estoque",Icone:h.Icone,titulo:"Estoque geral",desc:"Visão geral dos saldos de produtos. Para cadastrar produto e mover estoque entre Loja e Depósito, use Loja → Produtos",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
         { id:"estoque-verificacoes",label:"Verificações pendentes",href:"/compras/todas",desc:"Solicitações aguardando conferência do saldo",visivel:comPermissao("compras.operar") },
         { id:"estoque-recebimentos",label:"Recebimentos",href:"/compras/recebimentos",desc:"Entradas aguardadas dos pedidos de compra",visivel:comPermissao("compras.operar") },
       ] : filhosHub(h.key, h.nome, h.Icone, h.desc) };
