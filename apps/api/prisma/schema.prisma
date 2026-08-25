@@ -2502,6 +2502,140 @@ model LojaAuditoria {
   @@map("loja_auditoria")
 }
 
+// ====================================================================
+// FISCAL — emissao de cupom fiscal (NFC-e mod 65, via SVRS) e cupom nao
+// fiscal (recibo interno). Portado/adaptado do @citybox/fiscal-api.
+//
+// A Febracis e o UNICO emitente, entao a config e um singleton (linha id=1),
+// diferente do citybox que era multi-tenant por Loja. O certificado A1 e o
+// token do CSC vivem cifrados (AES-256-GCM, FISCAL_CERT_ENCRYPTION_KEY); o
+// PFX cru fica no MinIO sob chave cifrada, nunca no banco.
+// ====================================================================
+
+/// Configuracao fiscal do emitente (singleton, id=1). Dados que vao no XML da
+/// NFC-e e no cabecalho do cupom nao fiscal.
+model FiscalConfig {
+  id                  Int      @id @default(1)
+  /// homologacao | producao — ambiente da SEFAZ/SVRS para onde a nota vai.
+  ambiente            String   @default("homologacao")
+  razaoSocial         String   @map("razao_social")
+  nomeFantasia        String?  @map("nome_fantasia")
+  cnpj                String
+  /// Inscricao Estadual — obrigatoria para NFC-e.
+  inscricaoEstadual   String?  @map("inscricao_estadual")
+  inscricaoMunicipal  String?  @map("inscricao_municipal")
+  /// Regime tributario: 1 Simples, 2 Simples excesso, 3 Regime normal.
+  regimeTributario    String   @default("3") @map("regime_tributario")
+  /// Endereco do emitente (logradouro, numero, bairro, municipio, cMun IBGE, uf, cep).
+  endereco            Json?
+  uf                  String   @default("BA")
+  /// Codigo IBGE do municipio do emitente (7 digitos) — 2927408 = Salvador.
+  codigoMunicipio     String?  @map("codigo_municipio")
+  telefone            String?
+  /// CSC (Codigo de Seguranca do Contribuinte) e seu ID, por ambiente.
+  /// Token cifrado; nunca retornado pela API.
+  cscId               String?  @map("csc_id")
+  cscTokenCifrado     String?  @map("csc_token_cifrado")
+  /// Serie da NFC-e (default 1).
+  serieNfce           Int      @default(1) @map("serie_nfce")
+  /// Habilita a emissao de cupom FISCAL (NFC-e). O nao fiscal independe disto.
+  nfceHabilitada      Boolean  @default(false) @map("nfce_habilitada")
+  atualizadoEm        DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("fiscal_config")
+}
+
+/// Certificado digital A1 (e-CNPJ) do emitente. O PFX cru mora no MinIO
+/// (pfxObjectKey) cifrado; aqui ficam so os metadados + a senha cifrada.
+model FiscalCertificado {
+  id             String   @id @default(uuid()) @db.Uuid
+  nome           String   @default("")
+  /// CNPJ do titular extraido do proprio certificado (confere com o emitente).
+  cnpjTitular    String   @map("cnpj_titular")
+  pfxObjectKey   String   @map("pfx_object_key")
+  senhaCifrada   String   @map("senha_cifrada")
+  validoDe       DateTime @map("valido_de") @db.Timestamptz(6)
+  validoAte      DateTime @map("valido_ate") @db.Timestamptz(6)
+  /// ativo | inativo | vencido
+  situacao       String   @default("ativo")
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([situacao, validoAte])
+  @@map("fiscal_certificados")
+}
+
+/// Numeracao sequencial por (tipo, serie, ambiente). NFC-e exige numeracao
+/// continua e sem saltos — o salto o fisco cobra explicacao.
+model FiscalSequencia {
+  id            String   @id @default(uuid()) @db.Uuid
+  tipoDocumento String   @map("tipo_documento") // NFCE
+  serie         Int
+  ambiente      String
+  numeroAtual   BigInt   @default(0) @map("numero_atual")
+  ativo         Boolean  @default(true)
+
+  @@unique([tipoDocumento, serie, ambiente])
+  @@map("fiscal_sequencias")
+}
+
+/// Documento fiscal emitido (ou tentativa). Guarda o ciclo completo: da
+/// montagem ao protocolo de autorizacao. O XML autorizado e o PDF do cupom
+/// ficam no MinIO (xmlObjectKey / pdfObjectKey).
+model FiscalDocumento {
+  id             String   @id @default(uuid()) @db.Uuid
+  tipoDocumento  String   @map("tipo_documento") // NFCE | NAO_FISCAL
+  ambiente       String
+  /// rascunho | assinado | autorizado | rejeitado | cancelado | erro
+  situacao       String   @default("rascunho")
+  /// Venda de origem (PdvVenda) — o cupom sai de uma venda ja fechada.
+  vendaId        String?  @map("venda_id") @db.Uuid
+  serie          Int?
+  numero         BigInt?
+  /// Chave de acesso de 44 digitos (NFC-e autorizada).
+  chaveAcesso    String?  @map("chave_acesso")
+  protocolo      String?
+  /// QR Code (texto) da NFC-e, para reimpressao do cupom.
+  qrCode         String?  @map("qr_code")
+  valorTotal     Decimal  @default(0) @map("valor_total") @db.Decimal(14, 2)
+  clienteNome    String?  @map("cliente_nome")
+  clienteDoc     String?  @map("cliente_doc")
+  xmlObjectKey   String?  @map("xml_object_key")
+  pdfObjectKey   String?  @map("pdf_object_key")
+  codigoErro     String?  @map("codigo_erro")
+  mensagemErro   String?  @map("mensagem_erro")
+  /// Idempotencia: uma venda gera no maximo um cupom fiscal autorizado.
+  emitidoPorId   String?  @map("emitido_por_id") @db.Uuid
+  emitidoPorNome String?  @map("emitido_por_nome")
+  autorizadoEm   DateTime? @map("autorizado_em") @db.Timestamptz(6)
+  canceladoEm    DateTime? @map("cancelado_em") @db.Timestamptz(6)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([tipoDocumento, situacao, criadoEm(sort: Desc)])
+  @@index([vendaId])
+  @@index([chaveAcesso])
+  @@map("fiscal_documentos")
+}
+
+/// Trilha bruta da conversa com a SEFAZ/SVRS (o que foi enviado, o que voltou)
+/// + eventos pos-emissao (cancelamento). Auditoria fiscal (FR-011).
+model FiscalEvento {
+  id             String   @id @default(uuid()) @db.Uuid
+  documentoId    String?  @map("documento_id") @db.Uuid
+  /// EMISSAO | CANCELAMENTO | CONSULTA
+  tipo           String
+  operacao       String   @default("")
+  situacao       String   @default("")
+  justificativa  String?
+  protocolo      String?
+  requestXml     String?  @map("request_xml")
+  responseXml    String?  @map("response_xml")
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([documentoId, criadoEm(sort: Desc)])
+  @@map("fiscal_eventos")
+}
+
 // --------------------------------------------------------------------
 // LEGADO
 // Legado do Supabase — nao usar em codigo novo.

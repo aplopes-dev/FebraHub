@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ATENÇÃO — WSDL de autoria própria, NÃO obtido do endpoint oficial.
+
+  Mesma ressalva de `NFeAutorizacao4.wsdl`/`NFeConsultaProtocolo4.wsdl`/
+  `NFeRecepcaoEvento4.wsdl` neste mesmo diretório: sem acesso de rede a
+  hnfe.sefaz.ba.gov.br neste ambiente de desenvolvimento. Modela o contrato
+  nacional estável do webservice NFeInutilizacao4 (inutilização de faixa de
+  numeração — T065/T068): uma única operação `nfeInutilizacaoNF` que recebe
+  `nfeDadosMsg` (o XML `<inutNFe>` bruto, já assinado — SEM envelope de lote,
+  diferente de `NFeRecepcaoEvento4`) e devolve `nfeResultMsg` (o XML
+  `<retInutNFe>` bruto de resposta). Mesmo padrão de tipagem simplificada
+  (`xsd:string`) e mesmo motivo — ver cabeçalho de `NFeAutorizacao4.wsdl`.
+
+  O XML de negócio (`inutNFe`/`retInutNFe`) também não foi verificado contra
+  um XSD oficial — ver cabeçalho de `nfe-soap-envelope.ts`. Confirmar ambos
+  contra as fontes oficiais antes do primeiro teste real em homologação, por
+  exemplo:
+  https://hnfe.sefaz.ba.gov.br/webservices/NFeInutilizacao4/NFeInutilizacao4.asmx?wsdl
+  (endpoints de produção/homologação confirmados pelo usuário em
+  `NF-e versão 4.0_ambientes.txt`, neste mesmo diretório).
+-->
+<wsdl:definitions
+    name="NFeInutilizacao4"
+    targetNamespace="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4"
+    xmlns:tns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+
+  <wsdl:types>
+    <xsd:schema targetNamespace="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4">
+      <xsd:element name="nfeDadosMsg" type="xsd:string"/>
+      <xsd:element name="nfeResultMsg" type="xsd:string"/>
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="nfeInutilizacaoNFRequest">
+    <wsdl:part name="parameters" element="tns:nfeDadosMsg"/>
+  </wsdl:message>
+  <wsdl:message name="nfeInutilizacaoNFResponse">
+    <wsdl:part name="parameters" element="tns:nfeResultMsg"/>
+  </wsdl:message>
+
+  <wsdl:portType name="NfeInutilizacao4Soap">
+    <wsdl:operation name="nfeInutilizacaoNF">
+      <wsdl:input message="tns:nfeInutilizacaoNFRequest"/>
+      <wsdl:output message="tns:nfeInutilizacaoNFResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="NfeInutilizacao4SoapBinding" type="tns:NfeInutilizacao4Soap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <wsdl:operation name="nfeInutilizacaoNF">
+      <soap:operation soapAction="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF" style="document"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="NfeInutilizacao4">
+    <wsdl:port name="NfeInutilizacao4Soap" binding="tns:NfeInutilizacao4SoapBinding">
+      <soap:address location="https://hnfe.sefaz.ba.gov.br/webservices/NFeInutilizacao4/NFeInutilizacao4.asmx"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

@@ -73,6 +73,13 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     ],
   },
   {
+    id: 'fiscal', nome: 'Fiscal — Cupom e Nota', descricao: 'Emissão de cupom fiscal (NFC-e) e comprovante não fiscal, e a configuração do emitente.',
+    permissoes: [
+      { id: 'fiscal.emitir', nome: 'Emitir cupom', descricao: 'Emitir e reimprimir cupom fiscal (NFC-e) e comprovante não fiscal a partir de uma venda.' },
+      { id: 'fiscal.gerenciar', nome: 'Configurar o fiscal', descricao: 'Cadastrar certificado A1, CSC e os dados do emitente; cancelar notas; trocar ambiente.' },
+    ],
+  },
+  {
     id: 'financeiro-erp', nome: 'Financeiro ERP', descricao: 'Contas a pagar/receber, DRE, contas bancárias e centros de custo.',
     permissoes: [
       { id: 'financeiro.erp.ver', nome: 'Consultar o financeiro', descricao: 'Ver lançamentos, DRE, saldos e indicadores.' },

@@ -31,6 +31,7 @@ import { PdvModule } from './modules/pdv/pdv.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { LojaProdutosModule } from './modules/loja-produtos/loja-produtos.module';
 import { LojaPedidosModule } from './modules/loja-pedidos/loja-pedidos.module';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
 import { PermissaoGuard } from './common/guards/permissao.guard';
@@ -101,6 +102,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     FinanceiroModule,
     LojaProdutosModule,
     LojaPedidosModule,
+    FiscalModule,
   ],
   controllers: [HealthController],
   providers: [
