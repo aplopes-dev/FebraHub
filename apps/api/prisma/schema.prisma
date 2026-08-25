@@ -1687,15 +1687,50 @@ model OrgMembro {
   /// 'funcionario' | 'agente'
   tipo         String   @db.VarChar(12)
   nome         String
+  /// Legado/fallback textual da função — mantido para compatibilidade e como
+  /// rótulo quando o membro ainda não tem cargo (`cargoId`) vinculado. Ao criar
+  /// pela tela nova, `funcao` recebe uma cópia do nome do cargo escolhido.
   funcao       String
   setor        String
   ordem        Int      @default(0)
   ativo        Boolean  @default(true)
+  /// Cargo formal do membro (entidade normalizada). Nulo = ainda sem cargo,
+  /// cai no texto de `funcao`. ON DELETE SET NULL: apagar o cargo não apaga a
+  /// pessoa, só solta o vínculo.
+  cargoId      String?  @map("cargo_id") @db.Uuid
+  cargo        OrgCargo? @relation(fields: [cargoId], references: [id], onDelete: SetNull)
   criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
 
   @@index([setor])
+  @@index([cargoId])
   @@map("org_membros")
+}
+
+/// Cargo formal do organograma — entidade normalizada (antes era só um texto
+/// livre em OrgMembro.funcao). Um cargo pertence a um setor, tem um nível de
+/// senioridade (0 = topo/diretoria → maior = base, ordena o grafo) e pode se
+/// reportar a outro cargo (`cargoPaiId`), formando a hierarquia real.
+model OrgCargo {
+  id           String   @id @default(uuid()) @db.Uuid
+  nome         String
+  setor        String
+  /// Senioridade/hierarquia visual: 0 = topo. Menor sobe no organograma.
+  nivel        Int      @default(0)
+  descricao    String?
+  ativo        Boolean  @default(true)
+  /// A quem este cargo se reporta (self-relation). Nulo = topo do setor.
+  cargoPaiId   String?  @map("cargo_pai_id") @db.Uuid
+  cargoPai     OrgCargo? @relation("OrgCargoHierarquia", fields: [cargoPaiId], references: [id], onDelete: SetNull)
+  subordinados OrgCargo[] @relation("OrgCargoHierarquia")
+  membros      OrgMembro[]
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@unique([setor, nome])
+  @@index([setor])
+  @@index([cargoPaiId])
+  @@map("org_cargos")
 }
 
 // --------------------------------------------------------------------

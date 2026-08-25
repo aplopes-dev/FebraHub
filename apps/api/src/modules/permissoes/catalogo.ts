@@ -164,6 +164,11 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
         nome: 'Editar o organograma',
         descricao: 'Adicionar, alterar e remover membros do organograma.',
       },
+      {
+        id: 'organograma.cargos.gerenciar',
+        nome: 'Gerenciar cargos',
+        descricao: 'Criar, alterar e remover cargos do organograma (hierarquia e níveis).',
+      },
     ],
   },
   {

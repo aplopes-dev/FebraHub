@@ -65,6 +65,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
       'territorial.ver',
       'organograma.ver',
       'organograma.editar',
+      'organograma.cargos.gerenciar',
       ...TODOS_SETORES,
       'integracoes.ver',
       'brain.ver',

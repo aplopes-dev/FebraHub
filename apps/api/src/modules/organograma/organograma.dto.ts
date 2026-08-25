@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 /**
  * Setores válidos do organograma = hubs do menu MENOS o CRM (decisão do
@@ -32,11 +32,20 @@ export class CriarMembroDto {
   @MaxLength(120)
   nome!: string;
 
+  /** Texto da função. Opcional quando `cargoId` é informado — nesse caso o
+   *  service copia o nome do cargo. Pelo menos um dos dois é exigido no service. */
+  @IsOptional()
   @Transform(aparar)
   @IsString()
   @MinLength(2)
   @MaxLength(120)
-  funcao!: string;
+  funcao?: string;
+
+  /** Cargo formal (entidade). Se informado, dita função e setor do membro. */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  cargoId?: string | null;
 
   @IsIn(SETORES_ORGANOGRAMA)
   setor!: (typeof SETORES_ORGANOGRAMA)[number];
@@ -65,6 +74,12 @@ export class AtualizarMembroDto {
   @MinLength(2)
   @MaxLength(120)
   funcao?: string;
+
+  /** Passar `null` desvincula o cargo (mantém `funcao` como rótulo). */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  cargoId?: string | null;
 
   @IsOptional()
   @IsIn(SETORES_ORGANOGRAMA)

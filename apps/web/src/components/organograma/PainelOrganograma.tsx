@@ -10,13 +10,14 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { JetBrains_Mono } from "next/font/google";
-import { Bot, Briefcase, ListTree, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { Bot, Briefcase, Layers, ListTree, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
 import { BotaoSalvar } from "@/components/ui/BotaoSalvar";
 import { BOTAO_OURO } from "@/components/ui/estilos";
 import { HUBS } from "@/lib/hubs";
 import {
   orgAtualizarMembro,
+  orgCargos,
   orgCriarMembro,
   orgExcluirMembro,
   orgMembros,
@@ -28,6 +29,7 @@ import {
   type SetorOrganograma,
 } from "@/types/organograma";
 import { BrainGraphView } from "./os/BrainGraphView";
+import { GestaoCargos } from "./GestaoCargos";
 import { COR_SETOR, adaptarOrganograma } from "./os-adaptador";
 import "@/app/organograma-os.css";
 
@@ -68,13 +70,21 @@ const rotuloCampo: React.CSSProperties = {
 
 type Formulario = CriarMembroInput & { id?: string };
 
+/** Sentinela do <select> de cargo para "digitar função livre" (sem cargo). */
+const FUNCAO_LIVRE = "__livre__";
+
 export function PainelOrganograma() {
   const fila = useQueryClient();
   const consulta = useQuery({ queryKey: CHAVE, queryFn: orgMembros });
   const membros = useMemo(() => consulta.data ?? [], [consulta.data]);
 
+  // Cargos: para o seletor no formulário de membro (filtrado por setor).
+  const consultaCargos = useQuery({ queryKey: ["organograma", "cargos"], queryFn: orgCargos });
+  const cargos = useMemo(() => consultaCargos.data ?? [], [consultaCargos.data]);
+
   const [form, setForm] = useState<Formulario | null>(null);
   const [gerenciar, setGerenciar] = useState(false);
+  const [gerenciarCargos, setGerenciarCargos] = useState(false);
   const [confirmaExclusao, setConfirmaExclusao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -83,14 +93,27 @@ export function PainelOrganograma() {
     [membros],
   );
 
+  /** Cargos ativos do setor selecionado no formulário. */
+  const cargosDoSetor = useMemo(
+    () =>
+      form
+        ? cargos
+            .filter((c) => c.setor === form.setor && c.ativo)
+            .sort((a, b) => a.nivel - b.nivel || a.nome.localeCompare(b.nome))
+        : [],
+    [cargos, form],
+  );
+
   const dadosGrafo = useMemo(() => adaptarOrganograma(membros), [membros]);
 
   const aoMudar = () => {
     fila.invalidateQueries({ queryKey: CHAVE });
+    fila.invalidateQueries({ queryKey: ["organograma", "cargos"] });
     setForm(null);
     setConfirmaExclusao(false);
     setErro(null);
   };
+  const revalidarMembros = () => fila.invalidateQueries({ queryKey: CHAVE });
   const aoFalhar = (e: unknown) => setErro(e instanceof Error ? e.message : "Erro inesperado.");
 
   const criar = useMutation({ mutationFn: orgCriarMembro, onSuccess: aoMudar, onError: aoFalhar });
@@ -105,20 +128,38 @@ export function PainelOrganograma() {
   const abrirNovo = () => {
     setErro(null);
     setConfirmaExclusao(false);
-    setForm({ tipo: "funcionario", nome: "", funcao: "", setor: "comercial" });
+    setGerenciar(false);
+    setGerenciarCargos(false);
+    setForm({ tipo: "funcionario", nome: "", funcao: "", cargoId: null, setor: "comercial" });
   };
   const abrirEdicao = (m: OrgMembro) => {
     setErro(null);
     setConfirmaExclusao(false);
-    setForm({ id: m.id, tipo: m.tipo, nome: m.nome, funcao: m.funcao, setor: m.setor });
+    setForm({
+      id: m.id,
+      tipo: m.tipo,
+      nome: m.nome,
+      funcao: m.funcao,
+      cargoId: m.cargoId ?? null,
+      setor: m.setor,
+    });
   };
   const salvar = () => {
     if (!form) return;
-    const dados = { ...form, nome: form.nome.trim(), funcao: form.funcao.trim() };
+    // Com cargo escolhido, o texto de função é irrelevante (a API deriva do cargo).
+    const dados = {
+      ...form,
+      nome: form.nome.trim(),
+      funcao: form.cargoId ? undefined : (form.funcao ?? "").trim(),
+    };
     if (form.id) atualizar.mutate(dados as Formulario & { id: string });
     else criar.mutate(dados);
   };
-  const formValido = !!form && form.nome.trim().length >= 2 && form.funcao.trim().length >= 2;
+  // Válido: nome ok E (tem cargo OU tem função textual com 2+ chars).
+  const formValido =
+    !!form &&
+    form.nome.trim().length >= 2 &&
+    (!!form.cargoId || (form.funcao ?? "").trim().length >= 2);
 
   const contagem = {
     funcionarios: membros.filter((m) => m.tipo === "funcionario").length,
@@ -149,7 +190,7 @@ export function PainelOrganograma() {
     );
   }
 
-  const asideAberto = !!form || gerenciar;
+  const asideAberto = !!form || gerenciar || gerenciarCargos;
 
   return (
     <div style={{ fontFamily: GROTESK }}>
@@ -175,7 +216,24 @@ export function PainelOrganograma() {
         <span style={{ flex: 1 }} />
         <button
           onClick={() => {
+            setGerenciarCargos((v) => !v);
+            setGerenciar(false);
+            setForm(null);
+            setErro(null);
+          }}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px",
+            borderRadius: 8, cursor: "pointer", fontFamily: GROTESK, fontSize: 12.5, fontWeight: 700,
+            color: gerenciarCargos ? C.bright : C.text, background: gerenciarCargos ? alfaDe(C.gold as string, 0.14) : C.card,
+            border: `1px solid ${gerenciarCargos ? C.gold : C.hair}`,
+          }}
+        >
+          <Layers size={14} /> Cargos
+        </button>
+        <button
+          onClick={() => {
             setGerenciar((v) => !v);
+            setGerenciarCargos(false);
             setForm(null);
             setErro(null);
           }}
@@ -232,14 +290,17 @@ export function PainelOrganograma() {
               }}
             >
               <h3 style={{ fontSize: 12, fontWeight: 800, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                {form ? (form.id ? "Editar membro" : "Novo membro") : "Membros"}
+                {form
+                  ? form.id ? "Editar membro" : "Novo membro"
+                  : gerenciarCargos ? "Cargos" : "Membros"}
               </h3>
               <button
                 onClick={() => {
-                  if (form && gerenciar) setForm(null);
+                  if (form && (gerenciar || gerenciarCargos)) setForm(null);
                   else {
                     setForm(null);
                     setGerenciar(false);
+                    setGerenciarCargos(false);
                   }
                   setConfirmaExclusao(false);
                   setErro(null);
@@ -251,7 +312,9 @@ export function PainelOrganograma() {
               </button>
             </div>
             <div style={{ padding: form ? 16 : "8px 0", maxHeight: 640, overflowY: "auto" }}>
-              {form ? (
+              {!form && gerenciarCargos ? (
+                <GestaoCargos onMudou={revalidarMembros} />
+              ) : form ? (
                 <>
                   <span style={rotuloCampo}>Tipo</span>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -288,32 +351,66 @@ export function PainelOrganograma() {
                     onChange={(e) => setForm({ ...form, nome: e.target.value })}
                   />
 
-                  <label style={rotuloCampo} htmlFor="org-funcao">Função</label>
-                  <input
-                    id="org-funcao"
-                    style={estiloCampo}
-                    value={form.funcao}
-                    list="org-funcoes"
-                    placeholder="Consultora de Vendas"
-                    onChange={(e) => setForm({ ...form, funcao: e.target.value })}
-                  />
-                  <datalist id="org-funcoes">
-                    {funcoesExistentes.map((f) => (
-                      <option key={f} value={f} />
-                    ))}
-                  </datalist>
-
                   <label style={rotuloCampo} htmlFor="org-setor">Setor</label>
                   <select
                     id="org-setor"
                     style={{ ...estiloCampo, cursor: "pointer" }}
                     value={form.setor}
-                    onChange={(e) => setForm({ ...form, setor: e.target.value as SetorOrganograma })}
+                    onChange={(e) =>
+                      // trocar de setor invalida o cargo antigo (é de outro setor)
+                      setForm({ ...form, setor: e.target.value as SetorOrganograma, cargoId: null })
+                    }
                   >
                     {SETORES_ORGANOGRAMA.map((s) => (
                       <option key={s} value={s}>{nomeDoSetor(s)}</option>
                     ))}
                   </select>
+
+                  <label style={rotuloCampo} htmlFor="org-cargo">Cargo</label>
+                  <select
+                    id="org-cargo"
+                    style={{ ...estiloCampo, cursor: "pointer" }}
+                    value={form.cargoId ?? FUNCAO_LIVRE}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === FUNCAO_LIVRE) {
+                        setForm({ ...form, cargoId: null });
+                      } else {
+                        const c = cargosDoSetor.find((x) => x.id === v);
+                        setForm({ ...form, cargoId: v, funcao: c?.nome ?? form.funcao });
+                      }
+                    }}
+                  >
+                    {cargosDoSetor.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                    <option value={FUNCAO_LIVRE}>Outra função (texto livre)…</option>
+                  </select>
+                  {cargosDoSetor.length === 0 && (
+                    <p style={{ fontSize: 10.5, color: C.faint, marginTop: 4 }}>
+                      Nenhum cargo neste setor ainda — use “Cargos” para criar, ou informe a função abaixo.
+                    </p>
+                  )}
+
+                  {/* Fallback textual quando não há cargo escolhido */}
+                  {!form.cargoId && (
+                    <>
+                      <label style={rotuloCampo} htmlFor="org-funcao">Função</label>
+                      <input
+                        id="org-funcao"
+                        style={estiloCampo}
+                        value={form.funcao ?? ""}
+                        list="org-funcoes"
+                        placeholder="Consultora de Vendas"
+                        onChange={(e) => setForm({ ...form, funcao: e.target.value })}
+                      />
+                      <datalist id="org-funcoes">
+                        {funcoesExistentes.map((f) => (
+                          <option key={f} value={f} />
+                        ))}
+                      </datalist>
+                    </>
+                  )}
 
                   {erro && <p style={{ color: C.down, fontSize: 12, marginTop: 10 }}>{erro}</p>}
 

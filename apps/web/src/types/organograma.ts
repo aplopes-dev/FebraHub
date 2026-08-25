@@ -1,4 +1,4 @@
-/* Tipos do Organograma — espelho do OrgMembro da API. */
+/* Tipos do Organograma — espelho do OrgMembro / OrgCargo da API. */
 
 export type TipoMembro = "funcionario" | "agente";
 
@@ -15,6 +15,14 @@ export const SETORES_ORGANOGRAMA = [
 
 export type SetorOrganograma = (typeof SETORES_ORGANOGRAMA)[number];
 
+/** Cargo formal (entidade) resumido, como vem embutido em OrgMembro.cargo. */
+export interface OrgCargoResumo {
+  id: string;
+  nome: string;
+  setor: SetorOrganograma;
+  nivel: number;
+}
+
 export interface OrgMembro {
   id: string;
   tipo: TipoMembro;
@@ -23,6 +31,8 @@ export interface OrgMembro {
   setor: SetorOrganograma;
   ordem: number;
   ativo: boolean;
+  cargoId: string | null;
+  cargo?: OrgCargoResumo | null;
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -30,9 +40,37 @@ export interface OrgMembro {
 export interface CriarMembroInput {
   tipo: TipoMembro;
   nome: string;
-  funcao: string;
+  /** Texto da função (fallback quando não há cargo). */
+  funcao?: string;
+  /** Cargo formal escolhido; se presente, dita função e setor. */
+  cargoId?: string | null;
   setor: SetorOrganograma;
   ordem?: number;
 }
 
 export type AtualizarMembroInput = Partial<CriarMembroInput> & { ativo?: boolean };
+
+/* ---- Cargos ------------------------------------------------------------- */
+
+export interface OrgCargo {
+  id: string;
+  nome: string;
+  setor: SetorOrganograma;
+  nivel: number;
+  descricao: string | null;
+  ativo: boolean;
+  cargoPaiId: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  _count?: { membros: number; subordinados: number };
+}
+
+export interface CriarCargoInput {
+  nome: string;
+  setor: SetorOrganograma;
+  nivel?: number;
+  descricao?: string | null;
+  cargoPaiId?: string | null;
+}
+
+export type AtualizarCargoInput = Partial<CriarCargoInput> & { ativo?: boolean };
