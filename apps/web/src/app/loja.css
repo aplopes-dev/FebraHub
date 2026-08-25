@@ -69,6 +69,22 @@
 .loja-mov small{color:var(--muted);font-size:10px}
 @media(max-width:720px){.loja-grid2,.loja-grid3,.loja-flags{grid-template-columns:1fr}}
 
+/* Uploader de imagem do produto (com remoção de fundo no navegador) */
+.loja-uploader{display:flex;flex-direction:column;gap:8px}
+.loja-uploader-preview{position:relative;width:100%;height:120px;border-radius:11px;border:1px solid var(--card-line);background:
+  repeating-conic-gradient(rgb(var(--gold-rgb)/.06) 0% 25%,transparent 0% 50%) 50%/18px 18px;
+  overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .15s}
+.loja-uploader-preview.vazio{border-style:dashed;background:rgb(var(--gold-rgb)/.05)}
+.loja-uploader-preview:hover{border-color:var(--gold)}
+.loja-uploader-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.loja-uploader-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600}
+.loja-uploader-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.loja-uploader-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;cursor:pointer;margin-left:auto;margin-top:0}
+.loja-uploader-toggle input{width:15px;height:15px;accent-color:var(--gold)}
+.loja-uploader-erro{color:var(--down);font-size:11px;margin:6px 0 0}
+.loja-uploader .girando{animation:loja-girar 1s linear infinite}
+@keyframes loja-girar{to{transform:rotate(360deg)}}
+
 /* Tabela de estoque (tela /estoque) */
 .loja-tabela-wrap{overflow-x:auto;margin-top:8px}
 .loja-tabela{width:100%;border-collapse:collapse;font-size:13px}

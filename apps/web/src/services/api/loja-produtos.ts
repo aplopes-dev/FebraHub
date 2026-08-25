@@ -28,6 +28,13 @@ export const lojaCriarProduto = (d: ProdutoInput) => api.post<LojaProduto>('/loj
 export const lojaAtualizarProduto = (id: string, d: ProdutoInput) => api.put<LojaProduto>(`/loja/produtos/${id}`, d);
 export const lojaInativarProduto = (id: string) => api.delete(`/loja/produtos/${id}`);
 
+/** Sobe a imagem do produto (já com fundo removido) e devolve a URL pública. */
+export const lojaEnviarImagemProduto = (arquivo: Blob, nome = "produto.png") => {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo, nome);
+  return api.enviarArquivo<{ url: string; chave: string }>("/loja/produtos/imagem", fd);
+};
+
 // -------------------- estoque --------------------
 export const lojaAjustarEstoque = (
   id: string,

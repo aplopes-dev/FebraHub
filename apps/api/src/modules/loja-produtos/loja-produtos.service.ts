@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
+import { StorageService } from '../storage/storage.service';
 import {
   AjusteEstoqueDto,
   CategoriaDto,
@@ -14,6 +15,15 @@ import {
   ProdutoDto,
   TransferenciaEstoqueDto,
 } from './loja-produtos.dto';
+
+/** Prefixo público do bucket onde vivem as imagens de produto da Loja. */
+const PASTA_IMAGENS = 'loja/produtos';
+/** Tipos aceitos no upload de imagem de produto. */
+const MIME_IMAGEM: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
 
 const gestor = (u: UsuarioLogado) =>
   u.papel === 'admin' || u.permissoes.includes('loja.produtos.gerenciar');
@@ -25,10 +35,47 @@ const LOCAIS = ['LOJA', 'DEPOSITO'] as const;
 
 @Injectable()
 export class LojaProdutosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   private exigeGestor(u: UsuarioLogado) {
     if (!gestor(u)) throw new ForbiddenException('Esta ação exige gestão do catálogo da Loja.');
+  }
+
+  // ==================== IMAGEM DE PRODUTO ====================
+
+  /**
+   * Sobe a imagem de um produto para o MinIO (prefixo público `loja/produtos/`)
+   * e devolve a URL pública estável para gravar em `imagemUrl`. O fundo já vem
+   * removido do front (PNG transparente), então aqui só validamos e guardamos.
+   * O objeto vive sob UUID: o nome enviado pelo cliente não entra no caminho.
+   */
+  async enviarImagem(
+    arquivo: { nomeOriginal: string; mimeDeclarado: string; conteudo: Buffer },
+    u: UsuarioLogado,
+  ) {
+    this.exigeGestor(u);
+    const mime = (arquivo.mimeDeclarado || '').toLowerCase().split(';')[0].trim();
+    const ext = MIME_IMAGEM[mime];
+    if (!ext) {
+      throw new BadRequestException({
+        codigo: 'IMAGEM_INVALIDA',
+        message: 'Envie uma imagem PNG, JPG ou WEBP.',
+      });
+    }
+    this.storage.validarTamanho(arquivo.conteudo.length);
+
+    const chave = this.storage.montarChave(PASTA_IMAGENS, `imagem.${ext}`);
+    await this.storage.upload(chave, arquivo.conteudo, mime);
+    // Libera o prefixo para leitura anônima (idempotente) — a URL pública só
+    // abre com essa policy; sem isso a imagem ficaria 403.
+    await this.storage.garantirPrefixoPublico(`${PASTA_IMAGENS}/`);
+
+    const url = this.storage.urlObjetoPublico(chave)
+      ?? (await this.storage.urlAssinada(chave, 3600));
+    return { url, chave };
   }
 
   /** Trilha de auditoria (PRD §48). Escreve direto na tabela compartilhada

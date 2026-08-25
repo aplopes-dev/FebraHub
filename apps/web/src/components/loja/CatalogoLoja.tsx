@@ -1,10 +1,10 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Boxes, Layers, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   lojaAjustarEstoque, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
-  lojaIndicadores, lojaInativarProduto, lojaMovimentos, lojaProdutos, lojaTransferirEstoque,
+  lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos, lojaProdutos, lojaTransferirEstoque,
 } from "@/services/api/loja-produtos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
@@ -130,6 +130,88 @@ export function CatalogoLoja() {
   );
 }
 
+// ==================== UPLOADER DE IMAGEM (com remoção de fundo) ====================
+/**
+ * Sobe a imagem do produto e, opcionalmente, remove o fundo direto no
+ * navegador (@imgly/background-removal — roda em WASM, sem custo de servidor).
+ * A remoção é dinâmica: só baixa o modelo quando o usuário de fato usa. Se
+ * falhar, cai para o upload da imagem original — nunca trava o cadastro.
+ */
+function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [removerFundo, setRemoverFundo] = useState(true);
+  const [etapa, setEtapa] = useState<"" | "fundo" | "enviando">("");
+  const [erro, setErro] = useState<string | null>(null);
+  const ocupado = etapa !== "";
+
+  async function processar(arquivo: File) {
+    setErro(null);
+    try {
+      let blob: Blob = arquivo;
+      let nome = arquivo.name || "produto.png";
+      if (removerFundo) {
+        setEtapa("fundo");
+        try {
+          const { removeBackground } = await import("@imgly/background-removal");
+          blob = await removeBackground(arquivo, { output: { format: "image/png" } });
+          nome = nome.replace(/\.[^.]+$/, "") + ".png";
+        } catch (e) {
+          // Modelo indisponível/erro de WASM: segue com a imagem original.
+          console.warn("Remoção de fundo falhou, enviando original:", e);
+          setErro("Não foi possível remover o fundo — a imagem original foi enviada.");
+        }
+      }
+      setEtapa("enviando");
+      const { url } = await lojaEnviarImagemProduto(blob, nome);
+      aoMudar(url);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEtapa("");
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div>
+      <label>Imagem do produto</label>
+      <div className="loja-uploader">
+        <div className={`loja-uploader-preview ${valor ? "" : "vazio"}`} onClick={() => !ocupado && inputRef.current?.click()}>
+          {ocupado ? (
+            <span className="loja-uploader-status"><Loader2 size={18} className="girando" />{etapa === "fundo" ? "Removendo fundo…" : "Enviando…"}</span>
+          ) : valor ? (
+            <img src={valor} alt="Prévia do produto" />
+          ) : (
+            <span className="loja-uploader-status"><ImageOff size={20} /> Sem imagem</span>
+          )}
+        </div>
+        <div className="loja-uploader-acoes">
+          <button type="button" className="loja-btn mini" disabled={ocupado} onClick={() => inputRef.current?.click()}>
+            <Upload size={13} /> {valor ? "Trocar imagem" : "Enviar imagem"}
+          </button>
+          {valor && (
+            <button type="button" className="loja-btn mini" disabled={ocupado} onClick={() => aoMudar("")}>
+              <Trash2 size={13} /> Remover
+            </button>
+          )}
+          <label className="loja-uploader-toggle" title="Deixa só o produto, sem fundo">
+            <input type="checkbox" checked={removerFundo} disabled={ocupado} onChange={(e) => setRemoverFundo(e.target.checked)} />
+            <Sparkles size={13} /> Remover fundo
+          </label>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+          onChange={(e) => { const arq = e.target.files?.[0]; if (arq) void processar(arq); }}
+        />
+      </div>
+      {erro && <p className="loja-uploader-erro">{erro}</p>}
+    </div>
+  );
+}
+
 // ==================== MODAL PRODUTO ====================
 function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | null; aoFechar: () => void; aoSalvar: () => void }) {
   const cats = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });
@@ -185,7 +267,7 @@ function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | 
           <div><label>Unidade</label><input className="loja-input" value={f.unidade} onChange={(e) => set("unidade", e.target.value)} placeholder="un, kg…" /></div>
         </div>
         <div className="loja-grid2">
-          <div><label>Imagem (URL)</label><input className="loja-input" value={f.imagemUrl} onChange={(e) => set("imagemUrl", e.target.value)} placeholder="https://…" /></div>
+          <UploaderImagem valor={f.imagemUrl ?? ""} aoMudar={(url) => set("imagemUrl", url)} />
           <div><label>Estoque mínimo</label><input className="loja-input" type="number" min={0} step="0.001" value={f.estoqueMinimo} onChange={(e) => set("estoqueMinimo", Number(e.target.value))} /></div>
         </div>
         <label>Descrição</label>

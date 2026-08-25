@@ -141,6 +141,60 @@ export class StorageService implements OnModuleInit {
     return Buffer.concat(partes);
   }
 
+  /**
+   * URL pública estável de um objeto (sem assinatura). Só serve para chaves
+   * cujo prefixo foi liberado para leitura anônima no bucket (ex.: `loja/`).
+   * Monta `${MINIO_PUBLIC_URL}/${bucket}/${chave}`. Sem URL pública configurada
+   * devolve `null` — o chamador decide o fallback (ex.: URL assinada curta).
+   */
+  urlObjetoPublico(chave: string): string | null {
+    const base = this.cfg.minio.urlPublica;
+    if (!base) return null;
+    const raiz = base.replace(/\/+$/, '');
+    const caminho = chave.split('/').map(encodeURIComponent).join('/');
+    return `${raiz}/${this.cfg.minio.bucket}/${caminho}`;
+  }
+
+  /**
+   * Garante leitura anônima (download) para um prefixo do bucket. Idempotente:
+   * lê a policy atual, adiciona a regra do prefixo se faltar e regrava.
+   * Usado para servir imagens de produto por URL pública estável.
+   */
+  async garantirPrefixoPublico(prefixo: string): Promise<void> {
+    const bucket = this.cfg.minio.bucket;
+    const recurso = `arn:aws:s3:::${bucket}/${prefixo.replace(/^\/+/, '')}*`;
+    try {
+      let policy: {
+        Version: string;
+        Statement: Array<{ Effect: string; Principal: unknown; Action: unknown; Resource: unknown }>;
+      } = { Version: '2012-10-17', Statement: [] };
+      try {
+        const atual = await this.cliente.getBucketPolicy(bucket);
+        if (atual) policy = JSON.parse(atual);
+      } catch {
+        /* bucket sem policy ainda: parte do template vazio */
+      }
+      const recursos = (r: unknown): string[] => (Array.isArray(r) ? (r as string[]) : [r as string]);
+      const jaTem = (policy.Statement ?? []).some(
+        (s) => s.Effect === 'Allow' && recursos(s.Resource).includes(recurso),
+      );
+      if (jaTem) return;
+      policy.Statement = policy.Statement ?? [];
+      policy.Statement.push({
+        Effect: 'Allow',
+        Principal: { AWS: ['*'] },
+        Action: ['s3:GetObject'],
+        Resource: [recurso],
+      });
+      await this.cliente.setBucketPolicy(bucket, JSON.stringify(policy));
+      this.logger.log(`prefixo público garantido: ${prefixo}`);
+    } catch (e) {
+      // Não é fatal: sem a policy a imagem só não abre por URL pública; o
+      // upload em si já terá funcionado.
+      this.logger.warn(`não foi possível liberar prefixo ${prefixo}: ${e}`);
+    }
+  }
+
   /** URL temporária. Curta de propósito: link de download não é permissão permanente. */
   async urlAssinada(chave: string, segundos = 300, nomeDownload?: string): Promise<string> {
     const params: Record<string, string> = {};

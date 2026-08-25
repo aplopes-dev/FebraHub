@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FastifyRequest } from 'fastify';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
@@ -44,6 +45,20 @@ export class LojaProdutosController {
   @Delete('categorias/:id') @ExigePermissao('loja.produtos.gerenciar')
   apagarCategoria(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.apagarCategoria(id, u); }
 
+  @Post('produtos/imagem') @ExigePermissao('loja.produtos.gerenciar')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Sobe a imagem de um produto e devolve a URL pública' })
+  @ApiBody({ schema: { type: 'object', properties: { arquivo: { type: 'string', format: 'binary' } } } })
+  async enviarImagem(@Req() req: FastifyRequest, @Usuario() u: UsuarioLogado) {
+    const parte = await (req as unknown as { file: () => Promise<MultipartFile | undefined> }).file();
+    if (!parte) throw new BadRequestException({ codigo: 'SEM_ARQUIVO', message: 'Envie uma imagem' });
+    const conteudo = await parte.toBuffer();
+    return this.s.enviarImagem(
+      { nomeOriginal: parte.filename, mimeDeclarado: parte.mimetype, conteudo },
+      u,
+    );
+  }
+
   @Post('produtos') @ExigePermissao('loja.produtos.gerenciar')
   criarProduto(@Body() dto: ProdutoDto, @Usuario() u: UsuarioLogado) { return this.s.criarProduto(dto, u); }
 
@@ -58,4 +73,10 @@ export class LojaProdutosController {
 
   @Post('produtos/:id/estoque/transferencia') @ExigePermissao('loja.produtos.gerenciar')
   transferir(@Param('id', ParseUUIDPipe) id: string, @Body() dto: TransferenciaEstoqueDto, @Usuario() u: UsuarioLogado) { return this.s.transferirEstoque(id, dto, u); }
+}
+
+interface MultipartFile {
+  filename: string;
+  mimetype: string;
+  toBuffer: () => Promise<Buffer>;
 }
