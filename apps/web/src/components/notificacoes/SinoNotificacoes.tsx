@@ -84,7 +84,7 @@ export function SinoNotificacoes() {
           <span
             style={{
               position: "absolute", top: -5, right: -5, minWidth: 17, height: 17,
-              padding: "0 4px", borderRadius: 9, background: C.gold, color: "var(--sobre-ouro)",
+              padding: "0 4px", borderRadius: 9, background: "linear-gradient(180deg, var(--gold-top), var(--gold-base))", color: "var(--sobre-ouro)",
               fontSize: 10, fontWeight: 800, fontFamily: SANS,
               display: "flex", alignItems: "center", justifyContent: "center",
               border: `2px solid ${C.card}`, lineHeight: 1,

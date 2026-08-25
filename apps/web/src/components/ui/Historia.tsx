@@ -18,7 +18,7 @@ export function Historia({ frases, cobertura }: { frases: ReactNode; cobertura?:
       <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: `linear-gradient(${C.goldTop}, ${C.goldBase})` }} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <span style={{
-          width: 22, height: 22, borderRadius: 6, background: C.gold, color: SOBRE_OURO,
+          width: 22, height: 22, borderRadius: 6, background: `linear-gradient(180deg, ${C.goldTop}, ${C.goldBase})`, color: SOBRE_OURO,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <Sparkles size={12} />

@@ -72,7 +72,7 @@
 .bal-thumb{height:132px;background:linear-gradient(160deg,rgb(var(--gold-rgb)/.08),transparent);display:grid;place-items:center;overflow:hidden}
 .bal-thumb img{width:100%;height:100%;object-fit:cover}
 .bal-thumb .ph{font-size:30px;opacity:.25}
-.bal-add{position:absolute;top:112px;right:12px;width:34px;height:34px;border-radius:50%;border:0;background:var(--gold);color:var(--sobre-ouro);display:grid;place-items:center;cursor:pointer;box-shadow:0 3px 10px rgb(0 0 0/.18)}
+.bal-add{position:absolute;top:112px;right:12px;width:34px;height:34px;border-radius:50%;border:0;background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);display:grid;place-items:center;cursor:pointer;box-shadow:0 3px 10px rgb(0 0 0/.18)}
 .bal-info{padding:12px 14px 14px}
 .bal-info .nome{font-size:14px;font-weight:700;margin:0;line-height:1.25}
 .bal-info .cat{font-size:11px;color:var(--muted);margin:2px 0 8px}
@@ -127,7 +127,7 @@
 .bal-formas{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
 .bal-forma{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 3px;border-radius:10px;border:1px solid var(--card-line);background:transparent;color:var(--text);font-size:11px;font-weight:700;cursor:pointer}
 .bal-forma svg{width:18px}
-.bal-forma.on{background:var(--gold);color:var(--sobre-ouro);border-color:transparent}
+.bal-forma.on{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent}
 .bal-split-toggle{display:flex;justify-content:space-between;align-items:center;padding:14px 0 10px;border-top:1px solid var(--hair);margin-top:14px}
 .bal-split-toggle b{font-size:13.5px;font-weight:700}
 .bal-split-toggle small{display:block;font-size:11px;color:var(--muted);margin-top:1px}
@@ -172,7 +172,7 @@
 .bal-modal p b{color:var(--text)}
 .bal-desc-tipo{display:flex;gap:8px;margin-bottom:10px}
 .bal-desc-tipo button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--card-line);background:transparent;color:var(--text);font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px}
-.bal-desc-tipo button.on{background:var(--gold);color:var(--sobre-ouro);border-color:transparent}
+.bal-desc-tipo button.on{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent}
 .bal-desc-input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--card-line);background:transparent;color:inherit;font-size:22px;font-weight:800;text-align:center}
 .bal-desc-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0 4px}
 .bal-desc-resumo div{text-align:center;padding:8px;border-radius:10px;background:rgb(var(--text-rgb)/.03)}
@@ -182,7 +182,7 @@
 .bal-desc-resumo b.up{color:var(--up)}
 .bal-modal .fim{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
 .bal-mbtn{padding:10px 16px;border-radius:11px;border:1px solid var(--card-line);background:transparent;color:var(--text);font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-.bal-mbtn.ouro{background:var(--gold);color:var(--sobre-ouro);border-color:transparent}
+.bal-mbtn.ouro{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent}
 .bal-mbtn.perigo{background:var(--down);color:#fff;border-color:transparent}
 .bal-mbtn kbd{font-family:inherit;font-size:10px;font-weight:800;background:rgb(var(--text-rgb)/.12);border-radius:4px;padding:2px 5px}
 .bal-mbtn.ouro kbd,.bal-mbtn.perigo kbd{background:rgb(255 255 255/.25);color:#fff}

@@ -295,14 +295,16 @@ input::placeholder { color: var(--dim); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* ---- BOTÃO DOURADO (padrão único de contraste) ----
-   No tema claro `--gold` é um marrom escuro (#8A6A1E); usá-lo como FUNDO de
-   botão SEM fixar a cor do texto faz o texto herdar `--text` (quase preto) e o
-   botão fica marrom-com-texto-preto — ilegível. Todo botão/ação de fundo
-   dourado deve usar `.fh-btn-ouro` (ou, no mínimo, `color:var(--sobre-ouro)`),
-   que garante texto/ícone escuros de alto contraste (8.9:1) e idênticos nos
-   dois temas — o dourado do botão é a identidade do produto. */
+   ATENÇÃO: NÃO use `var(--gold)` como FUNDO de botão. No tema claro `--gold` é
+   um MARROM ESCURO (#8A6A1E) — texto escuro (`--sobre-ouro`) por cima dele fica
+   ilegível (~2:1). `--gold` serve para TEXTO/ícone/borda, não para preencher.
+   O fundo do botão dourado é o gradiente `--gold-top`→`--gold-base`
+   (#F2D488→#B8934A), que é FIXO e claro nos dois temas (é a identidade do
+   produto) e dá alto contraste com o texto escuro `--sobre-ouro` no claro E no
+   escuro. Todo botão/ação de fundo dourado deve usar `.fh-btn-ouro` (ou os
+   `.ouro` locais, já alinhados a este padrão). */
 .fh-btn-ouro {
-  background: var(--gold);
+  background: linear-gradient(180deg, var(--gold-top), var(--gold-base));
   color: var(--sobre-ouro);
   border-color: transparent;
 }
