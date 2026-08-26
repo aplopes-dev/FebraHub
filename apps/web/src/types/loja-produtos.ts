@@ -89,9 +89,9 @@ export interface ReposicaoResposta {
 export interface ProdutoInput {
   nome: string;
   sku?: string;
-  codigoBarras?: string;
+  codigoBarras?: string | null;
   descricao?: string;
-  imagemUrl?: string;
+  imagemUrl?: string | null;
   categoriaId?: string | null;
   preco: number;
   custo?: number;
