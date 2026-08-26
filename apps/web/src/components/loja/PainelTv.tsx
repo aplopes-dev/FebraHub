@@ -10,15 +10,18 @@ import "@/app/painel.css";
 /** Senha com no mínimo 2 dígitos (PRD §4,§13): 01, 02 … 09, 10 … 99, 100. */
 const fmtSenha = (s: number | null) => (s == null ? "—" : String(s).padStart(2, "0"));
 
-/** Nº de itens → densidade dos cards (PRD §30). g=grande, m=médio, p=compacto. */
-function densidade(n: number): "g" | "m" | "p" {
-  if (n <= 5) return "g";
-  if (n <= 10) return "m";
-  return "p";
-}
-/** Quantos cards cabem por página conforme a densidade (PRD §30-31). */
-function capacidade(dens: "g" | "m" | "p"): number {
-  return dens === "g" ? 5 : dens === "m" ? 10 : 15;
+/**
+ * Densidade + paginação (PRD §30-31). Regra simples e previsível para NUNCA
+ * espremer/cortar a senha: uma coluna de TV mostra no máximo POR_PAGINA cards
+ * por página, com altura garantida. Se houver mais, PAGINA (troca sozinha).
+ *   • ≤ 4 itens  → cards GRANDES (g), 1 página.
+ *   • 5..8 itens → cards MÉDIOS  (m), 1 página.
+ *   • > 8 itens  → cards MÉDIOS, paginado de 8 em 8.
+ * Assim, com 10 itens: página 1 = 8 senhas, página 2 = 2 senhas — a senha 10
+ * aparece na página 2, com posição, sem sumir nem virar texto. */
+const POR_PAGINA = 8;
+function densidade(n: number): "g" | "m" {
+  return n <= 4 ? "g" : "m";
 }
 
 /**
@@ -147,7 +150,7 @@ function ColunaFila({
   total: number;
   children: (inicio: number, fim: number) => React.ReactNode;
 }) {
-  const porPagina = capacidade(densidade(total));
+  const porPagina = POR_PAGINA;
   const paginas = Math.max(1, Math.ceil(total / porPagina));
   const [pagina, setPagina] = useState(0);
 
@@ -177,7 +180,7 @@ function ColunaFila({
               {Array.from({ length: paginas }).map((_, i) => (
                 <span key={i} className={`tv-pager-dot ${i === Math.min(pagina, paginas - 1) ? "on" : ""}`} />
               ))}
-              <span className="tv-pager-lbl">página {Math.min(pagina, paginas - 1) + 1}/{paginas}</span>
+              <span className="tv-pager-lbl">Página {Math.min(pagina, paginas - 1) + 1} de {paginas}</span>
             </div>
           )}
         </div>
