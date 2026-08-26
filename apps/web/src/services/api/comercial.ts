@@ -63,15 +63,21 @@ export interface ComVenda {
 }
 
 export interface ComDashboard {
-  leads: number;
-  oportunidades: number;
-  pipelineCentavos: number;
-  vendasFechadas: number;
+  /** Leads criados no período */
+  leadsNoPeriodo: number;
+  /** Oportunidades abertas (count total do pipeline) */
+  pipelineTotalOportunidades: number;
+  pipelineTotalCentavos: number;
+  /** Vendas fechadas no período */
+  vendasFechadasTotal: number;
   valorVendidoCentavos: number;
-  conversaoPct: number;
+  /** Conversão em % (0-100) */
+  conversaoPercent: number;
   followUpsAtrasados: number;
   semProximaAcao: number;
   ticketMedioCentavos: number;
+  oportunidadesAbertasPorEtapa: { etapaId: string; total: number; valorCentavos: number }[];
+  periodo: { inicio: string; fim: string };
 }
 
 export interface MinhaOperacao {

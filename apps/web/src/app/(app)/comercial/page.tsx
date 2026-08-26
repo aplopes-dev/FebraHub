@@ -71,25 +71,25 @@ function DashboardComercial() {
   const kpis = [
     {
       rotulo: "Leads",
-      valor: d ? String(d.leads) : "—",
+      valor: d ? String(d.leadsNoPeriodo) : "—",
       Icone: Users,
       destaque: false,
     },
     {
       rotulo: "Oportunidades",
-      valor: d ? String(d.oportunidades) : "—",
+      valor: d ? String(d.pipelineTotalOportunidades) : "—",
       Icone: TrendingUp,
       destaque: false,
     },
     {
       rotulo: "Pipeline",
-      valor: d ? brl(d.pipelineCentavos) : "—",
+      valor: d ? brl(d.pipelineTotalCentavos) : "—",
       Icone: DollarSign,
       destaque: true,
     },
     {
       rotulo: "Vendas Fechadas",
-      valor: d ? String(d.vendasFechadas) : "—",
+      valor: d ? String(d.vendasFechadasTotal) : "—",
       Icone: ShoppingBag,
       destaque: false,
     },
@@ -101,7 +101,7 @@ function DashboardComercial() {
     },
     {
       rotulo: "Conversão",
-      valor: d ? pct(d.conversaoPct) : "—",
+      valor: d ? pct(d.conversaoPercent) : "—",
       Icone: Percent,
       destaque: false,
     },
