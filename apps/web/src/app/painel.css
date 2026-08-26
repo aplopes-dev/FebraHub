@@ -115,7 +115,15 @@
   min-height: 0;
 }
 .tv-card-senha { font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.tv-card-pos { font-size: 0.32em; font-weight: 800; letter-spacing: 0.04em; color: var(--tv-muted); text-transform: uppercase; white-space: nowrap; }
+/* "Posição N" como SELO legível à distância — tamanho absoluto (não relativo à
+   senha gigante), com fundo/borda azul. */
+.tv-card-pos {
+  flex: none; white-space: nowrap; text-align: center;
+  font-size: clamp(15px, 1.25vw, 26px); font-weight: 800; letter-spacing: 0.02em;
+  color: var(--tv-blue); text-transform: uppercase;
+  padding: 0.3em 0.7em; border-radius: 999px;
+  background: rgba(69, 182, 230, 0.12); border: 1px solid rgba(69, 182, 230, 0.4);
+}
 
 /* EM PREPARAÇÃO — azul */
 .tv-col.preparando .tv-card { border-color: rgba(69, 182, 230, 0.28); }

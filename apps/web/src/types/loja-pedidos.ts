@@ -51,6 +51,8 @@ export interface LojaPedido {
   subtotal: string;
   desconto: string;
   total: string;
+  /** Senha da fila (2 dígitos na UI) — é o que aparece na TV. */
+  senhaFila?: number | null;
   posicaoFila?: number | null;
   precisaPreparacao: boolean;
   confirmadoEm?: string | null;

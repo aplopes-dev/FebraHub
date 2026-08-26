@@ -154,7 +154,11 @@ export function FilaLoja() {
                 {lista.map((p) => (
                   <article key={p.id} className={`fila-card ${p.status === "PROXIMO" ? "proximo" : ""}`}>
                     <div className="fila-card-topo">
-                      <b>#{p.numero}</b>
+                      {p.senhaFila != null ? (
+                        <b className="fila-senha">Senha {String(p.senhaFila).padStart(2, "0")}<small>#{p.numero}</small></b>
+                      ) : (
+                        <b>#{p.numero}</b>
+                      )}
                       <span className="fila-canal">{p.canal === "PDV" ? "PDV" : "Cardápio"}</span>
                     </div>
                     <div className="fila-itens">
