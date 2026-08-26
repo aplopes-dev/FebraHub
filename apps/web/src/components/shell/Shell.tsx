@@ -131,8 +131,10 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
     display: "flex", padding: 2,
   } as const;
 
-  const mostraPeriodo = !!ativoId?.endsWith("-resumo") && ativoId !== "crm-resumo";
-  const mostraCategoria = ativoId === "comercial-resumo" || ativoId === "comercial";
+  const mostraPeriodo =
+    (!!ativoId?.endsWith("-resumo") && ativoId !== "crm-resumo") || ativoId === "com-hub";
+  const mostraCategoria =
+    ativoId === "comercial-resumo" || ativoId === "comercial" || ativoId === "com-hub";
   // Páginas "tela cheia": ocupam toda a área do conteúdo, sem o cabeçalho
   // genérico nem o max-width — para experiências imersivas tipo caixa (PDV).
   const paginaCheia = caminho.startsWith("/loja/balcao");

@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
-  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, TrendingUp, Users, Wallet, Workflow,
+  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -50,6 +50,60 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
       visivel: doSetor(key),
     },
   ];
+
+  if (key === "comercial") {
+    base.push(
+      {
+        id: "com-hub",
+        label: "Visão geral",
+        href: "/comercial/hub",
+        titulo: "Comercial",
+        desc: "Pódio de consultoras, evolução do faturamento e placar da semana",
+        visivel: (ctx) =>
+          doSetor("comercial")(ctx) ||
+          ctx.pode(
+            "comercial.ver",
+            "comercial.operar",
+            "comercial.gerenciar",
+            "comercial.vendas.aprovar",
+            "comercial.relatorios",
+          ),
+      },
+      {
+        id: "com-pipeline",
+        label: "Pipeline",
+        href: "/comercial/pipeline",
+        titulo: "Pipeline Comercial",
+        desc: "Kanban e lista de oportunidades por funil",
+        visivel: (ctx) => ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
+      },
+      {
+        id: "com-leads",
+        label: "Novo Lead",
+        href: "/comercial/leads",
+        titulo: "Novo Lead",
+        desc: "Captura rápida de um novo lead com deduplicação automática",
+        visivel: (ctx) => ctx.pode("comercial.operar", "comercial.gerenciar"),
+      },
+      {
+        id: "com-vendas",
+        label: "Vendas",
+        href: "/comercial/vendas",
+        titulo: "Vendas",
+        desc: "Lista, status e aprovação de vendas fechadas",
+        visivel: (ctx) =>
+          ctx.pode("comercial.ver", "comercial.gerenciar", "comercial.vendas.aprovar", "comercial.relatorios"),
+      },
+      {
+        id: "com-sympla",
+        label: "Sympla — Eventos",
+        href: "/comercial/sympla",
+        titulo: "Integração Sympla",
+        desc: "Eventos, pedidos e participantes da plataforma Sympla",
+        visivel: (ctx) => ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
+      },
+    );
+  }
 
   if (key === "loja") {
     base.push(
@@ -376,68 +430,6 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       { id: "compras-config", label: "Configurações", href: "/compras/configuracoes", visivel: (ctx: ContextoMenu) => ctx.admin },
     ] }];
   }),
-  {
-    id: "comercial-hub",
-    label: "Comercial",
-    Icone: TrendingUp,
-    visivel: (ctx) =>
-      ctx.pode(
-        "comercial.ver",
-        "comercial.operar",
-        "comercial.gerenciar",
-        "comercial.vendas.aprovar",
-        "comercial.relatorios",
-      ),
-    filhos: [
-      {
-        id: "com-dashboard",
-        label: "Dashboard",
-        href: "/comercial",
-        Icone: TrendingUp,
-        titulo: "Comercial",
-        desc: "KPIs, pipeline e minha operação",
-        visivel: (ctx) =>
-          ctx.pode(
-            "comercial.ver",
-            "comercial.operar",
-            "comercial.gerenciar",
-            "comercial.vendas.aprovar",
-            "comercial.relatorios",
-          ),
-      },
-      {
-        id: "com-pipeline",
-        label: "Pipeline",
-        href: "/comercial/pipeline",
-        titulo: "Pipeline Comercial",
-        desc: "Kanban e lista de oportunidades por funil",
-        visivel: (ctx) =>
-          ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
-      },
-      {
-        id: "com-leads",
-        label: "Novo Lead",
-        href: "/comercial/leads",
-        titulo: "Novo Lead",
-        desc: "Captura rápida de um novo lead",
-        visivel: (ctx) => ctx.pode("comercial.operar", "comercial.gerenciar"),
-      },
-      {
-        id: "com-vendas",
-        label: "Vendas",
-        href: "/comercial/vendas",
-        titulo: "Vendas",
-        desc: "Lista, status e aprovação de vendas fechadas",
-        visivel: (ctx) =>
-          ctx.pode(
-            "comercial.ver",
-            "comercial.gerenciar",
-            "comercial.vendas.aprovar",
-            "comercial.relatorios",
-          ),
-      },
-    ],
-  },
   {
     id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
       { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },
