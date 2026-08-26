@@ -1,5 +1,5 @@
 export interface PdvTerminal { id: string; nome: string; ativo: boolean }
-export interface PdvProduto { produtoId: string; codigo?: string | null; descricao?: string | null; preco: number; saldo: number; reservado: number; disponivel: number; categoria?: string | null; imagemUrl?: string | null; precisaPreparacao?: boolean; controlaEstoque?: boolean }
+export interface PdvProduto { produtoId: string; codigo?: string | null; descricao?: string | null; preco: number; saldo: number; reservado: number; disponivel: number; categoria?: string | null; imagemUrl?: string | null; precisaPreparacao?: boolean; controlaEstoque?: boolean; sku?: string | null }
 export interface PdvCaixaMovimento { id: string; tipo: string; valor: string; motivo: string; operadorNome: string; criadoEm: string }
 export interface PdvCaixaSessao {
   id: string; terminalId: string; situacao: string; abertoEm: string; fechadoEm?: string | null;
