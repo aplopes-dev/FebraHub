@@ -107,7 +107,7 @@ export const PERFIS_PADRAO: readonly PerfilPadrao[] = [
     nome: 'Equipe',
     descricao: 'O hub do próprio setor e o organograma. É o perfil padrão de quem entra.',
     sistema: false,
-    permissoes: ['pedagogico.ver', 'pedagogico.operar', 'pedagogico.monitores', 'compras.ver', 'compras.solicitar', 'loja.produtos.ver', 'loja.pedidos.ver', 'loja.pedidos.operar', 'fiscal.emitir', 'processos.ver', 'organograma.ver', 'brain.ver'],
+    permissoes: ['pedagogico.ver', 'pedagogico.operar', 'pedagogico.monitores', 'compras.ver', 'compras.solicitar', 'loja.produtos.ver', 'loja.produtos.gerenciar', 'loja.pedidos.ver', 'loja.pedidos.operar', 'fiscal.emitir', 'processos.ver', 'organograma.ver', 'brain.ver'],
   },
   {
     slug: 'integracoes',
