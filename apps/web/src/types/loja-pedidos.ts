@@ -53,6 +53,9 @@ export interface LojaPedido {
   total: string;
   /** Senha da fila (2 dígitos na UI) — é o que aparece na TV. */
   senhaFila?: number | null;
+  /** Código SECRETO de retirada (3 dígitos) — o cliente informa no balcão.
+   *  Só vem em contextos autenticados / no comprovante do próprio cliente. */
+  codigoRetirada?: number | null;
   posicaoFila?: number | null;
   precisaPreparacao: boolean;
   confirmadoEm?: string | null;
@@ -60,6 +63,21 @@ export interface LojaPedido {
   criadoEm: string;
   itens: LojaPedidoItem[];
   pagamentos?: LojaPedidoPagamento[];
+  /** Só na busca por código: sinaliza mais de um pedido ativo com o mesmo código. */
+  ambiguo?: boolean;
+}
+
+/** Item de edição do carrinho no balcão (o vendedor achou pelo código). */
+export interface EditarItensInput {
+  itens: { produtoId: string; quantidade: number; observacao?: string }[];
+  desconto?: number;
+  observacoes?: string;
+}
+
+export interface ImpressoraStatus {
+  ok: boolean;
+  device?: string;
+  writable?: boolean;
 }
 
 export interface CardapioProduto {
@@ -105,6 +123,8 @@ export interface Comprovante {
   status: LojaPedidoStatus;
   operacao: string;
   clienteNome: string;
+  /** Código SECRETO de retirada (3 dígitos) — privado do cliente, informado no balcão. */
+  codigo: number | null;
   subtotal: string;
   desconto: string;
   total: string;

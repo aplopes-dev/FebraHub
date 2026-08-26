@@ -1,7 +1,8 @@
 import { api } from './client';
 import type {
-  AcompanharPedido, CardapioPublico, CheckoutInput, Comprovante, LojaAuditoria, LojaOperacao, LojaPedido,
-  LojaPedidoPagamento, LojaPedidosDashboard, LojaPedidosIndicadores, PainelTv, RetiradaConsulta, VendaPdvInput,
+  AcompanharPedido, CardapioPublico, CheckoutInput, Comprovante, EditarItensInput, ImpressoraStatus, LojaAuditoria,
+  LojaOperacao, LojaPedido, LojaPedidoPagamento, LojaPedidosDashboard, LojaPedidosIndicadores, PainelTv,
+  RetiradaConsulta, VendaPdvInput,
 } from '@/types/loja-pedidos';
 import type { PdvProduto } from '@/types/pdv';
 
@@ -49,6 +50,19 @@ export const resgatarRetirada = (token: string) => api.post<Comprovante>(`/loja-
 
 // -------------------- venda PDV (fila unificada + split) --------------------
 export const vendaPdvFila = (d: VendaPdvInput) => api.post<LojaPedido>('/loja-pedidos/pdv/venda', d);
+
+// -------------------- balcão: código de 3 dígitos + edição + impressão --------------------
+/** Busca o pedido ativo pelo CÓDIGO SECRETO de 3 dígitos que o cliente digita. */
+export const buscarPedidoPorCodigo = (codigo: string, operacaoId?: string) =>
+  api.get<LojaPedido>(`/loja-pedidos/codigo/${encodeURIComponent(codigo)}`, { parametros: { operacaoId } });
+/** Edita o carrinho do pedido (itens + desconto) — revalida preço/estoque no back. */
+export const editarItensPedido = (id: string, d: EditarItensInput) =>
+  api.patch<LojaPedido>(`/loja-pedidos/pedidos/${id}/itens`, d);
+/** Imprime o cupom do pedido na impressora térmica do balcão. */
+export const imprimirCupomPedido = (id: string) =>
+  api.post<{ ok: boolean; bytes: number }>(`/loja-pedidos/pedidos/${id}/imprimir`);
+/** Estado da impressora do balcão (para habilitar/desabilitar o botão). */
+export const impressoraStatus = () => api.get<ImpressoraStatus>('/loja-pedidos/impressora/status');
 
 // -------------------- auditoria --------------------
 export const lojaAuditoria = (p: { entidade?: string; acao?: string; de?: string; ate?: string } = {}) =>

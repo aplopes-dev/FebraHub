@@ -2,7 +2,7 @@
  * Client do módulo Sympla — integração com a API de eventos.
  * Todas as chamadas passam pelo client httpOnly (cookie fh_acesso).
  */
-import { api } from './api';
+import { api } from './client';
 
 /* ─── Tipos ─── */
 
@@ -86,7 +86,7 @@ export const sympla = {
 
   /** Lista eventos sincronizados */
   async listarEventos(pagina = 1, limite = 20): Promise<PaginadoSympla<SymplaEvento>> {
-    return api.get('/sympla/eventos', { pagina, limite });
+    return api.get('/sympla/eventos', { parametros: { pagina, limite } });
   },
 
   /** Detalhe de um evento */
@@ -102,15 +102,17 @@ export const sympla = {
     status?: string,
   ): Promise<PaginadoSympla<SymplaOrder>> {
     return api.get(`/sympla/eventos/${eventoId}/orders`, {
-      pagina,
-      limite,
-      ...(status ? { status } : {}),
+      parametros: {
+        pagina,
+        limite,
+        ...(status ? { status } : {}),
+      },
     });
   },
 
   /** Histórico de sincronizações */
   async historicoSync(limite = 20): Promise<SympláSyncLog[]> {
-    return api.get('/sympla/sync/historico', { limite });
+    return api.get('/sympla/sync/historico', { parametros: { limite } });
   },
 
   /** Sincroniza lista de eventos (requer gerenciar) */

@@ -117,11 +117,19 @@ export function AcompanharPedido({ id }: { id: string }) {
             <div className="cmp-num">#{c.numero}</div>
           </div>
 
+          {!retirado && c.codigo != null && (
+            <div className="cmp-codigo">
+              <p className="cmp-codigo-legenda">Seu código de retirada</p>
+              <div className="cmp-codigo-num">{String(c.codigo).padStart(3, "0")}</div>
+              <p className="cmp-codigo-dica">Informe este código ao vendedor no balcão.</p>
+            </div>
+          )}
+
           {!retirado && c.qrPngDataUrl && (
             <div className="cmp-qr">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={c.qrPngDataUrl} alt={`QR de retirada do pedido ${c.numero}`} width={220} height={220} />
-              <p className="cmp-qr-legenda">Mostre este QR no balcão para retirar</p>
+              <p className="cmp-qr-legenda">Ou mostre este QR no balcão para retirar</p>
               {c.token && <p className="cmp-token">Código: <b>{c.token.slice(0, 8).toUpperCase()}</b></p>}
             </div>
           )}

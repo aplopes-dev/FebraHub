@@ -1,8 +1,8 @@
-import { Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPipe, Post, Put, Query, Sse } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Put, Query, Sse } from '@nestjs/common';
 import { Publica, Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
 import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { LojaPedidosService } from './loja-pedidos.service';
@@ -141,6 +141,32 @@ export class LojaPedidosController {
    *  RETIRADO gravando quem resgatou. Idempotente (409 em QR reapresentado). */
   @Post('retirada/:token/confirmar') @ExigePermissao('loja.pedidos.operar')
   resgatarRetirada(@Param('token') token: string, @Usuario() u: UsuarioLogado) { return this.s.resgatarRetirada(token, u); }
+
+  // -------------------- BALCÃO: CÓDIGO DE 3 DÍGITOS + EDIÇÃO + IMPRESSÃO --------------------
+
+  /** Estado da impressora térmica do balcão (para a UI habilitar o botão). */
+  @Get('impressora/status') @ExigePermissao('loja.pedidos.operar')
+  impressoraStatus() { return this.s.impressoraStatus(); }
+
+  /** Busca o pedido ATIVO pelo CÓDIGO SECRETO de 3 dígitos que o cliente digita
+   *  no balcão. Devolve o pedido completo para o vendedor conferir/editar. */
+  @Get('codigo/:codigo') @ExigePermissao('loja.pedidos.operar')
+  buscarPorCodigo(@Param('codigo') codigo: string, @Query('operacaoId') operacaoId?: string) {
+    return this.s.buscarPorCodigo(codigo, operacaoId);
+  }
+
+  /** Edita o carrinho do pedido (itens + desconto) — o vendedor ajusta antes de
+   *  entregar/imprimir. Revalida preço/estoque e recalcula os totais. */
+  @Patch('pedidos/:id/itens') @ExigePermissao('loja.pedidos.operar')
+  editarItens(@Param('id', ParseUUIDPipe) id: string, @Body() dto: EditarItensDto, @Usuario() u: UsuarioLogado) {
+    return this.s.editarItens(id, dto, u);
+  }
+
+  /** Imprime o cupom do pedido na impressora térmica do balcão. */
+  @Post('pedidos/:id/imprimir') @ExigePermissao('loja.pedidos.operar')
+  imprimirCupom(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) {
+    return this.s.imprimirCupom(id, u);
+  }
 
   // -------------------- GESTÃO (exige loja.pedidos.gerenciar) --------------------
 

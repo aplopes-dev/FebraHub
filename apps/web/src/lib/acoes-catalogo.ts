@@ -75,6 +75,16 @@ const acoes_loja: Acao[] = [
     visivel: comPermissao("loja.pedidos.operar"),
   },
   {
+    id: "loja-codigo",
+    label: "Atender por código",
+    desc: "Digitar o código de 3 dígitos do cliente para ver, editar e imprimir o pedido",
+    keywords: ["codigo", "código", "senha", "3 digitos", "atender", "imprimir", "cupom", "editar pedido", "balcao"],
+    href: "/loja/codigo",
+    icone: "KeyRound",
+    grupo: "loja",
+    visivel: comPermissao("loja.pedidos.operar"),
+  },
+  {
     id: "loja-pdv-movel",
     label: "PDV móvel (app)",
     desc: "App instalável: vender, fila e retirada",

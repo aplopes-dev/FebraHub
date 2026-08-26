@@ -105,7 +105,7 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     id: 'loja-pedidos', nome: 'Loja — Pedidos e Fila', descricao: 'Cardápio digital, fila de preparação e retirada da operação da Loja.',
     permissoes: [
       { id: 'loja.pedidos.ver', nome: 'Acompanhar pedidos', descricao: 'Ver a fila, os pedidos, o painel/TV e os indicadores da operação.' },
-      { id: 'loja.pedidos.operar', nome: 'Operar a fila', descricao: 'Confirmar pagamento, chamar o próximo, preparar, marcar pronto, escanear o QR do comprovante e confirmar retirada.' },
+      { id: 'loja.pedidos.operar', nome: 'Operar a fila', descricao: 'Confirmar pagamento, chamar o próximo, preparar, marcar pronto, escanear o QR do comprovante, confirmar retirada, atender por código (ver/editar/imprimir pedido).' },
       { id: 'loja.pedidos.gerenciar', nome: 'Gerenciar operações', descricao: 'Abrir/encerrar operações da Loja e cancelar pedidos.' },
     ],
   },

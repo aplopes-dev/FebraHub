@@ -125,6 +125,14 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         visivel: (ctx: ContextoMenu) => ctx.pode("loja.pedidos.operar"),
       },
       {
+        id: "loja-codigo",
+        label: "Atender por código",
+        href: "/loja/codigo",
+        titulo: "Atendimento por código",
+        desc: "Digite o código de 3 dígitos do cliente para ver, editar e imprimir o pedido",
+        visivel: (ctx: ContextoMenu) => ctx.pode("loja.pedidos.operar"),
+      },
+      {
         id: "loja-pdv-movel",
         label: "PDV móvel (app)",
         href: "/pdv-movel/vender",

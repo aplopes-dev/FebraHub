@@ -54,6 +54,8 @@ export class ProdutoDto {
   @IsOptional() @IsBoolean() exibeCardapio?: boolean;
   @IsOptional() @IsBoolean() precisaPreparacao?: boolean;
   @IsOptional() @IsBoolean() controlaEstoque?: boolean;
+  /** Quando true, permite venda mesmo sem saldo disponível (ex: pré-venda, produto digital). */
+  @IsOptional() @IsBoolean() vendeSemEstoque?: boolean;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) estoqueMinimo?: number;
   @IsOptional() @Type(() => Number) @IsNumber() ordem?: number;
 }

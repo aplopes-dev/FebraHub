@@ -2404,6 +2404,10 @@ model LojaProduto {
   exibeCardapio     Boolean  @default(true) @map("exibe_cardapio")
   precisaPreparacao Boolean  @default(false) @map("precisa_preparacao")
   controlaEstoque   Boolean  @default(true) @map("controla_estoque")
+  /// Quando true, ignora a verificação de saldo no checkout/PDV (permite vender mesmo sem estoque).
+  vendeSemEstoque   Boolean  @default(false) @map("vende_sem_estoque")
+  /// Quando true, o produto aparece na seção "Destaques" do cardápio digital (acima das categorias).
+  emDestaque        Boolean  @default(false) @map("em_destaque")
   estoqueMinimo     Decimal  @default(0) @map("estoque_minimo") @db.Decimal(14, 3)
   ordem             Int      @default(0)
   criadoPorId       String?  @map("criado_por_id") @db.Uuid
@@ -2512,6 +2516,13 @@ model LojaPedido {
   /// Quem (usuario) e quando resgatou a retirada pelo QR.
   retiradoPorId     String?   @map("retirado_por_id") @db.Uuid
   retiradoPorNome   String?   @map("retirado_por_nome")
+  /// Codigo SECRETO de retirada, 3 digitos (100..999, aleatorio). Diferente da
+  /// senha_fila (publica, aparece no painel/TV): este e privado, mostrado so ao
+  /// proprio cliente no comprovante. O vendedor DIGITA este codigo no balcao
+  /// para localizar o pedido, conferir/editar o carrinho e imprimir. Unico
+  /// apenas entre os pedidos ATIVOS da mesma operacao (garantido em codigo, sob
+  /// advisory lock); reaproveitavel apos o pedido finalizar.
+  codigoRetirada    Int?      @map("codigo_retirada")
   canceladoEm       DateTime? @map("cancelado_em") @db.Timestamptz(6)
   motivoCancel      String?   @map("motivo_cancel")
   lancamentoId      String?   @map("lancamento_id") @db.Uuid
@@ -2530,6 +2541,7 @@ model LojaPedido {
   @@index([operacaoId, status, entrouFilaEm])
   @@index([operacaoId, status, criadoEm(sort: Desc)])
   @@index([canal, status, criadoEm(sort: Desc)])
+  @@index([operacaoId, codigoRetirada], map: "loja_pedidos_codigo_retirada_idx")
   @@map("loja_pedidos")
 }
 

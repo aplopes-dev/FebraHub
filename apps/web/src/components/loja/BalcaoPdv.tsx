@@ -43,6 +43,7 @@ interface EanNaoEncontrado { ean: string }
 
 function selo(p: PdvProduto): { txt: string; cls: string } | null {
   if (!p.controlaEstoque) return null;
+  if (p.vendeSemEstoque) return { txt: "Sem limite", cls: "ok" };
   if (p.disponivel <= 0) return { txt: "Esgotado", cls: "zero" };
   if (p.disponivel <= 5) return { txt: "Últimas unidades", cls: "baixo" };
   return { txt: "Em estoque", cls: "ok" };
@@ -95,7 +96,7 @@ export function BalcaoPdv() {
     const sem = new Set<string>();
     (categorias.data ?? []).filter((c) => c.ativo).forEach((c) => {
       const prodsCat = rows.filter((p) => p.categoria === c.nome);
-      const todasEsgotadas = prodsCat.length > 0 && prodsCat.every((p) => p.controlaEstoque && p.disponivel <= 0);
+      const todasEsgotadas = prodsCat.length > 0 && prodsCat.every((p) => p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0);
       if (todasEsgotadas) sem.add(c.nome);
     });
     return sem;
@@ -113,7 +114,7 @@ export function BalcaoPdv() {
   const precisaPreparo = linhas.some((l) => l.produto.precisaPreparacao);
 
   const add = (p: PdvProduto) => {
-    if (p.controlaEstoque && p.disponivel <= 0) return;
+    if (p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0) return;
     setCarrinho((c) => ({ ...c, [p.produtoId]: { produto: p, quantidade: (c[p.produtoId]?.quantidade ?? 0) + 1, descItem: c[p.produtoId]?.descItem ?? 0 } }));
     setSelecionado(p.produtoId);
   };
@@ -357,7 +358,7 @@ export function BalcaoPdv() {
             <div className="bal-grid">
               {lista.map((p) => {
                 const s = selo(p);
-                const esgotado = !!p.controlaEstoque && p.disponivel <= 0;
+                const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
                 return (
                   <button key={p.produtoId} className={`bal-card grupo-${grupoDe(p.categoria)}`} disabled={esgotado} onClick={() => add(p)}>
                     <div className="bal-thumb">
@@ -943,7 +944,7 @@ function ModalAssociarEan({
   useEffect(() => { buscaRef.current?.focus(); }, []);
 
   const lista = useMemo(() => {
-    if (!busca.trim()) return produtos.filter((p) => !p.controlaEstoque || p.disponivel > 0);
+    if (!busca.trim()) return produtos.filter((p) => !p.controlaEstoque || p.vendeSemEstoque || p.disponivel > 0);
     const q = busca.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return produtos.filter((p) => {
       const n = (p.descricao ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");

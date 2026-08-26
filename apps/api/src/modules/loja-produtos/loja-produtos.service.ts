@@ -338,6 +338,7 @@ export class LojaProdutosService {
       exibeCardapio: dto.exibeCardapio ?? true,
       precisaPreparacao: dto.precisaPreparacao ?? false,
       controlaEstoque: dto.controlaEstoque ?? true,
+      vendeSemEstoque: dto.vendeSemEstoque ?? false,
       estoqueMinimo: D(dto.estoqueMinimo ?? 0),
       ordem: dto.ordem ?? 0,
       criadoPorId: u.id,

@@ -1,0 +1,131 @@
+/* Tela do vendedor: atendimento por código de 3 dígitos. Página autenticada
+   (tema claro/escuro via tokens). Escopo .cod-*. */
+
+.cod-page{padding:20px;max-width:680px;margin:0 auto;display:grid;gap:18px}
+
+.cod-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.cod-hero .tag{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--gold)}
+.cod-hero h1{font-size:24px;margin:4px 0 2px}
+.cod-hero p{margin:0;color:var(--muted);font-size:13.5px}
+
+/* ---------- busca por código ---------- */
+.cod-busca{
+  border:1px solid var(--card-line);border-radius:18px;background:var(--card);
+  padding:20px;display:grid;gap:12px;
+}
+.cod-busca>label{font-weight:700;font-size:13px;color:var(--muted)}
+.cod-busca-linha{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.cod-input-cod{
+  flex:1;min-width:180px;display:flex;align-items:center;gap:10px;
+  border:1px solid var(--card-line);border-radius:14px;background:var(--bg);padding:0 14px;
+}
+.cod-input-cod svg{width:20px;height:20px;color:var(--gold);flex-shrink:0}
+.cod-input-cod input{
+  flex:1;border:0;background:transparent;color:var(--fg);outline:none;
+  font-size:38px;font-weight:800;letter-spacing:.35em;text-align:center;padding:12px 0;
+  font-variant-numeric:tabular-nums;
+}
+.cod-input-cod input::placeholder{color:var(--muted);opacity:.5;letter-spacing:.35em}
+.cod-busca .loja-btn{font-size:15px;padding:0 20px}
+.cod-dica{margin:0;color:var(--muted);font-size:12.5px}
+
+/* ---------- pedido ---------- */
+.cod-pedido{
+  border:1px solid var(--card-line);border-radius:18px;background:var(--card);
+  padding:18px;display:grid;gap:14px;
+}
+.cod-pedido-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.cod-codigo{
+  display:inline-block;font-size:11px;font-weight:800;letter-spacing:.1em;
+  color:var(--gold);margin-bottom:2px;
+}
+.cod-pedido-topo h2{margin:0;font-size:20px}
+.cod-meta{margin:2px 0 0;color:var(--muted);font-size:13px}
+.cod-status{
+  font-size:12px;font-weight:800;padding:5px 11px;border-radius:999px;
+  border:1px solid var(--card-line);color:var(--muted);white-space:nowrap;
+}
+.cod-status.s-na_fila,.cod-status.s-proximo,.cod-status.s-em_preparacao{
+  color:#c9971f;border-color:rgb(var(--gold-rgb)/.35);background:rgb(var(--gold-rgb)/.08);
+}
+.cod-status.s-pronto{color:#2f9d57;border-color:rgb(90 195 122/.4);background:rgb(90 195 122/.1)}
+.cod-status.s-retirado{color:var(--muted)}
+.cod-status.s-cancelado{color:#d9534f;border-color:rgb(217 83 79/.4);background:rgb(217 83 79/.08)}
+
+/* avisos / erros / ok */
+.cod-erro{margin:0;color:#d9534f;font-size:13px;font-weight:600}
+.cod-aviso{margin:0;display:flex;align-items:center;gap:7px;color:#c9971f;font-size:13px;font-weight:600}
+.cod-aviso svg{width:16px;height:16px;flex-shrink:0}
+.cod-ok{margin:0;display:flex;align-items:center;gap:7px;color:#2f9d57;font-size:13px;font-weight:700}
+.cod-ok svg{width:17px;height:17px}
+
+/* ---------- itens ---------- */
+.cod-itens{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cod-vazio{color:var(--muted);font-size:13.5px;padding:10px 2px}
+.cod-item{border:1px solid var(--card-line);border-radius:12px;padding:10px 12px;display:grid;gap:8px;background:var(--bg)}
+.cod-item-info{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.cod-item-desc{font-weight:700;font-size:14.5px}
+.cod-item-preco{color:var(--muted);font-size:12px;white-space:nowrap}
+
+/* visualização (não editando) */
+.cod-item-view{display:flex;align-items:center;gap:10px}
+.cod-item-qtd{font-weight:800;color:var(--gold);font-size:14px}
+.cod-item-obs{flex:1;color:var(--muted);font-size:12.5px;font-style:italic}
+.cod-item-total{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* edição */
+.cod-item-edit{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cod-qtd{display:flex;align-items:center;gap:2px;border:1px solid var(--card-line);border-radius:10px;overflow:hidden}
+.cod-qtd button{
+  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;
+  border:0;background:transparent;color:var(--fg);
+}
+.cod-qtd button:hover{background:rgb(var(--gold-rgb)/.12)}
+.cod-qtd button svg{width:16px;height:16px}
+.cod-qtd span{min-width:34px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+.cod-obs{
+  flex:1;min-width:140px;border:1px solid var(--card-line);border-radius:10px;
+  background:var(--card);color:var(--fg);padding:8px 10px;font-size:13px;outline:none;
+}
+.cod-obs:focus{border-color:rgb(var(--gold-rgb)/.5)}
+.cod-remove{
+  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;flex-shrink:0;
+  border:1px solid var(--card-line);border-radius:10px;background:transparent;color:#d9534f;
+}
+.cod-remove:hover{background:rgb(217 83 79/.1)}
+.cod-remove svg{width:16px;height:16px}
+
+/* ---------- adicionar produto ---------- */
+.cod-add{display:grid;gap:8px;border-top:1px dashed var(--card-line);padding-top:12px}
+.cod-add-busca{display:flex;align-items:center;gap:8px;border:1px solid var(--card-line);border-radius:12px;background:var(--bg);padding:0 12px}
+.cod-add-busca svg{width:17px;height:17px;color:var(--muted)}
+.cod-add-busca input{flex:1;border:0;background:transparent;color:var(--fg);outline:none;padding:10px 0;font-size:14px}
+.cod-add-lista{display:grid;gap:6px;max-height:230px;overflow:auto}
+.cod-add-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  border:1px solid var(--card-line);border-radius:10px;background:var(--card);
+  padding:9px 12px;cursor:pointer;text-align:left;color:var(--fg);font-size:13.5px;
+}
+.cod-add-item:hover{border-color:rgb(var(--gold-rgb)/.5);background:rgb(var(--gold-rgb)/.06)}
+.cod-add-item b{color:var(--gold);white-space:nowrap}
+
+/* ---------- totais ---------- */
+.cod-totais{border-top:1px solid var(--card-line);padding-top:12px;display:grid;gap:6px}
+.cod-linha{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.cod-linha span:last-child{color:var(--fg);font-variant-numeric:tabular-nums}
+.cod-desc-input{display:flex;align-items:center;gap:4px;border:1px solid var(--card-line);border-radius:8px;padding:2px 8px;background:var(--bg)}
+.cod-desc-input span{color:var(--muted);font-size:12px}
+.cod-desc-input input{width:90px;border:0;background:transparent;color:var(--fg);outline:none;text-align:right;font-size:14px;padding:4px 0}
+.cod-total{font-size:16px;color:var(--fg);font-weight:600;padding-top:4px;border-top:1px dashed var(--card-line);margin-top:2px}
+.cod-total b{font-size:19px;font-variant-numeric:tabular-nums}
+
+/* ---------- ações ---------- */
+.cod-acoes{display:flex;gap:10px;flex-wrap:wrap;padding-top:4px}
+.cod-acoes .loja-btn{flex:0 0 auto}
+.cod-imprimir{
+  margin-left:auto;display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  border:0;border-radius:12px;padding:12px 22px;font-weight:800;font-size:15px;
+  background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);
+}
+.cod-imprimir:disabled{opacity:.5;cursor:not-allowed}
+.cod-imprimir svg{width:18px;height:18px;color:var(--sobre-ouro)}

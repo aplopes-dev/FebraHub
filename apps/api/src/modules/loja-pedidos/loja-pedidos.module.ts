@@ -4,6 +4,7 @@ import { LojaPedidosController } from './loja-pedidos.controller';
 import { LojaPedidosCron } from './loja-pedidos.cron';
 import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { LojaPedidosService } from './loja-pedidos.service';
+import { ImpressoraService } from './impressora.service';
 import { AsaasProvider } from './pagamentos/asaas.provider';
 import { ManualProvider } from './pagamentos/manual.provider';
 import { StoneProvider } from './pagamentos/stone.provider';
@@ -13,7 +14,7 @@ import { PagamentosService } from './pagamentos/pagamentos.service';
   imports: [WhatsappModule],
   controllers: [LojaPedidosController],
   providers: [
-    LojaPedidosService, LojaPedidosEventos, LojaPedidosCron,
+    LojaPedidosService, LojaPedidosEventos, LojaPedidosCron, ImpressoraService,
     PagamentosService, AsaasProvider, ManualProvider, StoneProvider,
   ],
 })

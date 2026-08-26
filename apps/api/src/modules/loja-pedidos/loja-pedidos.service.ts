@@ -11,8 +11,10 @@ import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { PagamentosService } from './pagamentos/pagamentos.service';
 import type { FormaPagamento } from './pagamentos/payment-provider';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
+import { ImpressoraService } from './impressora.service';
+import { montarCupom } from './cupom-escpos';
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 const jsonSeguro = <T>(v: T): T =>
@@ -65,6 +67,7 @@ export class LojaPedidosService {
     private readonly eventos: LojaPedidosEventos,
     private readonly whatsapp: WhatsappService,
     private readonly pagamentos: PagamentosService,
+    private readonly impressora: ImpressoraService,
   ) {}
 
   // ==================== OPERAÇÕES / EVENTOS ====================
@@ -154,8 +157,8 @@ export class LojaPedidosService {
           produtoId: p.id, nome: p.nome, descricao: p.descricao, preco: Number(p.preco),
           imagemUrl: p.imagemUrl ?? null, categoria: p.categoria?.nome ?? null, categoriaCor: p.categoria?.cor ?? null,
           precisaPreparacao: p.precisaPreparacao,
-          disponivel: p.controlaEstoque ? Math.max(0, disponivel) : null,
-          esgotado: p.controlaEstoque && disponivel <= 0,
+          disponivel: p.controlaEstoque && !p.vendeSemEstoque ? Math.max(0, disponivel) : null,
+          esgotado: p.controlaEstoque && !p.vendeSemEstoque && disponivel <= 0,
         };
       }),
     });
@@ -218,12 +221,14 @@ export class LojaPedidosService {
 
       // 2) Numeração pública sequencial por operação, sem race (advisory lock).
       const numero = await this.proximoNumero(tx, operacao.id);
+      // Código SECRETO de retirada (3 dígitos) que o cliente recebe já ao pedir.
+      const codigoRetirada = await this.proximoCodigoRetirada(tx, operacao.id);
 
       // 3) Cria o pedido + itens.
       const pedido = await tx.lojaPedido.create({
         data: {
           numero, operacaoId: operacao.id, canal: dto.canal ?? 'CARDAPIO_DIGITAL',
-          status: 'AGUARDANDO_PAGAMENTO',
+          status: 'AGUARDANDO_PAGAMENTO', codigoRetirada,
           clienteNome: dto.clienteNome ?? '', clienteTel: dto.clienteTel ? dto.clienteTel.replace(/\D/g, '') : null,
           subtotal: D(subtotal), desconto: D(0), total: D(subtotal),
           precisaPreparacao, observacoes: dto.observacoes ?? '',
@@ -296,6 +301,36 @@ export class LojaPedidosService {
       update: { ultimaSenha: { increment: 1 } },
     });
     return linha.ultimaSenha;
+  }
+
+  /**
+   * CÓDIGO SECRETO de retirada de 3 dígitos (100..999, aleatório) que o cliente
+   * recebe ao fazer o pedido. É PRIVADO — mostrado só ao próprio cliente no
+   * comprovante, nunca no painel/TV. O vendedor DIGITA este código no balcão
+   * para achar o pedido, conferir/editar o carrinho e imprimir.
+   *
+   * Unicidade: garantida apenas entre os pedidos ATIVOS (não retirados nem
+   * cancelados) da MESMA operação — assim um código pode ser reaproveitado
+   * depois que o pedido finaliza (senão esgotaria em ~900 pedidos por operação).
+   * Gera sob advisory lock por operação + sorteio com retry; se por acaso todos
+   * os 900 códigos estiverem ocupados ao mesmo tempo, devolve null (o fluxo não
+   * quebra — o pedido só fica sem código secreto e usa a senha/QR normalmente).
+   */
+  private async proximoCodigoRetirada(tx: Prisma.TransactionClient, operacaoId: string): Promise<number | null> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`loja_codigo_${operacaoId}`}))`;
+    const ativos = await tx.lojaPedido.findMany({
+      where: { operacaoId, codigoRetirada: { not: null }, status: { notIn: ['RETIRADO', 'CANCELADO'] } },
+      select: { codigoRetirada: true },
+    });
+    const ocupados = new Set(ativos.map((p) => p.codigoRetirada!));
+    if (ocupados.size >= 900) return null; // todos os 100..999 em uso
+    for (let tentativa = 0; tentativa < 50; tentativa++) {
+      const c = 100 + Math.floor(Math.random() * 900); // 100..999
+      if (!ocupados.has(c)) return c;
+    }
+    // Fallback determinístico: primeiro livre na faixa.
+    for (let c = 100; c <= 999; c++) if (!ocupados.has(c)) return c;
+    return null;
   }
 
   // ==================== PAGAMENTO ====================
@@ -534,7 +569,7 @@ export class LojaPedidosService {
         if (!produto || !produto.ativo) throw new BadRequestException('Produto indisponível na venda.');
         const saldo = produto.saldos[0];
         const saldoFisico = Number(saldo?.saldoFisico ?? 0);
-        if (produto.controlaEstoque) {
+        if (produto.controlaEstoque && !produto.vendeSemEstoque) {
           const disponivel = saldoFisico - Number(saldo?.reservado ?? 0);
           if (it.quantidade > disponivel) throw new ConflictException(`Estoque insuficiente para "${produto.nome}" (disponível: ${disponivel}).`);
         }
@@ -542,7 +577,7 @@ export class LojaPedidosService {
         const total = +(preco * it.quantidade).toFixed(2);
         subtotal += total;
         if (produto.precisaPreparacao) precisaPreparacao = true;
-        linhas.push({ produtoId: produto.id, descricao: produto.nome, quantidade: it.quantidade, precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque, saldoFisico });
+        linhas.push({ produtoId: produto.id, descricao: produto.nome, quantidade: it.quantidade, precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque && !produto.vendeSemEstoque, saldoFisico });
       }
       subtotal = +subtotal.toFixed(2);
       const desconto = Math.min(dto.desconto ?? 0, subtotal);
@@ -559,9 +594,11 @@ export class LojaPedidosService {
       const numero = await this.proximoNumero(tx, operacao.id);
       let posicao: number | null = null;
       let senha: number | null = null;
+      let codigoRetirada: number | null = null;
       let status: string;
       if (enviarPreparacao) {
         senha = await this.proximaSenha(tx, operacao.id); // senha da fila (PRD §6)
+        codigoRetirada = await this.proximoCodigoRetirada(tx, operacao.id); // código secreto p/ o balcão
         posicao = await this.calcularPosicaoFila(tx, operacao.id);
         status = 'NA_FILA';
       } else status = 'RETIRADO'; // entrega imediata: não ocupa fila, sem senha (PRD §7)
@@ -601,7 +638,7 @@ export class LojaPedidosService {
           clienteNome: dto.clienteNome ?? '', clienteTel: dto.clienteTel ? dto.clienteTel.replace(/\D/g, '') : null,
           operadorId: u.id, operadorNome: u.nome,
           subtotal: D(subtotal), desconto: D(desconto), total: D(total),
-          precisaPreparacao, posicaoFila: posicao, senhaFila: senha, lancamentoId: lanc.id,
+          precisaPreparacao, posicaoFila: posicao, senhaFila: senha, codigoRetirada, lancamentoId: lanc.id,
           // Só gera token de retirada quando o pedido vai para a fila (o cliente
           // sai e volta). Se entrega na hora (ENTREGAR_AGORA) já nasce RETIRADO.
           ...(enviarPreparacao ? { tokenRetirada: gerarTokenRetirada() } : {}),
@@ -750,6 +787,7 @@ export class LojaPedidosService {
         categoria: p.categoria?.nome ?? null,
         precisaPreparacao: p.precisaPreparacao,
         controlaEstoque: p.controlaEstoque,
+        vendeSemEstoque: p.vendeSemEstoque,
         imagemUrl: p.imagemUrl ?? null,
       };
     });
@@ -849,7 +887,7 @@ export class LojaPedidosService {
   private comprovanteBase(p: {
     id: string; numero: number; status: string; total: Prisma.Decimal; subtotal: Prisma.Decimal;
     desconto: Prisma.Decimal; clienteNome: string; criadoEm: Date; confirmadoEm: Date | null;
-    prontoEm: Date | null; retiradoEm: Date | null; observacoes: string;
+    prontoEm: Date | null; retiradoEm: Date | null; observacoes: string; codigoRetirada?: number | null;
     itens: { id: string; descricao: string; quantidade: Prisma.Decimal; precoUnit: Prisma.Decimal; total: Prisma.Decimal }[];
     operacao: { nome: string; slug: string | null } | null;
     pagamentos: { forma: string; confirmadoEm: Date | null }[];
@@ -858,6 +896,9 @@ export class LojaPedidosService {
       id: p.id, numero: p.numero, status: p.status,
       operacao: p.operacao?.nome ?? 'Loja FEBRACIS',
       clienteNome: p.clienteNome || 'Consumidor',
+      // Código SECRETO de retirada (3 dígitos): só neste comprovante — é privado
+      // do cliente e nunca aparece no painel/TV.
+      codigo: p.codigoRetirada ?? null,
       subtotal: p.subtotal, desconto: p.desconto, total: p.total,
       formaPagamento: p.pagamentos[0]?.forma ?? null,
       criadoEm: p.criadoEm, confirmadoEm: p.confirmadoEm, prontoEm: p.prontoEm, retiradoEm: p.retiradoEm,
@@ -950,6 +991,204 @@ export class LojaPedidosService {
     });
     if (!p) throw new NotFoundException('Comprovante inválido — nenhum pedido para este QR.');
     return p;
+  }
+
+  // ==================== BALCÃO: BUSCA POR CÓDIGO + EDIÇÃO + IMPRESSÃO ====================
+
+  /**
+   * Busca o pedido ATIVO pelo CÓDIGO SECRETO de 3 dígitos que o cliente digita
+   * no balcão. Restringe aos pedidos não retirados/cancelados (o código é
+   * reaproveitável depois que finaliza) — se houver operação ativa, prioriza a
+   * dela. Devolve o pedido completo (itens + pagamento) para o vendedor conferir
+   * e, se quiser, editar antes de entregar/imprimir.
+   */
+  async buscarPorCodigo(codigoBruto: string, operacaoId?: string) {
+    const codigo = Number(String(codigoBruto).replace(/\D/g, ''));
+    if (!Number.isInteger(codigo) || codigo < 100 || codigo > 999) {
+      throw new BadRequestException('Código inválido — informe os 3 dígitos do comprovante.');
+    }
+    const op = operacaoId
+      ? { id: operacaoId }
+      : (await this.prisma.lojaOperacao.findFirst({ where: { status: 'ativa' }, orderBy: { criadoEm: 'desc' } }));
+    const pedidos = await this.prisma.lojaPedido.findMany({
+      where: {
+        codigoRetirada: codigo,
+        status: { notIn: ['RETIRADO', 'CANCELADO'] },
+        ...(op ? { operacaoId: op.id } : {}),
+      },
+      include: {
+        itens: true,
+        operacao: { select: { nome: true, slug: true } },
+        pagamentos: { orderBy: { criadoEm: 'desc' } },
+      },
+      orderBy: { criadoEm: 'desc' },
+      take: 2,
+    });
+    if (!pedidos.length) throw new NotFoundException('Nenhum pedido ativo com este código.');
+    // Colisão teórica (2 ativos com o mesmo código) — devolve o mais recente e sinaliza.
+    return jsonSeguro({ ...pedidos[0], ambiguo: pedidos.length > 1 });
+  }
+
+  /**
+   * Edita o CARRINHO de um pedido existente (o vendedor achou pelo código e
+   * ajusta itens/desconto). Substitui a lista de itens por completo, revalida
+   * preço e estoque e recalcula os totais. Ajusta o estoque conforme o estágio:
+   *   • AGUARDANDO_PAGAMENTO → mexe na RESERVA (ainda não baixou o físico);
+   *   • já pago e na fila (NA_FILA/PROXIMO/EM_PREPARACAO) → mexe no FÍSICO
+   *     (a venda já foi baixada), e reajusta o lançamento financeiro.
+   * Não permite editar pedido RETIRADO/CANCELADO/PRONTO (já fechado).
+   */
+  async editarItens(pedidoId: string, dto: EditarItensDto, u: UsuarioLogado) {
+    if (!opera(u)) throw new ForbiddenException('Seu perfil não pode editar pedidos.');
+    if (!dto.itens.length) throw new BadRequestException('O pedido não pode ficar sem itens.');
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const pedido = await tx.lojaPedido.findUnique({ where: { id: pedidoId }, include: { itens: true } });
+      if (!pedido) throw new NotFoundException('Pedido não encontrado.');
+      const EDITAVEL = ['AGUARDANDO_PAGAMENTO', 'NA_FILA', 'PROXIMO', 'EM_PREPARACAO'];
+      if (!EDITAVEL.includes(pedido.status)) {
+        throw new BadRequestException(`Este pedido não pode mais ser editado (${pedido.status}).`);
+      }
+      const reservado = pedido.status === 'AGUARDANDO_PAGAMENTO'; // ainda não baixou físico
+
+      // Trava por produto (evita corrida com checkout/venda). Ordena os ids.
+      const idsEnvolvidos = [...new Set([...dto.itens.map((i) => i.produtoId), ...pedido.itens.map((i) => i.produtoId)])].sort();
+      for (const pid of idsEnvolvidos) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`loja_estoque_${pid}`}))`;
+      }
+
+      // Quantidade ANTES (por produto) e valida os itens NOVOS.
+      const antes = new Map<string, number>();
+      for (const it of pedido.itens) antes.set(it.produtoId, (antes.get(it.produtoId) ?? 0) + Number(it.quantidade));
+
+      let subtotal = 0;
+      let precisaPreparacao = false;
+      const linhas: { produtoId: string; descricao: string; quantidade: number; precoUnit: number; total: number; observacao: string; controla: boolean; saldoFisico: number; reservadoAtual: number }[] = [];
+      const depois = new Map<string, number>();
+      for (const it of dto.itens) {
+        const produto = await tx.lojaProduto.findUnique({ where: { id: it.produtoId }, include: { saldos: { where: { local: 'LOJA' } } } });
+        if (!produto || !produto.ativo) throw new BadRequestException('Produto indisponível no pedido.');
+        const saldo = produto.saldos[0];
+        const saldoFisico = Number(saldo?.saldoFisico ?? 0);
+        const reservadoAtual = Number(saldo?.reservado ?? 0);
+        const preco = Number(produto.preco);
+        const total = +(preco * it.quantidade).toFixed(2);
+        subtotal += total;
+        if (produto.precisaPreparacao) precisaPreparacao = true;
+        depois.set(it.produtoId, (depois.get(it.produtoId) ?? 0) + it.quantidade);
+        linhas.push({ produtoId: produto.id, descricao: produto.nome, quantidade: it.quantidade, precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque, saldoFisico, reservadoAtual });
+      }
+      subtotal = +subtotal.toFixed(2);
+      const desconto = Math.min(dto.desconto ?? Number(pedido.desconto), subtotal);
+      const total = +(subtotal - desconto).toFixed(2);
+
+      // Valida DISPONIBILIDADE para os aumentos de quantidade.
+      for (const l of linhas) {
+        if (!l.controla) continue;
+        const delta = (depois.get(l.produtoId) ?? 0) - (antes.get(l.produtoId) ?? 0);
+        if (delta <= 0) continue; // reduziu ou manteve
+        const disponivel = reservado ? (l.saldoFisico - l.reservadoAtual) : (l.saldoFisico); // pago: só o físico limita
+        if (delta > disponivel) throw new ConflictException(`Estoque insuficiente para "${l.descricao}" (disponível: ${disponivel}).`);
+      }
+
+      // Aplica o DELTA de estoque produto a produto (união de antes+depois).
+      for (const pid of idsEnvolvidos) {
+        const delta = (depois.get(pid) ?? 0) - (antes.get(pid) ?? 0);
+        if (delta === 0) continue;
+        const linha = linhas.find((l) => l.produtoId === pid);
+        // Se o produto saiu do carrinho não temos a flag `controla` na `linha`;
+        // buscamos rápido para decidir se mexe em estoque.
+        const controla = linha ? linha.controla : (await tx.lojaProduto.findUnique({ where: { id: pid }, select: { controlaEstoque: true } }))?.controlaEstoque ?? false;
+        if (!controla) continue;
+        if (reservado) {
+          await tx.lojaEstoqueSaldo.update({ where: { produtoId_local: { produtoId: pid, local: 'LOJA' } }, data: { reservado: { increment: D(delta) } } });
+          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: 'reserva', quantidade: D(delta), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de reserva (edição) pedido #${pedido.numero}`, usuarioId: u.id } });
+        } else {
+          // Pago: baixa/devolve o físico direto.
+          await tx.lojaEstoqueSaldo.update({ where: { produtoId_local: { produtoId: pid, local: 'LOJA' } }, data: { saldoFisico: { decrement: D(delta) } } });
+          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: delta > 0 ? 'saida' : 'entrada', quantidade: D(Math.abs(delta)), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de estoque (edição) pedido #${pedido.numero}`, usuarioId: u.id } });
+        }
+      }
+
+      // Substitui os itens e recalcula os totais.
+      await tx.lojaPedidoItem.deleteMany({ where: { pedidoId } });
+      const atualizado = await tx.lojaPedido.update({
+        where: { id: pedidoId },
+        data: {
+          subtotal: D(subtotal), desconto: D(desconto), total: D(total), precisaPreparacao,
+          ...(dto.observacoes != null ? { observacoes: dto.observacoes } : {}),
+          itens: { create: linhas.map((l) => ({ produtoId: l.produtoId, descricao: l.descricao, quantidade: D(l.quantidade), precoUnit: D(l.precoUnit), total: D(l.total), observacao: l.observacao })) },
+          historico: { create: { deStatus: pedido.status, paraStatus: pedido.status, origem: 'operador', usuarioId: u.id, observacao: `Pedido editado no balcão — novo total ${total.toFixed(2)}` } },
+        },
+        include: { itens: true, operacao: { select: { nome: true, slug: true } }, pagamentos: { orderBy: { criadoEm: 'desc' } } },
+      });
+
+      // Se já estava pago, reajusta o lançamento financeiro para o novo total.
+      if (!reservado && pedido.lancamentoId) {
+        await tx.financeiroLancamento.update({
+          where: { id: pedido.lancamentoId },
+          data: { valor: D(total), valorPago: D(total) },
+        }).catch(() => undefined);
+      }
+      return atualizado;
+    });
+
+    this.eventos.emitir({ tipo: 'pedido', pedidoId });
+    this.eventos.emitir({ tipo: 'fila', operacaoId: resultado.operacaoId ?? undefined });
+    void this.auditar({ entidade: 'pedido', entidadeId: pedidoId, acao: 'pedido.editado', origem: 'operador', depois: { numero: resultado.numero, total: resultado.total } }, u);
+    return jsonSeguro(resultado);
+  }
+
+  /**
+   * Imprime o CUPOM do pedido na impressora térmica do balcão (servidor de
+   * impressão exposto na IdeaPad). Mostra o código de retirada, itens, dia/hora,
+   * total e desconto. Não é documento fiscal (a NFC-e tem módulo próprio).
+   */
+  async imprimirCupom(pedidoId: string, u: UsuarioLogado) {
+    if (!opera(u)) throw new ForbiddenException('Seu perfil não pode imprimir cupons.');
+    const p = await this.prisma.lojaPedido.findUnique({
+      where: { id: pedidoId },
+      include: {
+        itens: true,
+        operacao: { select: { nome: true } },
+        pagamentos: { where: { status: 'CONFIRMADO' }, orderBy: { confirmadoEm: 'desc' } },
+      },
+    });
+    if (!p) throw new NotFoundException('Pedido não encontrado.');
+
+    const buffer = montarCupom({
+      operacao: p.operacao?.nome ?? 'Loja FEBRACIS',
+      numero: p.numero,
+      senhaFila: p.senhaFila,
+      clienteNome: p.clienteNome || undefined,
+      itens: p.itens.map((it) => ({
+        descricao: it.descricao,
+        quantidade: Number(it.quantidade),
+        precoUnit: Number(it.precoUnit),
+        total: Number(it.total),
+        observacao: it.observacao || undefined,
+      })),
+      subtotal: Number(p.subtotal),
+      desconto: Number(p.desconto),
+      total: Number(p.total),
+      formaPagamento: p.pagamentos.map((pg) => pg.forma).join(' + ') || null,
+      data: p.confirmadoEm ?? p.criadoEm,
+      endereco: process.env.LOJA_ENDERECO || undefined,
+      telefone: process.env.LOJA_TELEFONE || undefined,
+    });
+
+    const r = await this.impressora.imprimirEscPos(buffer);
+    void this.auditar({ entidade: 'pedido', entidadeId: pedidoId, acao: 'pedido.impresso', origem: 'operador', depois: { numero: p.numero, bytes: r.bytes } }, u);
+    return { ok: true, bytes: r.bytes };
+  }
+
+  /** Estado da impressora do balcão (para a UI). */
+  async impressoraStatus() {
+    try {
+      return await this.impressora.health();
+    } catch {
+      return { ok: false };
+    }
   }
 
   /**

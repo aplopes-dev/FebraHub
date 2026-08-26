@@ -95,6 +95,18 @@ export class VendaPdvDto {
   @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => PagamentoPdvDto) pagamentos!: PagamentoPdvDto[];
 }
 
+// -------------------- EDIÇÃO DO CARRINHO (balcão, via código) --------------------
+
+/** Edição do carrinho de um pedido já existente (o vendedor achou pelo código
+ *  de 3 dígitos e ajusta itens/desconto antes de imprimir/entregar). Substitui
+ *  a lista de itens por completo; o backend revalida preço/estoque e recalcula
+ *  os totais. `desconto` é opcional (em reais). */
+export class EditarItensDto {
+  @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => ItemPedidoDto) itens!: ItemPedidoDto[];
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) desconto?: number;
+  @IsOptional() @IsString() observacoes?: string;
+}
+
 // -------------------- TRANSIÇÕES OPERACIONAIS --------------------
 
 export class CancelarPedidoDto {

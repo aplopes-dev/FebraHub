@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Barcode, Boxes, CheckCircle2, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Tag, Trash2, Upload, X } from "lucide-react";
 import {
-  lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarCodigoBarras, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
-  lojaEnriquecerEanLote, lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos,
-  lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
+  ArrowLeftRight, Barcode, Boxes, CheckCircle2, Copy, ImageOff, Layers, Loader2,
+  PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Tag, Trash2, Upload, X, ZoomIn,
+} from "lucide-react";
+import {
+  lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarCodigoBarras, lojaAtualizarProduto, lojaCategorias,
+  lojaCriarProduto, lojaEnriquecerEanLote, lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto,
+  lojaMovimentos, lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
   type EnriquecimentoLote,
 } from "@/services/api/loja-produtos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
@@ -22,13 +25,13 @@ export function CatalogoLoja() {
   const qc = useQueryClient();
   const perfil = usePerfil(useSessao());
   const podeGerir = pode(perfil.data, "loja.produtos.gerenciar");
-  // Alterar preço: permissão dedicada OU gestão do catálogo (PRD §40).
   const podePreco = podeGerir || pode(perfil.data, "loja.produtos.preco");
 
   const [busca, setBusca] = useState("");
   const [categoriaId, setCategoriaId] = useState<string>("");
   const [situacao, setSituacao] = useState("ativos");
-  const [editar, setEditar] = useState<LojaProduto | null | "novo">(null);
+  // editar: null=fechado, "novo"=criar, "duplicar:ID"=duplicar, LojaProduto=editar
+  const [editar, setEditar] = useState<LojaProduto | null | "novo" | { duplicar: LojaProduto }>(null);
   const [estoque, setEstoque] = useState<LojaProduto | null>(null);
   const [preco, setPreco] = useState<LojaProduto | null>(null);
   const [gerirCategorias, setGerirCategorias] = useState(false);
@@ -133,6 +136,7 @@ export function CatalogoLoja() {
                   <td>
                     <span className={`loja-badge ${p.ativo ? "on" : "off"}`}>{p.ativo ? "ativo" : "inativo"}</span>{" "}
                     {p.precisaPreparacao && <span className="loja-badge prep">preparo</span>}{" "}
+                    {p.vendeSemEstoque && <span className="loja-badge prep" title="Vende mesmo sem estoque">s/ limite</span>}{" "}
                     {!p.vendePdv && <span className="loja-badge off">s/ PDV</span>}{" "}
                     {!p.exibeCardapio && <span className="loja-badge off">s/ cardápio</span>}
                   </td>
@@ -141,6 +145,7 @@ export function CatalogoLoja() {
                       <div className="loja-acoes-linha">
                         {podePreco && <button className="loja-btn mini" onClick={() => setPreco(p)} title="Alterar preço"><Tag size={13} /></button>}
                         {podeGerir && <button className="loja-btn mini" onClick={() => setEstoque(p)} title="Estoque"><Boxes size={13} /></button>}
+                        {podeGerir && <button className="loja-btn mini" onClick={() => setEditar({ duplicar: p })} title="Duplicar produto"><Copy size={13} /></button>}
                         {podeGerir && <button className="loja-btn mini" onClick={() => setEditar(p)} title="Editar"><Pencil size={13} /></button>}
                       </div>
                     </td>
@@ -154,7 +159,14 @@ export function CatalogoLoja() {
         {!prods.isLoading && !prods.isError && !(prods.data ?? []).length && <p className="loja-empty">Nenhum produto encontrado neste filtro.</p>}
       </section>
 
-      {editar && <ModalProduto produto={editar === "novo" ? null : editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); invalidar(); }} />}
+      {editar && (
+        <ModalProduto
+          produto={editar === "novo" ? null : "duplicar" in editar ? null : editar}
+          duplicarDe={"duplicar" in (editar as object) ? (editar as { duplicar: LojaProduto }).duplicar : undefined}
+          aoFechar={() => setEditar(null)}
+          aoSalvar={() => { setEditar(null); invalidar(); }}
+        />
+      )}
       {estoque && <ModalEstoque produto={estoque} aoFechar={() => setEstoque(null)} aoMudar={() => invalidar()} />}
       {preco && <ModalPreco produto={preco} aoFechar={() => setPreco(null)} aoSalvar={() => { setPreco(null); invalidar(); }} />}
       {gerirCategorias && <GestaoCategorias aoFechar={() => { setGerirCategorias(false); invalidar(); }} />}
@@ -165,12 +177,38 @@ export function CatalogoLoja() {
   );
 }
 
+// ==================== LIGHTBOX ====================
+function Lightbox({ src, aoFechar }: { src: string; aoFechar: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") aoFechar(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [aoFechar]);
+  return (
+    <div
+      className="loja-lightbox-bg"
+      onClick={aoFechar}
+      title="Clique ou Esc para fechar"
+    >
+      <button className="loja-lightbox-fechar" onClick={aoFechar} title="Fechar"><X size={20} /></button>
+      <img
+        src={src}
+        alt="Imagem do produto"
+        className="loja-lightbox-img"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 // ==================== UPLOADER DE IMAGEM ====================
 function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [previa, setPrevia] = useState<string>(valor);
+  const [lightbox, setLightbox] = useState(false);
+  const [removendoFundo, setRemovendoFundo] = useState(true);
 
   // Sincroniza prévia quando valor externo muda (ex: abrir modal com produto existente)
   useEffect(() => { setPrevia(valor); }, [valor]);
@@ -182,8 +220,19 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
     setPrevia(urlLocal);
     setEnviando(true);
     try {
-      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "produto.jpg");
+      let arquivoFinal = arquivo;
+      // Remoção de fundo no navegador (WASM/ONNX) — carregada sob demanda
+      if (removendoFundo) {
+        try {
+          const { removeBackground } = await import("@imgly/background-removal");
+          const blob = await removeBackground(arquivo);
+          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
+        } catch {
+          // fallback: envia original se o modelo falhar
+        }
+      }
       URL.revokeObjectURL(urlLocal);
+      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
       setPrevia(url);
       aoMudar(url);
     } catch (e) {
@@ -202,16 +251,27 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
       <div className="loja-uploader">
         <div
           className={`loja-uploader-preview ${previa ? "" : "vazio"}`}
-          onClick={() => !enviando && inputRef.current?.click()}
-          style={{ cursor: enviando ? "wait" : "pointer" }}
+          onClick={() => {
+            if (enviando) return;
+            if (previa) setLightbox(true); // clicou na imagem → lightbox
+            else inputRef.current?.click(); // sem imagem → abre file picker
+          }}
+          style={{ cursor: enviando ? "wait" : previa ? "zoom-in" : "pointer" }}
+          title={previa ? "Clique para ampliar a imagem" : "Clique para enviar uma imagem"}
         >
           {previa ? (
-            <img
-              src={previa}
-              alt=""
-              style={{ objectFit: "contain", width: "100%", height: "100%" }}
-              onError={() => setPrevia("")}
-            />
+            <>
+              <img
+                src={previa}
+                alt=""
+                style={{ objectFit: "contain", width: "100%", height: "100%" }}
+                onError={() => setPrevia("")}
+              />
+              {/* Ícone de zoom sobreposto */}
+              <div className="loja-uploader-zoom-hint">
+                <ZoomIn size={18} />
+              </div>
+            </>
           ) : (
             <span className="loja-uploader-status"><ImageOff size={20} /> Sem imagem — clique para enviar</span>
           )}
@@ -230,6 +290,10 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
               <Trash2 size={13} /> Remover
             </button>
           )}
+          <label className="loja-uploader-toggle">
+            <input type="checkbox" checked={removendoFundo} onChange={(e) => setRemovendoFundo(e.target.checked)} />
+            Remover fundo
+          </label>
         </div>
         <input
           ref={inputRef}
@@ -240,44 +304,64 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
         />
       </div>
       {erro && <p className="loja-uploader-erro">{erro}</p>}
+      {lightbox && previa && <Lightbox src={previa} aoFechar={() => setLightbox(false)} />}
     </div>
   );
 }
 
 // ==================== MODAL PRODUTO ====================
-function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | null; aoFechar: () => void; aoSalvar: () => void }) {
+function ModalProduto({
+  produto,
+  duplicarDe,
+  aoFechar,
+  aoSalvar,
+}: {
+  produto: LojaProduto | null;
+  duplicarDe?: LojaProduto;
+  aoFechar: () => void;
+  aoSalvar: () => void;
+}) {
   const cats = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });
+  const qc = useQueryClient();
+
+  // Quando duplicarDe está presente, pré-preenche o form a partir do original
+  // mas sem o ID (cria novo), com nome prefixado para evitar duplicata visível.
+  const base = duplicarDe ?? produto;
   const [f, setF] = useState<ProdutoInput & { ativo: boolean }>(() => ({
-    nome: produto?.nome ?? "",
-    sku: produto?.sku ?? "",
-    codigoBarras: produto?.codigoBarras ?? "",
-    descricao: produto?.descricao ?? "",
-    imagemUrl: produto?.imagemUrl ?? "",
-    categoriaId: produto?.categoriaId ?? "",
-    preco: produto ? Number(produto.preco) : 0,
-    custo: produto?.custo ? Number(produto.custo) : undefined,
-    unidade: produto?.unidade ?? "un",
-    ativo: produto?.ativo ?? true,
-    vendePdv: produto?.vendePdv ?? true,
-    exibeCardapio: produto?.exibeCardapio ?? true,
-    precisaPreparacao: produto?.precisaPreparacao ?? false,
-    controlaEstoque: produto?.controlaEstoque ?? true,
-    estoqueMinimo: produto ? Number(produto.estoqueMinimo) : 0,
+    nome: duplicarDe ? `Cópia de ${duplicarDe.nome}` : (produto?.nome ?? ""),
+    sku: duplicarDe ? "" : (produto?.sku ?? ""),  // SKU deve ser único — limpa na cópia
+    codigoBarras: duplicarDe ? "" : (produto?.codigoBarras ?? ""),  // EAN único — limpa na cópia
+    descricao: base?.descricao ?? "",
+    imagemUrl: base?.imagemUrl ?? "",
+    categoriaId: base?.categoriaId ?? "",
+    preco: base ? Number(base.preco) : 0,
+    custo: base?.custo ? Number(base.custo) : undefined,
+    unidade: base?.unidade ?? "un",
+    ativo: base?.ativo ?? true,
+    vendePdv: base?.vendePdv ?? true,
+    exibeCardapio: base?.exibeCardapio ?? true,
+    precisaPreparacao: base?.precisaPreparacao ?? false,
+    controlaEstoque: base?.controlaEstoque ?? true,
+    vendeSemEstoque: base?.vendeSemEstoque ?? false,
+    estoqueMinimo: base ? Number(base.estoqueMinimo) : 0,
   }));
   const [erro, setErro] = useState<string | null>(null);
   const [eanStatus, setEanStatus] = useState<"" | "buscando" | "ok" | "nao_encontrado">(""); 
-  const [eanModo, setEanModo] = useState(false); // modo scanner ativo no campo EAN
+  const [eanModo, setEanModo] = useState(false);
+  // Aba estoque inline (só disponível em modo edição/não-duplicar)
+  const [abaEstoque, setAbaEstoque] = useState(false);
   const eanRef = useRef<HTMLInputElement>(null);
   const set = (k: keyof typeof f, v: unknown) => setF((s) => ({ ...s, [k]: v }));
 
-  // Quando modo scanner ligado, foca o campo EAN
+  const isDuplicar = !!duplicarDe;
+  const titulo = isDuplicar ? "Duplicar produto" : produto ? "Editar produto" : "Novo produto";
+
   useEffect(() => { if (eanModo) eanRef.current?.focus(); }, [eanModo]);
 
   const buscarEanOnline = useMutation({
     mutationFn: () => lojaConsultarEanOnline(f.codigoBarras ?? ""),
     onSuccess: (dados) => {
       if (dados) {
-        // Enriquece nome (se vazio) e desc
         if (!f.nome.trim()) set("nome", dados.nome);
         if (!f.descricao?.trim() && dados.descricao) set("descricao", dados.descricao);
         setEanStatus("ok");
@@ -291,104 +375,264 @@ function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | 
   const salvar = useMutation({
     mutationFn: () => {
       const payload: ProdutoInput = { ...f, categoriaId: f.categoriaId || null };
-      return produto ? lojaAtualizarProduto(produto.id, payload) : lojaCriarProduto(payload);
+      // Duplicar e criar novo: sempre POST
+      return produto && !isDuplicar ? lojaAtualizarProduto(produto.id, payload) : lojaCriarProduto(payload);
     },
     onSuccess: aoSalvar,
     onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao salvar o produto."),
   });
   const inativar = useMutation({ mutationFn: () => lojaInativarProduto(produto!.id), onSuccess: aoSalvar });
 
+  const invalidarEstoque = () => qc.invalidateQueries({ queryKey: ["loja"] });
+
   return (
     <div className="loja-modal-bg" onClick={aoFechar}>
       <div className="loja-modal lg" onClick={(e) => e.stopPropagation()}>
-        <h3>{produto ? "Editar produto" : "Novo produto"}</h3>
-        <label>Nome</label>
-        <input className="loja-input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus={!eanModo} />
-        <div className="loja-grid3">
-          <div><label>SKU</label><input className="loja-input" value={f.sku} onChange={(e) => set("sku", e.target.value)} /></div>
-          <div>
-            <label>
-              Código de barras (EAN)
-              <button
-                type="button"
-                className={`loja-btn mini ${eanModo ? "ouro" : ""}`}
-                style={{ marginLeft: 6, verticalAlign: "middle" }}
-                title={eanModo ? "Modo scanner ativo — bipe o produto" : "Ativar modo scanner"}
-                onClick={() => { setEanModo((m) => !m); setEanStatus(""); }}
-              >
-                <Barcode size={12} /> {eanModo ? "Bipando…" : "Scanner"}
-              </button>
-            </label>
-            <div className="loja-ean-row">
-              <input
-                ref={eanRef}
-                className={`loja-input ${eanStatus === "ok" ? "ean-ok" : eanStatus === "nao_encontrado" ? "ean-err" : ""}`}
-                value={f.codigoBarras ?? ""}
-                placeholder={eanModo ? "Bipe o código de barras…" : "EAN-8 / EAN-13 / Code128"}
-                onChange={(e) => { set("codigoBarras", e.target.value); setEanStatus(""); }}
-                onKeyDown={(e) => {
-                  // Scanner dispara Enter após bipar
-                  if (e.key === "Enter" && (f.codigoBarras ?? "").trim()) {
-                    e.preventDefault();
-                    setEanModo(false);
-                    // Se EAN válido (8 ou 13 dígitos), busca online
-                    if (/^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim())) {
-                      setEanStatus("buscando");
-                      buscarEanOnline.mutate();
-                    }
-                  }
-                }}
-              />
-              {(f.codigoBarras ?? "").trim() && /^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim()) && (
-                <button
-                  type="button"
-                  className="loja-btn mini"
-                  disabled={eanStatus === "buscando"}
-                  title="Consultar este EAN na internet (Open Food Facts)"
-                  onClick={() => { setEanStatus("buscando"); buscarEanOnline.mutate(); }}
-                >
-                  {eanStatus === "buscando" ? <Loader2 size={12} className="girando" /> : <RefreshCw size={12} />}
-                  {eanStatus === "buscando" ? "Buscando…" : "Buscar online"}
-                </button>
-              )}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ margin: 0 }}>
+            {isDuplicar && <Copy size={16} style={{ verticalAlign: "-3px", marginRight: 7 }} />}
+            {titulo}
+          </h3>
+          {/* Abas: Dados | Estoque (só em edição de produto existente) */}
+          {produto && !isDuplicar && (
+            <div className="loja-filtros" style={{ margin: 0 }}>
+              <button className={`loja-chip ${!abaEstoque ? "ativo" : ""}`} onClick={() => setAbaEstoque(false)}>Dados</button>
+              <button className={`loja-chip ${abaEstoque ? "ativo" : ""}`} onClick={() => setAbaEstoque(true)}><Boxes size={12} /> Estoque</button>
             </div>
-            {eanStatus === "ok" && <p className="loja-ean-hint ok"><CheckCircle2 size={11} /> EAN encontrado — nome/descrição preenchidos</p>}
-            {eanStatus === "nao_encontrado" && <p className="loja-ean-hint err">EAN não encontrado nas bases online</p>}
-          </div>
-          <div><label>Categoria</label>
-            <select className="loja-select" value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value)}>
-              <option value="">—</option>
-              {(cats.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="loja-grid3">
-          <div><label>Preço de venda (R$)</label><input className="loja-input" type="number" min={0} step="0.01" value={f.preco} onChange={(e) => set("preco", Number(e.target.value))} /></div>
-          <div><label>Custo (R$)</label><input className="loja-input" type="number" min={0} step="0.01" value={f.custo ?? ""} onChange={(e) => set("custo", e.target.value ? Number(e.target.value) : undefined)} /></div>
-          <div><label>Unidade</label><input className="loja-input" value={f.unidade} onChange={(e) => set("unidade", e.target.value)} placeholder="un, kg…" /></div>
-        </div>
-        <div className="loja-grid2">
-          <UploaderImagem valor={f.imagemUrl ?? ""} aoMudar={(url) => set("imagemUrl", url)} />
-          <div><label>Estoque mínimo</label><input className="loja-input" type="number" min={0} step="0.001" value={f.estoqueMinimo} onChange={(e) => set("estoqueMinimo", Number(e.target.value))} /></div>
-        </div>
-        <label>Descrição</label>
-        <textarea className="loja-textarea" value={f.descricao} onChange={(e) => set("descricao", e.target.value)} />
-
-        <div className="loja-flags">
-          <label className="loja-flag"><input type="checkbox" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} /> Ativo</label>
-          <label className="loja-flag"><input type="checkbox" checked={f.vendePdv} onChange={(e) => set("vendePdv", e.target.checked)} /> Vende no PDV</label>
-          <label className="loja-flag"><input type="checkbox" checked={f.exibeCardapio} onChange={(e) => set("exibeCardapio", e.target.checked)} /> Exibe no Cardápio Digital</label>
-          <label className="loja-flag"><input type="checkbox" checked={f.precisaPreparacao} onChange={(e) => set("precisaPreparacao", e.target.checked)} /> Precisa preparação</label>
-          <label className="loja-flag"><input type="checkbox" checked={f.controlaEstoque} onChange={(e) => set("controlaEstoque", e.target.checked)} /> Controla estoque</label>
+          )}
         </div>
 
-        {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 10 }}>{erro}</p>}
-        <div className="fim">
-          {produto && produto.ativo && <button className="loja-btn perigo" style={{ marginRight: "auto" }} disabled={inativar.isPending} onClick={() => inativar.mutate()}>Inativar</button>}
-          <button className="loja-btn" onClick={aoFechar}>Cancelar</button>
-          <button className="loja-btn ouro" disabled={salvar.isPending || !f.nome} onClick={() => { setErro(null); salvar.mutate(); }}>Salvar</button>
-        </div>
+        {/* ===== ABA ESTOQUE INLINE ===== */}
+        {abaEstoque && produto && (
+          <EstoqueInline produto={{ ...produto, estoque: produto.estoque }} aoMudar={invalidarEstoque} />
+        )}
+
+        {/* ===== ABA DADOS ===== */}
+        {!abaEstoque && (
+          <>
+            <label>Nome</label>
+            <input className="loja-input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus={!eanModo} />
+            <div className="loja-grid3">
+              <div><label>SKU</label><input className="loja-input" value={f.sku} onChange={(e) => set("sku", e.target.value)} /></div>
+              <div>
+                <label>
+                  Código de barras (EAN)
+                  <button
+                    type="button"
+                    className={`loja-btn mini ${eanModo ? "ouro" : ""}`}
+                    style={{ marginLeft: 6, verticalAlign: "middle" }}
+                    title={eanModo ? "Modo scanner ativo — bipe o produto" : "Ativar modo scanner"}
+                    onClick={() => { setEanModo((m) => !m); setEanStatus(""); }}
+                  >
+                    <Barcode size={12} /> {eanModo ? "Bipando…" : "Scanner"}
+                  </button>
+                </label>
+                <div className="loja-ean-row">
+                  <input
+                    ref={eanRef}
+                    className={`loja-input ${eanStatus === "ok" ? "ean-ok" : eanStatus === "nao_encontrado" ? "ean-err" : ""}`}
+                    value={f.codigoBarras ?? ""}
+                    placeholder={eanModo ? "Bipe o código de barras…" : "EAN-8 / EAN-13 / Code128"}
+                    onChange={(e) => { set("codigoBarras", e.target.value); setEanStatus(""); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (f.codigoBarras ?? "").trim()) {
+                        e.preventDefault();
+                        setEanModo(false);
+                        if (/^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim())) {
+                          setEanStatus("buscando");
+                          buscarEanOnline.mutate();
+                        }
+                      }
+                    }}
+                  />
+                  {(f.codigoBarras ?? "").trim() && /^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim()) && (
+                    <button
+                      type="button"
+                      className="loja-btn mini"
+                      disabled={eanStatus === "buscando"}
+                      title="Consultar este EAN na internet (Open Food Facts)"
+                      onClick={() => { setEanStatus("buscando"); buscarEanOnline.mutate(); }}
+                    >
+                      {eanStatus === "buscando" ? <Loader2 size={12} className="girando" /> : <RefreshCw size={12} />}
+                    </button>
+                  )}
+                </div>
+                {eanStatus === "ok" && <p className="loja-ean-hint ok"><CheckCircle2 size={11} /> Dados preenchidos via EAN online</p>}
+                {eanStatus === "nao_encontrado" && <p className="loja-ean-hint err">EAN não encontrado nas bases públicas</p>}
+              </div>
+              <div>
+                <label>Unidade</label>
+                <select className="loja-select" value={f.unidade} onChange={(e) => set("unidade", e.target.value)}>
+                  <option value="un">un</option>
+                  <option value="kg">kg</option>
+                  <option value="g">g</option>
+                  <option value="l">l</option>
+                  <option value="ml">ml</option>
+                  <option value="cx">cx</option>
+                  <option value="pct">pct</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="loja-grid2">
+              <div>
+                <label>Preço de venda (R$)</label>
+                <input className="loja-input" type="number" min={0} step="0.01" value={f.preco} onChange={(e) => set("preco", Number(e.target.value))} />
+              </div>
+              <div>
+                <label>Custo (R$)</label>
+                <input className="loja-input" type="number" min={0} step="0.01" value={f.custo ?? ""} onChange={(e) => set("custo", e.target.value ? Number(e.target.value) : undefined)} />
+              </div>
+            </div>
+
+            <div className="loja-grid2">
+              <div>
+                <label>Categoria</label>
+                <select className="loja-select" value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value)}>
+                  <option value="">Sem categoria</option>
+                  {(cats.data ?? []).filter((c) => c.ativo).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Estoque mínimo</label>
+                <input className="loja-input" type="number" min={0} step="0.001" value={f.estoqueMinimo} onChange={(e) => set("estoqueMinimo", Number(e.target.value))} />
+              </div>
+            </div>
+
+            <label>Descrição</label>
+            <textarea className="loja-input loja-textarea" value={f.descricao} onChange={(e) => set("descricao", e.target.value)} />
+
+            <UploaderImagem valor={f.imagemUrl ?? ""} aoMudar={(url) => set("imagemUrl", url)} />
+
+            <div className="loja-flags">
+              <label className="loja-flag"><input type="checkbox" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} /> Ativo</label>
+              <label className="loja-flag"><input type="checkbox" checked={f.vendePdv} onChange={(e) => set("vendePdv", e.target.checked)} /> Vende no PDV</label>
+              <label className="loja-flag"><input type="checkbox" checked={f.exibeCardapio} onChange={(e) => set("exibeCardapio", e.target.checked)} /> Exibe no Cardápio</label>
+              <label className="loja-flag"><input type="checkbox" checked={f.precisaPreparacao} onChange={(e) => set("precisaPreparacao", e.target.checked)} /> Precisa de preparação</label>
+              <label className="loja-flag"><input type="checkbox" checked={f.controlaEstoque} onChange={(e) => set("controlaEstoque", e.target.checked)} /> Controla estoque</label>
+              <label className="loja-flag" title="Permite vender mesmo quando o saldo disponível for zero">
+                <input type="checkbox" checked={f.vendeSemEstoque ?? false} onChange={(e) => set("vendeSemEstoque", e.target.checked)} />
+                Vende sem estoque
+              </label>
+            </div>
+
+            {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 10 }}>{erro}</p>}
+            <div className="fim">
+              {produto && produto.ativo && !isDuplicar && (
+                <button className="loja-btn perigo" style={{ marginRight: "auto" }} disabled={inativar.isPending} onClick={() => inativar.mutate()}>Inativar</button>
+              )}
+              <button className="loja-btn" onClick={aoFechar}>Cancelar</button>
+              <button className="loja-btn ouro" disabled={salvar.isPending || !f.nome} onClick={() => { setErro(null); salvar.mutate(); }}>
+                {salvar.isPending ? "Salvando…" : isDuplicar ? "Criar cópia" : "Salvar"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ==================== ESTOQUE INLINE (dentro do modal de produto) ====================
+function EstoqueInline({ produto, aoMudar }: { produto: LojaProduto; aoMudar: () => void }) {
+  const [tab, setTab] = useState<"ajuste" | "transferencia" | "historico">("ajuste");
+  const [local, setLocal] = useState<LojaLocal>("LOJA");
+  const [tipo, setTipo] = useState<"entrada" | "saida" | "inventario">("entrada");
+  const [qtd, setQtd] = useState("");
+  const [obs, setObs] = useState("");
+  const [origem, setOrigem] = useState<LojaLocal>("DEPOSITO");
+  const [destino, setDestino] = useState<LojaLocal>("LOJA");
+  const [erro, setErro] = useState<string | null>(null);
+  const qc = useQueryClient();
+
+  // Recarrega dados do produto para refletir saldo após operação
+  const prods = useQuery({
+    queryKey: ["loja", "produto-inline", produto.id],
+    queryFn: () => lojaProdutos({ busca: produto.nome }),
+    staleTime: 0,
+  });
+  // Usa saldo do produto passado como prop (ou atualizado)
+  const saldoAtual = (prods.data ?? []).find((p) => p.id === produto.id) ?? produto;
+
+  const movs = useQuery({ queryKey: ["loja", "movs", produto.id], queryFn: () => lojaMovimentos(produto.id), enabled: tab === "historico" });
+
+  const ajustar = useMutation({
+    mutationFn: () => lojaAjustarEstoque(produto.id, { local, tipo, quantidade: Number(qtd) || 0, observacao: obs || undefined }),
+    onSuccess: () => { setQtd(""); setObs(""); qc.invalidateQueries({ queryKey: ["loja"] }); aoMudar(); },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha no ajuste."),
+  });
+  const transferir = useMutation({
+    mutationFn: () => lojaTransferirEstoque(produto.id, { origem, destino, quantidade: Number(qtd) || 0, observacao: obs || undefined }),
+    onSuccess: () => { setQtd(""); setObs(""); qc.invalidateQueries({ queryKey: ["loja"] }); aoMudar(); },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha na transferência."),
+  });
+
+  return (
+    <div>
+      <div className="loja-locais" style={{ marginBottom: 12 }}>
+        {(["LOJA", "DEPOSITO"] as LojaLocal[]).map((loc) => (
+          <article key={loc} className="loja-card" style={{ flex: 1, padding: 12 }}>
+            <small style={{ fontSize: 10, color: "var(--muted)", fontWeight: 700 }}>{NOME_LOCAL[loc].toUpperCase()}</small>
+            <b style={{ display: "block", fontSize: 22 }}>{num(saldoAtual.estoque.porLocal[loc].disponivel)}</b>
+            <span style={{ fontSize: 10, color: "var(--muted)" }}>
+              {num(saldoAtual.estoque.porLocal[loc].saldoFisico)} físico · {num(saldoAtual.estoque.porLocal[loc].reservado)} reservado
+            </span>
+          </article>
+        ))}
+      </div>
+
+      <div className="loja-filtros" style={{ marginBottom: 12 }}>
+        <button className={`loja-chip ${tab === "ajuste" ? "ativo" : ""}`} onClick={() => setTab("ajuste")}><SlidersHorizontal size={12} /> Ajustar</button>
+        <button className={`loja-chip ${tab === "transferencia" ? "ativo" : ""}`} onClick={() => setTab("transferencia")}><ArrowLeftRight size={12} /> Transferir</button>
+        <button className={`loja-chip ${tab === "historico" ? "ativo" : ""}`} onClick={() => setTab("historico")}><PackageCheck size={12} /> Histórico</button>
+      </div>
+
+      {tab === "ajuste" && (
+        <>
+          <div className="loja-grid2">
+            <div><label>Local</label><select className="loja-select" value={local} onChange={(e) => setLocal(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
+            <div><label>Tipo</label><select className="loja-select" value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}><option value="entrada">Entrada (+)</option><option value="saida">Saída (−)</option><option value="inventario">Inventário (define saldo)</option></select></div>
+          </div>
+          <label>{tipo === "inventario" ? "Saldo contado" : "Quantidade"}</label>
+          <input className="loja-input" type="number" min={0} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
+          <label>Observação</label>
+          <input className="loja-input" value={obs} onChange={(e) => setObs(e.target.value)} />
+          {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
+          <div className="fim" style={{ marginBottom: 0 }}>
+            <button className="loja-btn ouro" disabled={ajustar.isPending || !qtd} onClick={() => { setErro(null); ajustar.mutate(); }}>Aplicar</button>
+          </div>
+        </>
+      )}
+
+      {tab === "transferencia" && (
+        <>
+          <div className="loja-grid2">
+            <div><label>De</label><select className="loja-select" value={origem} onChange={(e) => setOrigem(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
+            <div><label>Para</label><select className="loja-select" value={destino} onChange={(e) => setDestino(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
+          </div>
+          <label>Quantidade</label>
+          <input className="loja-input" type="number" min={0.001} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
+          <label>Observação</label>
+          <input className="loja-input" value={obs} onChange={(e) => setObs(e.target.value)} />
+          {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
+          <div className="fim" style={{ marginBottom: 0 }}>
+            <button className="loja-btn ouro" disabled={transferir.isPending || !qtd || origem === destino} onClick={() => { setErro(null); transferir.mutate(); }}>Transferir</button>
+          </div>
+        </>
+      )}
+
+      {tab === "historico" && (
+        <div className="loja-mov">
+          {(movs.data ?? []).map((m) => (
+            <div key={m.id} className="linha">
+              <div><b>{m.tipo}</b> · {NOME_LOCAL[m.local as LojaLocal]} <small style={{ display: "block" }}>{m.observacao || m.origem}</small></div>
+              <div style={{ textAlign: "right" }}><b style={{ color: Number(m.quantidade) < 0 ? "var(--down)" : "var(--up)" }}>{Number(m.quantidade) > 0 ? "+" : ""}{num(m.quantidade)}</b><small style={{ display: "block" }}>{new Date(m.criadoEm).toLocaleString("pt-BR")}</small></div>
+            </div>
+          ))}
+          {movs.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o histórico.</p>}
+          {!movs.isLoading && !movs.isError && !(movs.data ?? []).length && <p className="loja-empty">Sem movimentações ainda.</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -433,100 +677,22 @@ function ModalLoteEan({ resultado, aoFechar }: { resultado: EnriquecimentoLote; 
   );
 }
 
-// ==================== MODAL ESTOQUE ====================
+// ==================== MODAL ESTOQUE (standalone, acessado pela tabela) ====================
 function ModalEstoque({ produto, aoFechar, aoMudar }: { produto: LojaProduto; aoFechar: () => void; aoMudar: () => void }) {
-  const [tab, setTab] = useState<"ajuste" | "transferencia" | "historico">("ajuste");
-  const [local, setLocal] = useState<LojaLocal>("LOJA");
-  const [tipo, setTipo] = useState<"entrada" | "saida" | "inventario">("entrada");
-  const [qtd, setQtd] = useState("");
-  const [obs, setObs] = useState("");
-  const [origem, setOrigem] = useState<LojaLocal>("DEPOSITO");
-  const [destino, setDestino] = useState<LojaLocal>("LOJA");
-  const [erro, setErro] = useState<string | null>(null);
-
-  const movs = useQuery({ queryKey: ["loja", "movs", produto.id], queryFn: () => lojaMovimentos(produto.id), enabled: tab === "historico" });
-
-  const ajustar = useMutation({
-    mutationFn: () => lojaAjustarEstoque(produto.id, { local, tipo, quantidade: Number(qtd) || 0, observacao: obs || undefined }),
-    onSuccess: () => { setQtd(""); setObs(""); aoMudar(); },
-    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha no ajuste."),
-  });
-  const transferir = useMutation({
-    mutationFn: () => lojaTransferirEstoque(produto.id, { origem, destino, quantidade: Number(qtd) || 0, observacao: obs || undefined }),
-    onSuccess: () => { setQtd(""); setObs(""); aoMudar(); },
-    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha na transferência."),
-  });
-
   return (
     <div className="loja-modal-bg" onClick={aoFechar}>
       <div className="loja-modal" onClick={(e) => e.stopPropagation()}>
         <h3>Estoque · {produto.nome}</h3>
-        <div className="loja-locais" style={{ marginBottom: 12 }}>
-          {(["LOJA", "DEPOSITO"] as LojaLocal[]).map((loc) => (
-            <article key={loc} className="loja-card" style={{ flex: 1, padding: 12 }}>
-              <small style={{ fontSize: 10, color: "var(--muted)", fontWeight: 700 }}>{NOME_LOCAL[loc].toUpperCase()}</small>
-              <b style={{ display: "block", fontSize: 22 }}>{num(produto.estoque.porLocal[loc].disponivel)}</b>
-              <span style={{ fontSize: 10, color: "var(--muted)" }}>{num(produto.estoque.porLocal[loc].saldoFisico)} físico · {num(produto.estoque.porLocal[loc].reservado)} reservado</span>
-            </article>
-          ))}
+        <EstoqueInline produto={produto} aoMudar={aoMudar} />
+        <div className="fim" style={{ marginTop: 18 }}>
+          <button className="loja-btn" onClick={aoFechar}>Fechar</button>
         </div>
-
-        <div className="loja-filtros" style={{ marginBottom: 12 }}>
-          <button className={`loja-chip ${tab === "ajuste" ? "ativo" : ""}`} onClick={() => setTab("ajuste")}><SlidersHorizontal size={12} /> Ajustar</button>
-          <button className={`loja-chip ${tab === "transferencia" ? "ativo" : ""}`} onClick={() => setTab("transferencia")}><ArrowLeftRight size={12} /> Transferir</button>
-          <button className={`loja-chip ${tab === "historico" ? "ativo" : ""}`} onClick={() => setTab("historico")}><PackageCheck size={12} /> Histórico</button>
-        </div>
-
-        {tab === "ajuste" && (
-          <>
-            <div className="loja-grid2">
-              <div><label>Local</label><select className="loja-select" value={local} onChange={(e) => setLocal(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-              <div><label>Tipo</label><select className="loja-select" value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}><option value="entrada">Entrada (+)</option><option value="saida">Saída (−)</option><option value="inventario">Inventário (define saldo)</option></select></div>
-            </div>
-            <label>{tipo === "inventario" ? "Saldo contado" : "Quantidade"}</label>
-            <input className="loja-input" type="number" min={0} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
-            <label>Observação</label>
-            <input className="loja-input" value={obs} onChange={(e) => setObs(e.target.value)} />
-            {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
-            <div className="fim"><button className="loja-btn" onClick={aoFechar}>Fechar</button><button className="loja-btn ouro" disabled={ajustar.isPending || !qtd} onClick={() => { setErro(null); ajustar.mutate(); }}>Aplicar</button></div>
-          </>
-        )}
-
-        {tab === "transferencia" && (
-          <>
-            <div className="loja-grid2">
-              <div><label>De</label><select className="loja-select" value={origem} onChange={(e) => setOrigem(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-              <div><label>Para</label><select className="loja-select" value={destino} onChange={(e) => setDestino(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-            </div>
-            <label>Quantidade</label>
-            <input className="loja-input" type="number" min={0.001} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
-            <label>Observação</label>
-            <input className="loja-input" value={obs} onChange={(e) => setObs(e.target.value)} />
-            {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
-            <div className="fim"><button className="loja-btn" onClick={aoFechar}>Fechar</button><button className="loja-btn ouro" disabled={transferir.isPending || !qtd || origem === destino} onClick={() => { setErro(null); transferir.mutate(); }}>Transferir</button></div>
-          </>
-        )}
-
-        {tab === "historico" && (
-          <div className="loja-mov">
-            {(movs.data ?? []).map((m) => (
-              <div key={m.id} className="linha">
-                <div><b>{m.tipo}</b> · {NOME_LOCAL[m.local]} <small style={{ display: "block" }}>{m.observacao || m.origem}</small></div>
-                <div style={{ textAlign: "right" }}><b style={{ color: Number(m.quantidade) < 0 ? "var(--down)" : "var(--up)" }}>{Number(m.quantidade) > 0 ? "+" : ""}{num(m.quantidade)}</b><small style={{ display: "block" }}>{new Date(m.criadoEm).toLocaleString("pt-BR")}</small></div>
-              </div>
-            ))}
-            {movs.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o histórico.</p>}
-            {!movs.isLoading && !movs.isError && !(movs.data ?? []).length && <p className="loja-empty">Sem movimentações ainda.</p>}
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-/** Modal de alteração de preço (PRD §41). Mostra produto, preço atual e novo
- *  preço + motivo opcional. Valida no backend (permissão + auditoria). O novo
- *  preço reflete no Cardápio e no PDV; pedidos já pagos preservam o preço. */
+/** Modal de alteração de preço (PRD §41). */
 function ModalPreco({ produto, aoFechar, aoSalvar }: { produto: LojaProduto; aoFechar: () => void; aoSalvar: () => void }) {
   const [novo, setNovo] = useState<string>(String(Number(produto.preco)));
   const [motivo, setMotivo] = useState("");

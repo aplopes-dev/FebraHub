@@ -34,6 +34,7 @@ export interface LojaProduto {
   exibeCardapio: boolean;
   precisaPreparacao: boolean;
   controlaEstoque: boolean;
+  vendeSemEstoque: boolean;
   estoqueMinimo: string;
   ordem: number;
   estoque: {
@@ -100,6 +101,7 @@ export interface ProdutoInput {
   exibeCardapio?: boolean;
   precisaPreparacao?: boolean;
   controlaEstoque?: boolean;
+  vendeSemEstoque?: boolean;
   estoqueMinimo?: number;
   ordem?: number;
 }
