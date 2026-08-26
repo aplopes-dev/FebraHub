@@ -206,9 +206,14 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
           style={{ cursor: enviando ? "wait" : "pointer" }}
         >
           {previa ? (
-            <img src={previa} alt="Prévia do produto" style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+            <img
+              src={previa}
+              alt=""
+              style={{ objectFit: "contain", width: "100%", height: "100%" }}
+              onError={() => setPrevia("")}
+            />
           ) : (
-            <span className="loja-uploader-status"><ImageOff size={20} /> Sem imagem</span>
+            <span className="loja-uploader-status"><ImageOff size={20} /> Sem imagem — clique para enviar</span>
           )}
           {enviando && (
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", borderRadius: "inherit" }}>
