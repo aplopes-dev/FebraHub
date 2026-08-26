@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layers, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { BotaoSalvar } from "@/components/ui/BotaoSalvar";
+import { Select } from "@/components/ui/Select";
 import { HUBS } from "@/lib/hubs";
 import {
   orgAtualizarCargo,
@@ -132,32 +133,27 @@ export function GestaoCargos({ onMudou }: { onMudou?: () => void }) {
         />
 
         <label className="org-campo-rotulo" htmlFor="cargo-setor">Setor</label>
-        <select
+        <Select
           id="cargo-setor"
           className="org-campo"
+          aria-label="Setor"
           value={form.setor}
-          onChange={(e) =>
+          onChange={(v) =>
             // trocar de setor invalida o superior antigo (é de outro setor)
-            setForm({ ...form, setor: e.target.value as SetorOrganograma, cargoPaiId: null })
+            setForm({ ...form, setor: v as SetorOrganograma, cargoPaiId: null })
           }
-        >
-          {SETORES_ORGANOGRAMA.map((s) => (
-            <option key={s} value={s}>{nomeDoSetor(s)}</option>
-          ))}
-        </select>
+          options={SETORES_ORGANOGRAMA.map((s) => ({ value: s, label: nomeDoSetor(s) }))}
+        />
 
         <label className="org-campo-rotulo" htmlFor="cargo-pai">Reporta-se a (opcional)</label>
-        <select
+        <Select
           id="cargo-pai"
           className="org-campo"
+          aria-label="Reporta-se a"
           value={form.cargoPaiId ?? ""}
-          onChange={(e) => setForm({ ...form, cargoPaiId: e.target.value || null })}
-        >
-          <option value="">— Topo do setor —</option>
-          {superioresPossiveis.map((c) => (
-            <option key={c.id} value={c.id}>{c.nome}</option>
-          ))}
-        </select>
+          onChange={(v) => setForm({ ...form, cargoPaiId: v || null })}
+          options={[{ value: "", label: "— Topo do setor —" }, ...superioresPossiveis.map((c) => ({ value: c.id, label: c.nome }))]}
+        />
 
         <label className="org-campo-rotulo" htmlFor="cargo-nivel">Nível de senioridade (0 = topo)</label>
         <input

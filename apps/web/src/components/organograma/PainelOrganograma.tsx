@@ -15,6 +15,7 @@ import { JetBrains_Mono } from "next/font/google";
 import { Bot, Layers, ListTree, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { GROTESK } from "@/lib/tema";
 import { BotaoSalvar } from "@/components/ui/BotaoSalvar";
+import { Select } from "@/components/ui/Select";
 import { HUBS } from "@/lib/hubs";
 import {
   orgAtualizarMembro,
@@ -343,27 +344,25 @@ function FormMembro({
       />
 
       <label className="org-campo-rotulo" htmlFor="org-setor">Setor</label>
-      <select
+      <Select
         id="org-setor"
         className="org-campo"
+        aria-label="Setor"
         value={form.setor}
-        onChange={(e) =>
+        onChange={(v) =>
           // trocar de setor invalida o cargo antigo (é de outro setor)
-          setForm({ ...form, setor: e.target.value as SetorOrganograma, cargoId: null })
+          setForm({ ...form, setor: v as SetorOrganograma, cargoId: null })
         }
-      >
-        {SETORES_ORGANOGRAMA.map((s) => (
-          <option key={s} value={s}>{nomeDoSetor(s)}</option>
-        ))}
-      </select>
+        options={SETORES_ORGANOGRAMA.map((s) => ({ value: s, label: nomeDoSetor(s) }))}
+      />
 
       <label className="org-campo-rotulo" htmlFor="org-cargo">Cargo</label>
-      <select
+      <Select
         id="org-cargo"
         className="org-campo"
+        aria-label="Cargo"
         value={form.cargoId ?? FUNCAO_LIVRE}
-        onChange={(e) => {
-          const v = e.target.value;
+        onChange={(v) => {
           if (v === FUNCAO_LIVRE) {
             setForm({ ...form, cargoId: null });
           } else {
@@ -371,12 +370,8 @@ function FormMembro({
             setForm({ ...form, cargoId: v, funcao: c?.nome ?? form.funcao });
           }
         }}
-      >
-        {cargosDoSetor.map((c) => (
-          <option key={c.id} value={c.id}>{c.nome}</option>
-        ))}
-        <option value={FUNCAO_LIVRE}>Outra função (texto livre)…</option>
-      </select>
+        options={[...cargosDoSetor.map((c) => ({ value: c.id, label: c.nome })), { value: FUNCAO_LIVRE, label: "Outra função (texto livre)…" }]}
+      />
       {cargosDoSetor.length === 0 && (
         <p className="org-ajuda">
           Nenhum cargo neste setor ainda — use “Cargos” para criar, ou informe a função abaixo.
