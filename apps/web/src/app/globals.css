@@ -959,7 +959,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .fh-exec-ancora-tex {
-  position: absolute; inset: 0; opacity: .18; pointer-events: none;
+  position: absolute; inset: 0; opacity: .08; pointer-events: none;
   background: url("/executivo/exec-card-texture.png") center / cover no-repeat;
   mix-blend-mode: soft-light;
 }
@@ -974,10 +974,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   background:
     linear-gradient(145deg, rgb(var(--gold-rgb) / 0.22), color-mix(in srgb, var(--void) 88%, transparent) 58%),
     var(--card);
-  box-shadow: inset 0 1px 0 rgb(var(--sup-rgb) / 0.08);
-  animation: fh-exec-pulse-soft 3.8s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgb(var(--sup-rgb) / 0.08), 0 8px 28px rgb(var(--gold-rgb) / 0.08);
 }
-.fh-exec-ancora-hero .fh-exec-ancora-tex { opacity: .32; }
+.fh-exec-ancora-hero .fh-exec-ancora-tex { opacity: .14; }
 .fh-exec-ancora-topo {
   display: flex; align-items: center; justify-content: space-between; gap: 6px 8px;
   flex-wrap: wrap;
