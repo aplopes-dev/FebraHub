@@ -24,6 +24,7 @@ import {
   type ComFunil,
 } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
+import { Select } from "@/components/ui/Select";
 import "@/app/comercial.css";
 
 const brl = (v: number | null | undefined) =>
@@ -307,18 +308,16 @@ function ViewLista({ funil }: { funil: ComFunil }) {
   return (
     <>
       <div className="com-filtros">
-        <select
-          className="com-filtro-select"
+        <Select
           value={etapaFiltro}
-          onChange={(e) => { setEtapaFiltro(e.target.value); setPagina(1); }}
+          onChange={(v) => { setEtapaFiltro(v); setPagina(1); }}
           aria-label="Filtrar por etapa"
-          style={{ maxWidth: 220 }}
-        >
-          <option value="">Todas as etapas</option>
-          {funil.etapas.map((et) => (
-            <option key={et.id} value={et.id}>{et.nome}</option>
-          ))}
-        </select>
+          style={{ minWidth: 180, maxWidth: 220 }}
+          options={[
+            { value: "", label: "Todas as etapas" },
+            ...funil.etapas.map((et) => ({ value: et.id, label: et.nome })),
+          ]}
+        />
         <input
           className="com-filtro-busca"
           placeholder="Filtrar por responsável (nome)…"
@@ -500,17 +499,13 @@ function PipelinePage() {
 
         {/* Seletor de funil */}
         {funis.length > 1 && (
-          <select
-            className="com-filtro-select"
+          <Select
             value={funilAtivo}
-            onChange={(e) => setFunilId(e.target.value)}
-          >
-            {funis.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.nome}
-              </option>
-            ))}
-          </select>
+            onChange={setFunilId}
+            aria-label="Funil"
+            style={{ minWidth: 160 }}
+            options={funis.map((f) => ({ value: f.id, label: f.nome }))}
+          />
         )}
 
         {/* Toggle Kanban / Lista */}

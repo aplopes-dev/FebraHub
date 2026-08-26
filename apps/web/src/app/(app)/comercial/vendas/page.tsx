@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { listarVendas, type ComVenda } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
+import { Select } from "@/components/ui/Select";
 import "@/app/comercial.css";
 
 const brl = (v: number | null | undefined) =>
@@ -79,38 +80,44 @@ function ListaVendas() {
 
       {/* Filtros */}
       <div className="com-filtros">
-        <select
-          className="com-filtro-select"
+        <Select
+          style={{ minWidth: 150 }}
+          aria-label="Status comercial"
           value={statusComercial}
-          onChange={(e) => { setStatusComercial(e.target.value); setPagina(1); }}
-        >
-          <option value="">Status comercial</option>
-          <option value="rascunho">Rascunho</option>
-          <option value="aguardando">Aguardando</option>
-          <option value="aprovada">Aprovada</option>
-          <option value="cancelada">Cancelada</option>
-        </select>
+          onChange={(v) => { setStatusComercial(v); setPagina(1); }}
+          options={[
+            { value: "", label: "Status comercial" },
+            { value: "rascunho", label: "Rascunho" },
+            { value: "aguardando", label: "Aguardando" },
+            { value: "aprovada", label: "Aprovada" },
+            { value: "cancelada", label: "Cancelada" },
+          ]}
+        />
 
-        <select
-          className="com-filtro-select"
+        <Select
+          style={{ minWidth: 150 }}
+          aria-label="Status financeiro"
           value={statusFinanceiro}
-          onChange={(e) => { setStatusFinanceiro(e.target.value); setPagina(1); }}
-        >
-          <option value="">Status financeiro</option>
-          <option value="pendente">Pendente</option>
-          <option value="parcial">Parcial</option>
-          <option value="quitado">Quitado</option>
-          <option value="inadimplente">Inadimplente</option>
-        </select>
+          onChange={(v) => { setStatusFinanceiro(v); setPagina(1); }}
+          options={[
+            { value: "", label: "Status financeiro" },
+            { value: "pendente", label: "Pendente" },
+            { value: "parcial", label: "Parcial" },
+            { value: "quitado", label: "Quitado" },
+            { value: "inadimplente", label: "Inadimplente" },
+          ]}
+        />
 
-        <select
-          className="com-filtro-select"
+        <Select
+          style={{ minWidth: 150 }}
+          aria-label="Turma"
           value={turmaDefinir}
-          onChange={(e) => { setTurmaDefinir(e.target.value); setPagina(1); }}
-        >
-          <option value="">Turma</option>
-          <option value="sim">Turma a definir</option>
-        </select>
+          onChange={(v) => { setTurmaDefinir(v); setPagina(1); }}
+          options={[
+            { value: "", label: "Turma" },
+            { value: "sim", label: "Turma a definir" },
+          ]}
+        />
 
         {(statusComercial || statusFinanceiro || turmaDefinir) && (
           <button
