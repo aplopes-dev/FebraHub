@@ -155,7 +155,7 @@ export default function DashboardPedagogicoPage() {
           <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: 0, display: "flex", alignItems: "center", gap: ".5rem" }}>
             <Calendar size={16} /> Turmas próximas (30 dias)
           </h2>
-          <Link href="/pedagogico/turmas" style={{ fontSize: ".82rem", color: "#6366f1", textDecoration: "none", fontWeight: 600 }}>
+          <Link href="/pedagogico/turmas" style={{ fontSize: ".82rem", color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}>
             Ver todas →
           </Link>
         </div>

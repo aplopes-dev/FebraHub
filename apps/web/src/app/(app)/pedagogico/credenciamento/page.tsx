@@ -78,7 +78,7 @@ export default function CredenciamentoPage() {
     <div className="ped-page" style={{ maxWidth: "700px" }}>
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.4rem", fontWeight: 700, margin: "0 0 .25rem" }}>
-          <CheckCircle size={22} style={{ display: "inline", marginRight: ".5rem", verticalAlign: "middle", color: "#4f46e5" }} />
+          <CheckCircle size={22} style={{ display: "inline", marginRight: ".5rem", verticalAlign: "middle", color: "var(--gold)" }} />
           Credenciamento
         </h1>
         <p style={{ color: "var(--muted-foreground)", fontSize: ".875rem", margin: 0 }}>
@@ -118,7 +118,8 @@ export default function CredenciamentoPage() {
         </div>
         <button
           onClick={() => void buscarAluno(busca)}
-          style={{ padding: ".7rem 1.25rem", background: "#4f46e5", color: "#fff", border: "none", borderRadius: ".75rem", cursor: "pointer", fontWeight: 600 }}>
+          className="ped-btn-primario"
+          style={{ padding: ".7rem 1.25rem", borderRadius: ".75rem" }}>
           Buscar
         </button>
       </div>

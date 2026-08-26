@@ -49,15 +49,11 @@ export default function TurmasPage() {
 
   return (
     <div className="ped-page">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-        <div>
-          <h1 style={{ fontSize: "1.4rem", fontWeight: 700, margin: 0 }}>Agenda e Turmas</h1>
-          <p style={{ color: "var(--muted-foreground)", margin: ".25rem 0 0", fontSize: ".875rem" }}>
-            {total} turma{total !== 1 ? "s" : ""} encontrada{total !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link href="/pedagogico/turmas/novo"
-          style={{ display: "flex", alignItems: "center", gap: ".4rem", padding: ".5rem 1.25rem", background: "#4f46e5", color: "#fff", border: "none", borderRadius: ".75rem", textDecoration: "none", fontWeight: 600, fontSize: ".875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", gap: "1rem", flexWrap: "wrap" }}>
+        <p style={{ color: "var(--muted-foreground)", margin: 0, fontSize: ".85rem", fontWeight: 600 }}>
+          {total} turma{total !== 1 ? "s" : ""} encontrada{total !== 1 ? "s" : ""}
+        </p>
+        <Link href="/pedagogico/turmas/novo" className="ped-btn-primario" style={{ padding: ".55rem 1.1rem", borderRadius: ".65rem", textDecoration: "none" }}>
           <Plus size={15} /> Nova Turma
         </Link>
       </div>

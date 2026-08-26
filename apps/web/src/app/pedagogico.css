@@ -128,7 +128,7 @@
 .ped-badge.confirmado         { background: #dcfce7; color: #15803d; }
 .ped-badge.aguardando         { background: #fef9c3; color: #92400e; }
 .ped-badge.nao-respondeu      { background: #fee2e2; color: #b91c1c; }
-.ped-badge.credenciado        { background: #e0e7ff; color: #4338ca; }
+.ped-badge.credenciado        { background: rgb(var(--gold-rgb) / .14); color: var(--gold); }
 .ped-badge.em-curso           { background: #ecfeff; color: #0e7490; }
 .ped-badge.concluido          { background: #f0fdf4; color: #166534; }
 .ped-badge.faltou             { background: #fef2f2; color: #991b1b; }
@@ -138,7 +138,7 @@
 .ped-badge.planejada          { background: #f1f5f9; color: #64748b; }
 .ped-badge.em-preparacao      { background: #fef3c7; color: #92400e; }
 .ped-badge.em-andamento       { background: #dcfce7; color: #15803d; }
-.ped-badge.finalizada         { background: #e0e7ff; color: #4338ca; }
+.ped-badge.finalizada         { background: rgb(var(--gold-rgb) / .14); color: var(--gold); }
 .ped-badge.aberta             { background: #dbeafe; color: #1d4ed8; }
 .ped-badge.urgente            { background: #fee2e2; color: #b91c1c; }
 .ped-badge.alta               { background: #fff7ed; color: #c2410c; }
@@ -167,7 +167,7 @@
 }
 
 .ped-check-busca input:focus {
-  border-color: #6366f1;
+  border-color: var(--gold);
 }
 
 .ped-check-card {
@@ -203,15 +203,15 @@
   padding: 1rem;
   font-size: 1.1rem;
   font-weight: 700;
-  background: #4f46e5;
-  color: #fff;
+  background: linear-gradient(180deg, var(--gold-top), var(--gold-base));
+  color: var(--sobre-ouro);
   border: none;
   border-radius: .75rem;
   cursor: pointer;
-  transition: background .15s;
+  transition: filter .15s;
 }
 
-.ped-check-btn:hover:not(:disabled) { background: #4338ca; }
+.ped-check-btn:hover:not(:disabled) { filter: brightness(1.04); }
 .ped-check-btn:disabled { opacity: .5; cursor: not-allowed; }
 .ped-check-btn.ok { background: #16a34a; }
 
@@ -245,7 +245,7 @@
   width: .75rem;
   height: .75rem;
   border-radius: 50%;
-  background: #6366f1;
+  background: var(--gold);
   flex-shrink: 0;
   margin-top: .2rem;
   position: absolute;
@@ -289,7 +289,7 @@
 
 .ped-turma-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  border-color: #6366f1;
+  border-color: rgb(var(--gold-rgb) / .5);
 }
 
 .ped-turma-nome {
@@ -356,7 +356,7 @@
   transition: border-color .15s;
 }
 .ped-input { min-width: 240px; flex: 1; }
-.ped-input:focus, .ped-select:focus, .ped-textarea:focus { border-color: #6366f1; }
+.ped-input:focus, .ped-select:focus, .ped-textarea:focus { border-color: var(--gold); }
 .ped-textarea { width: 100%; resize: vertical; min-height: 72px; font-family: inherit; }
 
 /* Seletor de aluno (autocomplete) — substitui o antigo campo "ID da pessoa" */
@@ -392,10 +392,10 @@
 .ped-btn-primario {
   display: inline-flex; align-items: center; gap: .4rem;
   padding: .5rem 1rem; border-radius: .5rem; border: none;
-  background: #4f46e5; color: #fff; font-size: .875rem; font-weight: 600;
-  cursor: pointer; transition: background .15s;
+  background: linear-gradient(180deg, var(--gold-top), var(--gold-base)); color: var(--sobre-ouro); font-size: .875rem; font-weight: 700;
+  cursor: pointer; transition: filter .15s;
 }
-.ped-btn-primario:hover:not(:disabled) { background: #4338ca; }
+.ped-btn-primario:hover:not(:disabled) { filter: brightness(1.04); }
 .ped-btn-primario:disabled { opacity: .5; cursor: not-allowed; }
 
 .ped-btn-outline {
@@ -405,7 +405,7 @@
   color: var(--foreground, #111); font-size: .875rem; font-weight: 500;
   cursor: pointer; transition: border-color .15s, background .15s; text-decoration: none;
 }
-.ped-btn-outline:hover:not(:disabled) { border-color: #6366f1; background: var(--muted, #f9fafb); }
+.ped-btn-outline:hover:not(:disabled) { border-color: var(--gold); background: rgb(var(--gold-rgb) / .06); }
 .ped-btn-outline:disabled { opacity: .5; cursor: not-allowed; }
 
 .ped-btn-xs {
@@ -415,7 +415,7 @@
   color: var(--foreground, #111); font-size: .75rem; font-weight: 600;
   cursor: pointer; transition: border-color .15s, background .15s; text-decoration: none;
 }
-.ped-btn-xs:hover:not(:disabled) { border-color: #6366f1; background: var(--muted, #f9fafb); }
+.ped-btn-xs:hover:not(:disabled) { border-color: var(--gold); background: rgb(var(--gold-rgb) / .06); }
 .ped-btn-xs:disabled { opacity: .45; cursor: not-allowed; }
 .ped-btn-xs.ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
 .ped-btn-xs.perigo { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
@@ -425,7 +425,7 @@
   font-size: .82rem; color: var(--muted-foreground, #6b7280);
   text-decoration: none; margin-bottom: .75rem; background: none; border: none; cursor: pointer;
 }
-.ped-back-btn:hover { color: #6366f1; }
+.ped-back-btn:hover { color: var(--gold); }
 
 /* ---- Ações em massa ---- */
 .ped-massa-bar {
@@ -449,7 +449,7 @@
 }
 .ped-spinner {
   width: 18px; height: 18px; border-radius: 50%;
-  border: 2px solid var(--border, #e5e7eb); border-top-color: #6366f1;
+  border: 2px solid var(--border, #e5e7eb); border-top-color: var(--gold);
   animation: spin 1s linear infinite; display: inline-block;
 }
 .ped-empty, .ped-empty-inline {
@@ -528,7 +528,7 @@
   font-size: .875rem; font-weight: 600; color: var(--muted-foreground, #6b7280);
   border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-.ped-aba-btn.ativo { color: #4f46e5; border-bottom-color: #4f46e5; }
+.ped-aba-btn.ativo { color: var(--gold); border-bottom-color: var(--gold); }
 .ped-aba-conteudo { padding-top: .25rem; }
 .ped-desc-aba { color: var(--muted-foreground, #6b7280); font-size: .82rem; margin: 0 0 1rem; }
 
@@ -555,7 +555,7 @@
 .ped-badge.concluida  { background: #dcfce7; color: #15803d; }
 .ped-badge.resolvido  { background: #dcfce7; color: #15803d; }
 .ped-badge.aberto     { background: #dbeafe; color: #1d4ed8; }
-.ped-badge.enviado    { background: #e0e7ff; color: #4338ca; }
+.ped-badge.enviado    { background: rgb(var(--gold-rgb) / .14); color: var(--gold); }
 .ped-badge.presente   { background: #dcfce7; color: #15803d; }
 .ped-badge.ausente    { background: #fee2e2; color: #b91c1c; }
 
