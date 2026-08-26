@@ -256,17 +256,17 @@ function DashboardComercial() {
               </div>
               <div className="com-operacao-card">
                 <div
-                  className={`com-operacao-num${op.hoje > 0 ? " com-operacao-num--warn" : ""}`}
+                  className={`com-operacao-num${op.acoesHoje.length > 0 ? " com-operacao-num--warn" : ""}`}
                 >
-                  {op.hoje}
+                  {op.acoesHoje.length}
                 </div>
                 <div className="com-operacao-label">Ações Hoje</div>
               </div>
               <div className="com-operacao-card">
                 <div
-                  className={`com-operacao-num${op.atrasadas > 0 ? " com-operacao-num--alerta" : ""}`}
+                  className={`com-operacao-num${op.oportunidadesAtrasadas > 0 ? " com-operacao-num--alerta" : ""}`}
                 >
-                  {op.atrasadas}
+                  {op.oportunidadesAtrasadas}
                 </div>
                 <div className="com-operacao-label">Atrasadas</div>
               </div>
@@ -275,11 +275,11 @@ function DashboardComercial() {
                 <div className="com-operacao-label">Sem Ação</div>
               </div>
               <div className="com-operacao-card">
-                <div className="com-operacao-num">{op.negociacoes}</div>
+                <div className="com-operacao-num">{op.negociacoesPendentes}</div>
                 <div className="com-operacao-label">Negociações</div>
               </div>
               <div className="com-operacao-card">
-                <div className="com-operacao-num">{op.vendas}</div>
+                <div className="com-operacao-num">{op.vendasHoje}</div>
                 <div className="com-operacao-label">Vendas</div>
               </div>
             </div>

@@ -82,11 +82,12 @@ export interface ComDashboard {
 
 export interface MinhaOperacao {
   leadsNovos: number;
-  hoje: number;
-  atrasadas: number;
+  /** Ações com vencimento hoje (array retornado pela API) */
+  acoesHoje: { id: string; [key: string]: unknown }[];
+  oportunidadesAtrasadas: number;
   semProximaAcao: number;
-  negociacoes: number;
-  vendas: number;
+  negociacoesPendentes: number;
+  vendasHoje: number;
 }
 
 export interface ComNegociacao {
