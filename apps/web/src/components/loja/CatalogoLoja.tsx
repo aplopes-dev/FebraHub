@@ -1,7 +1,7 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload } from "lucide-react";
+import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload } from "lucide-react";
 import {
   lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
   lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos, lojaProdutos, lojaTransferirEstoque,

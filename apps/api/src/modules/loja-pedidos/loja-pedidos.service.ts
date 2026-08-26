@@ -402,8 +402,8 @@ export class LojaPedidosService {
       if (!pedido) throw new NotFoundException('Pedido não encontrado.');
       if (pedido.status === 'CANCELADO') throw new BadRequestException('Pedido cancelado.');
       if (pedido.status !== 'AGUARDANDO_PAGAMENTO') {
-        // Já confirmado antes — idempotente, devolve como está.
-        return { pedido: jsonSeguro(pedido), jaConfirmado: true, posicao: pedido.posicaoFila };
+        // Já confirmado antes — idempotente, devolve como está (senha preservada).
+        return { pedido: jsonSeguro(pedido), jaConfirmado: true, posicao: pedido.posicaoFila, senha: pedido.senhaFila };
       }
 
       // Marca o pagamento como confirmado (o informado, ou o mais recente pendente).
@@ -484,8 +484,8 @@ export class LojaPedidosService {
       const p = resultado.pedido as unknown as { id: string; numero: number; operacaoId: string | null; clienteTel: string | null; total: string };
       this.eventos.emitir({ tipo: 'fila', operacaoId: p.operacaoId ?? undefined });
       this.eventos.emitir({ tipo: 'pedido', pedidoId: p.id });
-      void this.avisar(p.clienteTel, mensagemRegua('confirmado', resultado.senha, p.numero, resultado.posicao));
-      void this.auditar({ entidade: 'pedido', entidadeId: p.id, acao: 'pagamento.confirmado', origem, depois: { numero: p.numero, senha: resultado.senha, total: p.total } }, u);
+      void this.avisar(p.clienteTel, mensagemRegua('confirmado', resultado.senha ?? null, p.numero, resultado.posicao));
+      void this.auditar({ entidade: 'pedido', entidadeId: p.id, acao: 'pagamento.confirmado', origem, depois: { numero: p.numero, senha: resultado.senha ?? null, total: p.total } }, u);
     }
     return resultado.pedido;
   }
