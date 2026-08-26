@@ -26,19 +26,33 @@ const gerarTokenRetirada = () => randomBytes(32).toString('base64url');
 const opera = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('pdv.operar') || u.permissoes.includes('loja.pedidos.operar');
 const gerencia = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('loja.produtos.gerenciar') || u.permissoes.includes('loja.pedidos.gerenciar');
 
-/** Régua de WhatsApp da Loja — a mensagem certa em cada transição relevante. */
-function mensagemRegua(evento: 'confirmado' | 'proximo' | 'preparacao' | 'pronto', numero: number, posicao?: number | null): string {
+/** Senha da fila formatada com no mínimo 2 dígitos (PRD §4,§13): 01,02…09,10…99,100. */
+const fmtSenha = (s: number | null | undefined) => (s == null ? '—' : String(s).padStart(2, '0'));
+
+/**
+ * Régua de WhatsApp da Loja (PRD §38). A chamada operacional usa a SENHA da
+ * fila (não o número do pedido). O número do pedido pode aparecer como
+ * referência secundária. `posicao` só entra na confirmação.
+ */
+function mensagemRegua(
+  evento: 'confirmado' | 'proximo' | 'preparacao' | 'pronto',
+  senha: number | null,
+  numeroPedido: number,
+  posicao?: number | null,
+): string {
+  const S = fmtSenha(senha);
+  const ref = `\n\n_Pedido #${numeroPedido}_`;
   switch (evento) {
     case 'confirmado':
-      return `✅ Pagamento confirmado!\n\nPedido #${numero}.` +
-        (posicao ? `\n\nPosição atual na fila: ${posicao}.` : '') +
-        `\n\nAvisaremos quando estiver chegando sua vez.`;
+      return `✅ Pagamento confirmado!\n\nSua senha é *${S}*.` +
+        (posicao ? `\nPosição atual na fila: *${posicao}*.` : '') +
+        `\n\nAvisaremos quando estiver chegando sua vez.` + ref;
     case 'proximo':
-      return `🔔 VOCÊ É O PRÓXIMO!\n\nPedido #${numero}.\n\nPor favor, dirija-se ao balcão da Loja FEBRACIS. Seu pedido será preparado em instantes.`;
+      return `🔔 VOCÊ É O PRÓXIMO!\n\nSenha *${S}*.\n\nDirija-se ao balcão da Loja FEBRACIS.` + ref;
     case 'preparacao':
-      return `🛍️ Pedido #${numero} em preparação.\n\nNossa equipe já está preparando seu pedido.`;
+      return `🛍️ Senha *${S}* em preparação.\n\nNossa equipe já está preparando seu pedido.` + ref;
     case 'pronto':
-      return `🎉 PEDIDO #${numero} PRONTO!\n\nSeu pedido está disponível para retirada no balcão da Loja FEBRACIS.`;
+      return `🎉 PEDIDO PRONTO!\n\nSenha *${S}*.\n\nSeu pedido está disponível para retirada no balcão da Loja FEBRACIS.` + ref;
   }
 }
 
@@ -100,6 +114,7 @@ export class LojaPedidosService {
       modo: dto.modo ?? 'RETIRADA_BALCAO',
       status: dto.status ?? 'ativa',
       slug: slug || null,
+      cartazUrl: dto.cartazUrl?.trim() || null,
       inicio: dto.inicio ? new Date(dto.inicio) : null,
       fim: dto.fim ? new Date(dto.fim) : null,
     };
@@ -263,6 +278,26 @@ export class LojaPedidosService {
     return linha.ultimo;
   }
 
+  /**
+   * Próxima SENHA da fila para a operação (PRD §4-5, §9, §16).
+   * - Sequência PRÓPRIA da operação, começa em 1 (mostrada com 2 dígitos na UI).
+   * - Geração ATÔMICA: advisory lock por operação + increment na mesma linha
+   *   (PK) → dois pagamentos confirmados simultaneamente NUNCA recebem a mesma
+   *   senha (INVARIANTE 4).
+   * - NUNCA reutiliza: o contador só sobe. Uma senha cancelada não é reposta;
+   *   o próximo pedido recebe o número seguinte (PRD §16).
+   * Deve ser chamada apenas quando o pedido realmente entra na fila.
+   */
+  private async proximaSenha(tx: Prisma.TransactionClient, operacaoId: string): Promise<number> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`loja_senha_${operacaoId}`}))`;
+    const linha = await tx.lojaNumeracaoPedido.upsert({
+      where: { operacaoId },
+      create: { operacaoId, ultimo: 1000, ultimaSenha: 1 },
+      update: { ultimaSenha: { increment: 1 } },
+    });
+    return linha.ultimaSenha;
+  }
+
   // ==================== PAGAMENTO ====================
 
   /** Cria a cobrança no provider ativo (ASAAS se configurado, senão manual) e
@@ -411,10 +446,15 @@ export class LojaPedidosService {
         },
       });
 
-      // Próximo estado: fila (se precisa preparo) ou já pronto p/ retirada.
+      // Próximo estado (PRD §17): pagamento confirmado NÃO significa PRONTO.
+      // Se precisa preparo → ENTRA NA FILA (NA_FILA) e ganha a SENHA da fila.
+      // Só venda sem preparo (retirada imediata) vai direto p/ PRONTO, sem senha.
       let posicao: number | null = null;
+      let senha: number | null = pedido.senhaFila; // idempotência: preserva se já tinha
       let novoStatus: string;
       if (pedido.precisaPreparacao) {
+        // Só gera senha nova se o pedido ainda não tem uma (INVARIANTE 2/3).
+        if (senha == null) senha = await this.proximaSenha(tx, pedido.operacaoId!);
         posicao = await this.calcularPosicaoFila(tx, pedido.operacaoId);
         novoStatus = 'NA_FILA';
       } else {
@@ -427,29 +467,35 @@ export class LojaPedidosService {
           status: novoStatus, lancamentoId: lanc.id, confirmadoEm: new Date(),
           // Comprovante com QR: o cliente pagou → gera o token de retirada.
           tokenRetirada: pedido.tokenRetirada ?? gerarTokenRetirada(),
-          ...(novoStatus === 'NA_FILA' ? { entrouFilaEm: new Date(), posicaoFila: posicao } : { prontoEm: new Date() }),
+          ...(novoStatus === 'NA_FILA'
+            ? { entrouFilaEm: new Date(), posicaoFila: posicao, senhaFila: senha }
+            : { prontoEm: new Date() }),
           historico: { create: [
             { deStatus: 'AGUARDANDO_PAGAMENTO', paraStatus: 'PAGAMENTO_CONFIRMADO', origem, usuarioId: u?.id, observacao: `Pagamento ${pagamento.forma} confirmado` },
-            { deStatus: 'PAGAMENTO_CONFIRMADO', paraStatus: novoStatus, origem, usuarioId: u?.id },
+            { deStatus: 'PAGAMENTO_CONFIRMADO', paraStatus: novoStatus, origem, usuarioId: u?.id, observacao: senha != null ? `Entrou na fila — senha ${fmtSenha(senha)}` : 'Pronto para retirada' },
           ] },
         },
         include: { itens: true, operacao: true },
       });
-      return { pedido: jsonSeguro(atualizado), jaConfirmado: false, posicao };
+      return { pedido: jsonSeguro(atualizado), jaConfirmado: false, posicao, senha };
     });
 
     if (!resultado.jaConfirmado) {
       const p = resultado.pedido as unknown as { id: string; numero: number; operacaoId: string | null; clienteTel: string | null; total: string };
       this.eventos.emitir({ tipo: 'fila', operacaoId: p.operacaoId ?? undefined });
       this.eventos.emitir({ tipo: 'pedido', pedidoId: p.id });
-      void this.avisar(p.clienteTel, mensagemRegua('confirmado', p.numero, resultado.posicao));
-      void this.auditar({ entidade: 'pedido', entidadeId: p.id, acao: 'pagamento.confirmado', origem, depois: { numero: p.numero, total: p.total } }, u);
+      void this.avisar(p.clienteTel, mensagemRegua('confirmado', resultado.senha, p.numero, resultado.posicao));
+      void this.auditar({ entidade: 'pedido', entidadeId: p.id, acao: 'pagamento.confirmado', origem, depois: { numero: p.numero, senha: resultado.senha, total: p.total } }, u);
     }
     return resultado.pedido;
   }
 
-  /** Posição na fila = quantos pedidos ativos (NA_FILA/PROXIMO/EM_PREPARACAO)
-   *  já existem na operação + 1. */
+  /**
+   * Posição DINÂMICA na fila (PRD §14-15): quantos pedidos ativos entraram
+   * ANTES deste + 1. Calculada por ordem de ENTRADA na fila (entrou_fila_em),
+   * não pelo número/senha. Recalculada quando a fila anda; a SENHA nunca muda.
+   * Usada tanto ao inserir quanto na leitura da TV.
+   */
   private async calcularPosicaoFila(tx: Prisma.TransactionClient, operacaoId: string | null): Promise<number> {
     const ativos = await tx.lojaPedido.count({
       where: { operacaoId, status: { in: ['NA_FILA', 'PROXIMO', 'EM_PREPARACAO'] } },
@@ -509,9 +555,13 @@ export class LojaPedidosService {
       const enviarPreparacao = dto.modo === 'ENVIAR_PREPARACAO' && precisaPreparacao;
       const numero = await this.proximoNumero(tx, operacao.id);
       let posicao: number | null = null;
+      let senha: number | null = null;
       let status: string;
-      if (enviarPreparacao) { posicao = await this.calcularPosicaoFila(tx, operacao.id); status = 'NA_FILA'; }
-      else status = 'RETIRADO';
+      if (enviarPreparacao) {
+        senha = await this.proximaSenha(tx, operacao.id); // senha da fila (PRD §6)
+        posicao = await this.calcularPosicaoFila(tx, operacao.id);
+        status = 'NA_FILA';
+      } else status = 'RETIRADO'; // entrega imediata: não ocupa fila, sem senha (PRD §7)
 
       // 4) Baixa de estoque (venda paga baixa direto do físico) + ledger.
       for (const l of linhas) {
@@ -548,7 +598,7 @@ export class LojaPedidosService {
           clienteNome: dto.clienteNome ?? '', clienteTel: dto.clienteTel ? dto.clienteTel.replace(/\D/g, '') : null,
           operadorId: u.id, operadorNome: u.nome,
           subtotal: D(subtotal), desconto: D(desconto), total: D(total),
-          precisaPreparacao, posicaoFila: posicao, lancamentoId: lanc.id,
+          precisaPreparacao, posicaoFila: posicao, senhaFila: senha, lancamentoId: lanc.id,
           // Só gera token de retirada quando o pedido vai para a fila (o cliente
           // sai e volta). Se entrega na hora (ENTREGAR_AGORA) já nasce RETIRADO.
           ...(enviarPreparacao ? { tokenRetirada: gerarTokenRetirada() } : {}),
@@ -595,19 +645,19 @@ export class LojaPedidosService {
 
   async marcarProximo(pedidoId: string, u: UsuarioLogado) {
     const { pedido } = await this.transicionar(pedidoId, ['NA_FILA'], 'PROXIMO', u);
-    void this.avisar(pedido.clienteTel, mensagemRegua('proximo', pedido.numero));
+    void this.avisar(pedido.clienteTel, mensagemRegua('proximo', pedido.senhaFila, pedido.numero));
     return jsonSeguro(pedido);
   }
 
   async iniciarPreparacao(pedidoId: string, u: UsuarioLogado) {
     const { pedido } = await this.transicionar(pedidoId, ['NA_FILA', 'PROXIMO'], 'EM_PREPARACAO', u, 'preparacaoEm');
-    void this.avisar(pedido.clienteTel, mensagemRegua('preparacao', pedido.numero));
+    void this.avisar(pedido.clienteTel, mensagemRegua('preparacao', pedido.senhaFila, pedido.numero));
     return jsonSeguro(pedido);
   }
 
   async marcarPronto(pedidoId: string, u: UsuarioLogado) {
     const { pedido } = await this.transicionar(pedidoId, ['EM_PREPARACAO', 'PROXIMO', 'NA_FILA'], 'PRONTO', u, 'prontoEm');
-    void this.avisar(pedido.clienteTel, mensagemRegua('pronto', pedido.numero));
+    void this.avisar(pedido.clienteTel, mensagemRegua('pronto', pedido.senhaFila, pedido.numero));
     return jsonSeguro(pedido);
   }
 
@@ -724,16 +774,27 @@ export class LojaPedidosService {
   /** Estado público do pedido para a página de acompanhamento do cliente.
    *  Só o essencial — nada de dados administrativos. */
   async acompanhar(pedidoId: string) {
-    const p = await this.prisma.lojaPedido.findUnique({ where: { id: pedidoId }, select: { id: true, numero: true, status: true, posicaoFila: true, precisaPreparacao: true, criadoEm: true } });
+    const p = await this.prisma.lojaPedido.findUnique({
+      where: { id: pedidoId },
+      select: { id: true, numero: true, senhaFila: true, status: true, posicaoFila: true, precisaPreparacao: true, operacaoId: true, entrouFilaEm: true, criadoEm: true },
+    });
     if (!p) throw new NotFoundException('Pedido não encontrado.');
-    // posição relativa: quantos à frente ainda não prontos
-    let posicaoAtual = p.posicaoFila;
-    if (p.status === 'NA_FILA') {
-      const aFrente = await this.prisma.lojaPedido.count({ where: { status: { in: ['PROXIMO', 'EM_PREPARACAO'] } } });
-      const naFilaAntes = await this.prisma.lojaPedido.count({ where: { status: 'NA_FILA', criadoEm: { lt: p.criadoEm } } });
-      posicaoAtual = aFrente + naFilaAntes + 1;
+    // Posição DINÂMICA (PRD §14,§39): enquanto o pedido está "em preparação"
+    // (NA_FILA/PROXIMO/EM_PREPARACAO), conta quantos entraram na fila ANTES dele
+    // na MESMA operação e ainda não saíram — mais 1. A senha nunca muda.
+    let posicao: number | null = null;
+    if (p.status === 'NA_FILA' || p.status === 'PROXIMO' || p.status === 'EM_PREPARACAO') {
+      const ref = p.entrouFilaEm ?? p.criadoEm;
+      const aFrente = await this.prisma.lojaPedido.count({
+        where: {
+          operacaoId: p.operacaoId,
+          status: { in: ['NA_FILA', 'PROXIMO', 'EM_PREPARACAO'] },
+          entrouFilaEm: { lt: ref },
+        },
+      });
+      posicao = aFrente + 1;
     }
-    return { id: p.id, numero: p.numero, status: p.status, posicao: p.status === 'NA_FILA' ? posicaoAtual : null };
+    return { id: p.id, numero: p.numero, senha: p.senhaFila, status: p.status, posicao };
   }
 
   // ==================== COMPROVANTE + RETIRADA POR QR ====================
@@ -888,20 +949,53 @@ export class LojaPedidosService {
     return p;
   }
 
-  /** Painel público / TV: números por status, SEM dados pessoais. */
+  /**
+   * Painel público / TV (PRD §18-27,§45). SEM dados pessoais — só operacional.
+   * Duas listas prontas para as colunas da TV:
+   *   • preparando: NA_FILA + PROXIMO + EM_PREPARACAO agrupados, com SENHA e
+   *     POSIÇÃO dinâmica (ordem de entrada na fila; mais antigo primeiro, §33).
+   *   • prontos: status PRONTO, ordenados por prontoEm (mais antigo primeiro, §34).
+   * Também devolve o nome e o cartaz da operação p/ a 1ª coluna (§20,§22).
+   * `numero` (pedido) vai junto só como referência não sensível.
+   */
   async painelTv(operacaoId?: string) {
     const op = operacaoId ? { operacaoId } : {};
-    const pedidos = await this.prisma.lojaPedido.findMany({
-      where: { ...op, status: { in: ['NA_FILA', 'PROXIMO', 'EM_PREPARACAO', 'PRONTO'] } },
-      select: { numero: true, status: true, prontoEm: true, entrouFilaEm: true },
-      orderBy: { numero: 'asc' },
-    });
-    const so = (s: string) => pedidos.filter((p) => p.status === s).map((p) => p.numero);
+    const [pedidos, operacao] = await Promise.all([
+      this.prisma.lojaPedido.findMany({
+        where: { ...op, status: { in: ['NA_FILA', 'PROXIMO', 'EM_PREPARACAO', 'PRONTO'] } },
+        select: { numero: true, senhaFila: true, status: true, prontoEm: true, entrouFilaEm: true, criadoEm: true },
+      }),
+      operacaoId ? this.prisma.lojaOperacao.findUnique({ where: { id: operacaoId }, select: { nome: true, cartazUrl: true } }) : null,
+    ]);
+
+    // EM PREPARAÇÃO: agrupa os 3 estados, ordena por entrada na fila (ou criação
+    // como desempate), e calcula a posição dinâmica (1, 2, 3, … §14).
+    const preparandoOrd = pedidos
+      .filter((p) => p.status === 'NA_FILA' || p.status === 'PROXIMO' || p.status === 'EM_PREPARACAO')
+      .sort((a, b) => (a.entrouFilaEm?.getTime() ?? a.criadoEm.getTime()) - (b.entrouFilaEm?.getTime() ?? b.criadoEm.getTime()));
+    const preparando = preparandoOrd.map((p, i) => ({
+      senha: p.senhaFila,
+      numero: p.numero,
+      posicao: i + 1,
+      estado: p.status as 'NA_FILA' | 'PROXIMO' | 'EM_PREPARACAO',
+    }));
+
+    // PRONTO PARA RETIRADA: só a senha importa; mais antigo pronto primeiro (§26,§34).
+    const prontosOrd = pedidos
+      .filter((p) => p.status === 'PRONTO')
+      .sort((a, b) => (a.prontoEm?.getTime() ?? 0) - (b.prontoEm?.getTime() ?? 0));
+    const prontos = prontosOrd.map((p) => ({ senha: p.senhaFila, numero: p.numero }));
+
     return {
-      naFila: so('NA_FILA'),
-      proximo: so('PROXIMO'),
-      emPreparacao: so('EM_PREPARACAO'),
-      prontos: so('PRONTO'),
+      operacao: operacao ? { nome: operacao.nome, cartazUrl: operacao.cartazUrl } : null,
+      preparando,
+      prontos,
+      // Compat retro (formato antigo baseado em `numero`) — mantém a TV antiga
+      // e outros consumidores funcionando até migrarem para senha.
+      naFila: preparandoOrd.filter((p) => p.status === 'NA_FILA').map((p) => p.numero),
+      proximo: preparandoOrd.filter((p) => p.status === 'PROXIMO').map((p) => p.numero),
+      emPreparacao: preparandoOrd.filter((p) => p.status === 'EM_PREPARACAO').map((p) => p.numero),
+      prontosNumeros: prontosOrd.map((p) => p.numero),
     };
   }
 

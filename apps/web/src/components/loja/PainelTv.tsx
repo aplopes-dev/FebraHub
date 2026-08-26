@@ -1,18 +1,33 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Storefront, CookingPot, BellRinging, CheckCircle, Broadcast, CaretDoubleRight,
-} from "@phosphor-icons/react";
+import { BellRinging, Broadcast } from "@phosphor-icons/react";
 import { cardapioPublico, painelPublico } from "@/services/api/loja-pedidos";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
+import type { PainelTvPreparando, PainelTvPronto } from "@/types/loja-pedidos";
 import "@/app/painel.css";
 
+/** Senha com no mínimo 2 dígitos (PRD §4,§13): 01, 02 … 09, 10 … 99, 100. */
+const fmtSenha = (s: number | null) => (s == null ? "—" : String(s).padStart(2, "0"));
+
+/** Nº de itens → densidade dos cards (PRD §30). g=grande, m=médio, p=compacto. */
+function densidade(n: number): "g" | "m" | "p" {
+  if (n <= 5) return "g";
+  if (n <= 10) return "m";
+  return "p";
+}
+/** Quantos cards cabem por página conforme a densidade (PRD §30-31). */
+function capacidade(dens: "g" | "m" | "p"): number {
+  return dens === "g" ? 5 : dens === "m" ? 10 : 15;
+}
+
 /**
- * Painel de senhas / TV — estilo QSR (McDonald's/BK): duas colunas grandes,
- * PREPARANDO | PRONTO, com a última senha pronta em destaque (o "chamado").
- * Só NÚMERO + STATUS, nunca dado pessoal (regra 35 do PRD). Legível à
- * distância; atualiza sozinho por SSE + polling.
+ * Painel público / TV — TOUR CRESCIMENTO EMPRESARIAL (PRD §21-34).
+ * 3 colunas: CARTAZ | EM PREPARAÇÃO | PRONTO PARA RETIRADA.
+ * - Cada senha vertical, uma embaixo da outra; nunca invade outra coluna.
+ * - EM PREPARAÇÃO mostra SENHA + POSIÇÃO dinâmica; PRONTO só a senha (destaque).
+ * - Densidade adaptativa + paginação automática por coluna (independente).
+ * - Realtime via SSE + polling; nunca exige F5. Sem dado pessoal (§28).
  */
 export function PainelTv({ slug }: { slug?: string }) {
   const qc = useQueryClient();
@@ -34,20 +49,23 @@ export function PainelTv({ slug }: { slug?: string }) {
     enabled: !slug || !!operacaoId,
   });
 
-  const p = painel.data ?? { naFila: [], proximo: [], emPreparacao: [], prontos: [] };
+  const preparando: PainelTvPreparando[] = useMemo(() => painel.data?.preparando ?? [], [painel.data]);
+  const prontos: PainelTvPronto[] = useMemo(() => painel.data?.prontos ?? [], [painel.data]);
+  const nomeEvento = painel.data?.operacao?.nome ?? op.data?.operacao.nome ?? "Tour Crescimento Empresarial";
+  const cartazUrl = painel.data?.operacao?.cartazUrl ?? "/tour-crescimento-empresarial.jpg";
 
-  // Relógio ao vivo (data + hora), para dar "vida" à tela.
+  // Relógio ao vivo.
   const [agora, setAgora] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setAgora(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Detecta qual senha ACABOU de ficar pronta para pulsar (o "chamado").
+  // Detecta a senha que ACABOU de ficar pronta para destacar (o "chamado").
   const prontosVistos = useRef<Set<number>>(new Set());
   const [novoPronto, setNovoPronto] = useState<number | null>(null);
   useEffect(() => {
-    const atuais = p.prontos ?? [];
+    const atuais = prontos.map((p) => p.senha ?? -1).filter((s) => s >= 0);
     const novos = atuais.filter((n) => !prontosVistos.current.has(n));
     prontosVistos.current = new Set(atuais);
     if (novos.length) {
@@ -55,87 +73,113 @@ export function PainelTv({ slug }: { slug?: string }) {
       const t = setTimeout(() => setNovoPronto(null), 20000);
       return () => clearTimeout(t);
     }
-  }, [p.prontos]);
-
-  // Coluna "preparando" agrupa fila + em preparação (ordenado).
-  const preparando = useMemo(
-    () => Array.from(new Set([...(p.naFila ?? []), ...(p.emPreparacao ?? [])])).sort((a, b) => a - b),
-    [p.naFila, p.emPreparacao],
-  );
-  const prontos = useMemo(() => [...(p.prontos ?? [])].sort((a, b) => a - b), [p.prontos]);
-  const proximo = p.proximo ?? [];
+  }, [prontos]);
 
   return (
     <div className="tv">
-      {/* ---- CABEÇALHO ---- */}
-      <header className="tv-top">
-        <div className="tv-brand">
-          <div className="tv-logo"><Storefront weight="fill" /></div>
-          <div className="tv-brand-txt">
-            <small>Loja FEBRACIS</small>
-            <b>{op.data?.operacao.nome ?? "Retirada de pedidos"}</b>
+      <div className="tv-grid">
+        {/* ---- COLUNA 1: CARTAZ DO EVENTO ---- */}
+        <section className="tv-cartaz">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cartazUrl} alt={nomeEvento} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
+          <div className="tv-cartaz-fallback">
+            <span className="tv-cartaz-tour">TOUR</span>
+            <b>Crescimento Empresarial</b>
+            <small>Lucro · Gestão · Inovação</small>
           </div>
-        </div>
-        <div className="tv-clock">
-          <b>{agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
-          <small>{agora.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</small>
-        </div>
-      </header>
-
-      {/* ---- BOARD ---- */}
-      <div className="tv-board">
-        {/* PREPARANDO */}
-        <section className="tv-col preparando">
-          <div className="tv-col-head">
-            <CookingPot weight="duotone" className="ic" />Preparando
-            <span className="cnt">{preparando.length}</span>
-          </div>
-
-          {proximo.length > 0 && (
-            <div className="tv-proximo">
-              <CaretDoubleRight weight="bold" className="ic" />
-              <span className="lbl">Prepare-se · próximo</span>
-              <span className="val">
-                {proximo.map((n) => <span key={n}>{n}</span>)}
-              </span>
-            </div>
-          )}
-
-          {preparando.length > 0 ? (
-            <div className="tv-nums">
-              {preparando.map((n) => <span key={n} className="tv-num">{n}</span>)}
-            </div>
-          ) : (
-            <div className="tv-empty"><CookingPot weight="duotone" />Nenhum pedido em preparo</div>
-          )}
         </section>
 
-        {/* PRONTO */}
-        <section className="tv-col pronto">
-          <div className="tv-col-head">
-            <BellRinging weight="fill" className="ic" />Pronto · pode retirar
-            <span className="cnt">{prontos.length}</span>
-          </div>
-
-          {prontos.length > 0 ? (
-            <div className="tv-nums">
-              {prontos.map((n) => (
-                <span key={n} className={`tv-num ${n === novoPronto ? "novo" : ""}`}>
-                  {n === novoPronto && <BellRinging weight="fill" className="tv-num-ic" />}
-                  {n}
-                </span>
+        {/* ---- COLUNA 2: EM PREPARAÇÃO ---- */}
+        <ColunaFila className="preparando" titulo="Em preparação" vazio="Nenhum pedido em preparação" total={preparando.length}>
+          {(inicio, fim) => (
+            <div className={`tv-lista dens-${densidade(preparando.length)}`}>
+              {preparando.slice(inicio, fim).map((p) => (
+                <div key={p.numero} className={`tv-card ${p.estado === "PROXIMO" ? "proximo" : ""}`}>
+                  <span className="tv-card-senha">{fmtSenha(p.senha)}</span>
+                  <span className="tv-card-pos">Posição {p.posicao}</span>
+                </div>
               ))}
             </div>
-          ) : (
-            <div className="tv-empty"><CheckCircle weight="duotone" />Aguardando os primeiros pedidos</div>
           )}
-        </section>
+        </ColunaFila>
+
+        {/* ---- COLUNA 3: PRONTO PARA RETIRADA ---- */}
+        <ColunaFila className="pronto" titulo="Pronto para retirada" vazio="Aguardando os primeiros pedidos" total={prontos.length}>
+          {(inicio, fim) => (
+            <div className={`tv-lista dens-${densidade(prontos.length)}`}>
+              {prontos.slice(inicio, fim).map((p) => (
+                <div key={p.numero} className={`tv-card pronto ${p.senha === novoPronto ? "novo" : ""}`}>
+                  {p.senha === novoPronto && <BellRinging weight="fill" className="tv-card-ic" />}
+                  <span className="tv-card-senha">{fmtSenha(p.senha)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </ColunaFila>
       </div>
 
+      {/* ---- RODAPÉ ---- */}
       <div className="tv-foot">
-        <span className="live"><Broadcast weight="fill" className="ic" />AO VIVO</span>
-        · Retire seu pedido no balcão quando sua senha aparecer em verde
+        <span className="tv-foot-evento">{nomeEvento}</span>
+        <span className="tv-foot-live"><Broadcast weight="fill" className="ic" />AO VIVO</span>
+        <span className="tv-foot-hora">{agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Coluna da fila com CABEÇALHO + PAGINAÇÃO AUTOMÁTICA (PRD §31-32). Quando não
+ * cabem todos legivelmente, divide em páginas que trocam sozinhas a cada ~6s.
+ * Cada coluna pagina independente. Overflow oculto → nunca invade a vizinha.
+ * `children(inicio, fim)` recebe a fatia [inicio, fim) da página atual.
+ */
+function ColunaFila({
+  className, titulo, vazio, total, children,
+}: {
+  className: string;
+  titulo: string;
+  vazio: string;
+  total: number;
+  children: (inicio: number, fim: number) => React.ReactNode;
+}) {
+  const porPagina = capacidade(densidade(total));
+  const paginas = Math.max(1, Math.ceil(total / porPagina));
+  const [pagina, setPagina] = useState(0);
+
+  // Mantém a página dentro do range quando o total muda (pedidos entram/saem).
+  useEffect(() => { setPagina((p) => (p >= paginas ? 0 : p)); }, [paginas]);
+
+  // Rotação automática entre páginas (só quando há mais de uma).
+  useEffect(() => {
+    if (paginas <= 1) { setPagina(0); return; }
+    const t = setInterval(() => setPagina((p) => (p + 1) % paginas), 6000);
+    return () => clearInterval(t);
+  }, [paginas]);
+
+  const inicio = Math.min(pagina, paginas - 1) * porPagina;
+
+  return (
+    <section className={`tv-col ${className}`}>
+      <div className="tv-col-head">
+        <span className="tv-col-titulo">{titulo}</span>
+        <span className="tv-col-cnt">{total}</span>
+      </div>
+      {total > 0 ? (
+        <div className="tv-col-body">
+          {children(inicio, inicio + porPagina)}
+          {paginas > 1 && (
+            <div className="tv-pager">
+              {Array.from({ length: paginas }).map((_, i) => (
+                <span key={i} className={`tv-pager-dot ${i === Math.min(pagina, paginas - 1) ? "on" : ""}`} />
+              ))}
+              <span className="tv-pager-lbl">página {Math.min(pagina, paginas - 1) + 1}/{paginas}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="tv-empty">{vazio}</div>
+      )}
+    </section>
   );
 }

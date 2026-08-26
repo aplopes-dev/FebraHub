@@ -63,13 +63,23 @@ export function AcompanharPedido({ id }: { id: string }) {
   return (
     <div className="acomp-page">
       <div className="acomp-card">
-        <h1>#{p.numero}</h1>
+        {/* Informação operacional PRINCIPAL = SENHA da fila (PRD §39). O número
+            do pedido aparece como referência secundária. */}
+        {p.senha != null ? (
+          <>
+            <p style={{ color: "#9a9aa2", fontSize: 12, letterSpacing: ".18em", fontWeight: 800, textTransform: "uppercase", margin: "0 0 2px" }}>Senha</p>
+            <h1 style={{ fontSize: 64 }}>{String(p.senha).padStart(2, "0")}</h1>
+            <p style={{ color: "#6f6f78", fontSize: 12, margin: "0 0 6px" }}>Pedido #{p.numero}</p>
+          </>
+        ) : (
+          <h1>#{p.numero}</h1>
+        )}
         <p className="st">{ROTULO[p.status] ?? p.status}</p>
 
-        {p.status === "NA_FILA" && p.posicao != null && (
+        {(p.status === "NA_FILA" || p.status === "EM_PREPARACAO") && p.posicao != null && (
           <>
             <div className="acomp-pos">{p.posicao}</div>
-            <p style={{ color: "#9a9aa2", fontSize: 13, margin: 0 }}>posição na fila</p>
+            <p style={{ color: "#9a9aa2", fontSize: 13, margin: 0 }}>posição atual na fila</p>
           </>
         )}
         {p.status === "PROXIMO" && (

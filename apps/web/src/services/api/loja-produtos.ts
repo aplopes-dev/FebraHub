@@ -26,6 +26,9 @@ export const lojaApagarCategoria = (id: string) => api.delete(`/loja/categorias/
 // -------------------- produtos --------------------
 export const lojaCriarProduto = (d: ProdutoInput) => api.post<LojaProduto>('/loja/produtos', d);
 export const lojaAtualizarProduto = (id: string, d: ProdutoInput) => api.put<LojaProduto>(`/loja/produtos/${id}`, d);
+/** Alterar SÓ o preço (permissão dedicada loja.produtos.preco, auditado). */
+export const lojaAlterarPreco = (id: string, d: { preco: number; motivo?: string }) =>
+  api.patch<LojaProduto>(`/loja/produtos/${id}/preco`, d);
 export const lojaInativarProduto = (id: string) => api.delete(`/loja/produtos/${id}`);
 
 /** Sobe a imagem do produto (já com fundo removido) e devolve a URL pública. */

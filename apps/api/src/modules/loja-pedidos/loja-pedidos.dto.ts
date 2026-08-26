@@ -12,6 +12,8 @@ export class SalvarOperacaoDto {
   @IsOptional() @IsIn(['RETIRADA_BALCAO', 'SERVICO_MESA']) modo?: string;
   @IsOptional() @IsIn(['ativa', 'encerrada', 'suspensa']) status?: string;
   @IsOptional() @IsString() slug?: string;
+  /** Cartaz/pôster do evento exibido na 1ª coluna da TV (PRD §22). */
+  @IsOptional() @IsString() cartazUrl?: string;
   @IsOptional() @IsString() inicio?: string;
   @IsOptional() @IsString() fim?: string;
 }

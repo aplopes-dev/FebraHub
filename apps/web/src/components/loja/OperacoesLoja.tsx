@@ -94,6 +94,7 @@ function FormOperacao({
   const [slug, setSlug] = useState(op?.slug ?? "");
   const [modo, setModo] = useState<LojaOperacao["modo"]>(op?.modo ?? "RETIRADA_BALCAO");
   const [status, setStatus] = useState<LojaOperacao["status"]>(op?.status ?? "ativa");
+  const [cartazUrl, setCartazUrl] = useState(op?.cartazUrl ?? "");
 
   const campo: React.CSSProperties = { width: "100%", marginTop: 4, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--card-line)", background: "var(--card)", color: "inherit", fontSize: 14 };
 
@@ -107,6 +108,13 @@ function FormOperacao({
         <label style={{ fontSize: 12 }}>Slug (URL pública do cardápio/TV)
           <input value={slug} onChange={(e) => setSlug(e.target.value)} style={campo} placeholder="cis-externo-ago-2026" />
         </label>
+        <label style={{ fontSize: 12 }}>Cartaz do evento (URL da imagem — 1ª coluna da TV)
+          <input value={cartazUrl} onChange={(e) => setCartazUrl(e.target.value)} style={campo} placeholder="https://…/cartaz.jpg" />
+        </label>
+        {cartazUrl.trim() && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cartazUrl} alt="Prévia do cartaz" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 10, border: "1px solid var(--card-line)" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+        )}
         <div style={{ display: "flex", gap: 10 }}>
           <label style={{ fontSize: 12, flex: 1 }}>Modo
             <select value={modo} onChange={(e) => setModo(e.target.value as LojaOperacao["modo"])} style={campo}>
@@ -124,7 +132,7 @@ function FormOperacao({
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
           <button className="loja-btn" onClick={onCancelar}>Cancelar</button>
-          <button className="loja-btn ouro" disabled={salvando || nome.trim().length < 2} onClick={() => onSalvar({ nome, slug, modo, status })}>
+          <button className="loja-btn ouro" disabled={salvando || nome.trim().length < 2} onClick={() => onSalvar({ nome, slug, modo, status, cartazUrl })}>
             {salvando ? "Salvando…" : "Salvar"}
           </button>
         </div>

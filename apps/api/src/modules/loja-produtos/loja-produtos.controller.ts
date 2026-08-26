@@ -1,10 +1,11 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyRequest } from 'fastify';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
   AjusteEstoqueDto,
+  AlterarPrecoDto,
   CategoriaDto,
   ListaProdutosQuery,
   ProdutoDto,
@@ -64,6 +65,10 @@ export class LojaProdutosController {
 
   @Put('produtos/:id') @ExigePermissao('loja.produtos.gerenciar')
   atualizarProduto(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ProdutoDto, @Usuario() u: UsuarioLogado) { return this.s.atualizarProduto(id, dto, u); }
+
+  /** Alterar SÓ o preço (PRD §40-43) — permissão dedicada, auditada. */
+  @Patch('produtos/:id/preco') @ExigePermissao('loja.produtos.preco')
+  alterarPreco(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AlterarPrecoDto, @Usuario() u: UsuarioLogado) { return this.s.alterarPreco(id, dto, u); }
 
   @Delete('produtos/:id') @ExigePermissao('loja.produtos.gerenciar')
   inativarProduto(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.inativarProduto(id, u); }

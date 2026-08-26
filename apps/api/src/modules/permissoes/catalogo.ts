@@ -98,6 +98,7 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     permissoes: [
       { id: 'loja.produtos.ver', nome: 'Consultar o catálogo', descricao: 'Ver produtos, categorias, saldos e movimentações de estoque.' },
       { id: 'loja.produtos.gerenciar', nome: 'Gerenciar o catálogo', descricao: 'Criar/editar produtos e categorias, ajustar e transferir estoque entre LOJA e DEPÓSITO.' },
+      { id: 'loja.produtos.preco', nome: 'Alterar preço de venda', descricao: 'Alterar o preço de venda dos produtos da Loja. A mudança reflete no Cardápio e no PDV e é auditada.' },
     ],
   },
   {

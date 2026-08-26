@@ -14,6 +14,12 @@ import {
 
 const LOCAIS = ['LOJA', 'DEPOSITO'] as const;
 
+// -------------------- ALTERAR PREÇO (PRD §40-42) --------------------
+export class AlterarPrecoDto {
+  @Type(() => Number) @IsNumber() @Min(0) preco!: number;
+  @IsOptional() @IsString() motivo?: string;
+}
+
 // -------------------- CATEGORIA --------------------
 export class CategoriaDto {
   @IsString() @IsNotEmpty() nome!: string;

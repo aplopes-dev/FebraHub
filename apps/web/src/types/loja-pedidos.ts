@@ -9,6 +9,8 @@ export interface LojaOperacao {
   modo: "RETIRADA_BALCAO" | "SERVICO_MESA";
   status: "ativa" | "encerrada" | "suspensa";
   slug?: string | null;
+  /** Cartaz/pôster do evento exibido na 1ª coluna do Painel TV. */
+  cartazUrl?: string | null;
   inicio?: string | null;
   fim?: string | null;
   criadoEm: string;
@@ -79,6 +81,8 @@ export interface CardapioPublico {
 export interface AcompanharPedido {
   id: string;
   numero: number;
+  /** Senha da fila (2 dígitos na UI). Null se o pedido não entrou na fila. */
+  senha: number | null;
   status: LojaPedidoStatus;
   posicao: number | null;
 }
@@ -127,11 +131,27 @@ export interface RetiradaConsulta extends Comprovante {
   retiradoPorNome: string | null;
 }
 
+/** Um pedido na coluna EM PREPARAÇÃO da TV: senha + posição dinâmica. */
+export interface PainelTvPreparando {
+  senha: number | null;
+  numero: number;
+  posicao: number;
+  estado: "NA_FILA" | "PROXIMO" | "EM_PREPARACAO";
+}
+/** Um pedido na coluna PRONTO PARA RETIRADA: só a senha importa. */
+export interface PainelTvPronto {
+  senha: number | null;
+  numero: number;
+}
 export interface PainelTv {
+  operacao: { nome: string; cartazUrl: string | null } | null;
+  preparando: PainelTvPreparando[];
+  prontos: PainelTvPronto[];
+  // Compat retro (formato antigo por número de pedido):
   naFila: number[];
   proximo: number[];
   emPreparacao: number[];
-  prontos: number[];
+  prontosNumeros: number[];
 }
 
 export interface LojaPedidosIndicadores {

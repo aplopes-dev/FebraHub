@@ -1,11 +1,12 @@
 /* ==========================================================================
-   PAINEL DE SENHAS / TV — estilo QSR (McDonald's / Burger King)
+   PAINEL PÚBLICO / TV — TOUR CRESCIMENTO EMPRESARIAL (PRD §21-34)
    --------------------------------------------------------------------------
-   Tela pública exibida numa TV: o cliente lê O NÚMERO DA SENHA à distância.
-   Só número + status, nunca dado pessoal (regra 35 do PRD). Duas colunas
-   grandes — PREPARANDO | PRONTO — com um destaque para a última senha que
-   ficou pronta (o "chamado"). Tema escuro fixo, tipografia enorme, pensado
-   para 1080p/4K vistos de longe. Escopo isolado sob .tv.
+   3 colunas: CARTAZ (40%) | EM PREPARAÇÃO (30%) | PRONTO PARA RETIRADA (30%).
+   - Senhas verticais, uma embaixo da outra; overflow:hidden por coluna → um
+     número NUNCA invade a coluna vizinha nem sai da tela (§29).
+   - Densidade adaptativa (.dens-g/m/p) + paginação automática (§30-31).
+   - EM PREPARAÇÃO em azul/ciano; PRONTO em verde com destaque (§27).
+   - Sem dado pessoal (§28). Escopo isolado sob .tv. Pensado p/ 1080p→4K.
    ========================================================================== */
 
 .tv {
@@ -13,19 +14,19 @@
   --tv-panel: #101015;
   --tv-line: #23232c;
   --tv-text: #f5f4ef;
-  --tv-muted: #7f7f8a;
+  --tv-muted: #8a8a95;
   --tv-gold: #e9c15c;
-  --tv-on-gold: #14100a;
+  /* azul/ciano p/ EM PREPARAÇÃO */
+  --tv-blue: #45b6e6;
+  --tv-blue-deep: #1c6f96;
+  /* verde p/ PRONTO */
   --tv-green: #46d07f;
   --tv-green-deep: #1f8a52;
+  --tv-on-green: #06210f;
 
-  position: fixed;
-  inset: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  background:
-    radial-gradient(80vw 40vh at 80% -10%, rgba(233, 193, 92, 0.12), transparent 60%),
-    var(--tv-bg);
+  position: fixed; inset: 0;
+  display: grid; grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--tv-bg);
   color: var(--tv-text);
   font-family: var(--fonte-sans, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
@@ -33,145 +34,161 @@
 }
 .tv *, .tv *::before, .tv *::after { box-sizing: border-box; }
 
-/* ------------------------------------------------------------- CABEÇALHO */
-.tv-top {
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  padding: clamp(20px, 2.6vh, 40px) clamp(28px, 3vw, 64px);
-  border-bottom: 1px solid var(--tv-line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+/* ---------------------------------------------------------------- GRID 3 COL */
+.tv-grid {
+  display: grid;
+  grid-template-columns: 40fr 30fr 30fr;
+  min-height: 0; overflow: hidden;
 }
-.tv-brand { display: flex; align-items: center; gap: clamp(12px, 1.2vw, 22px); min-width: 0; }
-.tv-logo {
-  width: clamp(48px, 4vw, 74px); height: clamp(48px, 4vw, 74px); flex: none;
-  border-radius: clamp(14px, 1.2vw, 20px); display: grid; place-items: center;
-  background: linear-gradient(150deg, var(--tv-gold), #b8933f); color: var(--tv-on-gold);
-  box-shadow: 0 10px 28px rgba(233, 193, 92, 0.32);
+/* Em telas mais estreitas (preview/retrato) o cartaz sai do topo e as duas
+   colunas de fila dividem a tela — nunca some a informação operacional. */
+@media (max-width: 1100px) {
+  .tv-grid { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); }
+  .tv-cartaz { display: none; }
 }
-.tv-logo svg { width: 58%; height: 58%; }
-.tv-brand-txt { min-width: 0; line-height: 1.05; }
-.tv-brand-txt small {
-  display: block; font-size: clamp(11px, 0.9vw, 15px); letter-spacing: 0.28em;
-  font-weight: 800; color: var(--tv-gold); text-transform: uppercase;
-}
-.tv-brand-txt b {
-  display: block; font-size: clamp(24px, 2.4vw, 42px); font-weight: 800;
-  letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.tv-clock { text-align: right; font-variant-numeric: tabular-nums; flex: none; }
-.tv-clock b { display: block; font-size: clamp(26px, 2.6vw, 46px); font-weight: 800; letter-spacing: 0.02em; }
-.tv-clock small { display: block; font-size: clamp(11px, 0.9vw, 15px); color: var(--tv-muted); font-weight: 700; text-transform: capitalize; }
 
-/* --------------------------------------------------------------- CORPO */
-.tv-board {
-  display: grid; grid-template-columns: 1fr 1.15fr; gap: 0;
-  min-height: 0;
+/* ------------------------------------------------------------- COLUNA 1: CARTAZ */
+.tv-cartaz {
+  position: relative; min-height: 0; overflow: hidden;
+  background: linear-gradient(160deg, #0c1a16, #06070a);
+  border-right: 1px solid var(--tv-line);
+  display: grid; place-items: center;
 }
+.tv-cartaz img {
+  position: relative; z-index: 2;
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+}
+/* Fallback exibido ATRÁS da imagem — se a img falhar (visibility:hidden), ele
+   aparece; se a img carregar (object-fit:cover), ela cobre tudo. */
+.tv-cartaz-fallback {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4vh;
+  text-align: center; padding: 4vh 3vw;
+  background: radial-gradient(70% 60% at 50% 40%, rgba(70, 208, 127, 0.16), transparent 70%);
+}
+.tv-cartaz-tour { font-size: clamp(18px, 2.2vw, 40px); letter-spacing: 0.5em; font-weight: 800; color: var(--tv-green); }
+.tv-cartaz-fallback b { font-size: clamp(30px, 4.4vw, 84px); font-weight: 900; line-height: 1.02; letter-spacing: -0.01em; }
+.tv-cartaz-fallback small { margin-top: 1vh; font-size: clamp(13px, 1.3vw, 24px); font-weight: 700; letter-spacing: 0.28em; color: var(--tv-muted); text-transform: uppercase; }
+
+/* ------------------------------------------------------------- COLUNAS DE FILA */
 .tv-col {
-  display: flex; flex-direction: column; min-height: 0;
-  padding: clamp(20px, 3vh, 44px) clamp(24px, 2.6vw, 56px);
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  padding: clamp(18px, 2.6vh, 40px) clamp(18px, 1.8vw, 40px);
 }
-.tv-col.preparando { border-right: 1px solid var(--tv-line); }
-.tv-col.pronto {
-  background:
-    radial-gradient(60vw 60vh at 60% 40%, rgba(70, 208, 127, 0.1), transparent 60%),
-    linear-gradient(160deg, rgba(70, 208, 127, 0.06), transparent 55%);
-}
+.tv-col.preparando { border-right: 1px solid var(--tv-line); background: linear-gradient(180deg, rgba(69, 182, 230, 0.06), transparent 40%); }
+.tv-col.pronto { background: linear-gradient(180deg, rgba(70, 208, 127, 0.08), transparent 42%); }
 
 .tv-col-head {
-  display: flex; align-items: center; gap: clamp(10px, 0.9vw, 16px);
-  font-size: clamp(18px, 1.7vw, 30px); font-weight: 800; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--tv-muted);
-  padding-bottom: clamp(14px, 1.6vh, 26px); margin-bottom: clamp(14px, 1.6vh, 26px);
-  border-bottom: 2px solid var(--tv-line);
+  display: flex; align-items: center; gap: clamp(8px, 0.8vw, 16px);
+  padding-bottom: clamp(10px, 1.4vh, 22px); margin-bottom: clamp(12px, 1.6vh, 24px);
+  border-bottom: 3px solid var(--tv-line); flex: none;
 }
-.tv-col.pronto .tv-col-head { color: var(--tv-green); border-bottom-color: rgba(70, 208, 127, 0.35); }
-.tv-col-head .ic { width: clamp(24px, 2vw, 38px); height: clamp(24px, 2vw, 38px); flex: none; }
-.tv-col-head .cnt {
-  margin-left: auto; min-width: clamp(34px, 2.6vw, 48px); text-align: center;
-  padding: 0 clamp(8px, 0.6vw, 12px); border-radius: 999px;
-  font-size: clamp(15px, 1.2vw, 22px); letter-spacing: 0; color: var(--tv-text);
+.tv-col-titulo {
+  font-size: clamp(17px, 1.7vw, 34px); font-weight: 900; letter-spacing: 0.08em;
+  text-transform: uppercase; line-height: 1;
+}
+.tv-col.preparando .tv-col-titulo { color: var(--tv-blue); }
+.tv-col.pronto .tv-col-titulo { color: var(--tv-green); }
+.tv-col.preparando .tv-col-head { border-bottom-color: rgba(69, 182, 230, 0.4); }
+.tv-col.pronto .tv-col-head { border-bottom-color: rgba(70, 208, 127, 0.42); }
+.tv-col-cnt {
+  margin-left: auto; min-width: clamp(38px, 2.6vw, 60px); text-align: center;
+  padding: 0.2em 0.5em; border-radius: 999px;
+  font-size: clamp(16px, 1.4vw, 28px); font-weight: 800; color: var(--tv-text);
   background: rgba(255, 255, 255, 0.06); border: 1px solid var(--tv-line);
 }
 
-/* grade de senhas */
-.tv-nums {
-  display: grid; gap: clamp(12px, 1.4vw, 22px); align-content: start;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(120px, 11vw, 190px), 1fr));
-  overflow: hidden; flex: 1; min-height: 0;
+.tv-col-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Lista vertical de cards de senha (uma embaixo da outra) */
+.tv-lista {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; gap: clamp(8px, 1vh, 18px);
 }
-.tv-num {
-  display: grid; place-items: center;
-  padding: clamp(10px, 1.2vh, 20px) clamp(6px, 0.6vw, 12px);
-  border-radius: clamp(14px, 1.1vw, 20px);
-  font-size: clamp(46px, 5.4vw, 104px); font-weight: 900; line-height: 1;
-  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+
+/* Card de senha */
+.tv-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6em;
+  padding: clamp(8px, 1.1vh, 20px) clamp(14px, 1.2vw, 26px);
+  border-radius: clamp(12px, 1vw, 18px);
   background: var(--tv-panel); border: 1px solid var(--tv-line);
+  min-height: 0;
 }
-.tv-col.pronto .tv-num {
-  color: var(--tv-green); border-color: rgba(70, 208, 127, 0.4);
-  background: linear-gradient(160deg, rgba(70, 208, 127, 0.12), rgba(70, 208, 127, 0.02));
+.tv-card-senha { font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tv-card-pos { font-size: 0.32em; font-weight: 800; letter-spacing: 0.04em; color: var(--tv-muted); text-transform: uppercase; white-space: nowrap; }
+
+/* EM PREPARAÇÃO — azul */
+.tv-col.preparando .tv-card { border-color: rgba(69, 182, 230, 0.28); }
+.tv-col.preparando .tv-card-senha { color: var(--tv-text); }
+.tv-col.preparando .tv-card.proximo {
+  border-color: var(--tv-blue);
+  background: linear-gradient(120deg, rgba(69, 182, 230, 0.2), rgba(69, 182, 230, 0.04));
 }
-/* a senha mais recente que ficou pronta: pulsa para chamar atenção */
-.tv-num.novo {
-  position: relative;
-  color: var(--tv-on-gold); background: var(--tv-green); border-color: var(--tv-green);
+.tv-col.preparando .tv-card.proximo .tv-card-pos { color: var(--tv-blue); }
+
+/* PRONTO — verde, senha com destaque (§27) */
+.tv-card.pronto {
+  justify-content: center; position: relative;
+  color: var(--tv-green); border-color: rgba(70, 208, 127, 0.42);
+  background: linear-gradient(160deg, rgba(70, 208, 127, 0.14), rgba(70, 208, 127, 0.03));
+}
+.tv-card.pronto .tv-card-senha { color: var(--tv-green); }
+/* a senha recém-pronta pulsa (o "chamado") */
+.tv-card.pronto.novo {
+  color: var(--tv-on-green); border-color: var(--tv-green);
+  background: var(--tv-green);
   box-shadow: 0 0 0 4px rgba(70, 208, 127, 0.22), 0 18px 44px rgba(70, 208, 127, 0.35);
   animation: tv-pop 1.5s ease-in-out infinite;
 }
-.tv-num-ic {
-  position: absolute; top: clamp(8px, 0.7vw, 12px); right: clamp(8px, 0.7vw, 12px);
-  width: clamp(20px, 1.5vw, 30px); height: clamp(20px, 1.5vw, 30px); opacity: 0.9;
+.tv-card.pronto.novo .tv-card-senha { color: var(--tv-on-green); }
+.tv-card-ic {
+  position: absolute; top: 0.5em; right: 0.6em; width: 0.4em; height: 0.4em; opacity: 0.9;
   transform-origin: top center; animation: tv-ring 1.2s ease-in-out infinite;
 }
-@keyframes tv-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes tv-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 @keyframes tv-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-16deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(4deg); } }
 
-/* linha "próximo a ser chamado" no topo da coluna preparando */
-.tv-proximo {
-  display: flex; align-items: center; gap: clamp(12px, 1vw, 20px);
-  padding: clamp(12px, 1.4vh, 22px) clamp(16px, 1.2vw, 26px);
-  margin-bottom: clamp(14px, 1.6vh, 26px); border-radius: clamp(14px, 1.1vw, 20px);
-  background: linear-gradient(120deg, rgba(233, 193, 92, 0.16), transparent 70%);
-  border: 1px solid rgba(233, 193, 92, 0.35);
-}
-.tv-proximo .ic { width: clamp(22px, 1.8vw, 34px); height: clamp(22px, 1.8vw, 34px); flex: none; color: var(--tv-gold); }
-.tv-proximo .lbl {
-  font-size: clamp(13px, 1vw, 18px); font-weight: 800; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--tv-gold);
-}
-.tv-proximo .val {
-  margin-left: auto; display: flex; gap: clamp(10px, 0.8vw, 16px); flex-wrap: wrap; justify-content: flex-end;
-}
-.tv-proximo .val span {
-  font-size: clamp(34px, 3.4vw, 60px); font-weight: 900; line-height: 1;
-  color: var(--tv-gold); font-variant-numeric: tabular-nums;
-}
+/* --------------------------------------------- DENSIDADE ADAPTATIVA (§30)
+   O tamanho da SENHA escala com a densidade (menos pedidos = fonte maior).
+   Como .tv-lista é flex vertical com overflow hidden, os cards dividem a
+   altura; a fonte via clamp mantém tudo legível sem estourar. */
+.tv-lista.dens-g .tv-card-senha { font-size: clamp(52px, 8vh, 150px); }
+.tv-lista.dens-g .tv-card { flex: 1; }
+.tv-lista.dens-m .tv-card-senha { font-size: clamp(34px, 5.2vh, 96px); }
+.tv-lista.dens-m .tv-card { flex: 1; }
+.tv-lista.dens-p .tv-card-senha { font-size: clamp(24px, 3.4vh, 62px); }
+.tv-lista.dens-p .tv-card { flex: 1; }
 
 /* estado vazio de uma coluna */
 .tv-empty {
-  flex: 1; display: grid; place-items: center; text-align: center;
-  color: var(--tv-muted); font-size: clamp(18px, 1.6vw, 28px); font-weight: 700;
+  flex: 1; display: grid; place-items: center; text-align: center; padding: 2vh;
+  color: var(--tv-muted); font-size: clamp(16px, 1.5vw, 28px); font-weight: 700;
 }
-.tv-empty svg { width: clamp(52px, 5vw, 88px); height: clamp(52px, 5vw, 88px); display: block; margin: 0 auto 14px; opacity: 0.4; }
 
-/* --------------------------------------------------- FAIXA DE RODAPÉ */
-.tv-foot {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: clamp(8px, 1vh, 14px); font-size: clamp(12px, 1vw, 17px); font-weight: 700;
-  letter-spacing: 0.06em; color: var(--tv-muted);
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.5));
+/* -------------------------------------------------------- PAGINAÇÃO (§31) */
+.tv-pager {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: clamp(6px, 0.5vw, 10px);
+  padding-top: clamp(8px, 1.2vh, 18px);
 }
-.tv-foot .live { display: inline-flex; align-items: center; gap: 8px; color: var(--tv-green); }
-.tv-foot .live .ic { width: clamp(15px, 1.1vw, 20px); height: clamp(15px, 1.1vw, 20px); animation: tv-blink 1.4s ease-in-out infinite; }
+.tv-pager-dot { width: clamp(8px, 0.7vw, 12px); height: clamp(8px, 0.7vw, 12px); border-radius: 50%; background: var(--tv-line); transition: background 0.3s; }
+.tv-col.preparando .tv-pager-dot.on { background: var(--tv-blue); }
+.tv-col.pronto .tv-pager-dot.on { background: var(--tv-green); }
+.tv-pager-lbl { margin-left: 0.6em; font-size: clamp(11px, 0.9vw, 16px); font-weight: 700; color: var(--tv-muted); letter-spacing: 0.04em; }
+
+/* --------------------------------------------------- RODAPÉ */
+.tv-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: clamp(8px, 1.1vh, 16px) clamp(20px, 2vw, 44px);
+  border-top: 1px solid var(--tv-line);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.4));
+  font-size: clamp(13px, 1.1vw, 20px); font-weight: 800; letter-spacing: 0.04em;
+}
+.tv-foot-evento { color: var(--tv-gold); text-transform: uppercase; letter-spacing: 0.1em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-foot-live { display: inline-flex; align-items: center; gap: 8px; color: var(--tv-green); flex: none; }
+.tv-foot-live .ic { width: clamp(15px, 1.1vw, 20px); height: clamp(15px, 1.1vw, 20px); animation: tv-blink 1.4s ease-in-out infinite; }
+.tv-foot-hora { font-variant-numeric: tabular-nums; color: var(--tv-text); flex: none; }
 @keyframes tv-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-/* Uma coluna em telas estreitas (preview / retrato). */
-@media (max-width: 820px) {
-  .tv-board { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  .tv-col.preparando { border-right: 0; border-bottom: 1px solid var(--tv-line); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .tv-num.novo, .tv-num-ic, .tv-foot .live .ic { animation: none !important; }
+  .tv-card.pronto.novo, .tv-card-ic, .tv-foot-live .ic { animation: none !important; }
 }

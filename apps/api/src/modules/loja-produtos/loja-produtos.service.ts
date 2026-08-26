@@ -27,6 +27,10 @@ const MIME_IMAGEM: Record<string, string> = {
 
 const gestor = (u: UsuarioLogado) =>
   u.papel === 'admin' || u.permissoes.includes('loja.produtos.gerenciar');
+/** Pode alterar PREÇO: quem tem a permissão dedicada (PRD §40) OU é gestor do
+ *  catálogo (gerenciar já engloba editar o produto inteiro, incluindo preço). */
+const podePreco = (u: UsuarioLogado) =>
+  gestor(u) || u.permissoes.includes('loja.produtos.preco');
 const D = (n: number | string) => new Prisma.Decimal(n);
 const jsonSeguro = <T>(v: T): T =>
   JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x)));
@@ -245,6 +249,38 @@ export class LojaProdutosService {
     } else {
       void this.auditar({ entidadeId: id, acao: 'produto.alterado', observacao: atual.nome }, u);
     }
+    return this.obterProduto(id);
+  }
+
+  /**
+   * Altera SÓ o preço de venda (PRD §40-43). Endpoint dedicado com permissão
+   * própria `loja.produtos.preco` — o usuário pode não ter gestão total do
+   * catálogo, mas ter autorização para reprecificar. Valida no BACKEND (nunca
+   * confia no front). Registra auditoria completa (produto, preço anterior,
+   * preço novo, usuário, data/hora, origem, motivo). O novo preço passa a valer
+   * imediatamente no Cardápio e no PDV (ambos leem LojaProduto.preco); pedidos
+   * já pagos preservam o preço transacionado — nada é reescrito aqui (§43).
+   */
+  async alterarPreco(id: string, dto: { preco: number; motivo?: string }, u: UsuarioLogado) {
+    if (!podePreco(u)) throw new ForbiddenException('Você não tem permissão para alterar preço de produtos.');
+    if (dto.preco == null || Number.isNaN(dto.preco) || dto.preco < 0) {
+      throw new BadRequestException('Preço inválido.');
+    }
+    const atual = await this.prisma.lojaProduto.findUnique({ where: { id } });
+    if (!atual) throw new NotFoundException('Produto não encontrado.');
+
+    const precoAntes = Number(atual.preco);
+    const precoDepois = Number(dto.preco);
+    if (precoAntes === precoDepois) {
+      // Idempotente: sem mudança, não gera ruído de auditoria.
+      return this.obterProduto(id);
+    }
+    await this.prisma.lojaProduto.update({ where: { id }, data: { preco: D(precoDepois) } });
+    void this.auditar({
+      entidadeId: id, acao: 'preco.alterado',
+      antes: { preco: precoAntes }, depois: { preco: precoDepois },
+      observacao: `${atual.nome}: R$ ${precoAntes.toFixed(2)} → R$ ${precoDepois.toFixed(2)}` + (dto.motivo ? ` · ${dto.motivo.trim()}` : ''),
+    }, u);
     return this.obterProduto(id);
   }
 

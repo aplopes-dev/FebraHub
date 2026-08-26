@@ -1,9 +1,9 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, Package, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload } from "lucide-react";
 import {
-  lojaAjustarEstoque, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
+  lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
   lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos, lojaProdutos, lojaTransferirEstoque,
 } from "@/services/api/loja-produtos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
@@ -20,12 +20,15 @@ export function CatalogoLoja() {
   const qc = useQueryClient();
   const perfil = usePerfil(useSessao());
   const podeGerir = pode(perfil.data, "loja.produtos.gerenciar");
+  // Alterar preço: permissão dedicada OU gestão do catálogo (PRD §40).
+  const podePreco = podeGerir || pode(perfil.data, "loja.produtos.preco");
 
   const [busca, setBusca] = useState("");
   const [categoriaId, setCategoriaId] = useState<string>("");
   const [situacao, setSituacao] = useState("ativos");
   const [editar, setEditar] = useState<LojaProduto | null | "novo">(null);
   const [estoque, setEstoque] = useState<LojaProduto | null>(null);
+  const [preco, setPreco] = useState<LojaProduto | null>(null);
   const [gerirCategorias, setGerirCategorias] = useState(false);
 
   const ind = useQuery({ queryKey: ["loja", "indicadores"], queryFn: lojaIndicadores });
@@ -83,7 +86,7 @@ export function CatalogoLoja() {
           <thead>
             <tr>
               <th></th><th>Produto</th><th>Categoria</th><th className="num">Preço</th>
-              <th>Estoque (Loja / Depósito)</th><th>Flags</th>{podeGerir && <th></th>}
+              <th>Estoque (Loja / Depósito)</th><th>Flags</th>{(podeGerir || podePreco) && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -109,10 +112,11 @@ export function CatalogoLoja() {
                     {!p.vendePdv && <span className="loja-badge off">s/ PDV</span>}{" "}
                     {!p.exibeCardapio && <span className="loja-badge off">s/ cardápio</span>}
                   </td>
-                  {podeGerir && (
+                  {(podeGerir || podePreco) && (
                     <td className="num">
-                      <button className="loja-btn mini" onClick={() => setEstoque(p)} title="Estoque"><Boxes size={13} /></button>{" "}
-                      <button className="loja-btn mini" onClick={() => setEditar(p)} title="Editar"><Pencil size={13} /></button>
+                      {podePreco && <><button className="loja-btn mini" onClick={() => setPreco(p)} title="Alterar preço"><Tag size={13} /></button>{" "}</>}
+                      {podeGerir && <><button className="loja-btn mini" onClick={() => setEstoque(p)} title="Estoque"><Boxes size={13} /></button>{" "}
+                      <button className="loja-btn mini" onClick={() => setEditar(p)} title="Editar"><Pencil size={13} /></button></>}
                     </td>
                   )}
                 </tr>
@@ -125,6 +129,7 @@ export function CatalogoLoja() {
 
       {editar && <ModalProduto produto={editar === "novo" ? null : editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); invalidar(); }} />}
       {estoque && <ModalEstoque produto={estoque} aoFechar={() => setEstoque(null)} aoMudar={() => invalidar()} />}
+      {preco && <ModalPreco produto={preco} aoFechar={() => setPreco(null)} aoSalvar={() => { setPreco(null); invalidar(); }} />}
       {gerirCategorias && <GestaoCategorias aoFechar={() => { setGerirCategorias(false); invalidar(); }} />}
     </main>
   );
@@ -377,6 +382,46 @@ function ModalEstoque({ produto, aoFechar, aoMudar }: { produto: LojaProduto; ao
             {!movs.isLoading && !(movs.data ?? []).length && <p className="loja-empty">Sem movimentações ainda.</p>}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Modal de alteração de preço (PRD §41). Mostra produto, preço atual e novo
+ *  preço + motivo opcional. Valida no backend (permissão + auditoria). O novo
+ *  preço reflete no Cardápio e no PDV; pedidos já pagos preservam o preço. */
+function ModalPreco({ produto, aoFechar, aoSalvar }: { produto: LojaProduto; aoFechar: () => void; aoSalvar: () => void }) {
+  const [novo, setNovo] = useState<string>(String(Number(produto.preco)));
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const salvar = useMutation({
+    mutationFn: () => lojaAlterarPreco(produto.id, { preco: Number(novo), motivo: motivo.trim() || undefined }),
+    onSuccess: aoSalvar,
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao alterar o preço."),
+  });
+  const invalido = novo === "" || Number.isNaN(Number(novo)) || Number(novo) < 0;
+
+  return (
+    <div className="loja-modal-bg" onClick={aoFechar}>
+      <div className="loja-modal" onClick={(e) => e.stopPropagation()}>
+        <h3><Tag size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />Alterar preço</h3>
+        <p style={{ margin: "2px 0 14px", fontWeight: 700 }}>{produto.nome}</p>
+        <div className="loja-grid2">
+          <div><label>Preço atual</label><input className="loja-input" value={brl(produto.preco)} disabled /></div>
+          <div><label>Novo preço (R$)</label><input className="loja-input" type="number" min={0} step="0.01" value={novo} onChange={(e) => setNovo(e.target.value)} autoFocus /></div>
+        </div>
+        <label>Motivo (opcional)</label>
+        <input className="loja-input" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: reajuste de tabela" />
+        <p style={{ color: "var(--txt-fraco, #9a9aa2)", fontSize: 11.5, marginTop: 10 }}>
+          A mudança vale no Cardápio e no PDV e é registrada na auditoria. Pedidos já pagos mantêm o preço da compra.
+        </p>
+        {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
+        <div className="fim">
+          <button className="loja-btn" onClick={aoFechar}>Cancelar</button>
+          <button className="loja-btn ouro" disabled={salvar.isPending || invalido} onClick={() => { setErro(null); salvar.mutate(); }}>
+            {salvar.isPending ? "Salvando…" : "Salvar preço"}
+          </button>
+        </div>
       </div>
     </div>
   );
