@@ -2,7 +2,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ScanLine, ShoppingCart, ListOrdered } from "lucide-react";
+import { ArrowLeft, ScanLine, ShoppingCart, ListOrdered } from "lucide-react";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { PromptInstalar } from "@/components/pwa/PromptInstalar";
 import "@/app/pdv-movel/pdv-movel.css";
@@ -46,11 +46,16 @@ export default function LayoutPdvMovel({ children }: { children: ReactNode }) {
   return (
     <div className="pm">
       <header className="pm-top">
-        <div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="pm-top-logo" src="/logo-febracis.webp" alt="Febracis" width={30} height={30} />
+        <div className="pm-top-id">
           <h1>FebraHub PDV</h1>
           <p className="pm-op">{p?.nome ?? "Balcão da Loja"}</p>
         </div>
         <span className="pm-top-badge">LOJA</span>
+        <Link href="/" className="pm-top-sair" title="Voltar ao FebraHub" aria-label="Voltar ao FebraHub">
+          <ArrowLeft />
+        </Link>
       </header>
 
       <main className="pm-main">

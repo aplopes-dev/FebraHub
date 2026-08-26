@@ -152,6 +152,21 @@ export default function Vender() {
     return categoria ? rows.filter((p) => p.categoria === categoria) : rows;
   }, [produtos.data, categoria]);
 
+  // Destaques do PDV móvel: emDestaque=true OU categoria Bebidas, sem esgotados
+  const destaquesMovel = useMemo(() => {
+    const rows = produtos.data ?? [];
+    const set = new Set<string>();
+    const result: PdvProduto[] = [];
+    for (const p of rows) {
+      const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
+      const ehBebida = /bebida/i.test(p.categoria ?? "");
+      if (!esgotado && (p.emDestaque || ehBebida)) {
+        if (!set.has(p.produtoId)) { set.add(p.produtoId); result.push(p); }
+      }
+    }
+    return result;
+  }, [produtos.data]);
+
   const linhas = Object.values(carrinho);
   const bruto = useMemo(() => linhas.reduce((s, l) => s + l.p.preco * l.q, 0), [linhas]);
   const descItens = useMemo(() => linhas.reduce((s, l) => s + l.descItem, 0), [linhas]);
@@ -292,6 +307,9 @@ export default function Vender() {
       <div className="pm-busca">
         <Search />
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto…" inputMode="search" />
+        {busca && (
+          <button className="pm-busca-x" onClick={() => setBusca("")} aria-label="Limpar busca"><X size={16} /></button>
+        )}
       </div>
 
       <div className="pm-chips">
@@ -303,6 +321,28 @@ export default function Vender() {
 
       {produtos.isLoading && <p className="pm-vazio">Carregando produtos…</p>}
       {produtos.data && lista.length === 0 && <p className="pm-vazio">Nenhum produto.</p>}
+
+      {/* ---- Destaques: bebidas + emDestaque (só sem busca/categoria ativa) ---- */}
+      {destaquesMovel.length > 0 && !busca && !categoria && (
+        <div className="pm-destaques">
+          <div className="pm-destaques-head">
+            <span>⭐</span>
+            <span>Destaques &amp; Bebidas</span>
+          </div>
+          <div className="pm-destaques-rail">
+            {destaquesMovel.map((p) => (
+              <CardProdutoMovel
+                key={p.produtoId}
+                p={p}
+                noCarrinho={carrinho[p.produtoId]?.q ?? 0}
+                onAdd={() => { add(p); setSelecionado(p.produtoId); }}
+                onEditar={() => setEditarProduto(p)}
+                podeEditar={podeGerir}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {podeGerir && (
         <p className="pm-hint-editar">
