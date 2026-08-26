@@ -276,6 +276,16 @@ const acoes_financeiro: Acao[] = [
     grupo: "financeiro",
     visivel: comPermissao("financeiro.erp.ver"),
   },
+  {
+    id: "financeiro-conciliacao-stone",
+    label: "Conciliação Stone",
+    desc: "Vendas na maquininha: bruto, taxas e liquidação",
+    keywords: ["stone", "maquininha", "conciliacao", "conciliação", "cartao", "cartão", "taxa", "mdr", "pos"],
+    href: "/financeiro-erp/conciliacao-stone",
+    icone: "CreditCard",
+    grupo: "financeiro",
+    visivel: comPermissao("financeiro.erp.ver"),
+  },
 ];
 
 // ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────

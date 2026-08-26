@@ -1,5 +1,5 @@
 import {
-  Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
+  Bell, BookOpen, Bot, CreditCard, LayoutDashboard, MessageCircle,
   FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -434,6 +434,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
     id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
       { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },
       { id: "fin-erp-dre", label: "DRE", href: "/financeiro-erp/dre", desc: "Demonstrativo de resultado por competência", visivel: comPermissao("financeiro.erp.ver") },
+      { id: "fin-erp-conc-stone", label: "Conciliação Stone", href: "/financeiro-erp/conciliacao-stone", Icone: CreditCard, desc: "Vendas na maquininha: bruto, taxas e liquidação", visivel: comPermissao("financeiro.erp.ver") },
     ],
   },
   {
