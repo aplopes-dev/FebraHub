@@ -29,11 +29,40 @@ function CadastroProcesso({ fechar }: { fechar: () => void }) {
   </form>;
 }
 
-export function PainelProcessos() {
-  const [busca, setBusca] = useState(''); const [situacao, setSituacao] = useState(''); const [novo, setNovo] = useState(false);
+// Cada item do submenu de Processos foca a mesma base num recorte diferente,
+// para as telas deixarem de ser idênticas. `todos` = Central/Mapa (padrão).
+type SecaoProcessos = 'todos' | 'setores' | 'manuais' | 'indicadores' | 'historico';
+const SECOES: Record<SecaoProcessos, { titulo: string; sub: string; kicker: string }> = {
+  todos:       { titulo: 'Mapa de processos',        sub: 'Mapeie o trabalho real, valide com as lideranças e transforme conhecimento em execução.', kicker: 'Biblioteca operacional' },
+  setores:     { titulo: 'Processos por setor',       sub: 'Veja como o trabalho se distribui entre as áreas da operação.',                             kicker: 'Organização por área' },
+  manuais:     { titulo: 'Procedimentos e tutoriais', sub: 'Processos com manual documentado — o passo a passo pronto para consulta e treinamento.',    kicker: 'Documentação viva' },
+  indicadores: { titulo: 'Indicadores de processos',  sub: 'A saúde do mapeamento: cobertura, validações pendentes e criticidade.',                     kicker: 'Saúde operacional' },
+  historico:   { titulo: 'Versões dos processos',     sub: 'O que mudou por último — revisões, novas versões e atualizações recentes.',                kicker: 'Linha do tempo' },
+};
+const mapaSecao = (s?: string): SecaoProcessos => {
+  if (s === 'setores') return 'setores';
+  if (s === 'manuais') return 'manuais';
+  if (s === 'indicadores') return 'indicadores';
+  if (s === 'historico') return 'historico';
+  return 'todos'; // '', 'mapa', 'visao' e desconhecidos caem aqui
+};
+const temManual = (p: Processo): boolean =>
+  !!(p.manual && Object.keys(p.manual).length) || !!p.bpmnXml || !!p.descricao;
+
+export function PainelProcessos({ secao: secaoRaw }: { secao?: string } = {}) {
+  const secao = mapaSecao(secaoRaw);
+  const cfg = SECOES[secao];
+  const [busca, setBusca] = useState(''); const [situacao, setSituacao] = useState(''); const [setor, setSetor] = useState(''); const [novo, setNovo] = useState(false);
   const visao = useQuery({ queryKey: ['processos', 'visao'], queryFn: processosVisao });
   const lista = useQuery({ queryKey: ['processos', busca], queryFn: () => processosListar(busca) });
-  const filtrados = useMemo(() => (lista.data ?? []).filter(p => !situacao || p.situacao === situacao), [lista.data, situacao]);
+  const filtrados = useMemo(() => {
+    let r = (lista.data ?? []).filter(p => !situacao || p.situacao === situacao);
+    if (setor) r = r.filter(p => p.setorPrincipal === setor);
+    if (secao === 'manuais') r = r.filter(temManual);
+    if (secao === 'historico') r = [...r].sort((a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''));
+    return r;
+  }, [lista.data, situacao, setor, secao]);
+  const setoresLista = useMemo(() => Array.from(new Set((lista.data ?? []).map(p => p.setorPrincipal))).sort(), [lista.data]);
   if (visao.isLoading || lista.isLoading) return <div className="pc-loading"><Workflow className="pc-pulse"/>Preparando a Central…</div>;
   if (visao.error || lista.error) return <div className="pc-error-state" role="alert"><AlertTriangle/>Não foi possível carregar os processos.</div>;
   const cards = [
@@ -42,12 +71,13 @@ export function PainelProcessos() {
     ['Aguardando validação', visao.data?.porSituacao.aguardando_validacao ?? 0, 'Pedem sua atenção', Clock3, 'roxo'],
     ['Aprovados', visao.data?.porSituacao.aprovado ?? 0, 'Prontos para publicar', CheckCircle2, 'verde'],
   ] as const;
+  const fmtData = (iso?: string) => iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   return <main className="pc-page">
-    <header className="pc-hero"><div><span className="pc-eyebrow"><Sparkles size={14}/> conhecimento operacional</span><h1>Central de Processos</h1><p>Mapeie o trabalho real, valide com as lideranças e transforme conhecimento em execução.</p></div><BotaoPrimario onClick={()=>setNovo(true)}><Plus size={16}/> Novo processo</BotaoPrimario></header>
+    <header className="pc-hero"><div><span className="pc-eyebrow"><Sparkles size={14}/> conhecimento operacional</span><h1>Central de Processos</h1><p>{cfg.sub}</p></div><BotaoPrimario onClick={()=>setNovo(true)}><Plus size={16}/> Novo processo</BotaoPrimario></header>
     <section className="pc-cards" aria-label="Resumo">{cards.map(([titulo, valor, apoio, Icone, tom]) => <article className={`pc-card pc-card-${tom}`} key={titulo}><div className="pc-card-icon"><Icone size={20}/></div><div><span>{titulo}</span><strong>{valor}</strong><small>{apoio}</small></div></article>)}</section>
-    <section className="pc-panel pc-panel-lista"><div className="pc-toolbar"><div><span className="pc-kicker">Biblioteca operacional</span><h2>Mapa de processos</h2></div><div className="pc-tools"><label className="pc-search"><Search size={17}/><span className="sr-only">Buscar</span><input value={busca} onChange={(e)=>setBusca(e.target.value)} placeholder="Buscar processo ou código"/></label><label className="pc-filter"><Filter size={16}/><select value={situacao} onChange={(e)=>setSituacao(e.target.value)} aria-label="Filtrar por situação"><option value="">Todas as situações</option>{Object.keys(visao.data?.porSituacao ?? {}).map(s=><option key={s} value={s}>{rotuloProcesso(s)}</option>)}</select></label></div></div>
-      <div className="pc-process-grid">{filtrados.map(p => <Link className="pc-process-card" href={`/processos/detalhe/${p.id}`} key={p.id}><div className="pc-process-top"><span className="pc-code">{p.codigo}</span><span className="pc-status" style={{'--status':corSituacao[p.situacao]??'#3976a8'} as React.CSSProperties}>{rotuloProcesso(p.situacao)}</span></div><h3>{p.nome}</h3><p>{p.objetivo}</p><div className="pc-process-meta"><span>{rotuloProcesso(p.setorPrincipal)}</span><span>Criticidade {rotuloProcesso(p.criticidade).toLowerCase()}</span><span>v{p.versaoAtual}</span></div><div className="pc-open">Abrir área de trabalho <ArrowRight size={15}/></div></Link>)}</div>
-      {!filtrados.length && <div className="pc-empty"><Workflow size={32}/><b>Nenhum processo encontrado</b><span>Ajuste os filtros ou cadastre o primeiro processo.</span></div>}
+    <section className="pc-panel pc-panel-lista"><div className="pc-toolbar"><div><span className="pc-kicker">{cfg.kicker}</span><h2>{cfg.titulo}</h2></div><div className="pc-tools"><label className="pc-search"><Search size={17}/><span className="sr-only">Buscar</span><input value={busca} onChange={(e)=>setBusca(e.target.value)} placeholder="Buscar processo ou código"/></label>{secao==='setores' && <label className="pc-filter"><Layers3 size={16}/><select value={setor} onChange={(e)=>setSetor(e.target.value)} aria-label="Filtrar por setor"><option value="">Todos os setores</option>{setoresLista.map(s=><option key={s} value={s}>{rotuloProcesso(s)}</option>)}</select></label>}<label className="pc-filter"><Filter size={16}/><select value={situacao} onChange={(e)=>setSituacao(e.target.value)} aria-label="Filtrar por situação"><option value="">Todas as situações</option>{Object.keys(visao.data?.porSituacao ?? {}).map(s=><option key={s} value={s}>{rotuloProcesso(s)}</option>)}</select></label></div></div>
+      <div className="pc-process-grid">{filtrados.map(p => <Link className="pc-process-card" href={`/processos/detalhe/${p.id}`} key={p.id}><div className="pc-process-top"><span className="pc-code">{p.codigo}</span><span className="pc-status" style={{'--status':corSituacao[p.situacao]??'#3976a8'} as React.CSSProperties}>{rotuloProcesso(p.situacao)}</span></div><h3>{p.nome}</h3><p>{p.objetivo}</p><div className="pc-process-meta"><span>{rotuloProcesso(p.setorPrincipal)}</span>{secao==='historico' ? <span>Atualizado {fmtData(p.atualizadoEm)}</span> : <span>Criticidade {rotuloProcesso(p.criticidade).toLowerCase()}</span>}<span>v{p.versaoAtual}</span></div><div className="pc-open">Abrir área de trabalho <ArrowRight size={15}/></div></Link>)}</div>
+      {!filtrados.length && <div className="pc-empty"><Workflow size={32}/><b>{secao==='manuais' ? 'Nenhum processo com manual ainda' : 'Nenhum processo encontrado'}</b><span>{secao==='manuais' ? 'Documente o passo a passo de um processo para ele aparecer aqui.' : 'Ajuste os filtros ou cadastre o primeiro processo.'}</span></div>}
     </section>{novo && <ModalCentro titulo="Novo processo" onFechar={()=>setNovo(false)} largura={720}><CadastroProcesso fechar={()=>setNovo(false)}/></ModalCentro>}
   </main>;
 }
