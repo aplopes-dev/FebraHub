@@ -39,11 +39,19 @@ const doSetor = (setor: string) => (ctx: ContextoMenu) =>
   ctx.admin || ctx.setores.includes(setor);
 
 function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): ItemMenu[] {
+  /* Primeiro filho = a VISÃO GERAL do setor (o Hub de BI: pódio, gráficos,
+     placar). Para a maioria dos hubs `/<key>` já renderiza o Hub, então o
+     primeiro item aponta pra lá. O Comercial é a exceção: `/comercial` é uma
+     rota ESTÁTICA (o módulo pipeline/leads/vendas) que, no Next.js, vence a
+     dinâmica `/[hub]` — por isso o Hub Comercial mora em `/comercial/hub`. */
+  const hrefVisaoGeral = key === "comercial" ? "/comercial/hub" : `/${key}`;
+  const idVisaoGeral = key === "comercial" ? "com-hub" : `${key}-resumo`;
+
   const base: ItemMenu[] = key === "loja" ? [] : [
     {
-      id: `${key}-resumo`,
-      label: "Resumo",
-      href: `/${key}`,
+      id: idVisaoGeral,
+      label: "Visão geral",
+      href: hrefVisaoGeral,
       Icone,
       titulo: nome,
       desc,
@@ -53,22 +61,6 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
 
   if (key === "comercial") {
     base.push(
-      {
-        id: "com-hub",
-        label: "Visão geral",
-        href: "/comercial/hub",
-        titulo: "Comercial",
-        desc: "Pódio de consultoras, evolução do faturamento e placar da semana",
-        visivel: (ctx) =>
-          doSetor("comercial")(ctx) ||
-          ctx.pode(
-            "comercial.ver",
-            "comercial.operar",
-            "comercial.gerenciar",
-            "comercial.vendas.aprovar",
-            "comercial.relatorios",
-          ),
-      },
       {
         id: "com-pipeline",
         label: "Pipeline",
