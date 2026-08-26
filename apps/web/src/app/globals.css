@@ -979,11 +979,19 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 }
 .fh-exec-ancora-hero .fh-exec-ancora-tex { opacity: .32; }
 .fh-exec-ancora-topo {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px 8px;
+  flex-wrap: wrap;
 }
 .fh-exec-ancora-label {
   font-size: 12px; color: var(--muted); font-weight: 800; letter-spacing: .25px;
-  text-transform: uppercase; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-transform: uppercase; min-width: 0; flex: 1 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Nos cards laterais (não-hero), o rótulo tem prioridade e a etiqueta de meta
+   cai para a linha de baixo em vez de comprimir o rótulo a "VE"/"M."/"IN". */
+.fh-exec-ancora:not(.fh-exec-ancora-hero) .fh-exec-ancora-label { flex-basis: 100%; }
+.fh-exec-ancora:not(.fh-exec-ancora-hero) .fh-exec-badge {
+  font-size: 8.5px; padding: 2px 7px; letter-spacing: .2px;
 }
 .fh-exec-ancora-cta {
   margin-top: 22px; font-size: 12.5px; font-weight: 800; color: var(--gold);
