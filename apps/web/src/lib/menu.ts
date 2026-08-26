@@ -314,14 +314,6 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
   if (key === "marketing") {
     base.push(
       {
-        id: "mkt-visao-geral",
-        label: "Visão geral",
-        href: "/marketing/visao-geral",
-        titulo: "Redes sociais — visão geral",
-        desc: "Contas, alcance e fila das redes oficiais",
-        visivel: comPermissao("social.ver"),
-      },
-      {
         id: "mkt-publicar",
         label: "Publicar",
         href: "/marketing/publicar",
