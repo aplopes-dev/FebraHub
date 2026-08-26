@@ -41,7 +41,7 @@ function ListaVendas() {
   const [statusFinanceiro, setStatusFinanceiro] = useState("");
   const [turmaDefinir, setTurmaDefinir] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["comercial", "vendas", pagina, statusComercial, statusFinanceiro, turmaDefinir],
     queryFn: () =>
       listarVendas({
@@ -141,6 +141,12 @@ function ListaVendas() {
         >
           <Loader2 size={20} style={{ animation: "spin 1s linear infinite", marginRight: 8 }} />
           Carregando vendas...
+        </div>
+      ) : isError ? (
+        <div className="com-vazio">
+          <ShoppingBag className="com-vazio-icone" />
+          <div className="com-vazio-titulo">Não foi possível carregar as vendas</div>
+          <div className="com-vazio-desc">Verifique sua conexão e tente novamente em instantes.</div>
         </div>
       ) : itens.length === 0 ? (
         <div className="com-vazio">

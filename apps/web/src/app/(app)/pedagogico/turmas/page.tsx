@@ -27,9 +27,11 @@ export default function TurmasPage() {
   const [busca, setBusca]         = useState("");
   const [status, setStatus]       = useState("Todas");
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
+    setErro(null);
     try {
       const params: Record<string, string | number> = { pagina, porPagina: 50 };
       if (busca)             params.busca   = busca;
@@ -37,7 +39,9 @@ export default function TurmasPage() {
       const res = await pedagogico.turmas(params);
       setItens(res.itens);
       setTotal(res.total);
-    } catch { /* silencioso */ }
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : "Não foi possível carregar as turmas.");
+    }
     finally { setCarregando(false); }
   }, [pagina, busca, status]);
 
@@ -79,10 +83,17 @@ export default function TurmasPage() {
       </div>
 
       {carregando ? (
-        <div style={{ padding: "3rem", textAlign: "center", color: "var(--muted-foreground)" }}>Carregando…</div>
+        <div className="ped-loading"><span className="ped-spinner" />Carregando turmas…</div>
+      ) : erro ? (
+        <div className="ped-empty" style={{ color: "var(--down)" }}>
+          {erro}
+          <div><button onClick={() => void carregar()} className="ped-btn-outline" style={{ marginTop: ".75rem" }}>Tentar novamente</button></div>
+        </div>
       ) : itens.length === 0 ? (
-        <div style={{ padding: "3rem", textAlign: "center", color: "var(--muted-foreground)", border: "1px dashed var(--border)", borderRadius: ".75rem" }}>
-          Nenhuma turma encontrada
+        <div className="ped-empty">
+          {busca || status !== "Todas"
+            ? "Nenhuma turma para esses filtros. Ajuste a busca ou o status."
+            : "Nenhuma turma cadastrada ainda. Crie a primeira em “Nova Turma”."}
         </div>
       ) : (
         <div className="ped-turmas-grid">

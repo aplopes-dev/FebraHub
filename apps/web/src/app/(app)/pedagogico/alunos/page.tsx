@@ -65,6 +65,20 @@ export default function AlunosPage() {
   // Cancelamento de matrícula: modal único (confirma + coleta motivo), no lugar
   // de dois diálogos nativos (confirm + prompt) em sequência.
   const [cancelandoMat, setCancelandoMat] = useState<PedagogicoMatricula | null>(null);
+  const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
+  const confirmarMatricula = async (m: PedagogicoMatricula) => {
+    setConfirmandoId(m.id);
+    setFeedback(null);
+    try {
+      await pedagogico.atualizarStatus(m.id, "Confirmado");
+      setFeedback({ tipo: "ok", msg: `Matrícula de ${m.pessoaNome ?? "aluno"} confirmada.` });
+      await carregar();
+    } catch (err: unknown) {
+      setFeedback({ tipo: "erro", msg: err instanceof Error ? err.message : "Erro ao confirmar matrícula." });
+    } finally {
+      setConfirmandoId(null);
+    }
+  };
   const [salvandoCancelMat, setSalvandoCancelMat] = useState(false);
   const confirmarCancelarMatricula = async (motivo: string) => {
     if (!cancelandoMat) return;
@@ -386,13 +400,10 @@ export default function AlunosPage() {
                         )}
                         <button
                           className="ped-btn-xs ativo"
-                          onClick={async () => {
-                            await pedagogico.atualizarStatus(m.id, "Confirmado");
-                            await carregar();
-                          }}
-                          disabled={m.status === "Confirmado"}
+                          onClick={() => void confirmarMatricula(m)}
+                          disabled={m.status === "Confirmado" || confirmandoId === m.id}
                         >
-                          Confirmar
+                          {confirmandoId === m.id ? "Confirmando…" : "Confirmar"}
                         </button>
                         <button
                           className="ped-btn-xs perigo"
