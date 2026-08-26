@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Sun, X } from "lucide-react";
 import { BotaoBuscaGlobal, BuscaGlobal, useBuscaGlobal } from "@/components/shell/BuscaGlobal";
+import { PromptInstalar } from "@/components/pwa/PromptInstalar";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
 import { PerguntaRapida } from "@/components/brain/PerguntaRapida";
@@ -310,6 +311,9 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             <Menu size={20} />
           </button>
         )}
+
+        {/* Instalar o FebraHub como app (PWA) — banner discreto, dispensável. */}
+        <PromptInstalar className="fh-pwa-install" />
 
         {(admin || setores.includes("crm")) && <TeamsWidget />}
 

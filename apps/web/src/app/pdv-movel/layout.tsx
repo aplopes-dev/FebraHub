@@ -54,7 +54,7 @@ export default function LayoutPdvMovel({ children }: { children: ReactNode }) {
       </header>
 
       <main className="pm-main">
-        <PromptInstalar />
+        <PromptInstalar rotulo="o PDV no aparelho" />
         {children}
       </main>
 

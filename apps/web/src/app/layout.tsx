@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/icon.svg" }],
   },
-  appleWebApp: { capable: true, title: "FebraHub PDV", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "FebraHub", statusBarStyle: "black-translucent" },
   // Sistema interno: nada aqui deve ser indexado ou pré-visualizado.
   robots: { index: false, follow: false, nocache: true },
 };

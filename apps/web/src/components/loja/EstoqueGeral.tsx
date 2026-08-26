@@ -2,13 +2,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Boxes, Search, ShoppingCart, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Boxes, ClipboardList, Search, ShoppingCart, TriangleAlert } from "lucide-react";
 import {
   lojaIndicadores,
   lojaProdutos,
   lojaReposicao,
   lojaTransferirEstoque,
 } from "@/services/api/loja-produtos";
+import { InventarioLoja } from "@/components/loja/InventarioLoja";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ReposicaoItem } from "@/types/loja-produtos";
@@ -22,7 +23,7 @@ export function EstoqueGeral() {
   const perfil = usePerfil(useSessao());
   const podeGerir = pode(perfil.data, "loja.produtos.gerenciar");
 
-  const [aba, setAba] = useState<"saldos" | "reposicao">("saldos");
+  const [aba, setAba] = useState<"saldos" | "inventario" | "reposicao">("saldos");
   const [busca, setBusca] = useState("");
   const [transferir, setTransferir] = useState<{ produto: LojaProduto; origem: LojaLocal; destino: LojaLocal } | null>(null);
 
@@ -42,7 +43,7 @@ export function EstoqueGeral() {
         <div>
           <span className="tag">ESTOQUE · LOJA E DEPÓSITO</span>
           <h1>Estoque geral</h1>
-          <p>Saldos por local, transferência entre <b>Loja</b> e <b>Depósito</b> e sugestão de reposição dos itens no mínimo. Para cadastrar produto, use Loja → Produtos.</p>
+          <p>Saldos por local, <b>inventário</b> (contagem que ajusta o saldo, bipando o código de barras), transferência entre <b>Loja</b> e <b>Depósito</b> e sugestão de reposição. Para cadastrar produto, use Loja → Produtos.</p>
         </div>
       </header>
 
@@ -57,6 +58,7 @@ export function EstoqueGeral() {
       <section className="loja-card">
         <div className="loja-filtros" style={{ marginBottom: 12 }}>
           <button className={`loja-chip ${aba === "saldos" ? "ativo" : ""}`} onClick={() => setAba("saldos")}><Boxes size={13} /> Saldos por local</button>
+          <button className={`loja-chip ${aba === "inventario" ? "ativo" : ""}`} onClick={() => setAba("inventario")}><ClipboardList size={13} /> Inventário</button>
           <button className={`loja-chip ${aba === "reposicao" ? "ativo" : ""}`} onClick={() => setAba("reposicao")}><TriangleAlert size={13} /> Sugestão de reposição {i?.abaixoMinimo ? `(${i.abaixoMinimo})` : ""}</button>
         </div>
 
@@ -99,6 +101,10 @@ export function EstoqueGeral() {
               {!prods.isLoading && !prods.isError && !(prods.data ?? []).length && <p className="loja-empty">{busca ? "Nenhum produto encontrado para essa busca." : "Nenhum produto cadastrado ainda."}</p>}
             </div>
           </>
+        )}
+
+        {aba === "inventario" && (
+          <InventarioLoja podeGerir={podeGerir} />
         )}
 
         {aba === "reposicao" && (

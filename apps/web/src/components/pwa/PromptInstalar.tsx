@@ -10,8 +10,15 @@ interface PromptEvent extends Event {
 /** Banner de "Instalar app" (PWA). Aparece só quando o browser dispara
  *  `beforeinstallprompt` (Android/desktop Chrome) e o usuário ainda não
  *  instalou. Em iOS não há evento — mostramos uma dica de "Adicionar à Tela de
- *  Início". Guarda a dispensa em localStorage para não insistir. */
-export function PromptInstalar() {
+ *  Início". Guarda a dispensa em localStorage para não insistir.
+ *
+ *  `rotulo` personaliza o texto (padrão: instalar o FebraHub inteiro). Ex.: o
+ *  balcão passa "PDV no aparelho". `className` troca o visual: no balcão usa o
+ *  tema do PDV (.pm-install); no Shell do ERP usa .fh-pwa-install. */
+export function PromptInstalar({
+  rotulo = "o FebraHub no aparelho",
+  className = "pm-install",
+}: { rotulo?: string; className?: string } = {}) {
   const [evt, setEvt] = useState<PromptEvent | null>(null);
   const [iosDica, setIosDica] = useState(false);
   const [oculto, setOculto] = useState(true);
@@ -54,13 +61,13 @@ export function PromptInstalar() {
   if (oculto) return null;
 
   return (
-    <div className="pm-install">
+    <div className={className}>
       <Download size={17} />
       {iosDica ? (
         <span>Instale: toque em Compartilhar → “Adicionar à Tela de Início”.</span>
       ) : (
         <>
-          <span>Instalar o PDV no aparelho</span>
+          <span>Instalar {rotulo}</span>
           <button onClick={instalar}>Instalar</button>
         </>
       )}

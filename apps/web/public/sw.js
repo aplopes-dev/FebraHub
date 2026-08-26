@@ -1,14 +1,15 @@
 /* FebraHub PWA service worker — enxuto e conservador.
  *
  * Objetivos:
- *  - Tornar o PDV móvel instalável e resiliente a quedas de rede.
+ *  - Tornar o FebraHub COMPLETO instalável e resiliente a quedas de rede
+ *    (não só o PDV móvel — o app inteiro roda como PWA a partir da raiz).
  *  - NUNCA cachear /api (dados de sessão/venda precisam ser sempre frescos).
  *  - Navegação (páginas): network-first com fallback ao cache (offline).
  *  - Estáticos do Next (/_next/static, ícones): cache-first (imutáveis).
  *
  * Sem libs. Bump em CACHE_VERSION invalida os caches antigos no activate. */
-const CACHE_VERSION = "febrahub-pwa-v2";
-const APP_SHELL = ["/pdv-movel", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-maskable.svg"];
+const CACHE_VERSION = "febrahub-pwa-v3";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-maskable.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -59,7 +60,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_VERSION).then((cache) => cache.put(req, copia));
           return res;
         })
-        .catch(() => caches.match(req).then((hit) => hit || caches.match("/pdv-movel"))),
+        .catch(() => caches.match(req).then((hit) => hit || caches.match("/"))),
     );
   }
 });

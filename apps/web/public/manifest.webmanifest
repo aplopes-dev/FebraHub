@@ -1,12 +1,12 @@
 {
-  "name": "FebraHub PDV",
-  "short_name": "FebraHub PDV",
-  "description": "PDV móvel da Loja FEBRACIS — vender, fila e retirada por QR.",
-  "id": "/pdv-movel",
-  "start_url": "/pdv-movel",
+  "name": "FebraHub · Febracis Salvador",
+  "short_name": "FebraHub",
+  "description": "Portal corporativo da Febracis Salvador — hubs por setor, PDV da Loja, pedagógico, comercial e mais.",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#08080A",
   "theme_color": "#08080A",
   "lang": "pt-BR",
@@ -16,8 +16,9 @@
     { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Vender", "short_name": "Vender", "url": "/pdv-movel/vender" },
-    { "name": "Retirada por QR", "short_name": "Retirada", "url": "/pdv-movel/retirada" },
-    { "name": "Fila", "short_name": "Fila", "url": "/pdv-movel/fila" }
+    { "name": "Início", "short_name": "Início", "url": "/" },
+    { "name": "Vender (Balcão)", "short_name": "Vender", "url": "/loja/balcao" },
+    { "name": "Fila da Loja", "short_name": "Fila", "url": "/loja/fila" },
+    { "name": "Estoque", "short_name": "Estoque", "url": "/estoque" }
   ]
 }

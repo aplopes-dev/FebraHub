@@ -130,3 +130,80 @@
 .loja-ean-hint{display:flex;align-items:center;gap:5px;font-size:11px;margin:4px 0 0}
 .loja-ean-hint.ok{color:var(--up)}
 .loja-ean-hint.err{color:var(--down)}
+
+/* ==================== INVENTÁRIO (aba do Estoque) ==================== */
+.inv .girando{animation:loja-girar 1s linear infinite}
+.inv-selecao{display:flex;flex-direction:column;gap:12px}
+.inv-scanbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.inv-busca{flex:1;min-width:220px}
+.inv-scan-btn{white-space:nowrap}
+.inv-scanner-box{border:1px solid var(--card-line);border-radius:14px;overflow:hidden;background:#000;max-width:420px}
+.inv-scanner-box.compacto{max-width:280px}
+.inv-scanner-box .ret-scanner,.inv-scanner-box .ret-scanner-video{width:100%}
+.inv-scan-hint{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--muted);padding:8px}
+.inv-aviso{display:flex;align-items:center;gap:6px;font-size:12.5px;margin:0;padding:8px 10px;border-radius:10px;background:rgb(var(--gold-rgb)/.08);color:var(--muted)}
+.inv-aviso.erro{background:rgb(var(--down-rgb,220 60 60)/.1);color:var(--down)}
+.inv-aviso.ok{background:rgb(var(--up-rgb,40 160 90)/.12);color:var(--up,var(--gold))}
+.inv-aviso .girando{animation:loja-girar 1s linear infinite}
+
+.inv-lista{margin-top:2px}
+.inv-prod-cel{display:flex;align-items:center;gap:10px}
+.inv-prod-cel small{display:block;color:var(--muted);font-size:11px}
+.inv-mini{width:38px;height:38px;border-radius:9px;object-fit:contain;background:rgb(var(--gold-rgb)/.05);border:1px solid var(--card-line);flex:none}
+.inv-mini.vazio{display:flex;align-items:center;justify-content:center;color:var(--faint)}
+
+/* Ficha */
+.inv-ficha{display:flex;flex-direction:column;gap:16px}
+.inv-ficha-topo{display:flex}
+.inv-ficha-grid{display:grid;grid-template-columns:minmax(220px,280px) 1fr;gap:20px;align-items:start}
+@media (max-width:760px){.inv-ficha-grid{grid-template-columns:1fr}}
+.inv-col-produto{display:flex;flex-direction:column;gap:10px}
+.inv-nome{margin:2px 0 0;font-size:18px;line-height:1.25}
+.inv-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.inv-tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--gold);background:rgb(var(--gold-rgb)/.1);border-radius:999px;padding:4px 9px}
+.inv-tag-btn{border:none;cursor:pointer}
+.inv-tag-btn:hover{background:rgb(var(--gold-rgb)/.2)}
+
+/* Foto */
+.inv-foto{display:flex;flex-direction:column;gap:8px}
+.inv-foto-preview{position:relative;width:100%;aspect-ratio:1;border-radius:16px;overflow:hidden;background:rgb(var(--gold-rgb)/.05);border:1px solid var(--card-line);display:flex;align-items:center;justify-content:center}
+.inv-foto-preview.vazio{border-style:dashed}
+.inv-foto-preview img{width:100%;height:100%;object-fit:contain}
+.inv-foto-vazio{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.inv-foto-carregando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#fff}
+.inv-foto-acoes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.inv-foto-toggle{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);cursor:pointer}
+
+/* Contagem */
+.inv-col-contagem{display:flex;flex-direction:column;gap:12px}
+.inv-local-card{border:1px solid var(--card-line);border-radius:14px;padding:12px 14px;background:var(--card)}
+.inv-local-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.inv-local-nome{font-weight:800;font-size:14px}
+.inv-local-saldo{font-size:12px;color:var(--muted)}
+.inv-local-saldo b{color:var(--text)}
+.inv-local-saldo em{font-style:normal;color:var(--faint)}
+.inv-conta-linha{display:flex;gap:8px}
+.inv-conta-input{flex:1;font-size:18px;font-weight:800;text-align:right}
+.inv-conta-linha .loja-btn{white-space:nowrap}
+.inv-diff{margin:6px 0 0;font-size:12px;font-weight:700}
+.inv-diff.neg{color:var(--down)}
+.inv-diff.pos{color:var(--up,var(--gold))}
+.inv-obs{margin-top:8px;font-size:13px}
+.inv-somente-leitura{font-size:12px;color:var(--muted);margin:0}
+.inv-total-linha{display:flex;justify-content:space-between;align-items:baseline;padding:6px 4px 0;font-size:13px;color:var(--muted)}
+.inv-total-linha b{font-size:16px;color:var(--text)}
+
+/* Código de barras editor */
+.inv-cod-edit{display:flex;flex-direction:column;gap:8px;width:100%}
+.inv-cod-linha{display:flex;gap:6px}
+.inv-cod-linha .loja-input{flex:1}
+.inv-cod-botoes{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Histórico */
+.inv-hist{border:1px solid var(--card-line);border-radius:14px;padding:0 14px;background:var(--card)}
+.inv-hist>summary{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px;cursor:pointer;padding:12px 0;list-style:none}
+.inv-hist>summary::-webkit-details-marker{display:none}
+.inv-tabela-mov small{color:var(--muted)}
+.inv-mov-tipo{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);background:rgb(var(--gold-rgb)/.08);border-radius:6px;padding:2px 6px}
+.inv-mov-tipo.inventario{color:var(--gold);background:rgb(var(--gold-rgb)/.14)}
+.inv-mov-tipo.venda,.inv-mov-tipo.saida{color:var(--down);background:rgb(var(--down-rgb,220 60 60)/.1)}

@@ -1878,3 +1878,38 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   .fh-exec-bento { grid-template-columns: minmax(0, 1fr); }
   .fh-exec-hero-media { animation: none !important; }
 }
+
+/* ── Banner "Instalar o FebraHub" (PWA) — flutuante, discreto, dispensável ──
+   Aparece só quando o browser oferece a instalação (beforeinstallprompt) ou no
+   iOS. O botão dourado segue a REGRA: fundo = gradiente gold-top→base + texto
+   sobre-ouro (legível nos dois temas). Ver AGENTS.md. */
+.fh-pwa-install{
+  position: fixed; z-index: 60; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 10px 12px 10px 14px;
+  background: var(--card); color: var(--text);
+  border: 1px solid rgb(var(--gold-rgb) / .35);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / .28);
+  font-size: 13px; font-weight: 600;
+  animation: fh-pwa-sobe .3s ease both;
+}
+.fh-pwa-install > svg{ color: var(--gold); flex: none; }
+.fh-pwa-install span{ min-width: 0; }
+.fh-pwa-install button{
+  margin-left: auto; flex: none;
+  border: none; border-radius: 9px; padding: 8px 14px;
+  font-weight: 800; font-size: 12px; cursor: pointer;
+  background: linear-gradient(180deg, var(--gold-top), var(--gold-base));
+  color: var(--sobre-ouro);
+}
+.fh-pwa-install button.x{
+  margin-left: 2px; padding: 6px; background: none; color: var(--muted);
+  display: inline-flex;
+}
+@keyframes fh-pwa-sobe{ from{ opacity: 0; transform: translate(-50%, 12px); } to{ opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 640px){
+  .fh-pwa-install{ left: 12px; right: 12px; bottom: 12px; transform: none; max-width: none; }
+  @keyframes fh-pwa-sobe{ from{ opacity: 0; transform: translateY(12px); } to{ opacity: 1; transform: translateY(0); } }
+}
