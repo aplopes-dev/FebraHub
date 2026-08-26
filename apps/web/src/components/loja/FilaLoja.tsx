@@ -23,45 +23,18 @@ const COLUNAS: { status: LojaPedidoStatus; titulo: string; Icone: typeof Clock }
   { status: "PRONTO", titulo: "Prontos", Icone: PackageCheck },
 ];
 
-/** Mapeamento de transições válidas via drag: status origem → função de transição */
-const TRANSICOES: Partial<Record<LojaPedidoStatus, Record<LojaPedidoStatus, ((id: string) => Promise<unknown>) | null>>> = {
-  AGUARDANDO_PAGAMENTO: {
-    EM_PREPARACAO: null, // sem transição direta
-    NA_FILA: (id) => confirmarPagamento(id),
-    PRONTO: null,
-    AGUARDANDO_PAGAMENTO: null,
-    RETIRADO: null,
-    CANCELADO: null,
-    PROXIMO: null,
-  },
-  NA_FILA: {
-    AGUARDANDO_PAGAMENTO: null,
-    NA_FILA: null,
-    EM_PREPARACAO: (id) => iniciarPreparacao(id),
-    PRONTO: null,
-    RETIRADO: null,
-    CANCELADO: null,
-    PROXIMO: null,
-  },
-  EM_PREPARACAO: {
-    AGUARDANDO_PAGAMENTO: null,
-    NA_FILA: null,
-    EM_PREPARACAO: null,
-    PRONTO: (id) => marcarPronto(id),
-    RETIRADO: null,
-    CANCELADO: null,
-    PROXIMO: null,
-  },
-  PRONTO: {
-    AGUARDANDO_PAGAMENTO: null,
-    NA_FILA: null,
-    EM_PREPARACAO: null,
-    PRONTO: null,
-    RETIRADO: (id) => confirmarRetirada(id),
-    CANCELADO: null,
-    PROXIMO: null,
-  },
+/** Mapeamento de transições válidas via drag: "ORIGEM->DESTINO" → fn ou null */
+type TransicaoFn = (id: string) => Promise<unknown>;
+const TRANSICOES: Partial<Record<string, TransicaoFn>> = {
+  "AGUARDANDO_PAGAMENTO->NA_FILA": (id) => confirmarPagamento(id),
+  "NA_FILA->EM_PREPARACAO": (id) => iniciarPreparacao(id),
+  "EM_PREPARACAO->PRONTO": (id) => marcarPronto(id),
+  "PRONTO->RETIRADO": (id) => confirmarRetirada(id),
 };
+
+function transicaoFn(origem: LojaPedidoStatus, destino: LojaPedidoStatus): TransicaoFn | null {
+  return TRANSICOES[`${origem}->${destino}`] ?? null;
+}
 
 function minutosDe(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -186,7 +159,7 @@ export function FilaLoja() {
   const handleDragOver = useCallback((e: React.DragEvent, colStatus: LojaPedidoStatus) => {
     const origemStatus = draggingStatusRef.current;
     if (!origemStatus) return;
-    const transicaoOk = TRANSICOES[origemStatus]?.[colStatus] != null;
+    const transicaoOk = transicaoFn(origemStatus, colStatus) != null;
     if (transicaoOk) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
@@ -209,7 +182,7 @@ export function FilaLoja() {
     const pedidoId = e.dataTransfer.getData("pedidoId");
     const origemStatus = e.dataTransfer.getData("pedidoStatus") as LojaPedidoStatus;
     if (!pedidoId || !origemStatus || origemStatus === destStatus) return;
-    const fn = TRANSICOES[origemStatus]?.[destStatus];
+    const fn = transicaoFn(origemStatus, destStatus);
     if (!fn) return;
 
     // Transição especial: NA_FILA → EM_PREPARACAO usa prepararEImprimir
@@ -314,7 +287,7 @@ export function FilaLoja() {
           const lista = porStatus[col.status] ?? [];
           const podeReceberDrop = podeOperar && draggingId !== null &&
             draggingStatusRef.current !== null &&
-            TRANSICOES[draggingStatusRef.current]?.[col.status] != null;
+            transicaoFn(draggingStatusRef.current, col.status) != null;
           const estaOver = overStatus === col.status;
 
           return (
