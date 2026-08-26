@@ -947,7 +947,7 @@ function ModalAssociarEan({
     const q = busca.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return produtos.filter((p) => {
       const n = (p.descricao ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return n.includes(q) || (p.sku ?? "").includes(busca);
+      return n.includes(q) || (p.codigo ?? "").includes(busca);
     });
   }, [produtos, busca]);
 
@@ -1012,7 +1012,7 @@ function ModalAssociarEan({
                 : <div className="bal-ean-thumb ph"><Barcode size={14} /></div>}
               <div className="bal-ean-item-info">
                 <b>{p.descricao}</b>
-                <small>{p.categoria ?? "—"}{p.sku ? ` · ${p.sku}` : ""}</small>
+                <small>{p.categoria ?? "—"}{p.codigo ? ` · ${p.codigo}` : ""}</small>
               </div>
               <div className="bal-ean-item-preco">
                 {brl(p.preco)}

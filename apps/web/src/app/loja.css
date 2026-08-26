@@ -109,3 +109,14 @@
 .qrc-acoes{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .qrc-acoes .loja-btn{flex:1;min-width:120px;justify-content:center}
 .qrc-secundario{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--card-line)}
+
+/* ---- EAN / código de barras no catálogo ---- */
+.loja-ean-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgb(var(--gold-rgb)/.12);color:var(--gold);white-space:nowrap;font-family:monospace}
+.loja-ean-chip.vazio{background:transparent;color:var(--muted)}
+.loja-ean-row{display:flex;gap:8px;align-items:center}
+.loja-ean-row .loja-input{flex:1}
+.loja-input.ean-ok{border-color:var(--up)!important;box-shadow:0 0 0 2px rgb(var(--up-rgb,111 207 151)/.18)}
+.loja-input.ean-err{border-color:var(--down)!important}
+.loja-ean-hint{display:flex;align-items:center;gap:5px;font-size:11px;margin:4px 0 0}
+.loja-ean-hint.ok{color:var(--up)}
+.loja-ean-hint.err{color:var(--down)}
