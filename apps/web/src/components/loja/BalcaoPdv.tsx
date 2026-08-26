@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote, Check, ChefHat, CreditCard, Percent, Plus, QrCode,
+  Banknote, Barcode, Check, ChefHat, CreditCard, Link2, Percent, Plus, QrCode,
   ScanLine, Search, Trash2, X, Copy, Loader2, AlertCircle, Clock, User, UserPlus,
 } from "lucide-react";
-import { lojaCategorias } from "@/services/api/loja-produtos";
+import { lojaBuscarPorBarcode, lojaCategorias, lojaAtualizarCodigoBarras } from "@/services/api/loja-produtos";
 import {
   lojaPedidosIndicadores, lojaProdutosBalcao, vendaPdvFila,
   checkout, iniciarPagamento, confirmarPagamento, lojaPedido as buscarPedido,
@@ -38,6 +38,9 @@ type EstadoPagamento =
   | { tipo: "pix_confirmado"; pedido: LojaPedido }   // PIX confirmado
   | { tipo: "concluido"; numero: number }            // venda registrada com sucesso
 
+/** EAN bipado mas não encontrado no cadastro — pede pro operador associar ao produto correto */
+interface EanNaoEncontrado { ean: string }
+
 function selo(p: PdvProduto): { txt: string; cls: string } | null {
   if (!p.controlaEstoque) return null;
   if (p.disponivel <= 0) return { txt: "Esgotado", cls: "zero" };
@@ -65,7 +68,8 @@ export function BalcaoPdv() {
   const [erro, setErro] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
   const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente">(null);
+  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente" | "ean_nao_encontrado">(null);
+  const [eanPendente, setEanPendente] = useState<EanNaoEncontrado | null>(null);
   const [estadoPgto, setEstadoPgto] = useState<EstadoPagamento>({ tipo: "aguardando" });
   const [pixPolling, setPixPolling] = useState<ReturnType<typeof setInterval> | null>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
@@ -230,6 +234,34 @@ export function BalcaoPdv() {
   const podeFinalizar = temItens && pagamentoSplitOk && podeOperar;
   const focarBusca = () => { buscaRef.current?.focus(); buscaRef.current?.select(); };
 
+  // ------ Lógica de EAN / código de barras ------
+  /** Detecta se o texto digitado parece um código de barras numérico (8-14 dígitos) */
+  const pareceEan = (txt: string) => /^\d{8,14}$/.test(txt.trim());
+
+  /** Ao pressionar Enter no campo de busca: se parecer EAN, tenta busca direta por barcode */
+  const tentarBuscarPorEan = async (codigo: string) => {
+    if (!pareceEan(codigo)) return false;
+    try {
+      const prod = await lojaBuscarPorBarcode(codigo);
+      // Produto encontrado! Adiciona ao carrinho e limpa busca
+      const pdvProd = (produtos.data ?? []).find((p) => p.produtoId === prod.id);
+      if (pdvProd) {
+        add(pdvProd);
+        setBusca("");
+        return true;
+      }
+      // Produto existe mas não está na lista PDV (ex: sem estoque/vendePdv=false)
+      setBusca("");
+      return true;
+    } catch {
+      // 404 → EAN não cadastrado
+      setEanPendente({ ean: codigo });
+      setModal("ean_nao_encontrado");
+      setBusca("");
+      return true;
+    }
+  };
+
   // -------- Atalhos de teclado --------
   // F1 = Cliente  |  F6 = Focar busca/scanner  |  F7 = Pagar  |
   // F9 = Cancelar venda  |  F10 = Desconto total  |
@@ -294,7 +326,15 @@ export function BalcaoPdv() {
             <Search />
             <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nome, SKU ou código de barras  ·  F6"
-              onKeyDown={(e) => { if (e.key === "Enter" && lista.length === 1) { add(lista[0]); setBusca(""); } }} />
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  // Tenta EAN primeiro (Scanner bipa e dispara Enter)
+                  const eanOk = await tentarBuscarPorEan(busca);
+                  if (!eanOk && lista.length === 1) { add(lista[0]); setBusca(""); }
+                  else if (!eanOk && lista.length > 1) { /* continua mostrando a lista */ }
+                }
+              }} />
             <button className="bal-scan" title="Focar busca / escanear (F6)" onClick={focarBusca}><ScanLine size={16} /></button>
           </label>
 
@@ -512,6 +552,25 @@ export function BalcaoPdv() {
             </div>
           </div>
         </div>
+      )}
+      {modal === "ean_nao_encontrado" && eanPendente && (
+        <ModalAssociarEan
+          ean={eanPendente.ean}
+          produtos={produtos.data ?? []}
+          onFechar={() => { setModal(null); setEanPendente(null); focarBusca(); }}
+          onAssociado={() => {
+            setModal(null);
+            setEanPendente(null);
+            qc.invalidateQueries({ queryKey: ["pdv-produtos"] });
+            qc.invalidateQueries({ queryKey: ["loja"] });
+            focarBusca();
+          }}
+          onAdicionarDireto={(prod) => {
+            add(prod);
+            setModal(null);
+            setEanPendente(null);
+          }}
+        />
       )}
     </div>
   );
@@ -849,6 +908,145 @@ function ModalCliente({ inicial, onFechar, onSalvar, onLimpar }: {
             ? <button className="bal-mbtn perigo" onClick={onLimpar}>Remover</button>
             : <button className="bal-mbtn" onClick={onFechar}>Cancelar <kbd>ESC</kbd></button>}
           <button className="bal-mbtn ouro" onClick={salvar} disabled={!nome.trim()}>Salvar <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// Modal de associação de EAN — produto não encontrado pelo barcode
+// =====================================================================
+/**
+ * Aparece quando o operador bipa um EAN que não está cadastrado.
+ * Mostra o EAN bipado, lista os produtos do PDV para o operador
+ * escolher qual produto corresponde a esse EAN, e salva a associação
+ * (PATCH /loja/produtos/:id/codigo-barras). Na próxima bipada, o produto
+ * será encontrado direto.
+ */
+function ModalAssociarEan({
+  ean, produtos, onFechar, onAssociado, onAdicionarDireto,
+}: {
+  ean: string;
+  produtos: PdvProduto[];
+  onFechar: () => void;
+  onAssociado: () => void;
+  onAdicionarDireto: (p: PdvProduto) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [selecionado, setSelecionado] = useState<PdvProduto | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [eanNovoInput, setEanNovoInput] = useState(ean); // permite redigitar/bipar outro EAN
+  const eanRef = useRef<HTMLInputElement>(null);
+
+  const buscaRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { buscaRef.current?.focus(); }, []);
+
+  const lista = useMemo(() => {
+    if (!busca.trim()) return produtos.filter((p) => !p.controlaEstoque || p.disponivel > 0);
+    const q = busca.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return produtos.filter((p) => {
+      const n = (p.descricao ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return n.includes(q) || (p.sku ?? "").includes(busca);
+    });
+  }, [produtos, busca]);
+
+  const associar = useMutation({
+    mutationFn: () => lojaAtualizarCodigoBarras(selecionado!.produtoId, eanNovoInput.trim()),
+    onSuccess: onAssociado,
+    onError: (e) => setErro(e instanceof Error ? e.message : "Falha ao associar."),
+  });
+
+  return (
+    <div className="bal-modal-bg" onClick={onFechar}>
+      <div className="bal-modal lg bal-ean-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="bal-ean-header">
+          <Barcode size={20} />
+          <div>
+            <h3>EAN não encontrado no cadastro</h3>
+            <p>Código bipado: <code className="bal-ean-code">{ean}</code></p>
+          </div>
+          <button className="bal-iconbtn" onClick={onFechar}><X size={18} /></button>
+        </div>
+
+        <p className="bal-ean-instrucao">
+          <strong>Selecione o produto correspondente</strong> na lista abaixo para associar este código de barras.
+          Na próxima vez que bipar, o produto será encontrado automaticamente.
+        </p>
+
+        {/* Campo para redigitar/bipar outro EAN (caso o operador tenha bipado errado) */}
+        <div className="bal-ean-recode">
+          <label>Código de barras a associar</label>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              ref={eanRef}
+              className="bal-desc-input"
+              value={eanNovoInput}
+              placeholder="Bipe o produto novamente…"
+              onChange={(e) => setEanNovoInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscaRef.current?.focus(); } }}
+              style={{ flex: 1 }}
+            />
+            <button type="button" className="bal-mbtn" style={{ whiteSpace: "nowrap" }} onClick={() => { eanRef.current?.focus(); eanRef.current?.select(); }}>
+              <ScanLine size={14} /> Bipar novamente
+            </button>
+          </div>
+          <small style={{ color: "var(--muted)", fontSize: 11 }}>Ou bipe o produto diretamente neste campo para usar o EAN correto</small>
+        </div>
+
+        {/* Busca de produto */}
+        <label className="bal-busca" style={{ margin: "12px 0 8px" }}>
+          <Search size={14} />
+          <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar produto por nome ou SKU…" />
+        </label>
+
+        <div className="bal-ean-lista">
+          {lista.slice(0, 30).map((p) => (
+            <button
+              key={p.produtoId}
+              className={`bal-ean-item ${selecionado?.produtoId === p.produtoId ? "sel" : ""}`}
+              onClick={() => setSelecionado(p)}
+            >
+              {p.imagemUrl
+                ? <img src={p.imagemUrl} alt="" className="bal-ean-thumb" />
+                : <div className="bal-ean-thumb ph"><Barcode size={14} /></div>}
+              <div className="bal-ean-item-info">
+                <b>{p.descricao}</b>
+                <small>{p.categoria ?? "—"}{p.sku ? ` · ${p.sku}` : ""}</small>
+              </div>
+              <div className="bal-ean-item-preco">
+                {brl(p.preco)}
+                {selecionado?.produtoId === p.produtoId && <Check size={14} style={{ color: "var(--up)" }} />}
+              </div>
+            </button>
+          ))}
+          {lista.length === 0 && <p className="bal-empty">Nenhum produto encontrado.</p>}
+        </div>
+
+        {selecionado && (
+          <div className="bal-ean-sel-info">
+            <Link2 size={14} />
+            <span><b>{selecionado.descricao}</b> receberá o código <code>{eanNovoInput.trim()}</code></span>
+          </div>
+        )}
+
+        {erro && <p className="bal-err">{erro}</p>}
+
+        <div className="fim" style={{ marginTop: 12 }}>
+          <button className="bal-mbtn" onClick={onFechar}>Cancelar</button>
+          {selecionado && (
+            <button className="bal-mbtn" onClick={() => onAdicionarDireto(selecionado)}>
+              <Plus size={14} /> Só adicionar (sem associar EAN)
+            </button>
+          )}
+          <button
+            className="bal-mbtn ouro"
+            disabled={!selecionado || !eanNovoInput.trim() || associar.isPending}
+            onClick={() => associar.mutate()}
+          >
+            {associar.isPending ? <Loader2 size={14} className="spin-icon" /> : <Link2 size={14} />}
+            {associar.isPending ? "Associando…" : "Associar EAN e adicionar ao carrinho"}
+          </button>
         </div>
       </div>
     </div>

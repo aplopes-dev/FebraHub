@@ -29,6 +29,7 @@ import { ComprasModule } from './modules/compras/compras.module';
 import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
 import { PdvModule } from './modules/pdv/pdv.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
+import { StoneConciliacaoModule } from './modules/stone-conciliacao/stone-conciliacao.module';
 import { LojaProdutosModule } from './modules/loja-produtos/loja-produtos.module';
 import { LojaPedidosModule } from './modules/loja-pedidos/loja-pedidos.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
@@ -101,6 +102,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     FornecedoresModule,
     PdvModule,
     FinanceiroModule,
+    StoneConciliacaoModule,
     LojaProdutosModule,
     LojaPedidosModule,
     FiscalModule,

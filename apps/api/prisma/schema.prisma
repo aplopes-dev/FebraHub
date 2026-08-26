@@ -2263,6 +2263,56 @@ model FinanceiroPlanoConta {
   @@map("financeiro_planos_conta")
 }
 
+/// Conciliação Stone — cada linha é uma transação de cartão capturada na
+/// maquininha, importada do arquivo XML da API de Conciliação Stone
+/// (GET /v2/merchant/{StoneCode}/conciliation-file/{data}). Read-only: a venda
+/// acontece avulsa no POS; aqui só espelhamos p/ conferência financeira.
+/// Idempotente por acquirerTransactionKey (NSU único da adquirente).
+model StoneConciliacaoTransacao {
+  id                 String   @id @default(uuid()) @db.Uuid
+  stoneCode          String   @map("stone_code")
+  referenceDate      DateTime @map("reference_date") @db.Date
+  /// NSU/chave única da adquirente — âncora de idempotência.
+  acquirerTransactionKey String @unique @map("acquirer_transaction_key")
+  initiatorTransactionKey String? @map("initiator_transaction_key")
+  authorizationDateTime  DateTime? @map("authorization_datetime") @db.Timestamptz(6)
+  captureDateTime        DateTime? @map("capture_datetime") @db.Timestamptz(6)
+  accountType        String?  @map("account_type")   // 1 credito | 2 debito
+  brandId            String?  @map("brand_id")
+  brandNome          String?  @map("brand_nome")
+  cardNumber         String?  @map("card_number")     // mascarado
+  numberOfInstallments Int    @default(1) @map("number_of_installments")
+  authorizationCode  String?  @map("authorization_code")
+  poiSerialNumber    String?  @map("poi_serial_number")
+  grossAmount        Decimal  @default(0) @map("gross_amount") @db.Decimal(14, 2)
+  netAmount          Decimal  @default(0) @map("net_amount") @db.Decimal(14, 2)
+  feeAmount          Decimal  @default(0) @map("fee_amount") @db.Decimal(14, 2)
+  previsionPaymentDate DateTime? @map("prevision_payment_date") @db.Date
+  cancelado          Boolean  @default(false)
+  /// XML bruto da transação (auditoria).
+  bruto              Json?
+  importadoEm        DateTime @default(now()) @map("importado_em") @db.Timestamptz(6)
+  @@index([stoneCode, referenceDate])
+  @@index([poiSerialNumber])
+  @@index([previsionPaymentDate])
+  @@map("stone_conciliacao_transacoes")
+}
+
+/// Controle de importação por dia — evita rebaixar o mesmo arquivo e registra
+/// o resultado (quantidade, erro). Um registro por (stoneCode, referenceDate).
+model StoneConciliacaoImport {
+  id            String   @id @default(uuid()) @db.Uuid
+  stoneCode     String   @map("stone_code")
+  referenceDate DateTime @map("reference_date") @db.Date
+  status        String   @default("ok")  // ok | vazio | erro
+  quantidade    Int      @default(0)
+  erro          String?
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  @@unique([stoneCode, referenceDate])
+  @@map("stone_conciliacao_imports")
+}
+
 model FinanceiroLancamento {
   id             String   @id @default(uuid()) @db.Uuid
   operacao       String   // receber | pagar

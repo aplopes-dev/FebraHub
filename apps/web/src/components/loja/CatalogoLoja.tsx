@@ -44,6 +44,11 @@ export function CatalogoLoja() {
   const i = ind.data;
   const invalidar = () => qc.invalidateQueries({ queryKey: ["loja"] });
 
+  const enriquecerLote = useMutation({
+    mutationFn: lojaEnriquecerEanLote,
+    onSuccess: (r) => { setLoteResultado(r); invalidar(); },
+  });
+
   return (
     <main className="loja-page">
       <header className="loja-hero loja-hero-compacto">
@@ -54,6 +59,15 @@ export function CatalogoLoja() {
         {podeGerir && (
           <div className="acoes">
             <button className="loja-btn" onClick={() => setGerirCategorias(true)}><Layers size={15} /> Categorias</button>
+            <button
+              className="loja-btn"
+              title="Varre produtos com SKU numérico (EAN-8/13) e preenche o código de barras consultando Open Food Facts"
+              disabled={enriquecerLote.isPending}
+              onClick={() => enriquecerLote.mutate()}
+            >
+              {enriquecerLote.isPending ? <Loader2 size={15} className="girando" /> : <Barcode size={15} />}
+              {enriquecerLote.isPending ? "Consultando EANs…" : "Atualizar EANs"}
+            </button>
             <button className="loja-btn ouro" onClick={() => setEditar("novo")}><Plus size={15} /> Novo produto</button>
           </div>
         )}
@@ -88,6 +102,7 @@ export function CatalogoLoja() {
           <thead>
             <tr>
               <th></th><th>Produto</th><th>Categoria</th><th className="num">Preço</th>
+              <th>Código de barras</th>
               <th>Estoque (Loja / Depósito)</th><th>Flags</th>{(podeGerir || podePreco) && <th></th>}
             </tr>
           </thead>
@@ -97,9 +112,16 @@ export function CatalogoLoja() {
               return (
                 <tr key={p.id}>
                   <td>{p.imagemUrl ? <img className="loja-thumb" src={p.imagemUrl} alt="" /> : <div className="loja-thumb" />}</td>
-                  <td className="nome"><b>{p.nome}</b><small>{p.sku || p.codigoBarras || "sem código"}</small></td>
+                  <td className="nome"><b>{p.nome}</b><small>{p.sku || "sem SKU"}</small></td>
                   <td>{p.categoria?.nome ?? "—"}</td>
                   <td className="num">{brl(p.preco)}</td>
+                  <td>
+                    {p.codigoBarras ? (
+                      <span className="loja-ean-chip"><Barcode size={11} />{p.codigoBarras}</span>
+                    ) : (
+                      <span className="loja-ean-chip vazio">—</span>
+                    )}
+                  </td>
                   <td>
                     <div className="loja-locais">
                       {(["LOJA", "DEPOSITO"] as LojaLocal[]).map((loc) => (
@@ -136,6 +158,9 @@ export function CatalogoLoja() {
       {estoque && <ModalEstoque produto={estoque} aoFechar={() => setEstoque(null)} aoMudar={() => invalidar()} />}
       {preco && <ModalPreco produto={preco} aoFechar={() => setPreco(null)} aoSalvar={() => { setPreco(null); invalidar(); }} />}
       {gerirCategorias && <GestaoCategorias aoFechar={() => { setGerirCategorias(false); invalidar(); }} />}
+      {loteResultado && (
+        <ModalLoteEan resultado={loteResultado} aoFechar={() => setLoteResultado(null)} />
+      )}
     </main>
   );
 }
@@ -243,7 +268,28 @@ function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | 
     estoqueMinimo: produto ? Number(produto.estoqueMinimo) : 0,
   }));
   const [erro, setErro] = useState<string | null>(null);
+  const [eanStatus, setEanStatus] = useState<"" | "buscando" | "ok" | "nao_encontrado">(""); 
+  const [eanModo, setEanModo] = useState(false); // modo scanner ativo no campo EAN
+  const eanRef = useRef<HTMLInputElement>(null);
   const set = (k: keyof typeof f, v: unknown) => setF((s) => ({ ...s, [k]: v }));
+
+  // Quando modo scanner ligado, foca o campo EAN
+  useEffect(() => { if (eanModo) eanRef.current?.focus(); }, [eanModo]);
+
+  const buscarEanOnline = useMutation({
+    mutationFn: () => lojaConsultarEanOnline(f.codigoBarras ?? ""),
+    onSuccess: (dados) => {
+      if (dados) {
+        // Enriquece nome (se vazio) e desc
+        if (!f.nome.trim()) set("nome", dados.nome);
+        if (!f.descricao?.trim() && dados.descricao) set("descricao", dados.descricao);
+        setEanStatus("ok");
+      } else {
+        setEanStatus("nao_encontrado");
+      }
+    },
+    onError: () => setEanStatus("nao_encontrado"),
+  });
 
   const salvar = useMutation({
     mutationFn: () => {
@@ -260,10 +306,58 @@ function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | 
       <div className="loja-modal lg" onClick={(e) => e.stopPropagation()}>
         <h3>{produto ? "Editar produto" : "Novo produto"}</h3>
         <label>Nome</label>
-        <input className="loja-input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus />
+        <input className="loja-input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus={!eanModo} />
         <div className="loja-grid3">
           <div><label>SKU</label><input className="loja-input" value={f.sku} onChange={(e) => set("sku", e.target.value)} /></div>
-          <div><label>Código de barras</label><input className="loja-input" value={f.codigoBarras} onChange={(e) => set("codigoBarras", e.target.value)} /></div>
+          <div>
+            <label>
+              Código de barras (EAN)
+              <button
+                type="button"
+                className={`loja-btn mini ${eanModo ? "ouro" : ""}`}
+                style={{ marginLeft: 6, verticalAlign: "middle" }}
+                title={eanModo ? "Modo scanner ativo — bipe o produto" : "Ativar modo scanner"}
+                onClick={() => { setEanModo((m) => !m); setEanStatus(""); }}
+              >
+                <Barcode size={12} /> {eanModo ? "Bipando…" : "Scanner"}
+              </button>
+            </label>
+            <div className="loja-ean-row">
+              <input
+                ref={eanRef}
+                className={`loja-input ${eanStatus === "ok" ? "ean-ok" : eanStatus === "nao_encontrado" ? "ean-err" : ""}`}
+                value={f.codigoBarras ?? ""}
+                placeholder={eanModo ? "Bipe o código de barras…" : "EAN-8 / EAN-13 / Code128"}
+                onChange={(e) => { set("codigoBarras", e.target.value); setEanStatus(""); }}
+                onKeyDown={(e) => {
+                  // Scanner dispara Enter após bipar
+                  if (e.key === "Enter" && (f.codigoBarras ?? "").trim()) {
+                    e.preventDefault();
+                    setEanModo(false);
+                    // Se EAN válido (8 ou 13 dígitos), busca online
+                    if (/^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim())) {
+                      setEanStatus("buscando");
+                      buscarEanOnline.mutate();
+                    }
+                  }
+                }}
+              />
+              {(f.codigoBarras ?? "").trim() && /^\d{8}$|^\d{13}$/.test((f.codigoBarras ?? "").trim()) && (
+                <button
+                  type="button"
+                  className="loja-btn mini"
+                  disabled={eanStatus === "buscando"}
+                  title="Consultar este EAN na internet (Open Food Facts)"
+                  onClick={() => { setEanStatus("buscando"); buscarEanOnline.mutate(); }}
+                >
+                  {eanStatus === "buscando" ? <Loader2 size={12} className="girando" /> : <RefreshCw size={12} />}
+                  {eanStatus === "buscando" ? "Buscando…" : "Buscar online"}
+                </button>
+              )}
+            </div>
+            {eanStatus === "ok" && <p className="loja-ean-hint ok"><CheckCircle2 size={11} /> EAN encontrado — nome/descrição preenchidos</p>}
+            {eanStatus === "nao_encontrado" && <p className="loja-ean-hint err">EAN não encontrado nas bases online</p>}
+          </div>
           <div><label>Categoria</label>
             <select className="loja-select" value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value)}>
               <option value="">—</option>
@@ -297,6 +391,46 @@ function ModalProduto({ produto, aoFechar, aoSalvar }: { produto: LojaProduto | 
           <button className="loja-btn" onClick={aoFechar}>Cancelar</button>
           <button className="loja-btn ouro" disabled={salvar.isPending || !f.nome} onClick={() => { setErro(null); salvar.mutate(); }}>Salvar</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MODAL RESULTADO EAN LOTE ====================
+function ModalLoteEan({ resultado, aoFechar }: { resultado: EnriquecimentoLote; aoFechar: () => void }) {
+  return (
+    <div className="loja-modal-bg" onClick={aoFechar}>
+      <div className="loja-modal lg" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3><Barcode size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />Resultado — Enriquecimento de EANs</h3>
+          <button className="loja-btn mini" onClick={aoFechar}><X size={13} /></button>
+        </div>
+        <div className="loja-kpis" style={{ marginBottom: 16 }}>
+          <article><small>VERIFICADOS</small><b>{resultado.verificados}</b><span>produtos com SKU numérico</span></article>
+          <article><small>ATUALIZADOS</small><b style={{ color: "var(--up)" }}>{resultado.atualizados}</b><span>EAN confirmado online</span></article>
+          <article><small>NÃO ENCONTRADOS</small><b style={{ color: "var(--muted)" }}>{resultado.naoEncontrados}</b><span>não constam nas bases</span></article>
+        </div>
+        {resultado.itens.length > 0 && (
+          <div className="loja-mov" style={{ maxHeight: 320, overflowY: "auto" }}>
+            {resultado.itens.map((it) => (
+              <div key={it.id} className="linha">
+                <div>
+                  <b>{it.nome}</b>
+                  <small style={{ display: "block" }}>EAN {it.ean}{it.dadosOnline?.marca ? ` · ${it.dadosOnline.marca}` : ""}</small>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  {it.encontrado
+                    ? <span className="loja-badge on"><CheckCircle2 size={10} /> atualizado</span>
+                    : <span className="loja-badge off">não encontrado</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {resultado.verificados === 0 && (
+          <p className="loja-empty">Nenhum produto com SKU numérico (EAN-8 ou EAN-13) encontrado para verificar.<br /><small>Preencha o campo SKU com o EAN numérico do produto e tente novamente.</small></p>
+        )}
+        <div className="fim"><button className="loja-btn ouro" onClick={aoFechar}>Fechar</button></div>
       </div>
     </div>
   );
