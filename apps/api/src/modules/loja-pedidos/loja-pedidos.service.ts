@@ -446,13 +446,16 @@ export class LojaPedidosService {
         },
       });
 
-      // Próximo estado (PRD §17): pagamento confirmado NÃO significa PRONTO.
-      // Se precisa preparo → ENTRA NA FILA (NA_FILA) e ganha a SENHA da fila.
-      // Só venda sem preparo (retirada imediata) vai direto p/ PRONTO, sem senha.
+      // Próximo estado (PRD §17,§37): pagamento confirmado NÃO significa PRONTO.
+      // No CARDÁPIO DIGITAL o cliente não está no balcão — todo pedido pago
+      // ENTRA NA FILA ("em preparação") e recebe SENHA, indo a PRONTO só quando
+      // o operador marcar. A flag precisaPreparacao só dispensa a fila no balcão
+      // (venda entregue na hora, §7), nunca no cardápio.
+      const entraNaFila = pedido.canal === 'CARDAPIO_DIGITAL' || pedido.precisaPreparacao;
       let posicao: number | null = null;
       let senha: number | null = pedido.senhaFila; // idempotência: preserva se já tinha
       let novoStatus: string;
-      if (pedido.precisaPreparacao) {
+      if (entraNaFila) {
         // Só gera senha nova se o pedido ainda não tem uma (INVARIANTE 2/3).
         if (senha == null) senha = await this.proximaSenha(tx, pedido.operacaoId!);
         posicao = await this.calcularPosicaoFila(tx, pedido.operacaoId);
