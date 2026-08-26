@@ -8,6 +8,7 @@ import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { FinLancamento } from "@/types/financeiro-erp";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 import { CadastrosFinanceiro } from "./CadastrosFinanceiro";
 import "@/app/financeiro-erp.css";
 
@@ -151,7 +152,7 @@ function ModalEditarLancamento({ lancamento, aoFechar, aoSalvar }: { lancamento:
           <div><label>Competência</label><input className="fin-input" type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} /></div>
           <div><label>Vencimento</label><input className="fin-input" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></div>
         </div>
-        <div><label>Conta bancária</label><select className="fin-select" value={conta} onChange={(e) => setConta(e.target.value)}><option value="">—</option>{(cadastros.data?.contas ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+        <div><label>Conta bancária</label><Select className="fin-select" aria-label="Conta bancária" value={conta} onChange={setConta} options={[{value:"",label:"—"},...(cadastros.data?.contas ?? []).map((c) => ({value:c.id,label:c.nome}))]} /></div>
         {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
         <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={salvar.isPending || !descricao || !valor} onClick={() => { setErro(null); salvar.mutate(); }}>Salvar</button></div>
       </div>
@@ -179,8 +180,8 @@ function ModalPagar({ lancamento, aoFechar, aoPagar }: { lancamento: FinLancamen
         <label>Valor pago (R$)</label>
         <input className="fin-input" type="number" min={0.01} step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
         <div className="row">
-          <div><label>Forma</label><select className="fin-select" value={forma} onChange={(e) => setForma(e.target.value)}>{["Pix", "Dinheiro", "Cartão de Débito", "Cartão de Crédito", "Boleto", "Transferência"].map((f) => <option key={f}>{f}</option>)}</select></div>
-          <div><label>Conta</label><select className="fin-select" value={conta} onChange={(e) => setConta(e.target.value)}><option value="">—</option>{(cadastros.data?.contas ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+          <div><label>Forma</label><Select className="fin-select" aria-label="Forma de pagamento" value={forma} onChange={setForma} options={["Pix", "Dinheiro", "Cartão de Débito", "Cartão de Crédito", "Boleto", "Transferência"].map((f) => ({value:f,label:f}))} /></div>
+          <div><label>Conta</label><Select className="fin-select" aria-label="Conta" value={conta} onChange={setConta} options={[{value:"",label:"—"},...(cadastros.data?.contas ?? []).map((c) => ({value:c.id,label:c.nome}))]} /></div>
         </div>
         {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
         <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={pagar.isPending} onClick={() => { setErro(null); pagar.mutate(); }}>Confirmar pagamento</button></div>
@@ -227,8 +228,8 @@ function ModalLancamento({ operacao, aoFechar, aoCriar }: { operacao: string; ao
           <div><label>Vencimento</label><input className="fin-input" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /><small className="fin-help">Data limite para pagar/receber.</small></div>
         </div>
         <div className="row">
-          <div><label>Conta contábil (DRE)</label><select className="fin-select" value={planoContaId} onChange={(e) => setPlano(e.target.value)}><option value="">—</option>{planos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select><small className="fin-help">Em qual categoria entra no resultado. Opcional.</small></div>
-          <div><label>Centro de custo</label><select className="fin-select" value={centroCustoId} onChange={(e) => setCentro(e.target.value)}><option value="">—</option>{centros.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select><small className="fin-help">A qual área/setor pertence. Opcional.</small></div>
+          <div><label>Conta contábil (DRE)</label><Select className="fin-select" aria-label="Conta contábil" value={planoContaId} onChange={setPlano} options={[{value:"",label:"—"},...planos.map((p) => ({value:p.id,label:p.nome}))]} /><small className="fin-help">Em qual categoria entra no resultado. Opcional.</small></div>
+          <div><label>Centro de custo</label><Select className="fin-select" aria-label="Centro de custo" value={centroCustoId} onChange={setCentro} options={[{value:"",label:"—"},...centros.map((c) => ({value:c.id,label:c.nome}))]} /><small className="fin-help">A qual área/setor pertence. Opcional.</small></div>
         </div>
         {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
         <div className="fim"><button className="fin-btn" onClick={aoFechar}>Cancelar</button><button className="fin-btn ouro" disabled={criar.isPending || !descricao || !valor} onClick={() => { setErro(null); criar.mutate(); }}>Criar lançamento</button></div>
