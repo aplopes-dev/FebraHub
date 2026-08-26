@@ -1113,13 +1113,19 @@ function ModalDesconto({ titulo, subtitulo, base, onFechar, onAplicar }: {
 function CardProdutoBalcao({ produto: p, onAdd, onLongPress }: { produto: PdvProduto; onAdd: () => void; onLongPress: () => void }) {
   const s = selo(p);
   const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
-  const longPress = useLongPressProps(onLongPress);
+  // useLongPressProps já retorna um onClick que bloqueia o click quando long-press dispara
+  // precisamos mesclar com onAdd: chamamos onAdd após a checagem do hook
+  const { onClick: longPressClick, ...longPressRest } = useLongPressProps(onLongPress);
+  const handleClick = (e: React.MouseEvent) => {
+    longPressClick(e); // bloqueia quando long-press
+    if (!e.defaultPrevented) onAdd();
+  };
   return (
     <button
       className={`bal-card grupo-${grupoDe(p.categoria)}`}
       disabled={esgotado}
-      onClick={onAdd}
-      {...longPress}
+      onClick={handleClick}
+      {...longPressRest}
     >
       <div className="bal-thumb">
         {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
