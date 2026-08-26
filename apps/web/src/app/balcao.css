@@ -47,9 +47,8 @@
 .bal-scan{width:34px;height:34px;border-radius:9px;border:1px solid var(--card-line);background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
 
 /* chips de categoria */
-.bal-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:14px;scrollbar-width:none}
+.bal-chips{display:flex;flex-wrap:nowrap;flex-shrink:0;gap:6px;overflow-x:auto;padding-bottom:14px;scrollbar-width:none}
 .bal-chips::-webkit-scrollbar{display:none}
-.bal-chips{gap:6px}
 .bal-chip{flex-shrink:0;padding:9px 18px;border-radius:22px;border:1px solid var(--card-line);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s,border-color .15s}
 .bal-chip:hover{color:var(--text);border-color:var(--muted)}
 .bal-chip.on{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent;box-shadow:0 2px 8px rgb(var(--gold-rgb)/.25)}
@@ -58,7 +57,7 @@
 .bal-chip.sem-estoque:hover{opacity:.8}
 
 /* grid de produtos */
-.bal-scroll{overflow-y:auto;min-height:0;padding-bottom:6px}
+.bal-scroll{overflow-y:auto;flex:1 1 auto;min-height:0;padding-bottom:6px}
 .bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
 /* Com o carrinho aberto, cards menores para caber mais produtos. */
 .bal-page.com-carrinho .bal-grid{grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:12px}
