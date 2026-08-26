@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Sun, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Sun, X } from "lucide-react";
 import { BotaoBuscaGlobal, BuscaGlobal, useBuscaGlobal } from "@/components/shell/BuscaGlobal";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
 import { SeletorPeriodo } from "@/components/filtros/SeletorPeriodo";
@@ -30,10 +30,10 @@ import { ProvedorPeriodo } from "@/lib/periodo";
 import { C, FUNDO_APP, SANS } from "@/lib/tema";
 import type { Perfil } from "@/types/views";
 
-const CHAVE_SUBMENU = "febrahub:submenu-oculto";
 const CHAVE_MENU_TOTAL = "febrahub:menu-oculto-total";
+const CHAVE_ACORDEAO = "febrahub:acordeao-abertos";
 
-/** Shell dual: rail de ícones + submenu + header + footer. */
+/** Shell: sidebar em acordeão (coluna única) + header + footer. */
 export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNode }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -42,18 +42,27 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const { aberto: menuAberto, alternar: alternarMenu, fechar: fecharMenu } = useMenu();
   useSessaoViva();
 
-  const [submenuOculto, setSubmenuOculto] = useState(false);
   const [menuOcultoTotal, setMenuOcultoTotal] = useState(false);
   const [menuUsuario, setMenuUsuario] = useState(false);
-  const [primarioManual, setPrimarioManual] = useState<string | null>(null);
   const [buscaAberta, setBuscaAberta] = useBuscaGlobal();
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
-      setSubmenuOculto(localStorage.getItem(CHAVE_SUBMENU) === "1");
       setMenuOcultoTotal(localStorage.getItem(CHAVE_MENU_TOTAL) === "1");
+      const salvos = localStorage.getItem(CHAVE_ACORDEAO);
+      if (salvos) setAbertos(new Set(JSON.parse(salvos) as string[]));
     } catch { /* ok */ }
   }, []);
+
+  const alternarGrupo = (id: string) => {
+    setAbertos((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id); else novo.add(id);
+      try { localStorage.setItem(CHAVE_ACORDEAO, JSON.stringify([...novo])); } catch { /* ok */ }
+      return novo;
+    });
+  };
 
   const setores = setoresVisiveis(perfil);
   const admin = ehAdmin(perfil);
@@ -74,26 +83,21 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const ativoId = idItemAtivo(caminho, filhosTodos);
   const itemAtivo = itemPorId(ativoId);
   const primarioRota = primarioPorCaminho(caminho, ctxMenu);
-  const primarioAtivo: MenuPrimario | undefined =
-    primarios.find((p) => p.id === primarioManual) ??
-    primarioRota ??
-    primarios[0];
-
-  const filhosAtivos = useMemo(
-    () => (primarioAtivo ? primarioAtivo.filhos.filter((f) => f.visivel(ctxMenu)) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [primarioAtivo?.id, admin, setores.join("|")],
-  );
+  const primarioAtivo: MenuPrimario | undefined = primarioRota ?? primarios[0];
 
   const filha = tituloDaRota(caminho);
   const tituloPagina = filha?.titulo ?? itemAtivo?.titulo ?? itemAtivo?.label ?? "FebraHub";
   const descPagina = filha?.desc ?? itemAtivo?.desc;
 
-  useEffect(() => { fecharMenu(); setMenuUsuario(false); }, [caminho, fecharMenu]);
+  // O grupo da rota atual abre automaticamente (acordeão), sem fechar os que o
+  // usuário já deixou abertos.
   useEffect(() => {
-    // Ao mudar de rota, o rail acompanha o grupo da URL.
-    setPrimarioManual(null);
-  }, [caminho]);
+    if (primarioRota?.id) {
+      setAbertos((atual) => (atual.has(primarioRota.id) ? atual : new Set(atual).add(primarioRota.id)));
+    }
+  }, [primarioRota?.id]);
+
+  useEffect(() => { fecharMenu(); setMenuUsuario(false); }, [caminho, fecharMenu]);
 
   const deslogar = async () => {
     await sair();
@@ -135,7 +139,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
 
   return (
     <ProvedorPeriodo>
-      <div className={`fh-shell${submenuOculto ? " fh-shell-sem-sub" : ""}${menuOcultoTotal ? " fh-shell-sem-menu" : ""}`} style={{
+      <div className={`fh-shell${menuOcultoTotal ? " fh-shell-sem-menu" : ""}`} style={{
         minHeight: "100dvh", display: "flex", color: C.text, fontFamily: SANS,
         background: FUNDO_APP,
       }}>
@@ -146,66 +150,56 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
           aria-label="Fechar menu"
         />
 
-        {/* ---- Rail de ícones ---- */}
-        <aside className="fh-rail rolagem" aria-label="Menu principal" aria-hidden={menuAberto ? undefined : undefined}>
-          <div className="fh-rail-topo">
-            <img src="/logo-febracis.webp" alt="Febracis" width={36} height={36} />
-          </div>
-          <nav className="fh-rail-nav">
-            {primarios.map((p) => {
-              const ativo = primarioAtivo?.id === p.id;
-              const { Icone } = p;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`fh-rail-item${ativo ? " fh-rail-item-ativo" : ""}`}
-                  aria-current={ativo ? "true" : undefined}
-                  title={p.label}
-                  onClick={() => {
-                    setPrimarioManual(p.id);
-                    setSubmenuOculto(false);
-                    try { localStorage.setItem(CHAVE_SUBMENU, "0"); } catch { /* ok */ }
-                    // Se o grupo tem um único filho (ou Resumo), navega direto.
-                    const filhos = p.filhos.filter((f) => f.visivel(ctxMenu));
-                    const resumo = filhos.find((f) => f.href === `/${p.id}`) ?? filhos[0];
-                    if (resumo && (!ativo || caminho !== resumo.href)) {
-                      // Só navega se clicou noutro grupo ou ainda não está no resumo.
-                      if (primarioAtivo?.id !== p.id) router.push(resumo.href);
-                    }
-                  }}
-                >
-                  <Icone size={20} />
-                  <span>{p.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-          <div className="fh-rail-ajuda">
-            <Link href="/configuracoes/brain" className="fh-rail-item" title="Memória institucional — busca e respostas com a base de conhecimento">
-              <BookOpenIcon />
-              <span>Memória</span>
-            </Link>
-          </div>
-        </aside>
-
-        {/* ---- Submenu ---- */}
-        <aside
-          className="fh-submenu rolagem"
-          aria-label={`Submenu ${primarioAtivo?.label ?? ""}`}
-          hidden={submenuOculto}
-        >
-          <div className="fh-submenu-cabeca">
-            <span>{primarioAtivo?.label ?? "Menu"}</span>
-            <button type="button" className="fh-so-gaveta fh-toque" onClick={fecharMenu} aria-label="Fechar" style={botaoIcone}>
+        {/* ---- Sidebar em acordeão (coluna única) ---- */}
+        <aside className="fh-sidebar rolagem" aria-label="Menu principal">
+          <div className="fh-sidebar-topo">
+            <img src="/logo-febracis.webp" alt="Febracis" width={30} height={30} />
+            <div className="fh-sidebar-marca">
+              <b>FebraHub</b>
+              <span>Febracis Salvador</span>
+            </div>
+            <button type="button" className="fh-so-gaveta fh-toque" onClick={fecharMenu} aria-label="Fechar menu" style={botaoIcone}>
               <X size={18} />
             </button>
           </div>
-          <nav className="fh-submenu-nav">
-            {filhosAtivos.map((item) => (
-              <ItemSub key={item.id} item={item} ativo={ativoId === item.id} />
-            ))}
+
+          <nav className="fh-sidebar-nav">
+            {primarios.map((p) => {
+              const filhos = p.filhos.filter((f) => f.visivel(ctxMenu));
+              if (!filhos.length) return null;
+              const grupoAtivo = primarioAtivo?.id === p.id;
+              const aberto = abertos.has(p.id) || grupoAtivo;
+              const { Icone } = p;
+              return (
+                <div key={p.id} className={`fh-grupo${aberto ? " aberto" : ""}${grupoAtivo ? " grupo-ativo" : ""}`}>
+                  <button
+                    type="button"
+                    className="fh-grupo-cabeca"
+                    aria-expanded={aberto}
+                    onClick={() => alternarGrupo(p.id)}
+                  >
+                    <span className="fh-grupo-ico"><Icone size={18} /></span>
+                    <span className="fh-grupo-label">{p.label}</span>
+                    <ChevronRight size={15} className="fh-grupo-chevron" aria-hidden />
+                  </button>
+                  {aberto && (
+                    <div className="fh-grupo-itens">
+                      {filhos.map((item) => (
+                        <ItemSub key={item.id} item={item} ativo={ativoId === item.id} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
+
+          <div className="fh-sidebar-rodape">
+            <Link href="/configuracoes/brain" className="fh-sidebar-memoria" title="Memória institucional — busca e respostas com a base de conhecimento">
+              <BookOpenIcon />
+              <span>Memória institucional</span>
+            </Link>
+          </div>
         </aside>
 
         {/* ---- Conteúdo ---- */}
