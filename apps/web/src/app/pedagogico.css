@@ -359,6 +359,33 @@
 .ped-input:focus, .ped-select:focus, .ped-textarea:focus { border-color: #6366f1; }
 .ped-textarea { width: 100%; resize: vertical; min-height: 72px; font-family: inherit; }
 
+/* Seletor de aluno (autocomplete) — substitui o antigo campo "ID da pessoa" */
+.ped-aluno-picker { position: relative; }
+.ped-aluno-lista {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 260px; overflow-y: auto;
+  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
+  border-radius: .5rem; box-shadow: 0 8px 24px rgb(0 0 0 / .12);
+}
+.ped-aluno-opcao {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  padding: .5rem .75rem; text-align: left; background: none; border: none; cursor: pointer;
+  border-bottom: 1px solid var(--border, #f1f1f4);
+}
+.ped-aluno-opcao:last-child { border-bottom: none; }
+.ped-aluno-opcao:hover { background: rgb(99 102 241 / .08); }
+.ped-aluno-opcao strong { font-size: .85rem; color: var(--foreground, #111); }
+.ped-aluno-opcao span { font-size: .72rem; color: var(--muted-foreground, #6b7280); }
+.ped-aluno-vazio { padding: .6rem .75rem; font-size: .8rem; color: var(--muted-foreground, #6b7280); }
+.ped-aluno-selecionado {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  padding: .5rem .75rem; border: 1px solid var(--border, #e5e7eb); border-radius: .5rem;
+  background: rgb(99 102 241 / .06);
+}
+.ped-aluno-selecionado > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ped-aluno-selecionado strong { font-size: .85rem; color: var(--foreground, #111); }
+.ped-aluno-selecionado span { font-size: .72rem; color: var(--muted-foreground, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .ped-total-label { font-size: .8rem; color: var(--muted-foreground, #6b7280); margin-left: auto; }
 
 /* ---- Botões ---- */

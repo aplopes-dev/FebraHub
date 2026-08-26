@@ -21,6 +21,7 @@ import {
   moverEtapa,
   type ComOportunidade,
   type ComKanbanColuna,
+  type ComFunil,
 } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import "@/app/comercial.css";
@@ -256,25 +257,32 @@ function ViewKanban({
 }
 
 // ---- View Lista ----
-function ViewLista({ funilId }: { funilId: string }) {
+function ViewLista({ funil }: { funil: ComFunil }) {
+  const funilId = funil.id;
   const [pagina, setPagina] = useState(1);
   const [etapaFiltro, setEtapaFiltro] = useState("");
   const [responsavelFiltro, setResponsavelFiltro] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["comercial", "oportunidades", funilId, pagina, etapaFiltro, responsavelFiltro],
+    queryKey: ["comercial", "oportunidades", funilId, pagina, etapaFiltro],
     queryFn: () =>
       listarOportunidades({
         funilId,
         pagina,
         etapaId: etapaFiltro || undefined,
-        responsavelId: responsavelFiltro || undefined,
       }),
     staleTime: 30_000,
     enabled: !!funilId,
   });
 
-  const itens: ComOportunidade[] = data?.itens ?? [];
+  const itensBrutos: ComOportunidade[] = data?.itens ?? [];
+  // Filtro de responsável por nome (client-side): o endpoint só aceita UUID, mas
+  // o usuário quer digitar o nome. Filtramos o que a página já traz.
+  const itens = useMemo(() => {
+    const q = responsavelFiltro.trim().toLowerCase();
+    if (!q) return itensBrutos;
+    return itensBrutos.filter((op) => (op.responsavelNome ?? "").toLowerCase().includes(q));
+  }, [itensBrutos, responsavelFiltro]);
   const total = data?.total ?? 0;
   const totalPaginas = Math.ceil(total / 20);
 
@@ -299,20 +307,35 @@ function ViewLista({ funilId }: { funilId: string }) {
   return (
     <>
       <div className="com-filtros">
-        <input
-          className="com-filtro-busca"
-          placeholder="Filtrar por etapa..."
+        <select
+          className="com-filtro-select"
           value={etapaFiltro}
           onChange={(e) => { setEtapaFiltro(e.target.value); setPagina(1); }}
-          style={{ maxWidth: 180 }}
-        />
+          aria-label="Filtrar por etapa"
+          style={{ maxWidth: 220 }}
+        >
+          <option value="">Todas as etapas</option>
+          {funil.etapas.map((et) => (
+            <option key={et.id} value={et.id}>{et.nome}</option>
+          ))}
+        </select>
         <input
           className="com-filtro-busca"
-          placeholder="Filtrar por responsável..."
+          placeholder="Filtrar por responsável (nome)…"
           value={responsavelFiltro}
-          onChange={(e) => { setResponsavelFiltro(e.target.value); setPagina(1); }}
-          style={{ maxWidth: 200 }}
+          onChange={(e) => setResponsavelFiltro(e.target.value)}
+          aria-label="Filtrar por responsável"
+          style={{ maxWidth: 220 }}
         />
+        {(etapaFiltro || responsavelFiltro) && (
+          <button
+            className="com-btn"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            onClick={() => { setEtapaFiltro(""); setResponsavelFiltro(""); setPagina(1); }}
+          >
+            Limpar
+          </button>
+        )}
       </div>
 
       <div className="com-tabela-wrapper">
@@ -455,6 +478,7 @@ function PipelinePage() {
 
   // Seleciona o primeiro funil automaticamente
   const funilAtivo = funilId || funis[0]?.id || "";
+  const funilObjeto = funis.find((f) => f.id === funilAtivo);
 
   return (
     <div>
@@ -558,9 +582,9 @@ function PipelinePage() {
         </div>
       ) : modo === "kanban" ? (
         <ViewKanban funilId={funilAtivo} busca={busca} />
-      ) : (
-        <ViewLista funilId={funilAtivo} />
-      )}
+      ) : funilObjeto ? (
+        <ViewLista funil={funilObjeto} />
+      ) : null}
     </div>
   );
 }

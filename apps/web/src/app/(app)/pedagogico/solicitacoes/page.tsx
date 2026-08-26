@@ -1,7 +1,7 @@
 "use client";
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
-import { pedagogico } from "@/services/api/pedagogico";
+import { pedagogico, type PedagogicoMatricula } from "@/services/api/pedagogico";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -32,6 +32,41 @@ export default function SolicitacoesPage() {
   const [nova, setNova] = useState({ tipo: "certificado", pessoaId: "", matriculaId: "", descricao: "", prioridade: "normal" });
   const [salvando, setSalvando] = useState(false);
 
+  // Seletor de aluno (substitui o antigo campo "ID da pessoa" que exigia colar UUID)
+  const [alunoBusca, setAlunoBusca] = useState("");
+  const [alunoResultados, setAlunoResultados] = useState<PedagogicoMatricula[]>([]);
+  const [alunoSelecionado, setAlunoSelecionado] = useState<PedagogicoMatricula | null>(null);
+  const [buscandoAluno, setBuscandoAluno] = useState(false);
+
+  useEffect(() => {
+    const q = alunoBusca.trim();
+    if (alunoSelecionado || q.length < 2) { setAlunoResultados([]); return; }
+    let cancelado = false;
+    setBuscandoAluno(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await pedagogico.matriculas({ busca: q, porPagina: 8 });
+        if (!cancelado) setAlunoResultados(res?.itens ?? []);
+      } catch {
+        if (!cancelado) setAlunoResultados([]);
+      } finally {
+        if (!cancelado) setBuscandoAluno(false);
+      }
+    }, 300);
+    return () => { cancelado = true; clearTimeout(t); };
+  }, [alunoBusca, alunoSelecionado]);
+
+  const escolherAluno = (m: PedagogicoMatricula) => {
+    setAlunoSelecionado(m);
+    setNova((n) => ({ ...n, pessoaId: m.pessoaId, matriculaId: m.id }));
+    setAlunoBusca("");
+    setAlunoResultados([]);
+  };
+  const limparAluno = () => {
+    setAlunoSelecionado(null);
+    setNova((n) => ({ ...n, pessoaId: "", matriculaId: "" }));
+  };
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
@@ -51,7 +86,7 @@ export default function SolicitacoesPage() {
 
   const criar = async () => {
     if (!nova.pessoaId.trim()) {
-      setFeedback({ tipo: "erro", msg: "ID da pessoa é obrigatório." });
+      setFeedback({ tipo: "erro", msg: "Selecione o aluno da solicitação." });
       return;
     }
     setSalvando(true);
@@ -66,6 +101,8 @@ export default function SolicitacoesPage() {
       });
       setFeedback({ tipo: "ok", msg: "Solicitação aberta." });
       setNova({ tipo: "certificado", pessoaId: "", matriculaId: "", descricao: "", prioridade: "normal" });
+      setAlunoSelecionado(null);
+      setAlunoBusca("");
       setMostrarForm(false);
       await carregar();
     } catch (e: unknown) {
@@ -137,13 +174,48 @@ export default function SolicitacoesPage() {
                 <option value="urgente">Urgente</option>
               </select>
             </label>
-            <label className="ped-label">
-              ID da pessoa*
-              <input className="ped-input" value={nova.pessoaId} onChange={(e) => setNova({ ...nova, pessoaId: e.target.value })} />
-            </label>
-            <label className="ped-label">
-              ID da matrícula (opcional)
-              <input className="ped-input" value={nova.matriculaId} onChange={(e) => setNova({ ...nova, matriculaId: e.target.value })} />
+            <label className="ped-label ped-full">
+              Aluno*
+              {alunoSelecionado ? (
+                <div className="ped-aluno-selecionado">
+                  <div>
+                    <strong>{alunoSelecionado.pessoaNome ?? "Aluno"}</strong>
+                    <span>
+                      {[alunoSelecionado.cursoNome, alunoSelecionado.pessoaCpf].filter(Boolean).join(" · ") || "Matrícula selecionada"}
+                    </span>
+                  </div>
+                  <button type="button" className="ped-btn-xs" onClick={limparAluno}>Trocar</button>
+                </div>
+              ) : (
+                <div className="ped-aluno-picker">
+                  <input
+                    className="ped-input"
+                    value={alunoBusca}
+                    onChange={(e) => setAlunoBusca(e.target.value)}
+                    placeholder="Buscar aluno por nome ou CPF…"
+                    autoComplete="off"
+                  />
+                  {alunoBusca.trim().length >= 2 && (
+                    <div className="ped-aluno-lista">
+                      {buscandoAluno && <div className="ped-aluno-vazio">Buscando…</div>}
+                      {!buscandoAluno && alunoResultados.length === 0 && (
+                        <div className="ped-aluno-vazio">Nenhum aluno encontrado.</div>
+                      )}
+                      {alunoResultados.map((m) => (
+                        <button
+                          type="button"
+                          key={m.id}
+                          className="ped-aluno-opcao"
+                          onClick={() => escolherAluno(m)}
+                        >
+                          <strong>{m.pessoaNome ?? "—"}</strong>
+                          <span>{[m.cursoNome, m.pessoaCpf].filter(Boolean).join(" · ") || m.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </label>
             <label className="ped-label ped-full">
               Descrição
