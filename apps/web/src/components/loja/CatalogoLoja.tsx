@@ -43,11 +43,10 @@ export function CatalogoLoja() {
 
   return (
     <main className="loja-page">
-      <header className="loja-hero">
+      <header className="loja-hero loja-hero-compacto">
         <div>
           <span className="tag">LOJA · CATÁLOGO E ESTOQUE</span>
-          <h1>Produtos da Loja</h1>
-          <p>Cadastro único para PDV e Cardápio. Estoque operacional dividido em Loja e Depósito, com entrada, saída e transferência entre os dois.</p>
+          <p>Cadastro único para PDV e Cardápio, com saldo dividido entre Loja e Depósito.</p>
         </div>
         {podeGerir && (
           <div className="acoes">
