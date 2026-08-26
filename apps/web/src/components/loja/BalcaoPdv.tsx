@@ -363,30 +363,14 @@ export function BalcaoPdv() {
 
           <div className="bal-scroll">
             <div className="bal-grid">
-              {lista.map((p) => {
-                const s = selo(p);
-                const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
-                return (
-                  <button
+              {lista.map((p) => (
+                <CardProdutoBalcao
                   key={p.produtoId}
-                  className={`bal-card grupo-${grupoDe(p.categoria)}`}
-                  disabled={esgotado}
-                  onClick={() => add(p)}
-                  {...useLongPressProps(() => podeGerir && setEditarProduto(p))}
-                >
-                    <div className="bal-thumb">
-                      {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
-                    </div>
-                    {!esgotado && <span className="bal-add"><Plus size={16} /></span>}
-                    <div className="bal-info">
-                      <p className="nome">{p.descricao}</p>
-                      <p className="cat">{p.categoria ?? "—"}</p>
-                      {s && <div className={`bal-est ${s.cls}`}>{s.txt}</div>}
-                      <div className="preco">{brl(p.preco)}</div>
-                    </div>
-                  </button>
-                );
-              })}
+                  produto={p}
+                  onAdd={() => add(p)}
+                  onLongPress={() => podeGerir && setEditarProduto(p)}
+                />
+              ))}
             </div>
             {!produtos.isLoading && lista.length === 0 && <p className="bal-empty">Nenhum produto encontrado.</p>}
           </div>
@@ -1120,6 +1104,34 @@ function ModalDesconto({ titulo, subtitulo, base, onFechar, onAplicar }: {
         </div>
       </div>
     </div>
+  );
+}
+
+// =====================================================================
+// Componente card de produto — isola o hook useLongPressProps do .map()
+// =====================================================================
+function CardProdutoBalcao({ produto: p, onAdd, onLongPress }: { produto: PdvProduto; onAdd: () => void; onLongPress: () => void }) {
+  const s = selo(p);
+  const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
+  const longPress = useLongPressProps(onLongPress);
+  return (
+    <button
+      className={`bal-card grupo-${grupoDe(p.categoria)}`}
+      disabled={esgotado}
+      onClick={onAdd}
+      {...longPress}
+    >
+      <div className="bal-thumb">
+        {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
+      </div>
+      {!esgotado && <span className="bal-add"><Plus size={16} /></span>}
+      <div className="bal-info">
+        <p className="nome">{p.descricao}</p>
+        <p className="cat">{p.categoria ?? "—"}</p>
+        {s && <div className={`bal-est ${s.cls}`}>{s.txt}</div>}
+        <div className="preco">{brl(p.preco)}</div>
+      </div>
+    </button>
   );
 }
 

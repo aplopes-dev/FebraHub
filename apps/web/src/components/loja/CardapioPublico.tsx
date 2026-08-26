@@ -319,7 +319,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
             {/* Resultado de busca vazio */}
             {busca && produtosFiltrados.length === 0 && (
               <div className="cdp-full" style={{ minHeight: 200 }}>
-                <p>Nenhum item encontrado para "<b>{busca}</b>".</p>
+                <p>Nenhum item encontrado para &ldquo;<b>{busca}</b>&rdquo;.</p>
               </div>
             )}
 
