@@ -11,6 +11,15 @@ import "@/app/cardapio.css";
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+/* Paleta para diferenciar categorias sem cor cadastrada. Cor estável por nome:
+   soma dos char codes → índice na paleta (mesma categoria = mesma cor sempre). */
+const PALETA_CAT = ["#e9c15c", "#6aa9ff", "#57c98a", "#ef8f6d", "#c58cf0", "#59c2c9", "#e07b9a", "#c7b26a"];
+const corDaCategoria = (nome: string, fallbackIdx: number) => {
+  let h = 0;
+  for (let i = 0; i < nome.length; i++) h = (h + nome.charCodeAt(i)) % PALETA_CAT.length;
+  return PALETA_CAT[nome ? h : fallbackIdx % PALETA_CAT.length];
+};
+
 /* --- ícones (traço, herdam currentColor) --- */
 const Icon = {
   plus: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14" /></svg>),
@@ -63,12 +72,16 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const categorias = useMemo(() => {
     const ordem: string[] = [];
     const grupos: Record<string, CardapioProduto[]> = {};
+    const cores: Record<string, string | null> = {};
     for (const p of produtos) {
       const c = p.categoria ?? "Outros";
-      if (!grupos[c]) { grupos[c] = []; ordem.push(c); }
+      if (!grupos[c]) { grupos[c] = []; ordem.push(c); cores[c] = p.categoriaCor ?? null; }
       grupos[c].push(p);
+      if (!cores[c] && p.categoriaCor) cores[c] = p.categoriaCor;
     }
-    return ordem.map((c) => ({ nome: c, id: slugify(c), itens: grupos[c] }));
+    // Paleta de fallback: se a categoria não tem cor cadastrada, gera uma cor
+    // estável (mesma cor sempre p/ o mesmo nome) para diferenciar os grupos.
+    return ordem.map((c, i) => ({ nome: c, id: slugify(c), itens: grupos[c], cor: cores[c] ?? corDaCategoria(c, i) }));
   }, [produtos]);
 
   const total = useMemo(
@@ -217,8 +230,10 @@ export function CardapioPublico({ slug }: { slug: string }) {
               <button
                 key={c.id}
                 className={`cdp-chip ${catAtiva === c.id ? "on" : ""}`}
+                style={{ ["--cat" as string]: c.cor }}
                 onClick={() => irPara(c.id)}
               >
+                <span className="cdp-chip-dot" aria-hidden />
                 {c.nome}
               </button>
             ))}
@@ -238,11 +253,13 @@ export function CardapioPublico({ slug }: { slug: string }) {
                 key={c.id}
                 id={c.id}
                 className="cdp-secao"
+                style={{ ["--cat" as string]: c.cor }}
                 ref={(el) => { secoesRef.current[c.id] = el; }}
               >
                 <div className="cdp-secao-head">
+                  <span className="cdp-secao-cor" aria-hidden />
                   <h2>{c.nome}</h2>
-                  <span>{c.itens.length} {c.itens.length === 1 ? "item" : "itens"}</span>
+                  <span className="cdp-secao-cont">{c.itens.length} {c.itens.length === 1 ? "item" : "itens"}</span>
                 </div>
                 <div className="cdp-grid">
                   {c.itens.map((p) => {
@@ -259,6 +276,17 @@ export function CardapioPublico({ slug }: { slug: string }) {
                             ) : (
                               <span className="cdp-preco">{brl(p.preco)}</span>
                             )}
+                            {!p.esgotado && (q === 0 ? (
+                              <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
+                                <Icon.plus />Adicionar
+                              </button>
+                            ) : (
+                              <div className="cdp-step">
+                                <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
+                                <b>{q}</b>
+                                <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                         <div className="cdp-card-media">
@@ -268,17 +296,6 @@ export function CardapioPublico({ slug }: { slug: string }) {
                           ) : baixo ? (
                             <span className="cdp-card-tag baixo">Últimas</span>
                           ) : null}
-                          {!p.esgotado && (q === 0 ? (
-                            <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
-                              <Icon.plus />
-                            </button>
-                          ) : (
-                            <div className="cdp-step">
-                              <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
-                              <b>{q}</b>
-                              <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
-                            </div>
-                          ))}
                         </div>
                       </article>
                     );
