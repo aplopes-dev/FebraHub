@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode, Search, Phone, User } from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
@@ -22,6 +22,46 @@ const COLUNAS: { status: LojaPedidoStatus; titulo: string; Icone: typeof Clock }
   { status: "EM_PREPARACAO", titulo: "Em preparação", Icone: ChefHat },
   { status: "PRONTO", titulo: "Prontos", Icone: PackageCheck },
 ];
+
+/** Mapeamento de transições válidas via drag: status origem → função de transição */
+const TRANSICOES: Partial<Record<LojaPedidoStatus, Record<LojaPedidoStatus, ((id: string) => Promise<unknown>) | null>>> = {
+  AGUARDANDO_PAGAMENTO: {
+    EM_PREPARACAO: null, // sem transição direta
+    NA_FILA: (id) => confirmarPagamento(id),
+    PRONTO: null,
+    AGUARDANDO_PAGAMENTO: null,
+    RETIRADO: null,
+    CANCELADO: null,
+    PROXIMO: null,
+  },
+  NA_FILA: {
+    AGUARDANDO_PAGAMENTO: null,
+    NA_FILA: null,
+    EM_PREPARACAO: (id) => iniciarPreparacao(id),
+    PRONTO: null,
+    RETIRADO: null,
+    CANCELADO: null,
+    PROXIMO: null,
+  },
+  EM_PREPARACAO: {
+    AGUARDANDO_PAGAMENTO: null,
+    NA_FILA: null,
+    EM_PREPARACAO: null,
+    PRONTO: (id) => marcarPronto(id),
+    RETIRADO: null,
+    CANCELADO: null,
+    PROXIMO: null,
+  },
+  PRONTO: {
+    AGUARDANDO_PAGAMENTO: null,
+    NA_FILA: null,
+    EM_PREPARACAO: null,
+    PRONTO: null,
+    RETIRADO: (id) => confirmarRetirada(id),
+    CANCELADO: null,
+    PROXIMO: null,
+  },
+};
 
 function minutosDe(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -67,6 +107,11 @@ export function FilaLoja() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [verDash, setVerDash] = useState(false);
   const [busca, setBusca] = useState("");
+
+  // Drag-and-drop state
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overStatus, setOverStatus] = useState<LojaPedidoStatus | null>(null);
+  const draggingStatusRef = useRef<LojaPedidoStatus | null>(null);
 
   const indicadores = useQuery({
     queryKey: ["loja-pedidos", "indicadores"],
@@ -121,6 +166,65 @@ export function FilaLoja() {
       },
     });
   };
+
+  // ---- Drag handlers ----
+
+  const handleDragStart = useCallback((e: React.DragEvent, pedido: LojaPedido) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("pedidoId", pedido.id);
+    e.dataTransfer.setData("pedidoStatus", pedido.status);
+    setDraggingId(pedido.id);
+    draggingStatusRef.current = pedido.status;
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingId(null);
+    setOverStatus(null);
+    draggingStatusRef.current = null;
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, colStatus: LojaPedidoStatus) => {
+    const origemStatus = draggingStatusRef.current;
+    if (!origemStatus) return;
+    const transicaoOk = TRANSICOES[origemStatus]?.[colStatus] != null;
+    if (transicaoOk) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setOverStatus(colStatus);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Só limpa se realmente saiu do contêiner da coluna (não de filho)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const { clientX, clientY } = e;
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      setOverStatus(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, destStatus: LojaPedidoStatus) => {
+    e.preventDefault();
+    setOverStatus(null);
+    const pedidoId = e.dataTransfer.getData("pedidoId");
+    const origemStatus = e.dataTransfer.getData("pedidoStatus") as LojaPedidoStatus;
+    if (!pedidoId || !origemStatus || origemStatus === destStatus) return;
+    const fn = TRANSICOES[origemStatus]?.[destStatus];
+    if (!fn) return;
+
+    // Transição especial: NA_FILA → EM_PREPARACAO usa prepararEImprimir
+    if (origemStatus === "NA_FILA" && destStatus === "EM_PREPARACAO") {
+      acao.mutate(() => iniciarPreparacao(pedidoId), {
+        onSuccess: () => {
+          setAviso("🖨️ Cupom enviado à impressora.");
+          window.setTimeout(() => setAviso(null), 4000);
+          qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
+        },
+      });
+    } else {
+      acao.mutate(() => fn(pedidoId));
+    }
+  }, [acao, qc]);
 
   const i = indicadores.data;
 
@@ -208,16 +312,39 @@ export function FilaLoja() {
       <section className="fila-board">
         {COLUNAS.map((col) => {
           const lista = porStatus[col.status] ?? [];
+          const podeReceberDrop = podeOperar && draggingId !== null &&
+            draggingStatusRef.current !== null &&
+            TRANSICOES[draggingStatusRef.current]?.[col.status] != null;
+          const estaOver = overStatus === col.status;
+
           return (
-            <div key={col.status} className="fila-coluna">
+            <div
+              key={col.status}
+              className={`fila-coluna${podeReceberDrop ? " fila-coluna-drop-alvo" : ""}${estaOver ? " fila-coluna-over" : ""}`}
+              onDragOver={podeOperar ? (e) => handleDragOver(e, col.status) : undefined}
+              onDragLeave={podeOperar ? handleDragLeave : undefined}
+              onDrop={podeOperar ? (e) => handleDrop(e, col.status) : undefined}
+            >
               <header><col.Icone /> {col.titulo} <span>{lista.length}</span></header>
               <div className="fila-cards">
-                {lista.length === 0 && <p className="fila-vazio">{busca ? "Nenhum resultado" : "—"}</p>}
+                {lista.length === 0 && (
+                  <p className={`fila-vazio${estaOver ? " fila-vazio-over" : ""}`}>
+                    {estaOver ? "Soltar aqui ↓" : busca ? "Nenhum resultado" : "—"}
+                  </p>
+                )}
                 {lista.map((p) => {
                   const tel = fmtTel(p.clienteTel);
                   const temCliente = !!(p.clienteNome || tel);
+                  const arrastando = draggingId === p.id;
+
                   return (
-                    <article key={p.id} className={`fila-card ${p.status === "PROXIMO" ? "proximo" : ""}`}>
+                    <article
+                      key={p.id}
+                      className={`fila-card${p.status === "PROXIMO" ? " proximo" : ""}${arrastando ? " fila-card-arrastando" : ""}${podeOperar ? " fila-card-drag" : ""}`}
+                      draggable={podeOperar}
+                      onDragStart={podeOperar ? (e) => handleDragStart(e, p) : undefined}
+                      onDragEnd={podeOperar ? handleDragEnd : undefined}
+                    >
                       <div className="fila-card-topo">
                         {p.senhaFila != null ? (
                           <b className="fila-senha">Senha {String(p.senhaFila).padStart(2, "0")}<small>#{p.numero}</small></b>

@@ -80,14 +80,22 @@
 .fila-board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media(max-width:1100px){.fila-board{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:640px){.fila-board{grid-template-columns:1fr}}
-.fila-coluna{background:var(--card);border:1px solid var(--card-line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:160px}
+.fila-coluna{background:var(--card);border:1px solid var(--card-line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:160px;transition:border-color .15s,box-shadow .15s}
 .fila-coluna>header{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;padding:4px 4px 8px;border-bottom:1px solid var(--card-line)}
 .fila-coluna>header svg{width:15px;color:var(--gold)}
 .fila-coluna>header span{margin-left:auto;background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-radius:999px;padding:1px 8px;font-size:11px}
-.fila-cards{display:flex;flex-direction:column;gap:10px}
-.fila-vazio{text-align:center;color:var(--muted);padding:14px 0;margin:0}
-.fila-card{border:1px solid var(--card-line);border-radius:12px;padding:12px;background:rgb(var(--gold-rgb)/.03);display:grid;gap:8px}
+.fila-cards{display:flex;flex-direction:column;gap:10px;flex:1}
+.fila-vazio{text-align:center;color:var(--muted);padding:14px 0;margin:0;transition:color .15s}
+/* ---- Drop zone feedback ---- */
+.fila-coluna-drop-alvo{border-color:rgb(var(--gold-rgb)/.5);border-style:dashed}
+.fila-coluna-over{border-color:var(--gold)!important;border-style:solid!important;box-shadow:0 0 0 2px rgb(var(--gold-rgb)/.25);background:rgb(var(--gold-rgb)/.06)!important}
+.fila-vazio-over{color:var(--gold)!important;font-weight:700}
+/* ---- Card drag ---- */
+.fila-card{border:1px solid var(--card-line);border-radius:12px;padding:12px;background:rgb(var(--gold-rgb)/.03);display:grid;gap:8px;transition:opacity .15s,transform .15s,box-shadow .15s}
 .fila-card.proximo{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.fila-card-drag{cursor:grab}
+.fila-card-drag:active{cursor:grabbing}
+.fila-card-arrastando{opacity:.35;transform:scale(.97)}
 .fila-card-topo{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .fila-card-topo b{font-size:19px}
 /* Senha da fila em destaque + número do pedido como referência (casa com a TV) */
