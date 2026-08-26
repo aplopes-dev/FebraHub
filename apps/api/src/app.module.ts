@@ -34,6 +34,7 @@ import { LojaProdutosModule } from './modules/loja-produtos/loja-produtos.module
 import { LojaPedidosModule } from './modules/loja-pedidos/loja-pedidos.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { ComercialModule } from './modules/comercial/comercial.module';
+import { SymplaModule } from './modules/sympla/sympla.module';
 import { HealthController } from './modules/health/health.controller';
 import { LimiteGuard } from './common/guards/limite.guard';
 import { PermissaoGuard } from './common/guards/permissao.guard';
@@ -107,6 +108,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     LojaPedidosModule,
     FiscalModule,
     ComercialModule,
+    SymplaModule,
   ],
   controllers: [HealthController],
   providers: [

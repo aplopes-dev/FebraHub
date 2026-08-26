@@ -10,6 +10,7 @@ import {
   fornecedoresListar,
 } from '@/services/api/fornecedores';
 import type { Fornecedor, FornecedorContato, SituacaoFornecedor } from '@/types/fornecedores';
+import { Select } from '@/components/ui/Select';
 import '@/app/fornecedores.css';
 
 const SITUACOES: { valor: SituacaoFornecedor; rotulo: string; cor: string }[] = [
@@ -104,12 +105,8 @@ export function Fornecedores() {
               <Search />
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Razão social, CNPJ ou categoria" />
             </label>
-            <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
-              <option value="">Todas as situações</option>
-              {SITUACOES.map((s) => (
-                <option key={s.valor} value={s.valor}>{s.rotulo}</option>
-              ))}
-            </select>
+            <Select aria-label="Filtrar por situação" value={filtro} onChange={setFiltro} style={{ minWidth: 170 }}
+              options={[{ value: "", label: "Todas as situações" }, ...SITUACOES.map((s) => ({ value: s.valor, label: s.rotulo }))]} />
           </div>
         </header>
 
@@ -226,11 +223,8 @@ function EditorFornecedor({
           </label>
           <label>
             <span>Situação</span>
-            <select value={rascunho.situacao ?? 'ativo'} onChange={(e) => set('situacao', e.target.value)}>
-              {SITUACOES.map((s) => (
-                <option key={s.valor} value={s.valor}>{s.rotulo}</option>
-              ))}
-            </select>
+            <Select aria-label="Situação" value={rascunho.situacao ?? 'ativo'} onChange={(v) => set('situacao', v)}
+              options={SITUACOES.map((s) => ({ value: s.valor, label: s.rotulo }))} />
           </label>
           <label>
             <span>E-mail</span>

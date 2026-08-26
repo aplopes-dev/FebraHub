@@ -1228,6 +1228,10 @@ model CrmCliente {
   vendasBeneficiario ComVenda[] @relation("VendasBeneficiario")
   leadsOrigem      ComLeadOrigem[]
 
+  /// Integração Sympla
+  sympla_orders        SymplaOrder[]
+  sympla_participantes SymplaParticipante[]
+
   @@index([estagio])
   @@index([nome])
   @@index([responsavelId])
@@ -3318,6 +3322,7 @@ model ComOportunidade {
   negociacao          ComNegociacao?
   venda               ComVenda?
   leadsOrigem         ComLeadOrigem[]
+  sympla_orders       SymplaOrder[]
 
   @@index([pessoaId])
   @@index([funilId, etapaId])
@@ -3680,4 +3685,136 @@ model ComLeadOrigem {
   @@index([pessoaId, criadoEm(sort: Desc)])
   @@index([canal, criadoEm(sort: Desc)])
   @@map("com_leads_origem")
+}
+
+// ====================================================================
+// SYMPLA — Integração com a plataforma de eventos
+// Migration: 00000000000047_sympla_integracao
+// ====================================================================
+
+/// Eventos da conta Sympla (cache local).
+model SymplaEvento {
+  id            BigInt    @id
+  nome          String
+  dataInicio    DateTime? @map("data_inicio") @db.Timestamptz(6)
+  dataFim       DateTime? @map("data_fim") @db.Timestamptz(6)
+  localNome     String?   @map("local_nome")
+  cidade        String?
+  estado        String?
+  imagemUrl     String?   @map("imagem_url")
+  urlSympla     String?   @map("url_sympla")
+  publicado     Boolean   @default(true)
+  cancelado     Boolean   @default(false)
+  totalPedidos  Int?      @map("total_pedidos")
+  totalReceita  Decimal?  @default(0) @map("total_receita") @db.Decimal(14, 2)
+  totalLiquido  Decimal?  @default(0) @map("total_liquido") @db.Decimal(14, 2)
+  payloadRaw    Json?     @map("payload_raw")
+  sincronizadoEm DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  orders        SymplaOrder[]
+  participantes SymplaParticipante[]
+
+  @@index([dataInicio(sort: Desc)])
+  @@index([estado])
+  @@map("sympla_eventos")
+}
+
+/// Pedidos (vendas) por evento Sympla.
+model SymplaOrder {
+  id              String    @id  // ex: "2LLQZ8DJDR3"
+  eventoId        BigInt    @map("evento_id")
+  evento          SymplaEvento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  orderDate       DateTime? @map("order_date") @db.Timestamptz(6)
+  approvedDate    DateTime? @map("approved_date") @db.Timestamptz(6)
+  updatedDate     DateTime? @map("updated_date") @db.Timestamptz(6)
+  /// 'A' = aprovado, 'C' = cancelado, 'P' = pendente
+  status          String?
+  /// FREE | PIX | CREDIT_CARD | BOLETO
+  transactionType String?   @map("transaction_type")
+  totalSalePrice  Decimal   @default(0) @map("total_sale_price") @db.Decimal(14, 2)
+  totalNetValue   Decimal   @default(0) @map("total_net_value") @db.Decimal(14, 2)
+  buyerFirstName  String?   @map("buyer_first_name")
+  buyerLastName   String?   @map("buyer_last_name")
+  buyerEmail      String?   @map("buyer_email")
+  buyerCpf        String?   @map("buyer_cpf")
+  utmSource       String?   @map("utm_source")
+  utmMedium       String?   @map("utm_medium")
+  utmCampaign     String?   @map("utm_campaign")
+  utmTerm         String?   @map("utm_term")
+  utmContent      String?   @map("utm_content")
+  referrer        String?
+  crmClienteId    String?   @map("crm_cliente_id") @db.Uuid
+  crmCliente      CrmCliente? @relation(fields: [crmClienteId], references: [id], onDelete: SetNull)
+  comOportunidadeId String? @map("com_oportunidade_id") @db.Uuid
+  comOportunidade ComOportunidade? @relation(fields: [comOportunidadeId], references: [id], onDelete: SetNull)
+  payloadRaw      Json?     @map("payload_raw")
+  sincronizadoEm  DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime  @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  participantes   SymplaParticipante[]
+
+  @@index([eventoId])
+  @@index([status])
+  @@index([buyerEmail])
+  @@index([buyerCpf])
+  @@index([crmClienteId])
+  @@index([orderDate(sort: Desc)])
+  @@map("sympla_orders")
+}
+
+/// Participantes por order Sympla.
+model SymplaParticipante {
+  id            BigInt    @id
+  orderId       String    @map("order_id")
+  order         SymplaOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventoId      BigInt    @map("evento_id")
+  evento        SymplaEvento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  ticketNumber  String?   @map("ticket_number")
+  ticketName    String?   @map("ticket_name")
+  ticketPrice   Decimal   @default(0) @map("ticket_price") @db.Decimal(14, 2)
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  email         String?
+  telefone      String?
+  cpf           String?
+  checkin       Boolean   @default(false)
+  checkinDate   DateTime? @map("checkin_date") @db.Timestamptz(6)
+  customForm    Json      @default("[]") @map("custom_form")
+  crmClienteId  String?   @map("crm_cliente_id") @db.Uuid
+  crmCliente    CrmCliente? @relation(fields: [crmClienteId], references: [id], onDelete: SetNull)
+  payloadRaw    Json?     @map("payload_raw")
+  sincronizadoEm DateTime? @map("sincronizado_em") @db.Timestamptz(6)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([orderId])
+  @@index([eventoId])
+  @@index([email])
+  @@index([cpf])
+  @@index([crmClienteId])
+  @@map("sympla_participantes")
+}
+
+/// Log de sincronizações Sympla (controle de idempotência).
+model SympláSyncLog {
+  id             BigInt    @id @default(autoincrement())
+  /// eventos | orders_evento | participantes_order | full
+  tipo           String
+  referenciaId   String?   @map("referencia_id")
+  /// iniciado | concluido | erro
+  status         String    @default("iniciado")
+  totalRegistros Int?      @default(0) @map("total_registros")
+  novos          Int?      @default(0)
+  atualizados    Int?      @default(0)
+  erros          Int?      @default(0)
+  erroMensagem   String?   @map("erro_mensagem")
+  iniciadoEm     DateTime  @default(now()) @map("iniciado_em") @db.Timestamptz(6)
+  concluidoEm    DateTime? @map("concluido_em") @db.Timestamptz(6)
+  usuarioId      String?   @map("usuario_id") @db.Uuid
+
+  @@index([tipo, iniciadoEm(sort: Desc)])
+  @@index([status])
+  @@map("sympla_sync_log")
 }

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode } from "lucide-react";
+import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode, Search, Phone, User } from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import {
   cancelarPedido, confirmarPagamento, confirmarRetirada, iniciarPreparacao,
@@ -27,11 +27,45 @@ function minutosDe(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 }
 
+/** Normaliza texto para busca (remove acentos, lowercase) */
+function norm(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Verifica se um pedido bate com o termo de busca (senha, nome ou telefone) */
+function bate(p: LojaPedido, termo: string): boolean {
+  const t = norm(termo.trim());
+  if (!t) return true;
+  // Senha: ex. "07" ou "7"
+  if (p.senhaFila != null && String(p.senhaFila).includes(t)) return true;
+  if (p.senhaFila != null && String(p.senhaFila).padStart(2, "0").includes(t)) return true;
+  // Nome do cliente
+  if (p.clienteNome && norm(p.clienteNome).includes(t)) return true;
+  // Telefone (compara só dígitos)
+  if (p.clienteTel) {
+    const digitos = p.clienteTel.replace(/\D/g, "");
+    const termoDig = t.replace(/\D/g, "");
+    if (termoDig && digitos.includes(termoDig)) return true;
+    if (norm(p.clienteTel).includes(t)) return true;
+  }
+  return false;
+}
+
+/** Formata telefone BR: (XX) XXXXX-XXXX */
+function fmtTel(t: string | null | undefined): string | null {
+  if (!t) return null;
+  const d = t.replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return t;
+}
+
 export function FilaLoja() {
   const qc = useQueryClient();
   const podeOperar = pode(usePerfil(useSessao()).data, "loja.pedidos.operar");
   const [erro, setErro] = useState<string | null>(null);
   const [verDash, setVerDash] = useState(false);
+  const [busca, setBusca] = useState("");
 
   const indicadores = useQuery({
     queryKey: ["loja-pedidos", "indicadores"],
@@ -60,10 +94,10 @@ export function FilaLoja() {
     const map: Record<string, LojaPedido[]> = {};
     for (const c of COLUNAS) map[c.status] = [];
     for (const p of pedidos.data ?? []) {
-      if (map[p.status]) map[p.status].push(p);
+      if (map[p.status] && bate(p, busca)) map[p.status].push(p);
     }
     return map;
-  }, [pedidos.data]);
+  }, [pedidos.data, busca]);
 
   const acao = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
@@ -109,6 +143,21 @@ export function FilaLoja() {
 
       {erro && <div className="fila-erro">{erro}</div>}
 
+      {/* ---- Barra de busca por senha / nome / telefone ---- */}
+      <label className="fila-busca">
+        <Search size={16} />
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por senha, nome do cliente ou telefone…"
+        />
+        {busca && (
+          <button className="fila-busca-limpar" onClick={() => setBusca("")} title="Limpar busca">
+            ×
+          </button>
+        )}
+      </label>
+
       <div>
         <button className="loja-btn mini" onClick={() => setVerDash((v) => !v)}>
           {verDash ? "Ocultar indicadores" : "Ver indicadores da operação"}
@@ -150,55 +199,72 @@ export function FilaLoja() {
             <div key={col.status} className="fila-coluna">
               <header><col.Icone /> {col.titulo} <span>{lista.length}</span></header>
               <div className="fila-cards">
-                {lista.length === 0 && <p className="fila-vazio">—</p>}
-                {lista.map((p) => (
-                  <article key={p.id} className={`fila-card ${p.status === "PROXIMO" ? "proximo" : ""}`}>
-                    <div className="fila-card-topo">
-                      {p.senhaFila != null ? (
-                        <b className="fila-senha">Senha {String(p.senhaFila).padStart(2, "0")}<small>#{p.numero}</small></b>
-                      ) : (
-                        <b>#{p.numero}</b>
-                      )}
-                      <span className="fila-canal">{p.canal === "PDV" ? "PDV" : "Cardápio"}</span>
-                    </div>
-                    <div className="fila-itens">
-                      {p.itens.map((it) => (
-                        <span key={it.id}>{Number(it.quantidade)}× {it.descricao}</span>
-                      ))}
-                    </div>
-                    <div className="fila-card-meta">
-                      <span>{brl(p.total)}</span>
-                      <span><Clock /> {minutosDe(p.criadoEm)} min</span>
-                    </div>
-                    {podeOperar && (
-                      <div className="fila-acoes">
-                        {p.status === "AGUARDANDO_PAGAMENTO" && (
-                          <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => confirmarPagamento(p.id))}>
-                            <CheckCircle2 /> Confirmar pagamento
-                          </button>
+                {lista.length === 0 && <p className="fila-vazio">{busca ? "Nenhum resultado" : "—"}</p>}
+                {lista.map((p) => {
+                  const tel = fmtTel(p.clienteTel);
+                  const temCliente = !!(p.clienteNome || tel);
+                  return (
+                    <article key={p.id} className={`fila-card ${p.status === "PROXIMO" ? "proximo" : ""}`}>
+                      <div className="fila-card-topo">
+                        {p.senhaFila != null ? (
+                          <b className="fila-senha">Senha {String(p.senhaFila).padStart(2, "0")}<small>#{p.numero}</small></b>
+                        ) : (
+                          <b>#{p.numero}</b>
                         )}
-                        {p.status === "NA_FILA" && (
-                          <>
-                            <button className="loja-btn mini" disabled={acao.isPending} onClick={rodar(() => marcarProximo(p.id))}><Bell /> Chamar</button>
-                            <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => iniciarPreparacao(p.id))}><ChefHat /> Preparar</button>
-                          </>
-                        )}
-                        {p.status === "EM_PREPARACAO" && (
-                          <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => marcarPronto(p.id))}><PackageCheck /> Pronto</button>
-                        )}
-                        {p.status === "PRONTO" && (
-                          <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => confirmarRetirada(p.id))}><CheckCircle2 /> Retirar</button>
-                        )}
-                        {p.status !== "RETIRADO" && p.status !== "CANCELADO" && (
-                          <button className="loja-btn perigo mini" disabled={acao.isPending} onClick={() => {
-                            const motivo = window.prompt("Motivo do cancelamento?");
-                            if (motivo) acao.mutate(() => cancelarPedido(p.id, motivo));
-                          }}><Ban /></button>
-                        )}
+                        <span className="fila-canal">{p.canal === "PDV" ? "PDV" : "Cardápio"}</span>
                       </div>
-                    )}
-                  </article>
-                ))}
+
+                      {/* ---- cliente (nome + telefone) ---- */}
+                      {temCliente && (
+                        <div className="fila-cliente">
+                          {p.clienteNome && (
+                            <span className="fila-cli-nome"><User size={11} /> {p.clienteNome}</span>
+                          )}
+                          {tel && (
+                            <span className="fila-cli-tel"><Phone size={11} /> {tel}</span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="fila-itens">
+                        {p.itens.map((it) => (
+                          <span key={it.id}>{Number(it.quantidade)}× {it.descricao}</span>
+                        ))}
+                      </div>
+                      <div className="fila-card-meta">
+                        <span>{brl(p.total)}</span>
+                        <span><Clock /> {minutosDe(p.criadoEm)} min</span>
+                      </div>
+                      {podeOperar && (
+                        <div className="fila-acoes">
+                          {p.status === "AGUARDANDO_PAGAMENTO" && (
+                            <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => confirmarPagamento(p.id))}>
+                              <CheckCircle2 /> Confirmar pagamento
+                            </button>
+                          )}
+                          {p.status === "NA_FILA" && (
+                            <>
+                              <button className="loja-btn mini" disabled={acao.isPending} onClick={rodar(() => marcarProximo(p.id))}><Bell /> Chamar</button>
+                              <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => iniciarPreparacao(p.id))}><ChefHat /> Preparar</button>
+                            </>
+                          )}
+                          {p.status === "EM_PREPARACAO" && (
+                            <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => marcarPronto(p.id))}><PackageCheck /> Pronto</button>
+                          )}
+                          {p.status === "PRONTO" && (
+                            <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => confirmarRetirada(p.id))}><CheckCircle2 /> Retirar</button>
+                          )}
+                          {p.status !== "RETIRADO" && p.status !== "CANCELADO" && (
+                            <button className="loja-btn perigo mini" disabled={acao.isPending} onClick={() => {
+                              const motivo = window.prompt("Motivo do cancelamento?");
+                              if (motivo) acao.mutate(() => cancelarPedido(p.id, motivo));
+                            }}><Ban /></button>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </div>
           );
