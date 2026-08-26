@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Monitor, Plus, QrCode, Store } from "lucide-react";
+import { ExternalLink, Loader2, Monitor, Plus, QrCode, Store, Upload } from "lucide-react";
 import { atualizarOperacao, criarOperacao, lojaOperacoes } from "@/services/api/loja-pedidos";
+import { lojaEnviarImagemProduto } from "@/services/api/loja-produtos";
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaOperacao } from "@/types/loja-pedidos";
@@ -95,6 +96,25 @@ function FormOperacao({
   const [modo, setModo] = useState<LojaOperacao["modo"]>(op?.modo ?? "RETIRADA_BALCAO");
   const [status, setStatus] = useState<LojaOperacao["status"]>(op?.status ?? "ativa");
   const [cartazUrl, setCartazUrl] = useState(op?.cartazUrl ?? "");
+  const [enviandoCartaz, setEnviandoCartaz] = useState(false);
+  const [erroCartaz, setErroCartaz] = useState<string | null>(null);
+  const cartazRef = useRef<HTMLInputElement>(null);
+
+  async function enviarCartaz(arquivo: File) {
+    setErroCartaz(null);
+    setEnviandoCartaz(true);
+    try {
+      // Reusa o upload de imagem da Loja (MinIO, prefixo público) — sem remover
+      // fundo: o cartaz é a arte inteira. Devolve a URL pública p/ o cartazUrl.
+      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "cartaz.jpg");
+      setCartazUrl(url);
+    } catch (e) {
+      setErroCartaz(e instanceof Error ? e.message : "Falha ao enviar o cartaz.");
+    } finally {
+      setEnviandoCartaz(false);
+      if (cartazRef.current) cartazRef.current.value = "";
+    }
+  }
 
   const campo: React.CSSProperties = { width: "100%", marginTop: 4, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--card-line)", background: "var(--card)", color: "inherit", fontSize: 14 };
 
@@ -108,12 +128,20 @@ function FormOperacao({
         <label style={{ fontSize: 12 }}>Slug (URL pública do cardápio/TV)
           <input value={slug} onChange={(e) => setSlug(e.target.value)} style={campo} placeholder="cis-externo-ago-2026" />
         </label>
-        <label style={{ fontSize: 12 }}>Cartaz do evento (URL da imagem — 1ª coluna da TV)
-          <input value={cartazUrl} onChange={(e) => setCartazUrl(e.target.value)} style={campo} placeholder="https://…/cartaz.jpg" />
-        </label>
+        <div>
+          <label style={{ fontSize: 12 }}>Cartaz do evento (1ª coluna da TV)</label>
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <input value={cartazUrl} onChange={(e) => setCartazUrl(e.target.value)} style={{ ...campo, marginTop: 0, flex: 1 }} placeholder="Cole uma URL ou envie a imagem →" />
+            <button type="button" className="loja-btn" disabled={enviandoCartaz} onClick={() => cartazRef.current?.click()} style={{ flex: "none" }}>
+              {enviandoCartaz ? <><Loader2 size={14} className="girando" /> Enviando…</> : <><Upload size={14} /> Enviar</>}
+            </button>
+            <input ref={cartazRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const a = e.target.files?.[0]; if (a) void enviarCartaz(a); }} />
+          </div>
+          {erroCartaz && <p style={{ color: "var(--down)", fontSize: 11.5, margin: "6px 0 0" }}>{erroCartaz}</p>}
+        </div>
         {cartazUrl.trim() && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cartazUrl} alt="Prévia do cartaz" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 10, border: "1px solid var(--card-line)" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          <img src={cartazUrl} alt="Prévia do cartaz" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, border: "1px solid var(--card-line)" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
         )}
         <div style={{ display: "flex", gap: 10 }}>
           <label style={{ fontSize: 12, flex: 1 }}>Modo
