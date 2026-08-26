@@ -95,7 +95,7 @@ export function PainelTv({ slug }: { slug?: string }) {
             <div className={`tv-lista dens-${densidade(preparando.length)}`}>
               {preparando.slice(inicio, fim).map((p) => (
                 <div key={p.numero} className={`tv-card ${p.estado === "PROXIMO" ? "proximo" : ""}`}>
-                  <span className="tv-card-senha">{fmtSenha(p.senha)}</span>
+                  <span className="tv-card-senha">{p.senha != null ? fmtSenha(p.senha) : `#${p.numero}`}</span>
                   <span className="tv-card-pos">Posição {p.posicao}</span>
                 </div>
               ))}
@@ -107,12 +107,16 @@ export function PainelTv({ slug }: { slug?: string }) {
         <ColunaFila className="pronto" titulo="Pronto para retirada" vazio="Aguardando os primeiros pedidos" total={prontos.length}>
           {(inicio, fim) => (
             <div className={`tv-lista dens-${densidade(prontos.length)}`}>
-              {prontos.slice(inicio, fim).map((p) => (
-                <div key={p.numero} className={`tv-card pronto ${p.senha === novoPronto ? "novo" : ""}`}>
-                  {p.senha === novoPronto && <BellRinging weight="fill" className="tv-card-ic" />}
-                  <span className="tv-card-senha">{fmtSenha(p.senha)}</span>
-                </div>
-              ))}
+              {prontos.slice(inicio, fim).map((p) => {
+                const destaque = novoPronto != null && p.senha === novoPronto;
+                return (
+                  <div key={p.numero} className={`tv-card pronto ${destaque ? "novo" : ""}`}>
+                    {destaque && <BellRinging weight="fill" className="tv-card-ic" />}
+                    {/* Pedidos legados sem senha: mostra #pedido como fallback. */}
+                    <span className="tv-card-senha">{p.senha != null ? fmtSenha(p.senha) : `#${p.numero}`}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </ColunaFila>

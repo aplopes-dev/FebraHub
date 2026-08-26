@@ -19,8 +19,8 @@
   /* azul/ciano p/ EM PREPARAÇÃO */
   --tv-blue: #45b6e6;
   --tv-blue-deep: #1c6f96;
-  /* verde p/ PRONTO */
-  --tv-green: #46d07f;
+  /* verde p/ PRONTO (tom equilibrado — legível sem ofuscar na TV) */
+  --tv-green: #3fbf74;
   --tv-green-deep: #1f8a52;
   --tv-on-green: #06210f;
 
@@ -126,13 +126,14 @@
 }
 .tv-col.preparando .tv-card.proximo .tv-card-pos { color: var(--tv-blue); }
 
-/* PRONTO — verde, senha com destaque (§27) */
+/* PRONTO — verde legível sobre fundo escuro; card base SUTIL (o verde chapado
+   fica só para a senha recém-pronta .novo). Evita a coluna toda "acesa". */
 .tv-card.pronto {
   justify-content: center; position: relative;
-  color: var(--tv-green); border-color: rgba(70, 208, 127, 0.42);
-  background: linear-gradient(160deg, rgba(70, 208, 127, 0.14), rgba(70, 208, 127, 0.03));
+  color: var(--tv-green); border-color: rgba(70, 208, 127, 0.32);
+  background: rgba(70, 208, 127, 0.07);
 }
-.tv-card.pronto .tv-card-senha { color: var(--tv-green); }
+.tv-card.pronto .tv-card-senha { color: var(--tv-green); text-shadow: 0 0 18px rgba(70, 208, 127, 0.25); }
 /* a senha recém-pronta pulsa (o "chamado") */
 .tv-card.pronto.novo {
   color: var(--tv-on-green); border-color: var(--tv-green);
