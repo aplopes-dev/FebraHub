@@ -106,6 +106,45 @@ export class StoneConciliacaoService {
     return this.importarDia(fmtDia(ontem));
   }
 
+  /**
+   * Backfill: importa TODOS os dias de um intervalo (AAAAMMDD..AAAAMMDD),
+   * pulando dias já importados com sucesso (a menos de `forcar`). Sequencial
+   * para não estourar o gateway. Limite de 400 dias por chamada.
+   */
+  async importarPeriodo(deAAAAMMDD: string, ateAAAAMMDD: string, forcar = false): Promise<{ de: string; ate: string; dias: number; transacoes: number; jaImportados: number; erros: number }> {
+    const de = diaParaDate(deAAAAMMDD);
+    const ate = diaParaDate(ateAAAAMMDD);
+    if (ate < de) return { de: deAAAAMMDD, ate: ateAAAAMMDD, dias: 0, transacoes: 0, jaImportados: 0, erros: 0 };
+
+    // dias já importados com sucesso (ok|vazio) para pular no modo incremental
+    const jaFeitos = new Set<string>();
+    if (!forcar) {
+      const feitos = await this.prisma.stoneConciliacaoImport.findMany({
+        where: { referenceDate: { gte: de, lte: ate }, status: { in: ['ok', 'vazio'] } },
+        select: { referenceDate: true },
+      });
+      for (const f of feitos) jaFeitos.add(fmtDia(new Date(f.referenceDate)));
+    }
+
+    let dias = 0, transacoes = 0, jaImportados = 0, erros = 0;
+    const cursor = new Date(de);
+    const limite = 400;
+    while (cursor <= ate && dias < limite) {
+      const dia = fmtDia(cursor);
+      if (jaFeitos.has(dia)) {
+        jaImportados++;
+      } else {
+        const r = await this.importarDia(dia);
+        if (r.status === 'erro') erros++;
+        else transacoes += r.quantidade;
+      }
+      dias++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    this.logger.log(`Backfill Stone ${deAAAAMMDD}..${ateAAAAMMDD}: ${dias} dias, ${transacoes} transações, ${jaImportados} já importados, ${erros} erros.`);
+    return { de: deAAAAMMDD, ate: ateAAAAMMDD, dias, transacoes, jaImportados, erros };
+  }
+
   private async registrarImport(stoneCode: string, referenceDate: Date, status: string, quantidade: number, erro?: string) {
     await this.prisma.stoneConciliacaoImport.upsert({
       where: { stoneCode_referenceDate: { stoneCode, referenceDate } },

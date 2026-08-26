@@ -1120,11 +1120,16 @@ function CardProdutoBalcao({ produto: p, onAdd, onLongPress }: { produto: PdvPro
     longPressClick(e); // bloqueia quando long-press
     if (!e.defaultPrevented) onAdd();
   };
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onLongPress();
+  };
   return (
     <button
       className={`bal-card grupo-${grupoDe(p.categoria)}`}
       disabled={esgotado}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
       {...longPressRest}
     >
       <div className="bal-thumb">

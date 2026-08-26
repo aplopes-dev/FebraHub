@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Download, RefreshCw, Store } from "lucide-react";
-import { stoneConcImportar, stoneConcImports, stoneConcStatus, stoneConcTransacoes } from "@/services/api/stone-conciliacao";
+import { stoneConcImportarPeriodo, stoneConcImports, stoneConcStatus, stoneConcTransacoes } from "@/services/api/stone-conciliacao";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { StoneConcTransacao } from "@/types/stone-conciliacao";
@@ -28,11 +28,12 @@ export function ConciliacaoStone() {
   const perfil = usePerfil(useSessao());
   const podeGerir = pode(perfil.data, "financeiro.gerenciar");
 
-  const [de, setDe] = useState(diasAtras(30));
+  const [de, setDe] = useState(diasAtras(365));
   const [ate, setAte] = useState(hojeISO());
   const [serial, setSerial] = useState("");
   const [bandeira, setBandeira] = useState("");
-  const [diaImport, setDiaImport] = useState(diasAtras(1));
+  const [bfDe, setBfDe] = useState(diasAtras(365));
+  const [bfAte, setBfAte] = useState(diasAtras(1));
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -43,14 +44,14 @@ export function ConciliacaoStone() {
   });
   const imports = useQuery({ queryKey: ["stone-conc", "imports"], queryFn: stoneConcImports });
 
-  const importar = useMutation({
-    mutationFn: (dia?: string) => stoneConcImportar(dia),
+  const backfill = useMutation({
+    mutationFn: ({ de, ate }: { de: string; ate: string }) => stoneConcImportarPeriodo(de, ate),
     onMutate: () => { setErro(null); setAviso(null); },
     onSuccess: (r) => {
-      setAviso(r.status === "ok" ? `Importado ${r.quantidade} transação(ões) de ${dataCurta(r.referenceDate)}.` : r.status === "vazio" ? `Nenhuma transação em ${dataCurta(r.referenceDate)}.` : `Falha: ${r.erro ?? "erro"}`);
+      setAviso(`Backfill concluído: ${r.dias} dia(s), ${r.transacoes} transação(ões) novas${r.jaImportados ? `, ${r.jaImportados} já existentes` : ""}${r.erros ? `, ${r.erros} erro(s)` : ""}.`);
       qc.invalidateQueries({ queryKey: ["stone-conc"] });
     },
-    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao importar."),
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha no backfill."),
   });
 
   const d = lista.data;
@@ -139,13 +140,17 @@ export function ConciliacaoStone() {
       <section className="fin-grid">
         <div className="fin-card">
           <header><h2>Importar extrato</h2></header>
-          <p className="fin-help">O extrato de um dia fica disponível após as 5h da manhã do dia seguinte. A importação diária é automática (06:00); use aqui para trazer dias anteriores.</p>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-            <input type="date" className="fin-input" style={{ width: 170 }} value={diaImport} max={diasAtras(1)} onChange={(e) => setDiaImport(e.target.value)} disabled={!podeGerir} />
-            <button className="fin-btn ouro" disabled={!podeGerir || importar.isPending} onClick={() => importar.mutate(isoParaAAAAMMDD(diaImport))}>
-              <Download size={15} /> {importar.isPending ? "Importando…" : "Importar dia"}
+          <p className="fin-help">O extrato de um dia fica disponível após as 5h da manhã do dia seguinte. A importação diária é automática (06:00). Use o backfill para trazer todo o histórico de uma vez — dias já importados são pulados.</p>
+          <label className="fin-help" style={{ marginTop: 12 }}>Período (backfill)</label>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+            <input type="date" className="fin-input" style={{ width: 160 }} value={bfDe} max={bfAte} onChange={(e) => setBfDe(e.target.value)} disabled={!podeGerir} />
+            <span className="fin-help" style={{ display: "inline" }}>até</span>
+            <input type="date" className="fin-input" style={{ width: 160 }} value={bfAte} min={bfDe} max={diasAtras(1)} onChange={(e) => setBfAte(e.target.value)} disabled={!podeGerir} />
+            <button className="fin-btn ouro" disabled={!podeGerir || backfill.isPending} onClick={() => backfill.mutate({ de: isoParaAAAAMMDD(bfDe), ate: isoParaAAAAMMDD(bfAte) })}>
+              <Download size={15} /> {backfill.isPending ? "Importando…" : "Importar período"}
             </button>
           </div>
+          <p className="fin-help">Máx. 400 dias por vez. Pode levar alguns minutos para intervalos grandes.</p>
           {!podeGerir && <p className="fin-help">Requer permissão de gestão financeira.</p>}
         </div>
 

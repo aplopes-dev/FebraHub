@@ -32,4 +32,15 @@ export class StoneConciliacaoController {
     if (dia.length === 8) return this.s.importarDia(dia);
     return this.s.importarOntem();
   }
+
+  /** Backfill de um intervalo (de/ate em AAAAMMDD). Pula dias já importados. */
+  @Post('importar-periodo') @ExigePermissao('financeiro.gerenciar')
+  importarPeriodo(@Body() body: { de?: string; ate?: string; forcar?: boolean }) {
+    const de = (body?.de ?? '').replace(/\D/g, '');
+    const ate = (body?.ate ?? '').replace(/\D/g, '');
+    if (de.length !== 8 || ate.length !== 8) {
+      return { de, ate, dias: 0, transacoes: 0, jaImportados: 0, erros: 0, message: 'Informe de/ate no formato AAAAMMDD.' };
+    }
+    return this.s.importarPeriodo(de, ate, !!body?.forcar);
+  }
 }

@@ -11,3 +11,7 @@ export const stoneConcImports = () => api.get<StoneConcImport[]>('/stone-concili
 /** Dispara a importação de um dia (AAAAMMDD). Sem `dia`, importa ontem. Exige financeiro.gerenciar. */
 export const stoneConcImportar = (dia?: string) =>
   api.post<{ referenceDate: string; status: string; quantidade: number; erro?: string }>('/stone-conciliacao/importar', { dia });
+
+/** Backfill de um intervalo (de/ate AAAAMMDD). Pula dias já importados. Exige financeiro.gerenciar. */
+export const stoneConcImportarPeriodo = (de: string, ate: string, forcar = false) =>
+  api.post<{ de: string; ate: string; dias: number; transacoes: number; jaImportados: number; erros: number }>('/stone-conciliacao/importar-periodo', { de, ate, forcar });
