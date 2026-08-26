@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote, Bell, Check, ChefHat, CreditCard, MoreVertical, Percent, Plus, QrCode,
-  ScanLine, Search, Trash2, X, Copy, Loader2, AlertCircle, Clock,
+  Banknote, Check, ChefHat, CreditCard, Percent, Plus, QrCode,
+  ScanLine, Search, Trash2, X, Copy, Loader2, AlertCircle, Clock, User, UserPlus,
 } from "lucide-react";
 import { lojaCategorias } from "@/services/api/loja-produtos";
 import {
@@ -26,6 +26,7 @@ const FORMAS: { forma: FormaPagamento; label: string; Icone: typeof Banknote }[]
 
 interface LinhaCarrinho { produto: PdvProduto; quantidade: number; descItem: number }
 interface Split { forma: FormaPagamento; valor: number }
+interface Cliente { nome: string; tel: string }
 
 // ==================== Estado do modal de pagamento ====================
 type EstadoPagamento =
@@ -63,7 +64,8 @@ export function BalcaoPdv() {
   const [splits, setSplits] = useState<Split[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
-  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento">(null);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente">(null);
   const [estadoPgto, setEstadoPgto] = useState<EstadoPagamento>({ tipo: "aguardando" });
   const [pixPolling, setPixPolling] = useState<ReturnType<typeof setInterval> | null>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
@@ -118,7 +120,7 @@ export function BalcaoPdv() {
   const remover = (id: string) => { setCarrinho((c) => { const cp = { ...c }; delete cp[id]; return cp; }); setSelecionado((s) => (s === id ? null : s)); };
   const removerSelecionado = () => { if (selecionado) remover(selecionado); };
   const limpar = () => {
-    setCarrinho({}); setSplits([]); setDescontoTotal(0); setSplitOn(false); setSelecionado(null);
+    setCarrinho({}); setSplits([]); setDescontoTotal(0); setSplitOn(false); setSelecionado(null); setCliente(null);
     if (pixPolling) { clearInterval(pixPolling); setPixPolling(null); }
   };
 
@@ -130,7 +132,14 @@ export function BalcaoPdv() {
   const vendaMutacao = useMutation({
     mutationFn: (modo: VendaPdvInput["modo"]) => {
       const pagamentos = splitOn && splits.length ? splits : [{ forma, valor: total }];
-      return vendaPdvFila({ modo, desconto: +(descontoTotal + descItens).toFixed(2), itens: linhas.map((l) => ({ produtoId: l.produto.produtoId, quantidade: l.quantidade })), pagamentos });
+      return vendaPdvFila({
+        modo,
+        clienteNome: cliente?.nome || undefined,
+        clienteTel: cliente?.tel || undefined,
+        desconto: +(descontoTotal + descItens).toFixed(2),
+        itens: linhas.map((l) => ({ produtoId: l.produto.produtoId, quantidade: l.quantidade })),
+        pagamentos,
+      });
     },
     onSuccess: (p) => {
       const pedidoNum = (p as LojaPedido).numero;
@@ -153,6 +162,8 @@ export function BalcaoPdv() {
       // 1. Cria pedido via checkout PDV
       const pedidoCriado = await checkout({
         canal: "PDV",
+        clienteNome: cliente?.nome || undefined,
+        clienteTel: cliente?.tel || undefined,
         itens: linhas.map((l) => ({ produtoId: l.produto.produtoId, quantidade: l.quantidade })),
       });
       // 2. Inicia pagamento PIX (Asaas gera QR)
@@ -221,7 +232,7 @@ export function BalcaoPdv() {
 
   // -------- Atalhos de teclado --------
   const ATALHOS: { tecla: string; label: string; onClick: () => void; ativo: boolean }[] = [
-    { tecla: "F1", label: "Cliente", onClick: () => { setErro("Identificação de cliente — em breve"); setTimeout(() => setErro(null), 2500); }, ativo: true },
+    { tecla: "F1", label: "Cliente", onClick: () => setModal("cliente"), ativo: true },
     { tecla: "F6", label: "Produto", onClick: focarBusca, ativo: true },
     { tecla: "F7", label: "Pagar", onClick: () => { if (podeFinalizar) abrirModalPagamento(); }, ativo: podeFinalizar },
     { tecla: "F8", label: "Remover item", onClick: removerSelecionado, ativo: !!selecionado },
@@ -256,10 +267,16 @@ export function BalcaoPdv() {
         </div>
         <div className="bal-topright">
           <span className="bal-caixa"><span className="dot" /> CAIXA ABERTO</span>
+          <button
+            className={`bal-cliente-chip ${cliente ? "on" : ""}`}
+            onClick={() => setModal("cliente")}
+            title={cliente ? "Editar cliente (F1)" : "Identificar cliente (F1)"}
+          >
+            {cliente ? <User size={15} /> : <UserPlus size={15} />}
+            <span>{cliente ? cliente.nome : "Cliente"}</span>
+          </button>
           <div className="bal-op"><small>Atendimento</small><b>{perfil?.nome?.split(/[\s.]+/)[0] ?? "Operador"}</b></div>
-          <button className="bal-iconbtn" title="Ler código de barras"><ScanLine size={18} /></button>
-          <button className="bal-iconbtn" title="Notificações"><Bell size={18} /></button>
-          <button className="bal-iconbtn"><MoreVertical size={18} /></button>
+          <button className="bal-iconbtn" title="Ler código de barras / buscar produto (F6)" onClick={focarBusca}><ScanLine size={18} /></button>
           <div className="bal-clock">
             <b>{agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
             <small>{agora.toLocaleDateString("pt-BR")}</small>
@@ -276,7 +293,7 @@ export function BalcaoPdv() {
             <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nome, SKU ou código de barras  ·  F6"
               onKeyDown={(e) => { if (e.key === "Enter" && lista.length === 1) { add(lista[0]); setBusca(""); } }} />
-            <button className="bal-scan" title="Escanear"><ScanLine size={16} /></button>
+            <button className="bal-scan" title="Focar busca / escanear (F6)" onClick={focarBusca}><ScanLine size={16} /></button>
           </label>
 
           <div className="bal-chips">
@@ -471,6 +488,14 @@ export function BalcaoPdv() {
           base={brutoTotal - descItens}
           onFechar={() => setModal(null)}
           onAplicar={(v) => { setDescontoTotal(v); setModal(null); }}
+        />
+      )}
+      {modal === "cliente" && (
+        <ModalCliente
+          inicial={cliente}
+          onFechar={() => setModal(null)}
+          onSalvar={(c) => { setCliente(c); setModal(null); }}
+          onLimpar={() => { setCliente(null); setModal(null); }}
         />
       )}
       {modal === "cancelar" && (
@@ -770,6 +795,58 @@ function ModalPagamento({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// Modal de identificação do cliente (F1) — nome + telefone opcionais
+// =====================================================================
+function ModalCliente({ inicial, onFechar, onSalvar, onLimpar }: {
+  inicial: Cliente | null;
+  onFechar: () => void;
+  onSalvar: (c: Cliente) => void;
+  onLimpar: () => void;
+}) {
+  const [nome, setNome] = useState(inicial?.nome ?? "");
+  const [tel, setTel] = useState(inicial?.tel ?? "");
+  const nomeRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { setTimeout(() => nomeRef.current?.focus(), 60); }, []);
+
+  // Máscara leve de telefone (BR)
+  const fmtTel = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  };
+
+  const salvar = () => {
+    const n = nome.trim();
+    if (!n) { nomeRef.current?.focus(); return; }
+    onSalvar({ nome: n, tel: tel.replace(/\D/g, "") });
+  };
+
+  return (
+    <div className="bal-modal-bg" onClick={onFechar}>
+      <div className="bal-modal" onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); salvar(); } if (e.key === "Escape") { e.preventDefault(); onFechar(); } }}>
+        <h3>Identificar cliente</h3>
+        <p>Vincula o nome ao pedido, comprovante e WhatsApp de aviso.</p>
+        <label className="bal-cli-label">Nome do cliente</label>
+        <input ref={nomeRef} className="bal-desc-input bal-cli-input" value={nome}
+          onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Maria Silva" autoComplete="off" />
+        <label className="bal-cli-label">Telefone / WhatsApp <span className="bal-cli-opt">(opcional)</span></label>
+        <input className="bal-desc-input bal-cli-input" inputMode="numeric" value={fmtTel(tel)}
+          onChange={(e) => setTel(e.target.value)} placeholder="(71) 90000-0000" autoComplete="off" />
+        <div className="fim">
+          {inicial
+            ? <button className="bal-mbtn perigo" onClick={onLimpar}>Remover</button>
+            : <button className="bal-mbtn" onClick={onFechar}>Cancelar <kbd>ESC</kbd></button>}
+          <button className="bal-mbtn ouro" onClick={salvar} disabled={!nome.trim()}>Salvar <kbd>Enter</kbd></button>
+        </div>
       </div>
     </div>
   );

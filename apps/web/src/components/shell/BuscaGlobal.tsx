@@ -1,15 +1,20 @@
 "use client";
 
 /**
- * BuscaGlobal — Spotlight do FebraHub (Ctrl+L / ⌘L)
+ * BuscaGlobal — Spotlight do FebraHub (Ctrl+K / ⌘K)
  * ===================================================
  * Busca unificada de MENU e AÇÕES/FUNÇÕES do sistema.
  *
- * • Atalho: Ctrl+L (Windows/Linux) | ⌘L (macOS)
+ * • Atalho: Ctrl+K (Windows/Linux) | ⌘K (macOS)
  * • Botão visual no header (lupa)
  * • Resultados divididos em: Páginas (menu) + Ações/Funções
  * • Filtrado por permissão do usuário atual (ctx de menu)
  * • Navegação por teclado: ↑↓ Enter Esc
+ *
+ * COMPONENTE CONTROLADO: o estado de abertura vive no Shell (useBuscaGlobal).
+ * Este componente só é montado quando aberto === true e chama onFechar() para
+ * pedir o fechamento — não mantém estado de abertura próprio (evita o bug de
+ * dois estados dessincronizados que deixava o botão do header sem efeito).
  */
 
 import {
@@ -35,6 +40,7 @@ import {
   FileText,
   GraduationCap,
   Inbox,
+  Kanban,
   Layers,
   ListOrdered,
   Megaphone,
@@ -49,12 +55,14 @@ import {
   Share2,
   ShieldAlert,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Smartphone,
   Star,
   Target,
   TrendingUp,
   Truck,
+  UserPlus,
   Users,
   Wallet,
   Warehouse,
@@ -82,6 +90,7 @@ const ICONES: Record<string, LucideIcon> = {
   FileText,
   GraduationCap,
   Inbox,
+  Kanban,
   Layers,
   ListOrdered,
   Megaphone,
@@ -95,12 +104,14 @@ const ICONES: Record<string, LucideIcon> = {
   Share2,
   ShieldAlert,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Smartphone,
   Star,
   Target,
   TrendingUp,
   Truck,
+  UserPlus,
   Users,
   Wallet,
   Warehouse,
@@ -140,6 +151,9 @@ type Resultado = ResultadoMenu | ResultadoAcao;
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   ctx: ContextoMenu;
+  /** Estado de abertura — controlado pelo Shell (useBuscaGlobal). Default true
+   *  para retrocompatibilidade caso alguém monte o componente sem controlá-lo. */
+  aberto?: boolean;
   /** Callback para ações sem href (handler). */
   onHandler?: (handler: string) => void;
   /** Callback chamado quando o modal fecha (Esc, overlay, navegar). */
@@ -147,37 +161,24 @@ interface Props {
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
-export function BuscaGlobal({ ctx, onHandler, onFechar }: Props) {
+export function BuscaGlobal({ ctx, aberto = true, onHandler, onFechar }: Props) {
   const router = useRouter();
-  const [aberto, setAberto] = useState(false);
   const [query, setQuery] = useState("");
   const [indice, setIndice] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLUListElement>(null);
 
-  // ── Atalho de teclado global ──────────────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "l") {
-        e.preventDefault();
-        setAberto((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // ── Foco automático ao abrir ──────────────────────────────────────────────
+  // ── Foco automático + reset ao abrir ──────────────────────────────────────
   useEffect(() => {
     if (aberto) {
       setQuery("");
       setIndice(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
     }
   }, [aberto]);
 
   const fechar = useCallback(() => {
-    setAberto(false);
     setQuery("");
     setIndice(0);
     onFechar?.();
@@ -413,7 +414,7 @@ export function BuscaGlobal({ ctx, onHandler, onFechar }: Props) {
           <span><kbd>Esc</kbd> fechar</span>
           <span className="bg-footer-sep" />
           <span className="bg-footer-atalho">
-            <kbd>Ctrl</kbd><kbd>L</kbd> abrir/fechar
+            <kbd>Ctrl</kbd><kbd>K</kbd> abrir/fechar
           </span>
         </div>
       </div>
@@ -423,30 +424,33 @@ export function BuscaGlobal({ ctx, onHandler, onFechar }: Props) {
 
 // ─── Botão do header ──────────────────────────────────────────────────────────
 export function BotaoBuscaGlobal({ onClick }: { onClick: () => void }) {
+  const ehMac =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   return (
     <button
       type="button"
       className="bg-trigger"
       onClick={onClick}
-      aria-label="Busca global (Ctrl+L)"
-      title="Buscar páginas e funções (Ctrl+L)"
+      aria-label="Busca global (Ctrl+K)"
+      title="Buscar páginas e funções (Ctrl+K)"
     >
       <Search size={15} />
       <span className="bg-trigger-label">Buscar…</span>
-      <kbd className="bg-trigger-kbd">Ctrl L</kbd>
+      <kbd className="bg-trigger-kbd">{ehMac ? "⌘ K" : "Ctrl K"}</kbd>
     </button>
   );
 }
 
 /**
- * Hook auxiliar — retorna [aberto, setAberto] já com o atalho de teclado.
- * Use se quiser controlar o estado externamente.
+ * Hook auxiliar — retorna [aberto, setAberto] já com o atalho de teclado (Ctrl+K
+ * / ⌘K). Este é o ÚNICO detentor do estado de abertura da busca global; o
+ * componente BuscaGlobal é controlado por ele (via prop `aberto`).
  */
 export function useBuscaGlobal() {
   const [aberto, setAberto] = useState(false);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "l") {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         setAberto((v) => !v);
       }

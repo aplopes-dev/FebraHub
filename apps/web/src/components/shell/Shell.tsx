@@ -321,6 +321,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
         {buscaAberta && (
           <BuscaGlobal
             ctx={ctxMenu}
+            aberto={buscaAberta}
             onFechar={() => setBuscaAberta(false)}
             onHandler={(handler) => {
               // Handlers especiais (ex.: abrir modais) podem ser registrados aqui
