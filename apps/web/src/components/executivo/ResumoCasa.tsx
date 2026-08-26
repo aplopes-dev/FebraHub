@@ -106,17 +106,22 @@ function AncoraCard({
         className="fh-exec-ancora-valor"
         style={{
           fontFamily: GROTESK,
-          fontSize: destaque ? 42 : 24,
+          fontSize: destaque ? 42 : 23,
           fontWeight: 700,
           letterSpacing: "-.8px",
           color: destaque ? C.gold : C.bright,
           marginTop: destaque ? 18 : 10,
           lineHeight: 1.05,
+          display: "flex",
+          alignItems: "baseline",
+          flexWrap: "wrap",
+          gap: destaque ? 8 : "2px 6px",
+          minWidth: 0,
         }}
       >
-        {valorFmt(card.unidade, card.valor)}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{valorFmt(card.unidade, card.valor)}</span>
         {card.parcial && (
-          <span style={{ fontSize: destaque ? 13 : 11, fontWeight: 700, color: C.warn, marginLeft: 8 }}>
+          <span style={{ fontSize: destaque ? 13 : 10.5, fontWeight: 700, color: C.warn }}>
             parcial
           </span>
         )}
