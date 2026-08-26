@@ -1252,9 +1252,9 @@ function ModalEditarProdutoPdv({
       const payload = {
         nome: nome.trim() || prodData.nome,
         sku: prodData.sku ?? "",
-        codigoBarras: ean.trim() || null,
+        codigoBarras: ean.trim() || undefined,
         descricao: prodData.descricao ?? "",
-        imagemUrl: imagemUrl || null,
+        imagemUrl: imagemUrl || undefined,
         categoriaId: prodData.categoriaId ?? null,
         preco: precoNum,
         custo: prodData.custo ? Number(prodData.custo) : undefined,
