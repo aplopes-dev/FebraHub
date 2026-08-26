@@ -89,6 +89,7 @@ export interface CardapioProduto {
   categoria?: string | null;
   categoriaCor?: string | null;
   precisaPreparacao: boolean;
+  emDestaque: boolean;
   disponivel: number | null;
   esgotado: boolean;
 }

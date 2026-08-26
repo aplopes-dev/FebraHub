@@ -157,6 +157,7 @@ export class LojaPedidosService {
           produtoId: p.id, nome: p.nome, descricao: p.descricao, preco: Number(p.preco),
           imagemUrl: p.imagemUrl ?? null, categoria: p.categoria?.nome ?? null, categoriaCor: p.categoria?.cor ?? null,
           precisaPreparacao: p.precisaPreparacao,
+          emDestaque: p.emDestaque,
           disponivel: p.controlaEstoque && !p.vendeSemEstoque ? Math.max(0, disponivel) : null,
           esgotado: p.controlaEstoque && !p.vendeSemEstoque && disponivel <= 0,
         };
@@ -692,6 +693,15 @@ export class LojaPedidosService {
   async iniciarPreparacao(pedidoId: string, u: UsuarioLogado) {
     const { pedido } = await this.transicionar(pedidoId, ['NA_FILA', 'PROXIMO'], 'EM_PREPARACAO', u, 'preparacaoEm');
     void this.avisar(pedido.clienteTel, mensagemRegua('preparacao', pedido.senhaFila, pedido.numero));
+    // Ao entrar em preparação, IMPRIME o ticket automaticamente (o preparador
+    // usa para montar o pedido; vai anexado à entrega). Best-effort: uma falha
+    // na impressora NÃO derruba a transição da fila. Ligado por padrão; pode ser
+    // desativado com LOJA_IMPRIMIR_AO_PREPARAR=false.
+    if (process.env.LOJA_IMPRIMIR_AO_PREPARAR !== 'false') {
+      void this.imprimirCupom(pedidoId, u).catch((e) =>
+        this.logger.warn(`Falha ao imprimir cupom automático do pedido ${pedidoId}: ${e instanceof Error ? e.message : e}`),
+      );
+    }
     return jsonSeguro(pedido);
   }
 

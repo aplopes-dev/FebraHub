@@ -48,6 +48,7 @@
 .loja-badge.off{background:rgb(var(--down-rgb,224 108 117)/.14);color:var(--down)}
 .loja-badge.prep{background:rgb(var(--gold-rgb)/.16);color:var(--gold)}
 .loja-badge.baixo{background:rgb(var(--down-rgb,224 108 117)/.14);color:var(--down)}
+.loja-badge.destaque{background:linear-gradient(135deg,rgba(233,193,92,.22),rgba(233,193,92,.10));color:#e9c15c;border:1px solid rgba(233,193,92,.35)}
 
 .loja-locais{display:flex;gap:8px}
 .loja-local{font-size:11px}
@@ -68,6 +69,7 @@
 .loja-flags{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .loja-flag{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:8px 10px;border:1px solid var(--card-line);border-radius:9px;cursor:pointer}
 .loja-flag input{width:16px;height:16px;accent-color:var(--gold)}
+.loja-flag-destaque{background:linear-gradient(135deg,rgba(233,193,92,.08),transparent);border-color:rgba(233,193,92,.28)!important;color:#c8a34a;font-weight:600}
 .loja-modal .fim{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
 .loja-mov{display:grid;gap:6px;margin-top:8px;max-height:240px;overflow:auto}
 .loja-mov .linha{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--hair)}

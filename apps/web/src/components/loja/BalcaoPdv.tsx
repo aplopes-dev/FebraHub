@@ -1,11 +1,16 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote, Barcode, Check, ChefHat, CreditCard, Link2, Percent, Plus, QrCode,
-  ScanLine, Search, Trash2, X, Copy, Loader2, AlertCircle, Clock, User, UserPlus,
+  Banknote, Barcode, Camera, Check, ChefHat, CreditCard, ImageOff, Link2,
+  Loader2, Pencil, Percent, Plus, QrCode, ScanLine, Search, Trash2, X, Copy,
+  AlertCircle, Clock, User, UserPlus,
 } from "lucide-react";
-import { lojaBuscarPorBarcode, lojaCategorias, lojaAtualizarCodigoBarras } from "@/services/api/loja-produtos";
+import {
+  lojaBuscarPorBarcode, lojaCategorias, lojaAtualizarCodigoBarras,
+  lojaAtualizarProduto, lojaEnviarImagemProduto, lojaProduto as buscarProduto,
+} from "@/services/api/loja-produtos";
+import type { LojaProduto } from "@/types/loja-produtos";
 import {
   lojaPedidosIndicadores, lojaProdutosBalcao, vendaPdvFila,
   checkout, iniciarPagamento, confirmarPagamento, lojaPedido as buscarPedido,
@@ -57,6 +62,7 @@ export function BalcaoPdv() {
   const qc = useQueryClient();
   const perfil = usePerfil(useSessao()).data;
   const podeOperar = pode(perfil, "loja.pedidos.operar");
+  const podeGerir = pode(perfil, "loja.produtos.gerenciar");
 
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState<string>("");
@@ -70,6 +76,7 @@ export function BalcaoPdv() {
   const [agora, setAgora] = useState(() => new Date());
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente" | "ean_nao_encontrado">(null);
+  const [editarProduto, setEditarProduto] = useState<PdvProduto | null>(null);
   const [eanPendente, setEanPendente] = useState<EanNaoEncontrado | null>(null);
   const [estadoPgto, setEstadoPgto] = useState<EstadoPagamento>({ tipo: "aguardando" });
   const [pixPolling, setPixPolling] = useState<ReturnType<typeof setInterval> | null>(null);
@@ -360,7 +367,13 @@ export function BalcaoPdv() {
                 const s = selo(p);
                 const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
                 return (
-                  <button key={p.produtoId} className={`bal-card grupo-${grupoDe(p.categoria)}`} disabled={esgotado} onClick={() => add(p)}>
+                  <button
+                  key={p.produtoId}
+                  className={`bal-card grupo-${grupoDe(p.categoria)}`}
+                  disabled={esgotado}
+                  onClick={() => add(p)}
+                  {...useLongPressProps(() => podeGerir && setEditarProduto(p))}
+                >
                     <div className="bal-thumb">
                       {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
                     </div>
@@ -570,6 +583,20 @@ export function BalcaoPdv() {
             add(prod);
             setModal(null);
             setEanPendente(null);
+          }}
+        />
+      )}
+
+      {/* ---- Modal edição rápida de produto (long-press no card) ---- */}
+      {editarProduto && (
+        <ModalEditarProdutoPdv
+          produto={editarProduto}
+          onFechar={() => setEditarProduto(null)}
+          onSalvo={(atualizado) => {
+            // Atualiza o produto na lista local sem precisar recarregar tudo
+            qc.invalidateQueries({ queryKey: ["pdv-produtos"] });
+            qc.invalidateQueries({ queryKey: ["loja"] });
+            setEditarProduto(null);
           }}
         />
       )}
@@ -1091,6 +1118,288 @@ function ModalDesconto({ titulo, subtitulo, base, onFechar, onAplicar }: {
           <button className="bal-mbtn" onClick={onFechar}>Cancelar <kbd>ESC</kbd></button>
           <button className="bal-mbtn ouro" onClick={aplicar}>Aplicar <kbd>Enter</kbd></button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// Hook: useLongPressProps
+// Retorna props para um elemento que dispara onLongPress após 500ms.
+// Funciona tanto em touch (mobile) quanto em mouse (desktop).
+// =====================================================================
+function useLongPressProps(onLongPress: () => void, delay = 500) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fired = useRef(false);
+
+  const start = useCallback(() => {
+    fired.current = false;
+    timer.current = setTimeout(() => {
+      fired.current = true;
+      onLongPress();
+    }, delay);
+  }, [onLongPress, delay]);
+
+  const cancel = useCallback(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+  }, []);
+
+  return {
+    onMouseDown: start,
+    onMouseUp: cancel,
+    onMouseLeave: cancel,
+    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); start(); },
+    onTouchEnd: cancel,
+    onTouchCancel: cancel,
+    // Bloqueia o click normal quando long-press foi disparado
+    onClick: (e: React.MouseEvent) => { if (fired.current) { e.preventDefault(); e.stopPropagation(); fired.current = false; } },
+  };
+}
+
+// =====================================================================
+// Modal de edição rápida de produto (acionado por long-press no PDV)
+// =====================================================================
+function ModalEditarProdutoPdv({
+  produto: prodInicial,
+  onFechar,
+  onSalvo,
+}: {
+  produto: PdvProduto;
+  onFechar: () => void;
+  onSalvo: (atualizado: LojaProduto) => void;
+}) {
+  const [nome, setNome] = useState(prodInicial.descricao ?? "");
+  const [ean, setEan] = useState("");
+  const [preco, setPreco] = useState(String(prodInicial.preco / 100 > 1 ? prodInicial.preco : prodInicial.preco));
+  const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
+  const [enviandoImg, setEnviandoImg] = useState(false);
+  const [removendoFundo, setRemovendoFundo] = useState(true);
+  const [erroImg, setErroImg] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
+  // Carrega EAN atual do produto (vem da API completa)
+  const prodQuery = useQuery({
+    queryKey: ["loja", "produto", prodInicial.produtoId],
+    queryFn: () => buscarProduto(prodInicial.produtoId),
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (prodQuery.data) {
+      setEan(prodQuery.data.codigoBarras ?? "");
+      // Atualiza nome e preço se ainda estiverem com os valores iniciais
+      if (nome === prodInicial.descricao) setNome(prodQuery.data.nome);
+      const precoApi = Number(prodQuery.data.preco);
+      if (!isNaN(precoApi)) setPreco(precoApi.toFixed(2).replace(".", ","));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prodQuery.data]);
+
+  async function processarImagem(arquivo: File) {
+    setErroImg(null);
+    const urlLocal = URL.createObjectURL(arquivo);
+    setImagemUrl(urlLocal);
+    setEnviandoImg(true);
+    try {
+      let arquivoFinal = arquivo;
+      if (removendoFundo) {
+        try {
+          const { removeBackground } = await import("@imgly/background-removal");
+          const blob = await removeBackground(arquivo);
+          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
+        } catch { /* usa original */ }
+      }
+      URL.revokeObjectURL(urlLocal);
+      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
+      setImagemUrl(url);
+    } catch (e) {
+      URL.revokeObjectURL(urlLocal);
+      setImagemUrl(prodInicial.imagemUrl ?? "");
+      setErroImg(e instanceof Error ? e.message : "Falha ao enviar imagem.");
+    } finally {
+      setEnviandoImg(false);
+      if (fileRef.current) fileRef.current.value = "";
+      if (cameraRef.current) cameraRef.current.value = "";
+    }
+  }
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      const precoNum = Number(preco.replace(",", "."));
+      if (isNaN(precoNum) || precoNum < 0) throw new Error("Preço inválido.");
+      const prodData = prodQuery.data;
+      if (!prodData) throw new Error("Produto não carregado.");
+      const payload = {
+        nome: nome.trim() || prodData.nome,
+        sku: prodData.sku ?? "",
+        codigoBarras: ean.trim() || null,
+        descricao: prodData.descricao ?? "",
+        imagemUrl: imagemUrl || null,
+        categoriaId: prodData.categoriaId ?? null,
+        preco: precoNum,
+        custo: prodData.custo ? Number(prodData.custo) : undefined,
+        unidade: prodData.unidade ?? "un",
+        ativo: prodData.ativo,
+        vendePdv: prodData.vendePdv,
+        exibeCardapio: prodData.exibeCardapio,
+        precisaPreparacao: prodData.precisaPreparacao,
+        controlaEstoque: prodData.controlaEstoque,
+        vendeSemEstoque: prodData.vendeSemEstoque,
+        emDestaque: prodData.emDestaque,
+        estoqueMinimo: Number(prodData.estoqueMinimo) ?? 0,
+      };
+      return lojaAtualizarProduto(prodData.id, payload);
+    },
+    onSuccess: onSalvo,
+    onError: (e) => setErro(e instanceof Error ? e.message : "Falha ao salvar."),
+  });
+
+  const carregando = prodQuery.isLoading;
+
+  return (
+    <div className="bal-modal-bg" onClick={onFechar}>
+      <div className="bal-modal bal-edprod" onClick={(e) => e.stopPropagation()}>
+        {/* cabeçalho */}
+        <div className="bal-edprod-head">
+          <Pencil size={18} />
+          <div>
+            <h3>Editar produto</h3>
+            <p className="bal-edprod-sub">{prodInicial.descricao}</p>
+          </div>
+          <button className="bal-iconbtn" onClick={onFechar}><X size={18} /></button>
+        </div>
+
+        {carregando ? (
+          <div className="bal-edprod-loading"><Loader2 size={28} className="spin-icon" /> Carregando…</div>
+        ) : (
+          <>
+            {/* Imagem */}
+            <div className="bal-edprod-img-area">
+              <div
+                className={`bal-edprod-preview ${imagemUrl ? "" : "vazio"}`}
+                onClick={() => !enviandoImg && fileRef.current?.click()}
+              >
+                {imagemUrl ? (
+                  <img src={imagemUrl} alt="" />
+                ) : (
+                  <span><ImageOff size={32} /><small>Sem imagem</small></span>
+                )}
+                {enviandoImg && (
+                  <div className="bal-edprod-sending">
+                    <Loader2 size={28} className="spin-icon" />
+                  </div>
+                )}
+              </div>
+
+              <div className="bal-edprod-img-btns">
+                {/* Câmera (mobile: abre câmera diretamente) */}
+                <button
+                  type="button"
+                  className="bal-mbtn ouro"
+                  disabled={enviandoImg}
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  <Camera size={15} /> Tirar foto
+                </button>
+                {/* Galeria / arquivo */}
+                <button
+                  type="button"
+                  className="bal-mbtn"
+                  disabled={enviandoImg}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {imagemUrl ? "Trocar" : "Galeria"}
+                </button>
+                {imagemUrl && (
+                  <button
+                    type="button"
+                    className="bal-mbtn"
+                    disabled={enviandoImg}
+                    onClick={() => setImagemUrl("")}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+                <label className="bal-edprod-toggle">
+                  <input type="checkbox" checked={removendoFundo} onChange={(e) => setRemovendoFundo(e.target.checked)} />
+                  Remover fundo
+                </label>
+              </div>
+
+              {erroImg && <p className="bal-err">{erroImg}</p>}
+
+              {/* inputs file ocultos */}
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void processarImagem(f); }} />
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void processarImagem(f); }} />
+            </div>
+
+            {/* Campos */}
+            <div className="bal-edprod-campos">
+              <label>
+                <span>Nome do produto</span>
+                <input
+                  className="bal-desc-input"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Nome do produto"
+                />
+              </label>
+
+              <label>
+                <span>Código de barras (EAN)</span>
+                <div className="bal-edprod-ean-row">
+                  <input
+                    className="bal-desc-input"
+                    value={ean}
+                    onChange={(e) => setEan(e.target.value)}
+                    placeholder="Ex: 7891234567890"
+                    inputMode="numeric"
+                  />
+                  <button
+                    type="button"
+                    className="bal-mbtn"
+                    title="Escanear EAN"
+                    onClick={() => {
+                      // Tenta usar câmera para scanner (fallback: campo de texto)
+                      cameraRef.current?.click();
+                    }}
+                  >
+                    <Barcode size={15} />
+                  </button>
+                </div>
+              </label>
+
+              <label>
+                <span>Preço (R$)</span>
+                <input
+                  className="bal-desc-input"
+                  value={preco}
+                  onChange={(e) => setPreco(e.target.value)}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                />
+              </label>
+            </div>
+
+            {erro && <p className="bal-err">{erro}</p>}
+
+            <div className="fim" style={{ marginTop: 16 }}>
+              <button className="bal-mbtn" onClick={onFechar}>Cancelar</button>
+              <button
+                className="bal-mbtn ouro"
+                disabled={salvar.isPending || enviandoImg}
+                onClick={() => salvar.mutate()}
+              >
+                {salvar.isPending ? <Loader2 size={14} className="spin-icon" /> : <Check size={14} />}
+                {salvar.isPending ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -135,6 +135,7 @@ export function CatalogoLoja() {
                   </td>
                   <td>
                     <span className={`loja-badge ${p.ativo ? "on" : "off"}`}>{p.ativo ? "ativo" : "inativo"}</span>{" "}
+                    {p.emDestaque && <span className="loja-badge destaque" title="Destaque no cardápio">⭐ destaque</span>}{" "}
                     {p.precisaPreparacao && <span className="loja-badge prep">preparo</span>}{" "}
                     {p.vendeSemEstoque && <span className="loja-badge prep" title="Vende mesmo sem estoque">s/ limite</span>}{" "}
                     {!p.vendePdv && <span className="loja-badge off">s/ PDV</span>}{" "}
@@ -343,6 +344,7 @@ function ModalProduto({
     precisaPreparacao: base?.precisaPreparacao ?? false,
     controlaEstoque: base?.controlaEstoque ?? true,
     vendeSemEstoque: base?.vendeSemEstoque ?? false,
+    emDestaque: base?.emDestaque ?? false,
     estoqueMinimo: base ? Number(base.estoqueMinimo) : 0,
   }));
   const [erro, setErro] = useState<string | null>(null);
@@ -508,6 +510,10 @@ function ModalProduto({
               <label className="loja-flag"><input type="checkbox" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} /> Ativo</label>
               <label className="loja-flag"><input type="checkbox" checked={f.vendePdv} onChange={(e) => set("vendePdv", e.target.checked)} /> Vende no PDV</label>
               <label className="loja-flag"><input type="checkbox" checked={f.exibeCardapio} onChange={(e) => set("exibeCardapio", e.target.checked)} /> Exibe no Cardápio</label>
+              <label className="loja-flag loja-flag-destaque" title="O produto aparece na seção Destaques (carrossel topo) do cardápio digital">
+                <input type="checkbox" checked={f.emDestaque ?? false} onChange={(e) => set("emDestaque", e.target.checked)} />
+                ⭐ Destaque no Cardápio
+              </label>
               <label className="loja-flag"><input type="checkbox" checked={f.precisaPreparacao} onChange={(e) => set("precisaPreparacao", e.target.checked)} /> Precisa de preparação</label>
               <label className="loja-flag"><input type="checkbox" checked={f.controlaEstoque} onChange={(e) => set("controlaEstoque", e.target.checked)} /> Controla estoque</label>
               <label className="loja-flag" title="Permite vender mesmo quando o saldo disponível for zero">

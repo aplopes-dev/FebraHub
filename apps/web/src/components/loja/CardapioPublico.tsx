@@ -47,6 +47,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const [forma, setForma] = useState<"PIX" | "CARTAO_CREDITO">("PIX");
   const [cartao, setCartao] = useState({ numero: "", titular: "", validade: "", cvv: "", cpfCnpj: "" });
   const [catAtiva, setCatAtiva] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
   const secoesRef = useRef<Record<string, HTMLElement | null>>({});
 
   const cardapio = useQuery({
@@ -69,11 +70,23 @@ export function CardapioPublico({ slug }: { slug: string }) {
   }, [etapa, pedidoId, statusPedido.data, router]);
 
   const produtos = useMemo(() => cardapio.data?.produtos ?? [], [cardapio.data]);
+
+  // Produtos em destaque (carrossel no topo do cardápio)
+  const destaques = useMemo(() => produtos.filter((p) => p.emDestaque && !p.esgotado), [produtos]);
+
+  // Busca: normaliza acentos e filtra por nome ou descrição
+  const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const produtosFiltrados = useMemo(() => {
+    if (!busca.trim()) return produtos;
+    const q = normalizar(busca);
+    return produtos.filter((p) => normalizar(p.nome).includes(q) || normalizar(p.descricao ?? "").includes(q));
+  }, [produtos, busca]);
+
   const categorias = useMemo(() => {
     const ordem: string[] = [];
     const grupos: Record<string, CardapioProduto[]> = {};
     const cores: Record<string, string | null> = {};
-    for (const p of produtos) {
+    for (const p of produtosFiltrados) {
       const c = p.categoria ?? "Outros";
       if (!grupos[c]) { grupos[c] = []; ordem.push(c); cores[c] = p.categoriaCor ?? null; }
       grupos[c].push(p);
@@ -82,7 +95,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
     // Paleta de fallback: se a categoria não tem cor cadastrada, gera uma cor
     // estável (mesma cor sempre p/ o mesmo nome) para diferenciar os grupos.
     return ordem.map((c, i) => ({ nome: c, id: slugify(c), itens: grupos[c], cor: cores[c] ?? corDaCategoria(c, i) }));
-  }, [produtos]);
+  }, [produtosFiltrados]);
 
   const total = useMemo(
     () => produtos.reduce((s, p) => s + (carrinho[p.produtoId] ?? 0) * p.preco, 0),
@@ -222,8 +235,27 @@ export function CardapioPublico({ slug }: { slug: string }) {
         </div>
       </div>
 
+      {/* ---- BARRA DE BUSCA ---- */}
+      <div className="cdp-busca-wrap">
+        <div className="cdp-busca">
+          <svg className="cdp-busca-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input
+            className="cdp-busca-inp"
+            type="search"
+            placeholder="Buscar no cardápio…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+          {busca && (
+            <button className="cdp-busca-limpar" onClick={() => setBusca("")} aria-label="Limpar busca">
+              <Icon.close />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ---- NAV DE CATEGORIAS ---- */}
-      {categorias.length > 1 && (
+      {categorias.length > 1 && !busca && (
         <nav className="cdp-nav">
           <div className="cdp-nav-inner">
             {categorias.map((c) => (
@@ -245,7 +277,53 @@ export function CardapioPublico({ slug }: { slug: string }) {
       <main className="cdp-main">
         <div className="cdp-layout">
           <div>
-            {produtos.length === 0 && (
+            {/* ---- DESTAQUES (carrossel horizontal) ---- */}
+            {destaques.length > 0 && !busca && (
+              <section className="cdp-destaques">
+                <div className="cdp-secao-head">
+                  <span className="cdp-destaque-star" aria-hidden>⭐</span>
+                  <h2>Destaques</h2>
+                </div>
+                <div className="cdp-destaques-rail">
+                  {destaques.map((p) => {
+                    const q = carrinho[p.produtoId] ?? 0;
+                    return (
+                      <article key={p.produtoId} className="cdp-destaque-card">
+                        <div className="cdp-destaque-media">
+                          {p.imagemUrl
+                            ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" />
+                            : <div className="ph"><ForkKnife weight="fill" /></div>}
+                        </div>
+                        <div className="cdp-destaque-body">
+                          <h3 className="cdp-destaque-nome">{p.nome}</h3>
+                          <span className="cdp-preco">{brl(p.preco)}</span>
+                          {q === 0 ? (
+                            <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
+                              <Icon.plus />Adicionar
+                            </button>
+                          ) : (
+                            <div className="cdp-step">
+                              <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
+                              <b>{q}</b>
+                              <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Resultado de busca vazio */}
+            {busca && produtosFiltrados.length === 0 && (
+              <div className="cdp-full" style={{ minHeight: 200 }}>
+                <p>Nenhum item encontrado para "<b>{busca}</b>".</p>
+              </div>
+            )}
+
+            {produtos.length === 0 && !busca && (
               <div className="cdp-full" style={{ minHeight: 240 }}><p>Nenhum item disponível no momento.</p></div>
             )}
             {categorias.map((c) => (

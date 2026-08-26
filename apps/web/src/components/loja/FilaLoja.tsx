@@ -64,6 +64,7 @@ export function FilaLoja() {
   const qc = useQueryClient();
   const podeOperar = pode(usePerfil(useSessao()).data, "loja.pedidos.operar");
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [verDash, setVerDash] = useState(false);
   const [busca, setBusca] = useState("");
 
@@ -110,6 +111,17 @@ export function FilaLoja() {
 
   const rodar = (fn: () => Promise<unknown>) => () => acao.mutate(fn);
 
+  /** Preparar: dispara a transição e mostra um aviso de que o cupom foi enviado
+   *  à impressora (a impressão é automática no backend, best-effort). */
+  const prepararEImprimir = (pedidoId: string) => () => {
+    acao.mutate(() => iniciarPreparacao(pedidoId), {
+      onSuccess: () => {
+        setAviso("🖨️ Cupom enviado à impressora.");
+        window.setTimeout(() => setAviso(null), 4000);
+      },
+    });
+  };
+
   const i = indicadores.data;
 
   return (
@@ -142,6 +154,7 @@ export function FilaLoja() {
       )}
 
       {erro && <div className="fila-erro">{erro}</div>}
+      {aviso && <div className="fila-aviso">{aviso}</div>}
 
       {/* ---- Barra de busca por senha / nome / telefone ---- */}
       <label className="fila-busca">
@@ -245,7 +258,7 @@ export function FilaLoja() {
                           {p.status === "NA_FILA" && (
                             <>
                               <button className="loja-btn mini" disabled={acao.isPending} onClick={rodar(() => marcarProximo(p.id))}><Bell /> Chamar</button>
-                              <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => iniciarPreparacao(p.id))}><ChefHat /> Preparar</button>
+                              <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={prepararEImprimir(p.id)}><ChefHat /> Preparar</button>
                             </>
                           )}
                           {p.status === "EM_PREPARACAO" && (

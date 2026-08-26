@@ -81,11 +81,39 @@
 .pm-prod-badge.ok{color:var(--pm-verde)} .pm-prod-badge.baixo{color:#e9b949} .pm-prod-badge.zero{color:var(--pm-vermelho)}
 .pm-prod-qtd{position:absolute;top:8px;left:8px;min-width:22px;height:22px;border-radius:999px;background:var(--pm-gold-a);color:var(--pm-sobre);font-size:12px;font-weight:800;display:grid;place-items:center}
 
-/* barra do carrinho fixa acima das tabs */
-.pm-carrinho-bar{
-  position:sticky;bottom:0;margin:12px -14px -16px;padding:12px 14px calc(env(safe-area-inset-bottom) + 12px);
-  background:linear-gradient(180deg,rgba(14,14,17,0),#0e0e11 30%);
+/* ── Área inferior: ações rápidas + carrinho ── */
+.pm-bottom-area{
+  position:sticky;bottom:0;margin:12px -14px -16px;
+  background:linear-gradient(180deg,rgba(14,14,17,0) 0%,#0e0e11 28%);
+  padding:0 14px calc(env(safe-area-inset-bottom) + 12px);
 }
+
+/* Barra de ações rápidas — ícones equivalentes às teclas F# do desktop */
+.pm-acoes-bar{
+  display:flex;gap:6px;padding:10px 0 8px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.pm-acoes-bar::-webkit-scrollbar{display:none}
+.pm-acao-btn{
+  flex:1;min-width:68px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:9px 6px;border-radius:14px;border:1px solid var(--pm-line);
+  background:var(--pm-card);color:var(--pm-fg);
+  font-size:10px;font-weight:700;cursor:pointer;
+  transition:background .12s,border-color .12s,color .12s;
+  white-space:nowrap;
+}
+.pm-acao-btn svg{flex-shrink:0}
+.pm-acao-btn.on{
+  background:rgba(242,212,136,.12);border-color:var(--pm-gold-a);color:var(--pm-gold-a);
+}
+.pm-acao-btn.danger{color:var(--pm-vermelho);border-color:rgba(224,108,117,.3)}
+.pm-acao-btn.danger:active{background:rgba(224,108,117,.12)}
+.pm-acao-btn.off{opacity:.38;pointer-events:none}
+.pm-acao-btn:not(.off):active{transform:scale(.94)}
+
+/* Barra do carrinho */
+.pm-carrinho-bar{padding-top:0}
 .pm-carrinho-btn{
   width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:14px 18px;border-radius:16px;border:none;cursor:pointer;

@@ -368,3 +368,178 @@
 @media (prefers-reduced-motion: reduce) {
   .cdp-sheet, .cdp-pix-wait .dot, .cdp-spinner { animation: none !important; }
 }
+
+/* ---------------------------------------------------------------- BUSCA */
+.cdp-busca-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--cdp-bg);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--cdp-line-soft);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+@media (min-width: 700px) { .cdp-busca-wrap { padding: 10px 24px; } }
+
+.cdp-busca {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--cdp-surface2);
+  border: 1px solid var(--cdp-line);
+  border-radius: 32px;
+  transition: border-color 0.18s;
+}
+.cdp-busca:focus-within {
+  border-color: var(--cdp-red);
+  box-shadow: 0 0 0 3px rgba(233, 193, 92, 0.13);
+}
+.cdp-busca-ico {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  margin-left: 14px;
+  color: var(--cdp-muted);
+}
+.cdp-busca-inp {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  padding: 10px 10px;
+  font-size: 0.9rem;
+  color: var(--cdp-text);
+  min-width: 0;
+}
+.cdp-busca-inp::placeholder { color: var(--cdp-faint); }
+/* Remove o "x" nativo do Safari/Chrome no input[type=search] */
+.cdp-busca-inp::-webkit-search-cancel-button { display: none; }
+
+.cdp-busca-limpar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  color: var(--cdp-muted);
+  transition: color 0.15s;
+}
+.cdp-busca-limpar svg { width: 14px; height: 14px; }
+.cdp-busca-limpar:hover { color: var(--cdp-red); }
+
+/* ---------------------------------------------------------- DESTAQUES */
+.cdp-destaques {
+  padding: 0 0 4px;
+  border-bottom: 1px solid var(--cdp-line-soft);
+  margin-bottom: 4px;
+}
+
+.cdp-destaque-star {
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-right: 2px;
+}
+
+/* Rail horizontal com scroll suave (snap opcional) */
+.cdp-destaques-rail {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 12px 0 16px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cdp-destaques-rail::-webkit-scrollbar { display: none; }
+
+/* Card de destaque: compacto + badge dourado */
+.cdp-destaque-card {
+  flex-shrink: 0;
+  width: 156px;
+  background: var(--cdp-surface);
+  border: 1px solid var(--cdp-line);
+  border-radius: var(--cdp-radius);
+  overflow: hidden;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+@media (min-width: 600px) { .cdp-destaque-card { width: 186px; } }
+.cdp-destaque-card:hover { transform: translateY(-2px); box-shadow: var(--cdp-shadow); }
+
+/* Badge ⭐ no canto */
+.cdp-destaque-card::before {
+  content: "⭐";
+  position: absolute;
+  top: 6px; left: 6px;
+  font-size: 0.7rem;
+  background: rgba(233, 193, 92, 0.2);
+  border: 1px solid rgba(233, 193, 92, 0.35);
+  border-radius: 8px;
+  padding: 1px 5px;
+  z-index: 2;
+  line-height: 1.5;
+}
+
+.cdp-destaque-media {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--cdp-surface2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cdp-destaque-media img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s;
+}
+.cdp-destaque-card:hover .cdp-destaque-media img { transform: scale(1.05); }
+.cdp-destaque-media .ph {
+  font-size: 2rem;
+  color: var(--cdp-line);
+}
+
+.cdp-destaque-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.cdp-destaque-nome {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cdp-title);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+/* Badge destaque na tabela de catálogo */
+.loja-badge.destaque {
+  background: linear-gradient(135deg, rgba(233,193,92,.25), rgba(233,193,92,.12));
+  color: #e9c15c;
+  border: 1px solid rgba(233,193,92,.4);
+  font-size: 10px;
+}
+
+/* Checkbox destaque com visual diferenciado */
+.loja-flag-destaque {
+  background: linear-gradient(135deg, rgba(233,193,92,.07), transparent);
+  border: 1px solid rgba(233,193,92,.25);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #e9c15c !important;
+  font-weight: 600;
+}
+
