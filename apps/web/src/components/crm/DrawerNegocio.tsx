@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { inputAv, labelAv } from "@/components/ui/estilos";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
 import {
@@ -45,6 +46,7 @@ export function DrawerNegocio({
   const [tarefaTitulo, setTarefaTitulo] = useState("");
   const [perdendo, setPerdendo] = useState<string | null>(null); // etapaId da perdida
   const [motivo, setMotivo] = useState("");
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -216,13 +218,20 @@ export function DrawerNegocio({
                 <button type="button" className="fh-exec-chip"
                   style={{ color: C.down, borderColor: alfaDe(C.down, 0.5) }}
                   disabled={remover.isPending}
-                  onClick={() => {
-                    if (window.confirm(`Excluir o negócio "${d.titulo}"? Esta ação não pode ser desfeita.`)) {
-                      remover.mutate(d.id, { onSuccess: aoFechar });
-                    }
-                  }}>
+                  onClick={() => setConfirmarExcluir(true)}>
                   <Trash2 size={12} /> {remover.isPending ? "Excluindo…" : "Excluir negócio"}
                 </button>
+                {confirmarExcluir && (
+                  <ModalConfirmar
+                    titulo="Excluir negócio"
+                    mensagem={<>Excluir o negócio <b>{d.titulo}</b>? Esta ação não pode ser desfeita.</>}
+                    rotuloConfirmar="Excluir"
+                    perigo
+                    carregando={remover.isPending}
+                    onConfirmar={() => remover.mutate(d.id, { onSuccess: aoFechar })}
+                    onFechar={() => setConfirmarExcluir(false)}
+                  />
+                )}
               </section>
             </div>
           )}

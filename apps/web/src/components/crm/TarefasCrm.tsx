@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Check, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { inputAv } from "@/components/ui/estilos";
 import { C, alfaDe } from "@/lib/tema";
 import type { CrmTarefa } from "@/types/crm";
@@ -27,6 +28,7 @@ function Linha({ tarefa, aoAbrirVinculo }: { tarefa: CrmTarefa; aoAbrirVinculo: 
   const [resultado, setResultado] = useState("");
   const [concluindo, setConcluindo] = useState(false);
   const [editando, setEditando] = useState(false);
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
   const [titEdit, setTitEdit] = useState(tarefa.titulo);
   const [prioEdit, setPrioEdit] = useState<string>(tarefa.prioridade);
   const [venceEdit, setVenceEdit] = useState(tarefa.venceEm ? new Date(tarefa.venceEm).toISOString().slice(0, 16) : "");
@@ -109,12 +111,23 @@ function Linha({ tarefa, aoAbrirVinculo }: { tarefa: CrmTarefa; aoAbrirVinculo: 
             </button>
             <button type="button" className="fh-exec-chip" style={{ color: C.down, borderColor: alfaDe(C.down, 0.5) }}
               disabled={remover.isPending}
-              onClick={() => { if (window.confirm(`Excluir a tarefa "${tarefa.titulo}"?`)) remover.mutate(tarefa.id); }}>
+              onClick={() => setConfirmarExcluir(true)}>
               <Trash2 size={12} />
             </button>
           </>
         )}
       </div>
+      {confirmarExcluir && (
+        <ModalConfirmar
+          titulo="Excluir tarefa"
+          mensagem={<>Excluir a tarefa <b>{tarefa.titulo}</b>? Esta ação não pode ser desfeita.</>}
+          rotuloConfirmar="Excluir"
+          perigo
+          carregando={remover.isPending}
+          onConfirmar={() => remover.mutate(tarefa.id, { onSuccess: () => setConfirmarExcluir(false) })}
+          onFechar={() => setConfirmarExcluir(false)}
+        />
+      )}
     </div>
   );
 }

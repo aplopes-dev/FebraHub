@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { inputAv } from "@/components/ui/estilos";
 import { C, alfaDe } from "@/lib/tema";
 import type { CrmEtapa, CrmFunil } from "@/types/crm";
@@ -44,6 +45,7 @@ export function GestaoFunis() {
 
 function CartaoFunil({ funil }: { funil: CrmFunil }) {
   const [editando, setEditando] = useState(false);
+  const [confirmarArquivar, setConfirmarArquivar] = useState(false);
   const [nome, setNome] = useState(funil.nome);
   const [novaEtapa, setNovaEtapa] = useState("");
   const renomear = useMutacaoCrm((n: string) => crmAtualizarFunil(funil.id, { nome: n }));
@@ -68,7 +70,7 @@ function CartaoFunil({ funil }: { funil: CrmFunil }) {
               <button type="button" className="fh-exec-chip" onClick={() => { setNome(funil.nome); setEditando(true); }}><Pencil size={12} /> Renomear</button>
               <button type="button" className="fh-exec-chip" style={{ color: C.down, borderColor: alfaDe(C.down, 0.5) }}
                 disabled={arquivar.isPending}
-                onClick={() => { if (window.confirm(`Arquivar o funil "${funil.nome}"?`)) arquivar.mutate(undefined); }}><Trash2 size={12} /> Arquivar</button>
+                onClick={() => setConfirmarArquivar(true)}><Trash2 size={12} /> Arquivar</button>
             </div>
           </>
         )}
@@ -83,12 +85,24 @@ function CartaoFunil({ funil }: { funil: CrmFunil }) {
         <input placeholder="Nova etapa…" value={novaEtapa} onChange={(e) => setNovaEtapa(e.target.value)} style={{ ...inputAv, flex: 1 }} aria-label="Nova etapa" />
         <button type="submit" className="fh-exec-chip" disabled={criarEtapa.isPending || novaEtapa.trim().length < 2}><Plus size={12} /> Etapa</button>
       </form>
+      {confirmarArquivar && (
+        <ModalConfirmar
+          titulo="Arquivar funil"
+          mensagem={<>Arquivar o funil <b>{funil.nome}</b>? Ele deixa de aparecer no pipeline.</>}
+          rotuloConfirmar="Arquivar"
+          perigo
+          carregando={arquivar.isPending}
+          onConfirmar={() => arquivar.mutate(undefined, { onSuccess: () => setConfirmarArquivar(false) })}
+          onFechar={() => setConfirmarArquivar(false)}
+        />
+      )}
     </div>
   );
 }
 
 function LinhaEtapa({ etapa }: { etapa: CrmEtapa }) {
   const [editando, setEditando] = useState(false);
+  const [confirmarRemover, setConfirmarRemover] = useState(false);
   const [nome, setNome] = useState(etapa.nome);
   const renomear = useMutacaoCrm((n: string) => crmAtualizarEtapa(etapa.id, { nome: n }));
   const remover = useMutacaoCrm(() => crmRemoverEtapa(etapa.id));
@@ -116,11 +130,22 @@ function LinhaEtapa({ etapa }: { etapa: CrmEtapa }) {
               <button type="button" className="fh-toque" onClick={() => { setNome(etapa.nome); setEditando(true); }}
                 style={{ border: "none", background: "transparent", color: C.muted, cursor: "pointer", display: "flex" }} aria-label="Renomear etapa"><Pencil size={12} /></button>
               <button type="button" className="fh-toque" disabled={remover.isPending}
-                onClick={() => { if (window.confirm(`Remover a etapa "${etapa.nome}"?`)) remover.mutate(undefined); }}
+                onClick={() => setConfirmarRemover(true)}
                 style={{ border: "none", background: "transparent", color: C.down, cursor: "pointer", display: "flex" }} aria-label="Remover etapa"><Trash2 size={12} /></button>
             </>
           )}
         </>
+      )}
+      {confirmarRemover && (
+        <ModalConfirmar
+          titulo="Remover etapa"
+          mensagem={<>Remover a etapa <b>{etapa.nome}</b> do funil?</>}
+          rotuloConfirmar="Remover"
+          perigo
+          carregando={remover.isPending}
+          onConfirmar={() => remover.mutate(undefined, { onSuccess: () => setConfirmarRemover(false) })}
+          onFechar={() => setConfirmarRemover(false)}
+        />
       )}
     </div>
   );

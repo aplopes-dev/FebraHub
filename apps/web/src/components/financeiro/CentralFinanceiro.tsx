@@ -7,6 +7,7 @@ import { finAtualizarLancamento, finCadastros, finCriarLancamento, finExcluirLan
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { FinLancamento } from "@/types/financeiro-erp";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { CadastrosFinanceiro } from "./CadastrosFinanceiro";
 import "@/app/financeiro-erp.css";
 
@@ -68,9 +69,10 @@ export function CentralFinanceiro() {
 function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { lancamentos: FinLancamento[]; carregando: boolean; podeGerir: boolean; aoMudar: () => void }) {
   const [pagar, setPagar] = useState<FinLancamento | null>(null);
   const [editar, setEditar] = useState<FinLancamento | null>(null);
+  const [excluirAlvo, setExcluirAlvo] = useState<FinLancamento | null>(null);
   const excluir = useMutation({
     mutationFn: (id: string) => finExcluirLancamento(id),
-    onSuccess: aoMudar,
+    onSuccess: () => { setExcluirAlvo(null); aoMudar(); },
   });
   return (
     <>
@@ -90,7 +92,7 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
               {podeGerir && <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                 {l.situacao !== "pago" && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setPagar(l)}>Registrar pagamento</button>}
                 {editavel && <button className="fin-btn" style={{ padding: "5px 9px" }} onClick={() => setEditar(l)}>Editar</button>}
-                {editavel && <button className="fin-btn" style={{ padding: "5px 9px", color: "var(--down)" }} disabled={excluir.isPending} onClick={() => { if (window.confirm(`Excluir o lançamento "${l.descricao}"?`)) excluir.mutate(l.id); }}>Excluir</button>}
+                {editavel && <button className="fin-btn" style={{ padding: "5px 9px", color: "var(--down)" }} disabled={excluir.isPending} onClick={() => setExcluirAlvo(l)}>Excluir</button>}
               </td>}
             </tr>
           );})}
@@ -99,6 +101,17 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
       {!carregando && !lancamentos.length && <p className="fin-empty">Nenhum título neste filtro.</p>}
       {pagar && <ModalPagar lancamento={pagar} aoFechar={() => setPagar(null)} aoPagar={() => { setPagar(null); aoMudar(); }} />}
       {editar && <ModalEditarLancamento lancamento={editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); aoMudar(); }} />}
+      {excluirAlvo && (
+        <ModalConfirmar
+          titulo="Excluir lançamento"
+          mensagem={<>Excluir o lançamento <b>{excluirAlvo.descricao}</b>? Esta ação não pode ser desfeita.</>}
+          rotuloConfirmar="Excluir"
+          perigo
+          carregando={excluir.isPending}
+          onConfirmar={() => excluir.mutate(excluirAlvo.id)}
+          onFechar={() => setExcluirAlvo(null)}
+        />
+      )}
     </>
   );
 }

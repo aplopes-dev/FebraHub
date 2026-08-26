@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { useAcoesPerfis, useCatalogoPermissoes, usePerfisAcesso } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
 import { C, SANS, alfa } from "@/lib/tema";
@@ -33,6 +34,7 @@ export function PainelPerfis() {
   const [nomeNovo, setNomeNovo] = useState("");
   const [descNovo, setDescNovo] = useState("");
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
+  const [excluindoPerfil, setExcluindoPerfil] = useState<PerfilAcesso | null>(null);
 
   const lista = perfis.data ?? [];
   const selecionado = lista.find((p) => p.id === selecionadoId) ?? lista[0] ?? null;
@@ -95,14 +97,14 @@ export function PainelPerfis() {
   };
 
   const excluirPerfil = (p: PerfilAcesso) => {
-    if (!confirm(`Excluir o perfil "${p.nome}"?`)) return;
     setAviso(null);
     excluir.mutate(p.id, {
       onSuccess: () => {
+        setExcluindoPerfil(null);
         setSelecionadoId(null);
         setAviso({ erro: false, texto: `Perfil "${p.nome}" excluído.` });
       },
-      onError: falhou,
+      onError: (e: unknown) => { setExcluindoPerfil(null); falhou(e); },
     });
   };
 
@@ -221,7 +223,7 @@ export function PainelPerfis() {
           canto={
             selecionado && !selecionado.sistema ? (
               <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button onClick={() => excluirPerfil(selecionado)} style={botaoPerigo}>
+                <button onClick={() => setExcluindoPerfil(selecionado)} style={botaoPerigo}>
                   <Trash2 size={12} /> Excluir
                 </button>
                 <button
@@ -317,6 +319,17 @@ export function PainelPerfis() {
           </Estado>
         </Bloco>
       </div>
+      {excluindoPerfil && (
+        <ModalConfirmar
+          titulo="Excluir perfil"
+          mensagem={<>Excluir o perfil <b>{excluindoPerfil.nome}</b>? Os usuários vinculados perdem as permissões deste perfil.</>}
+          rotuloConfirmar="Excluir"
+          perigo
+          carregando={excluir.isPending}
+          onConfirmar={() => excluirPerfil(excluindoPerfil)}
+          onFechar={() => setExcluindoPerfil(null)}
+        />
+      )}
     </>
   );
 }

@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Copy, KeyRound, Loader2, Plus, UserPlus } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { useAcoesUsuarios, usePerfisAcesso, useUsuariosAdmin } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
@@ -38,6 +39,7 @@ export function PainelUsuarios() {
   const [form, setForm] = useState({ nome: "", email: "", papel: "membro", setor: "comercial", perfilAcessoId: "" });
   const [senhaGerada, setSenhaGerada] = useState<{ email: string; senha: string } | null>(null);
   const [aviso, setAviso] = useState<{ erro: boolean; texto: string } | null>(null);
+  const [redefinindo, setRedefinindo] = useState<UsuarioAdmin | null>(null);
 
   const lista = usuarios.data ?? [];
   const opcoesPerfil = perfis.data ?? [];
@@ -75,11 +77,10 @@ export function PainelUsuarios() {
   };
 
   const gerarSenha = (u: UsuarioAdmin) => {
-    if (!confirm(`Gerar nova senha temporária para ${u.nome}? As sessões dela serão encerradas.`)) return;
     setAviso(null);
     redefinirSenha.mutate(u.id, {
-      onSuccess: (r) => setSenhaGerada({ email: u.email, senha: r.senhaTemporaria }),
-      onError: falhou,
+      onSuccess: (r) => { setRedefinindo(null); setSenhaGerada({ email: u.email, senha: r.senhaTemporaria }); },
+      onError: (e: unknown) => { setRedefinindo(null); falhou(e); },
     });
   };
 
@@ -252,7 +253,7 @@ export function PainelUsuarios() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <button onClick={() => gerarSenha(u)} style={BOTAO_SECUNDARIO} title="Gerar senha temporária">
+                  <button onClick={() => setRedefinindo(u)} style={BOTAO_SECUNDARIO} title="Gerar senha temporária">
                     <KeyRound size={12} /> Senha
                   </button>
                   <button
@@ -268,6 +269,16 @@ export function PainelUsuarios() {
           </div>
         </Estado>
       </Bloco>
+      {redefinindo && (
+        <ModalConfirmar
+          titulo="Gerar nova senha"
+          mensagem={<>Gerar nova senha temporária para <b>{redefinindo.nome}</b>? As sessões ativas dela serão encerradas.</>}
+          rotuloConfirmar="Gerar senha"
+          carregando={redefinirSenha.isPending}
+          onConfirmar={() => gerarSenha(redefinindo)}
+          onFechar={() => setRedefinindo(null)}
+        />
+      )}
     </>
   );
 }
