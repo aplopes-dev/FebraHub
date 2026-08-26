@@ -21,8 +21,12 @@ Este workspace NÃO roda dev. **TUDO** — `pnpm install`, `tsc`, `nest build`, 
 - Nginx da 66 tem conf órfã `febracis.aplopes.com.conf` → :3120 (vazio) — ignorar; o prod real é a 155.
 
 ## Deploy no homolog (66)
-`cd /root/FebraHub && git pull origin homolog && docker compose -f docker-compose.prod.yml build api web && docker compose -f docker-compose.prod.yml run --rm --no-deps --entrypoint sh api -c "npx prisma migrate deploy" && docker compose -f docker-compose.prod.yml up -d api web`. Imagens buildadas LOCALMENTE (não ghcr). Web build no box carregado leva ~20-30min (mostra "Retrying 1/3" às vezes, recupera sozinho). CMD do api = `node dist/main.js` (migrations rodam no passo `run` acima, cwd `/app/apps/api`).
-NUNCA commitar: `supabase/*.dump`, `CREDENCIAIS_SEED.txt`, `*.bak.*`.
+**USE O SCRIPT: `cd /root/FebraHub && ./deploy.sh`** (versionado no repo). Flags: `--api-only` (pula build do web, ~rápido), `--no-pull` (usa código presente), `--no-build` (só migrate+up). Ele faz: pré-cheque do `.env` → git pull → build local (api+web) → `prisma migrate deploy` (container efêmero) → `up -d` → healthcheck da api (falha com logs se crash-loop). Equivale ao passo-a-passo manual: `build api web` → `run --rm --no-deps --entrypoint sh api -c "npx prisma migrate deploy"` → `up -d api web`.
+- **⚠️ DIR LIVE = `/root/FebraHub`** (TODOS os containers `febrahub_*` têm `working_dir=/root/FebraHub`). `/home/febracis/FebraHub` é clone VELHO/não usado (git com "dubious ownership") — NÃO deployar de lá.
+- **⚠️ `.env` É OBRIGATÓRIO em `/root/FebraHub/.env`** (não versionado; compose interpola `${VAR}` dele). SEM `.env` a api sobe com `DATABASE_URL=`/JWT vazios → **crash-loop** com "Configuração inválida: JWT_ACCESS_SECRET precisa de 32 chars". A cópia boa do `.env` (DATABASE_URL válida testada contra o Postgres live, senha `94815f2b...`, StoneCode/Stone incluídos) veio de `/home/febracis/FebraHub/.env`. Se sumir de novo, restaurar de lá.
+- Imagens buildadas LOCALMENTE (não ghcr). Web build no box carregado leva ~20-30min ("Retrying 1/3" é normal). CMD do api = `node dist/main.js` (migrations rodam no passo `run`, cwd `/app/apps/api`).
+- Recuperar crash-loop: garantir `.env` → `docker compose -f docker-compose.prod.yml rm -f api` → `./deploy.sh --no-pull --api-only`.
+NUNCA commitar: `supabase/*.dump`, `CREDENCIAIS_SEED.txt`, `*.bak.*`, `.env`.
 
 ## Como montar e2e / dados reais no homolog
 - prod→homolog: `pg_dump -U febrahub -Fc` na 155 → relay via scp (jump 66) → backup do homolog → DROP/CREATE schema public → `pg_restore` (ignora ~111 erros de schemas extras, ok) → `migrate deploy` reaplica as faltantes. Parar api/web durante o restore. Backup do homolog em `/tmp/homolog_backup.dump` (66); dump de prod em `/tmp/prod_febrahub.dump`.
