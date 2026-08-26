@@ -20,6 +20,12 @@ export class AlterarPrecoDto {
   @IsOptional() @IsString() motivo?: string;
 }
 
+// -------------------- ATUALIZAR CÓDIGO DE BARRAS --------------------
+export class AtualizarCodigoBarrasDto {
+  /** Novo código de barras (EAN-8, EAN-13, ITF, Code128 etc.) ou null para limpar. */
+  @IsOptional() @IsString() codigoBarras?: string | null;
+}
+
 // -------------------- CATEGORIA --------------------
 export class CategoriaDto {
   @IsString() @IsNotEmpty() nome!: string;

@@ -274,7 +274,7 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             </div>
           </header>
 
-          <main className="fh-main rolagem">
+          <main className={`fh-main rolagem${paginaCheia ? " cheia" : ""}`}>
             <div className={`subir ${paginaCheia ? "fh-main-cheia" : "fh-main-inner"}`}>
               {!paginaCheia && (
                 <div className="fh-page-topo">

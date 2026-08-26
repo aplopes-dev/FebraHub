@@ -18,6 +18,25 @@ export const lojaProdutos = (p: { busca?: string; categoriaId?: string; situacao
 export const lojaProduto = (id: string) => api.get<LojaProduto>(`/loja/produtos/${id}`);
 export const lojaMovimentos = (id: string) => api.get<LojaMovimento[]>(`/loja/produtos/${id}/movimentos`);
 
+/** Busca produto pelo código de barras (EAN). Retorna o produto ou lança erro 404. */
+export const lojaBuscarPorBarcode = (codigo: string) =>
+  api.get<LojaProduto>(`/loja/produtos/barcode/${encodeURIComponent(codigo)}`);
+
+/** Consulta EAN em fontes públicas (Open Food Facts / Cosmos). Retorna dados ou null. */
+export const lojaConsultarEanOnline = (ean: string) =>
+  api.get<{ nome: string; marca?: string; descricao?: string } | null>(`/loja/produtos/ean-online/${ean}`);
+
+/** Resultado de enriquecimento EAN em lote. */
+export interface EnriquecimentoLote {
+  verificados: number;
+  atualizados: number;
+  naoEncontrados: number;
+  itens: { id: string; nome: string; ean: string; encontrado: boolean; dadosOnline?: { nome: string; marca?: string } }[];
+}
+
+/** Dispara enriquecimento de EAN em lote (SKU numérico → Open Food Facts). */
+export const lojaEnriquecerEanLote = () => api.post<EnriquecimentoLote>('/loja/produtos/ean/enriquecer-lote', {});
+
 // -------------------- categorias --------------------
 export const lojaCriarCategoria = (d: Partial<LojaCategoria>) => api.post<LojaCategoria>('/loja/categorias', d);
 export const lojaAtualizarCategoria = (id: string, d: Partial<LojaCategoria>) => api.put<LojaCategoria>(`/loja/categorias/${id}`, d);
@@ -29,6 +48,9 @@ export const lojaAtualizarProduto = (id: string, d: ProdutoInput) => api.put<Loj
 /** Alterar SÓ o preço (permissão dedicada loja.produtos.preco, auditado). */
 export const lojaAlterarPreco = (id: string, d: { preco: number; motivo?: string }) =>
   api.patch<LojaProduto>(`/loja/produtos/${id}/preco`, d);
+/** Atualiza SOMENTE o código de barras de um produto (para associar EAN bipado). */
+export const lojaAtualizarCodigoBarras = (id: string, codigoBarras: string | null) =>
+  api.patch<LojaProduto>(`/loja/produtos/${id}/codigo-barras`, { codigoBarras });
 export const lojaInativarProduto = (id: string) => api.delete(`/loja/produtos/${id}`);
 
 /** Sobe a imagem do produto (já com fundo removido) e devolve a URL pública. */

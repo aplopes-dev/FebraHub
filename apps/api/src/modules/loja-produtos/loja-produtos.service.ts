@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -15,6 +16,8 @@ import {
   ProdutoDto,
   TransferenciaEstoqueDto,
 } from './loja-produtos.dto';
+import * as https from 'https';
+import * as http from 'http';
 
 /** Prefixo público do bucket onde vivem as imagens de produto da Loja. */
 const PASTA_IMAGENS = 'loja/produtos';
@@ -37,8 +40,33 @@ const jsonSeguro = <T>(v: T): T =>
 
 const LOCAIS = ['LOJA', 'DEPOSITO'] as const;
 
+/** Inferência de categoria pelo nome do produto (Omie → Loja).
+ *  A ordem das regras importa: mais específico primeiro. */
+function inferirCategoria(nome: string): string {
+  const n = nome.toUpperCase();
+  if (/\bBOLSA\b|\bMOCHILA\b/.test(n))                                           return 'Bolsas';
+  if (/\bCAMISA\b|\bCAMISETA\b|\bBONÉ\b|\bBONE\b|\bCOLAR\b|\bPULSEIRA\b|\bPOLO\b|\bMEIA\b/.test(n)) return 'Camisas';
+  // Bebidas: palavras exatas — evita "CHARA", "CORAÇÃO" etc.
+  if (/^CAFÉ$|^CHÁ$|^ÁGUA$|^ÁGUA COM GÁS$/.test(n.trim()))                       return 'Bebidas';
+  if (/\bCAPPUCCINO\b|\b3CORACOES\b|\bCAPSULA\b|\bCÁPSULA\b|\bADOCANTE\b|\bADOÇANTE\b|\bACUCAR\b|\bAÇÚCAR\b/.test(n)) return 'Bebidas';
+  if (/\bCAFÉ\b|\bCAFE\b/.test(n) && !/DECIFRE|CRIAÇÃO|CRIACAO/.test(n))         return 'Bebidas';
+  if (/\bCHÁ\b|\bCHA\b/.test(n) && !/CHARA|CHARÁ/.test(n))                       return 'Bebidas';
+  if (/\bÁGUA\b|\bAGUA\b/.test(n))                                                return 'Bebidas';
+  if (/\bSUCO\b|\bBEBIDA\b/.test(n))                                              return 'Bebidas';
+  if (/\bSACHÊ\b|\bSACHE\b|\bALIMENTO\b|\bLANCHE\b/.test(n))                    return 'Alimentos';
+  if (/\bBOX\b|\bKIT\b|\bCOMBO\b/.test(n))                                       return 'Kits';
+  if (/\bAPOSTILA\b|\bCADERNO\b|\bWORKBOOK\b/.test(n))                          return 'Apostilas';
+  // Livros: começa com "LIVRO" ou termina com editora conhecida
+  if (/^LIVRO\b/.test(n))                                                          return 'Livros';
+  if (/\bCARDS\b|\bPLANNER\b|\bBÍBLIA\b|\bBIBLIA\b|\bAGENDA\b|\bHÁBITOS\b|\bHABITOS\b|\bPRINCÍPIOS\b|\bPRINCIPIOS\b/.test(n)) return 'Livros';
+  if (/- (ACADEMIA|SEXTANTE|RECORD|RECORDS|VIDA|M BOOKS|MUNDO CRISTAO|NOVA ERA|HARPERCOLLINS|BEST SELLER|SARAIVA|ALTA BOOKS|UNIVERSO DOS LIVROS|MARFONTES|CHARA|CHARÁ|THOMAS NELSON|CDL|ATLAS|GENTE|PENSAMENTO|PORTICO|LETRA E VOZ|QUALITYMARK)$/.test(n)) return 'Livros';
+  return 'Outros';
+}
+
 @Injectable()
 export class LojaProdutosService {
+  private readonly logger = new Logger(LojaProdutosService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -449,6 +477,320 @@ export class LojaProdutosService {
       .filter((x) => x.saldoTotal <= x.minimo)
       .sort((a, b) => a.saldoTotal - a.minimo - (b.saldoTotal - b.minimo));
     return { total: itens.length, itens };
+  }
+
+  // ==================== SYNC OMIE → PDV ====================
+
+  /**
+   * Sincroniza o catálogo do Omie (tabela `fato_loja_estoque`) com o PDV da Loja.
+   *
+   * Regras:
+   *   - Produto com saldo > 0 no Omie → vende_pdv=true, exibe_cardapio=true, saldo LOJA atualizado.
+   *   - Produto com saldo = 0 no Omie → vende_pdv=false, exibe_cardapio=false.
+   *   - Produto novo (sem produto_estoque_id correspondente) → inserido automaticamente.
+   *   - Categoria inferida pelo nome (algoritmo inferirCategoria).
+   *   - Idempotente: pode ser chamado a qualquer momento sem duplicar dados.
+   *
+   * Chamado pelo ETL omie_sync.py (via ingest/sync-omie-loja) após atualizar
+   * fato_loja_estoque, e também disponível para acionamento manual via endpoint.
+   */
+  async sincronizarOmie(): Promise<{
+    total: number; comEstoque: number; inseridos: number; atualizados: number; desabilitados: number;
+  }> {
+    this.logger.log('Iniciando sync Omie → Loja PDV');
+
+    // 1. Buscar todos os produtos do Omie
+    const omie = await this.prisma.$queryRaw<{
+      produto_id: bigint;
+      descricao: string;
+      codigo: string | null;
+      codigo_interno: string | null;
+      preco_unitario: string | null;
+      custo_medio: string | null;
+      saldo: string | null;
+    }[]>`
+      SELECT produto_id, descricao, codigo, codigo_interno, preco_unitario, custo_medio, saldo
+      FROM fato_loja_estoque
+      WHERE descricao IS NOT NULL AND TRIM(descricao) <> ''
+    `;
+
+    if (omie.length === 0) {
+      this.logger.warn('fato_loja_estoque vazia — nada a sincronizar');
+      return { total: 0, comEstoque: 0, inseridos: 0, atualizados: 0, desabilitados: 0 };
+    }
+
+    // 2. Garantir categorias base
+    const categoriasBase = [
+      { nome: 'Livros',     descricao: 'Livros e publicações',           cor: '#6366f1', ordem: 10 },
+      { nome: 'Apostilas',  descricao: 'Apostilas e materiais didáticos', cor: '#f59e0b', ordem: 20 },
+      { nome: 'Camisas',    descricao: 'Camisas e vestuário',            cor: '#10b981', ordem: 30 },
+      { nome: 'Bolsas',     descricao: 'Bolsas e mochilas',              cor: '#ec4899', ordem: 40 },
+      { nome: 'Acessórios', descricao: 'Acessórios e joias',             cor: '#8b5cf6', ordem: 50 },
+      { nome: 'Kits',       descricao: 'Kits e combos',                  cor: '#f97316', ordem: 60 },
+      { nome: 'Alimentos',  descricao: 'Alimentos e lanches',            cor: '#84cc16', ordem: 70 },
+      { nome: 'Bebidas',    descricao: 'Cafés, chás e bebidas',          cor: '#0ea5e9', ordem: 80 },
+      { nome: 'Outros',     descricao: 'Outros produtos',                cor: '#6b7280', ordem: 99 },
+    ];
+    for (const cat of categoriasBase) {
+      await this.prisma.lojaCategoria.upsert({
+        where: { nome: cat.nome } as never, // unique by lower(nome) — usa findFirst abaixo
+        create: { nome: cat.nome, descricao: cat.descricao, cor: cat.cor, ativo: true, ordem: cat.ordem },
+        update: {},
+      }).catch(async () => {
+        // upsert por lower(nome) não tem suporte direto no Prisma — ignora duplicado
+        await this.prisma.lojaCategoria.upsert({
+          where: { id: 'noop' } as never,
+          create: { nome: cat.nome, descricao: cat.descricao, cor: cat.cor, ativo: true, ordem: cat.ordem },
+          update: {},
+        }).catch(() => { /* categoria já existe */ });
+      });
+    }
+
+    // Re-lê categorias como mapa nome→id (case-insensitive)
+    const todasCats = await this.prisma.lojaCategoria.findMany({ select: { id: true, nome: true } });
+    const catMap = new Map(todasCats.map((c) => [c.nome.toLowerCase(), c.id]));
+
+    // 3. Produtos Omie existentes no catálogo (por produto_estoque_id)
+    const existentesLoja = await this.prisma.lojaProduto.findMany({
+      where: { produtoEstoqueId: { not: null } },
+      select: { id: true, produtoEstoqueId: true },
+    });
+    const existentesMap = new Map(existentesLoja.map((p) => [p.produtoEstoqueId!.toString(), p.id]));
+
+    let inseridos = 0, atualizados = 0, desabilitados = 0;
+    const comEstoque = omie.filter((p) => Number(p.saldo ?? 0) > 0).length;
+
+    for (const p of omie) {
+      const omieId = p.produto_id.toString();
+      const nome = p.descricao.trim();
+      const temEstoque = Number(p.saldo ?? 0) > 0;
+      const preco = D(Math.round(Number(p.preco_unitario ?? 0) * 100) / 100);
+      const custo = Number(p.custo_medio ?? 0) > 0 ? D(Math.round(Number(p.custo_medio) * 100) / 100) : null;
+      const categoriaNome = inferirCategoria(nome);
+      const categoriaId = catMap.get(categoriaNome.toLowerCase()) ?? catMap.get('outros') ?? null;
+      const saldoFisico = D(Math.max(Number(p.saldo ?? 0), 0));
+
+      const lojaId = existentesMap.get(omieId);
+
+      if (lojaId) {
+        // Atualiza produto existente
+        await this.prisma.lojaProduto.update({
+          where: { id: lojaId },
+          data: {
+            nome, preco, custo, ativo: true,
+            vendePdv: temEstoque, exibeCardapio: temEstoque,
+            ...(categoriaId ? { categoria: { connect: { id: categoriaId } } } : {}),
+          },
+        });
+        // Upsert saldo LOJA
+        await this.prisma.$executeRaw`
+          INSERT INTO loja_estoque_saldos (produto_id, local, saldo_fisico, reservado)
+          VALUES (${lojaId}::uuid, 'LOJA', ${saldoFisico}, 0)
+          ON CONFLICT (produto_id, local) DO UPDATE
+            SET saldo_fisico = GREATEST(EXCLUDED.saldo_fisico, loja_estoque_saldos.reservado),
+                atualizado_em = NOW()
+        `;
+        if (!temEstoque) desabilitados++;
+        else atualizados++;
+      } else {
+        // Insere produto novo
+        const novo = await this.prisma.lojaProduto.create({
+          data: {
+            nome, preco, custo,
+            descricao: '',
+            unidade: 'un',
+            produtoEstoqueId: BigInt(omieId),
+            ativo: true,
+            vendePdv: temEstoque,
+            exibeCardapio: temEstoque,
+            precisaPreparacao: false,
+            controlaEstoque: true,
+            estoqueMinimo: D(0),
+            ordem: 0,
+            ...(categoriaId ? { categoria: { connect: { id: categoriaId } } } : {}),
+          },
+        });
+        // Cria saldo LOJA e DEPOSITO
+        await this.prisma.lojaEstoqueSaldo.createMany({
+          data: [
+            { produtoId: novo.id, local: 'LOJA', saldoFisico, reservado: D(0) },
+            { produtoId: novo.id, local: 'DEPOSITO', saldoFisico: D(0), reservado: D(0) },
+          ],
+          skipDuplicates: true,
+        });
+        inseridos++;
+      }
+    }
+
+    const resultado = { total: omie.length, comEstoque, inseridos, atualizados, desabilitados };
+    this.logger.log(`Sync Omie concluído: ${JSON.stringify(resultado)}`);
+    return resultado;
+  }
+
+  // ==================== BUSCA POR CÓDIGO DE BARRAS ====================
+
+  /**
+   * Busca um produto pelo código de barras (EAN/ITF/Code128 etc.).
+   * Retorna o produto completo ou lança 404.
+   */
+  async buscarPorCodigoBarras(codigo: string) {
+    const p = await this.prisma.lojaProduto.findFirst({
+      where: { codigoBarras: codigo.trim(), ativo: true },
+      include: { categoria: true, saldos: true },
+    });
+    if (!p) throw new NotFoundException({ codigo: 'EAN_NAO_ENCONTRADO', message: `Nenhum produto com código ${codigo}.` });
+    return jsonSeguro(this.comEstoque(p));
+  }
+
+  /**
+   * Atualiza SOMENTE o código de barras de um produto (para o vendedor bipar o
+   * produto correto após pesquisa manual). Registra auditoria.
+   */
+  async atualizarCodigoBarras(id: string, codigoBarras: string | null, u: UsuarioLogado) {
+    this.exigeGestor(u);
+    const p = await this.prisma.lojaProduto.findUnique({ where: { id } });
+    if (!p) throw new NotFoundException('Produto não encontrado.');
+
+    const codLimpo = codigoBarras?.trim() || null;
+    if (codLimpo) {
+      // Verifica unicidade (UNIQUE partial index — só quando não nulo)
+      const dup = await this.prisma.lojaProduto.findFirst({
+        where: { codigoBarras: codLimpo, id: { not: id } },
+      });
+      if (dup) {
+        throw new BadRequestException({
+          codigo: 'CODIGO_BARRAS_DUPLICADO',
+          message: `Código ${codLimpo} já está em uso pelo produto "${dup.nome}".`,
+        });
+      }
+    }
+
+    await this.prisma.lojaProduto.update({ where: { id }, data: { codigoBarras: codLimpo } });
+    void this.auditar({
+      entidadeId: id, acao: 'codigo_barras.alterado',
+      antes: { codigoBarras: p.codigoBarras }, depois: { codigoBarras: codLimpo },
+      observacao: `${p.nome}: ${p.codigoBarras ?? '—'} → ${codLimpo ?? '—'}`,
+    }, u);
+    return this.obterProduto(id);
+  }
+
+  // ==================== EAN ONLINE (Open Food Facts + Cosmos) ====================
+
+  /** Faz uma requisição HTTP GET simples e retorna o corpo como string. */
+  private httpGet(url: string, timeoutMs = 4000): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const modulo = url.startsWith('https') ? https : http;
+      const req = modulo.get(url, { headers: { 'User-Agent': 'FebraHub/1.0 (info@aplopes.com)' } }, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        res.on('error', reject);
+      });
+      req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('timeout')); });
+      req.on('error', reject);
+    });
+  }
+
+  /**
+   * Consulta o EAN em fontes públicas:
+   * 1) Open Food Facts (principal — PT-BR)
+   * 2) Cosmos (fallback BR)
+   * Retorna { nome, marca, descricao } ou null se não encontrado.
+   */
+  async consultarEanOnline(ean: string): Promise<{ nome: string; marca?: string; descricao?: string } | null> {
+    // ---- Open Food Facts ----
+    try {
+      const raw = await this.httpGet(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+      const data = JSON.parse(raw);
+      if (data.status === 1 && data.product) {
+        const pr = data.product;
+        const nome: string = (pr.product_name_pt || pr.product_name || pr.product_name_en || '').trim();
+        if (nome) {
+          return {
+            nome,
+            marca: (pr.brands || '').split(',')[0].trim() || undefined,
+            descricao: (pr.generic_name_pt || pr.generic_name || '').trim() || undefined,
+          };
+        }
+      }
+    } catch { /* não disponível */ }
+
+    // ---- Cosmos (fallback) ----
+    try {
+      const raw = await this.httpGet(`https://api.cosmos.bluesoft.com.br/gtins/${ean}`, 3000);
+      const data = JSON.parse(raw);
+      if (data && data.description) {
+        return {
+          nome: data.description.trim(),
+          marca: data.brand?.name?.trim() || undefined,
+          descricao: undefined,
+        };
+      }
+    } catch { /* não disponível */ }
+
+    return null;
+  }
+
+  /**
+   * Varre todos os produtos ATIVOS sem código de barras e tenta encontrar o EAN
+   * consultando o nome do produto na internet. Como não há EAN de partida, esta
+   * rota faz o inverso: dado um EAN externo, atualiza o produto correspondente.
+   *
+   * Uso principal: atualização em lote de produtos que já TÊM ean (sku numérico
+   * de 8/13 dígitos) mas cujo campo codigo_barras está vazio — tenta confirmar
+   * e enriquecer o nome/desc via Open Food Facts.
+   *
+   * Retorna: { verificados, atualizados, naoEncontrados }
+   */
+  async enriquecerEanLote(u: UsuarioLogado): Promise<{ verificados: number; atualizados: number; naoEncontrados: number; itens: unknown[] }> {
+    this.exigeGestor(u);
+    // Produtos ativos cujo SKU parece um EAN (8 ou 13 dígitos numéricos) e ainda
+    // não têm codigo_barras preenchido.
+    const candidatos = await this.prisma.lojaProduto.findMany({
+      where: {
+        ativo: true,
+        codigoBarras: null,
+        sku: { not: null },
+      },
+      select: { id: true, nome: true, sku: true, descricao: true },
+      take: 200,
+    });
+
+    const eanPattern = /^\d{8}$|^\d{13}$/;
+    const comSku = candidatos.filter((p) => p.sku && eanPattern.test(p.sku.trim()));
+    const itens: { id: string; nome: string; ean: string; encontrado: boolean; dadosOnline?: unknown }[] = [];
+    let atualizados = 0;
+    let naoEncontrados = 0;
+
+    for (const p of comSku) {
+      const ean = p.sku!.trim();
+      const dados = await this.consultarEanOnline(ean);
+      if (dados) {
+        // Atualiza codigo_barras e opcionalmente enriquece descricao
+        const descAtual = (p.descricao ?? '').trim();
+        await this.prisma.lojaProduto.update({
+          where: { id: p.id },
+          data: {
+            codigoBarras: ean,
+            ...(descAtual === '' && dados.descricao ? { descricao: dados.descricao } : {}),
+          },
+        });
+        void this.auditar({
+          entidadeId: p.id, acao: 'codigo_barras.ean_enriquecido',
+          depois: { codigoBarras: ean, fonte: 'online' },
+          observacao: `${p.nome} · EAN ${ean} via consulta online`,
+        }, u);
+        itens.push({ id: p.id, nome: p.nome, ean, encontrado: true, dadosOnline: dados });
+        atualizados++;
+      } else {
+        itens.push({ id: p.id, nome: p.nome, ean, encontrado: false });
+        naoEncontrados++;
+      }
+      // Pequeno delay para não sobrecarregar a API externa
+      await new Promise<void>((r) => setTimeout(r, 200));
+    }
+
+    return { verificados: comSku.length, atualizados, naoEncontrados, itens };
   }
 
   // ==================== INDICADORES ====================

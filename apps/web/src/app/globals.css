@@ -468,12 +468,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-header-dropdown button:hover { background: rgb(var(--sup-rgb) / 0.05); }
 
 .fh-main { flex: 1; min-height: 0; overflow-y: auto; }
+/* Tela cheia (PDV/balcão): o main não rola — o scroll é gerenciado internamente pela página */
+.fh-main.cheia { overflow: hidden; height: 100%; }
 .fh-main-inner {
   padding: var(--pad-pagina) var(--pad-pagina) 20px;
   max-width: 1320px; margin: 0 auto;
 }
 /* Página tela-cheia (PDV): sem max-width nem cabeçalho, ocupa toda a área. */
-.fh-main-cheia { display: flex; flex-direction: column; min-height: 100%; }
+.fh-main-cheia { display: flex; flex-direction: column; height: 100%; }
 .fh-main-cheia > * { flex: 1; min-height: 0; }
 .fh-page-topo {
   display: flex; align-items: flex-end; justify-content: space-between;

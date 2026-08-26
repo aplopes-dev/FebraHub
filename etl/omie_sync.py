@@ -369,6 +369,20 @@ def sync_produtos():
     print(f"produtos: {total} cadastros")
     return total
 
+def sync_pdv_loja():
+    """Dispara a sincronização Omie→Loja PDV na API (best-effort).
+
+    Após sync_estoque() + sync_produtos(), a API faz o upsert em loja_produtos:
+    - saldo > 0 em fato_loja_estoque → vende_pdv=true, exibe_cardapio=true
+    - saldo = 0 → vende_pdv=false
+    """
+    try:
+        resp = fc._chamar('loja/sync-omie', metodo='POST')
+        print(f"PDV sync: {resp or 'concluído'}")
+    except Exception as e:
+        print(f"[aviso] PDV sync falhou (best-effort): {e}")
+
+
 def registrar_status(ok, total):
     try:
         fc.registrar_status('omie', 'Loja (Omie)', 'ok' if ok else 'erro', registros=total)

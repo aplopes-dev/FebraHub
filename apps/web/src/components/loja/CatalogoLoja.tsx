@@ -1,10 +1,12 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Boxes, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload } from "lucide-react";
+import { ArrowLeftRight, Barcode, Boxes, CheckCircle2, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload, X } from "lucide-react";
 import {
-  lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
-  lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos, lojaProdutos, lojaTransferirEstoque,
+  lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarCodigoBarras, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
+  lojaEnriquecerEanLote, lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos,
+  lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
+  type EnriquecimentoLote,
 } from "@/services/api/loja-produtos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
@@ -30,6 +32,7 @@ export function CatalogoLoja() {
   const [estoque, setEstoque] = useState<LojaProduto | null>(null);
   const [preco, setPreco] = useState<LojaProduto | null>(null);
   const [gerirCategorias, setGerirCategorias] = useState(false);
+  const [loteResultado, setLoteResultado] = useState<EnriquecimentoLote | null>(null);
 
   const ind = useQuery({ queryKey: ["loja", "indicadores"], queryFn: lojaIndicadores });
   const cats = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });
