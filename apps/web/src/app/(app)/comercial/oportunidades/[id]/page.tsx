@@ -36,6 +36,7 @@ import {
   type ComNegociacao,
 } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
+import { ModalPrompt } from "@/components/ui/ModalPrompt";
 import "@/app/comercial.css";
 
 const brl = (v: number) =>
@@ -517,6 +518,8 @@ function SecaoNegociacao({
 function DetalheOportunidade({ id }: { id: string }) {
   const qc = useQueryClient();
   const [modal, setModal] = useState<null | "interacao" | "acao" | "etapa">(null);
+  const [concluirAcaoId, setConcluirAcaoId] = useState<string | null>(null);
+  const [cancelarVendaId, setCancelarVendaId] = useState<string | null>(null);
 
   const { data: op, isLoading, error } = useQuery({
     queryKey: ["comercial", "oportunidade", id],
@@ -527,8 +530,10 @@ function DetalheOportunidade({ id }: { id: string }) {
   const concluir = useMutation({
     mutationFn: ({ acaoId, resultado }: { acaoId: string; resultado: string }) =>
       concluirAcao(id, acaoId, resultado),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["comercial", "oportunidade", id] }),
+    onSuccess: () => {
+      setConcluirAcaoId(null);
+      qc.invalidateQueries({ queryKey: ["comercial", "oportunidade", id] });
+    },
   });
 
   const aprovar = useMutation({
@@ -538,9 +543,11 @@ function DetalheOportunidade({ id }: { id: string }) {
   });
 
   const cancelar = useMutation({
-    mutationFn: (vendaId: string) => cancelarVenda(vendaId, { motivo: "Cancelado pelo operador" }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["comercial", "oportunidade", id] }),
+    mutationFn: ({ vendaId, motivo }: { vendaId: string; motivo: string }) => cancelarVenda(vendaId, { motivo }),
+    onSuccess: () => {
+      setCancelarVendaId(null);
+      qc.invalidateQueries({ queryKey: ["comercial", "oportunidade", id] });
+    },
   });
 
   if (isLoading) {
@@ -710,10 +717,7 @@ function DetalheOportunidade({ id }: { id: string }) {
                     className="com-btn"
                     style={{ padding: "4px 10px", fontSize: 11.5 }}
                     disabled={concluir.isPending && concluir.variables?.acaoId === acao.id}
-                    onClick={() => {
-                      const r = prompt("Resultado (opcional):");
-                      concluir.mutate({ acaoId: acao.id, resultado: r ?? "" });
-                    }}
+                    onClick={() => setConcluirAcaoId(acao.id)}
                   >
                     <Check size={11} /> Concluir
                   </button>
@@ -810,7 +814,7 @@ function DetalheOportunidade({ id }: { id: string }) {
                 </button>
                 <button
                   className="com-btn"
-                  onClick={() => cancelar.mutate(op.venda!.id)}
+                  onClick={() => setCancelarVendaId(op.venda!.id)}
                   disabled={cancelar.isPending}
                   style={{ color: "var(--down)", borderColor: "rgb(var(--down-rgb) / 0.3)" }}
                 >
@@ -835,6 +839,32 @@ function DetalheOportunidade({ id }: { id: string }) {
           funilId={op.funilId}
           etapaAtualId={op.etapaId}
           onFechar={() => setModal(null)}
+        />
+      )}
+      {concluirAcaoId && (
+        <ModalPrompt
+          titulo="Concluir ação"
+          descricao="Registre o resultado desta ação (opcional). Fica no histórico da oportunidade."
+          rotulo="Resultado"
+          placeholder="Ex.: cliente pediu proposta, retornar na sexta…"
+          obrigatorio={false}
+          rotuloConfirmar="Concluir ação"
+          carregando={concluir.isPending}
+          onConfirmar={(resultado) => concluir.mutate({ acaoId: concluirAcaoId, resultado })}
+          onFechar={() => setConcluirAcaoId(null)}
+        />
+      )}
+      {cancelarVendaId && (
+        <ModalPrompt
+          titulo="Cancelar venda"
+          descricao="Informe o motivo do cancelamento — fica registrado na venda."
+          rotulo="Motivo"
+          placeholder="Ex.: cliente desistiu, erro no fechamento…"
+          rotuloConfirmar="Confirmar cancelamento"
+          perigo
+          carregando={cancelar.isPending}
+          onConfirmar={(motivo) => cancelar.mutate({ vendaId: cancelarVendaId, motivo })}
+          onFechar={() => setCancelarVendaId(null)}
         />
       )}
     </div>

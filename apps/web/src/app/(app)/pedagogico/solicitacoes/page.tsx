@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula } from "@/services/api/pedagogico";
+import { ModalPrompt } from "@/components/ui/ModalPrompt";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -112,17 +113,23 @@ export default function SolicitacoesPage() {
     }
   };
 
-  const mudarStatus = async (s: Solicitacao, status: string) => {
-    let resposta: string | undefined;
-    if (status === "concluida") {
-      resposta = prompt("Resposta / resolução (opcional):") ?? undefined;
-    }
+  const mudarStatus = async (s: Solicitacao, status: string, resposta?: string) => {
     try {
       await pedagogico.atualizarSolicitacao(s.id, status, resposta);
       await carregar();
     } catch (e: unknown) {
       setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao atualizar solicitação." });
     }
+  };
+  // "Concluir" pede a resposta num modal (antes era prompt() nativo).
+  const [concluindo, setConcluindo] = useState<Solicitacao | null>(null);
+  const [salvandoConcluir, setSalvandoConcluir] = useState(false);
+  const confirmarConcluir = async (resposta: string) => {
+    if (!concluindo) return;
+    setSalvandoConcluir(true);
+    await mudarStatus(concluindo, "concluida", resposta || undefined);
+    setSalvandoConcluir(false);
+    setConcluindo(null);
   };
 
   const excluir = async (s: Solicitacao) => {
@@ -277,7 +284,7 @@ export default function SolicitacoesPage() {
                       )}
                       {["aberta", "em_analise"].includes(s.status) && (
                         <>
-                          <button className="ped-btn-xs ativo" onClick={() => void mudarStatus(s, "concluida")}>Concluir</button>
+                          <button className="ped-btn-xs ativo" onClick={() => setConcluindo(s)}>Concluir</button>
                           <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(s, "cancelada")}>Cancelar</button>
                         </>
                       )}
@@ -289,6 +296,20 @@ export default function SolicitacoesPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {concluindo && (
+        <ModalPrompt
+          titulo={`Concluir solicitação — ${concluindo.matricula?.pessoaNome ?? concluindo.pessoaId}`}
+          descricao="Descreva a resposta/resolução dada ao aluno (opcional). Fica registrada na solicitação."
+          rotulo="Resposta"
+          placeholder="Ex.: certificado emitido e enviado por e-mail…"
+          obrigatorio={false}
+          rotuloConfirmar="Concluir solicitação"
+          carregando={salvandoConcluir}
+          onConfirmar={(r) => void confirmarConcluir(r)}
+          onFechar={() => setConcluindo(null)}
+        />
       )}
     </div>
   );

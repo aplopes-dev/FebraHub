@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico } from "@/services/api/pedagogico";
+import { ModalPrompt } from "@/components/ui/ModalPrompt";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -83,15 +84,23 @@ export default function CustomerSuccessPage() {
     }
   };
 
-  const mudarStatus = async (c: CsItem, status: string) => {
-    let resultado: string | undefined;
-    if (status === "resolvido") resultado = prompt("Resultado do acompanhamento (opcional):") ?? undefined;
+  const mudarStatus = async (c: CsItem, status: string, resultado?: string) => {
     try {
       await pedagogico.atualizarCs(c.id, { status, resultado });
       await carregar();
     } catch (e: unknown) {
       setFeedback({ tipo: "erro", msg: e instanceof Error ? e.message : "Erro ao atualizar acompanhamento." });
     }
+  };
+  // "Resolver" pede o resultado num modal (antes era prompt() nativo).
+  const [resolvendo, setResolvendo] = useState<CsItem | null>(null);
+  const [salvandoResolver, setSalvandoResolver] = useState(false);
+  const confirmarResolver = async (resultado: string) => {
+    if (!resolvendo) return;
+    setSalvandoResolver(true);
+    await mudarStatus(resolvendo, "resolvido", resultado || undefined);
+    setSalvandoResolver(false);
+    setResolvendo(null);
   };
 
   const descartar = async (c: CsItem) => {
@@ -258,7 +267,7 @@ export default function CustomerSuccessPage() {
                       )}
                       {["aberto", "em_andamento"].includes(c.status) && (
                         <>
-                          <button className="ped-btn-xs ativo" onClick={() => void mudarStatus(c, "resolvido")}>Resolver</button>
+                          <button className="ped-btn-xs ativo" onClick={() => setResolvendo(c)}>Resolver</button>
                           <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(c, "cancelado")}>Cancelar</button>
                         </>
                       )}
@@ -323,6 +332,20 @@ export default function CustomerSuccessPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {resolvendo && (
+        <ModalPrompt
+          titulo={`Resolver acompanhamento — ${resolvendo.pessoaNome ?? resolvendo.pessoaId}`}
+          descricao="Descreva o resultado do acompanhamento (opcional). Fica registrado no histórico."
+          rotulo="Resultado"
+          placeholder="Ex.: aluno retomou as aulas, renegociou o pagamento…"
+          obrigatorio={false}
+          rotuloConfirmar="Marcar como resolvido"
+          carregando={salvandoResolver}
+          onConfirmar={(r) => void confirmarResolver(r)}
+          onFechar={() => setResolvendo(null)}
+        />
       )}
     </div>
   );

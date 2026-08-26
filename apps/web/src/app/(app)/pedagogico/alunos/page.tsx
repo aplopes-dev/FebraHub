@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import React, { useEffect, useState, useCallback } from "react";
 import { pedagogico, PedagogicoMatricula, PedagogicoTurma } from "@/services/api/pedagogico";
+import { ModalPrompt } from "@/components/ui/ModalPrompt";
 
 const ptStatus: Record<string, string> = {
   Matriculado: "Matriculado",
@@ -61,6 +62,24 @@ export default function AlunosPage() {
   const [acaoMassa, setAcaoMassa] = useState("");
   const [executandoAcao, setExecutandoAcao] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(null);
+  // Cancelamento de matrícula: modal único (confirma + coleta motivo), no lugar
+  // de dois diálogos nativos (confirm + prompt) em sequência.
+  const [cancelandoMat, setCancelandoMat] = useState<PedagogicoMatricula | null>(null);
+  const [salvandoCancelMat, setSalvandoCancelMat] = useState(false);
+  const confirmarCancelarMatricula = async (motivo: string) => {
+    if (!cancelandoMat) return;
+    setSalvandoCancelMat(true);
+    try {
+      await pedagogico.removerMatricula(cancelandoMat.id, motivo || undefined);
+      setFeedback({ tipo: "ok", msg: "Matrícula cancelada." });
+      setCancelandoMat(null);
+      await carregar();
+    } catch (err: unknown) {
+      setFeedback({ tipo: "erro", msg: err instanceof Error ? err.message : "Erro ao cancelar matrícula." });
+    } finally {
+      setSalvandoCancelMat(false);
+    }
+  };
 
   // criar matrícula manual
   const [turmas, setTurmas] = useState<PedagogicoTurma[]>([]);
@@ -378,17 +397,7 @@ export default function AlunosPage() {
                         <button
                           className="ped-btn-xs perigo"
                           disabled={m.status === "Cancelado"}
-                          onClick={async () => {
-                            if (!confirm(`Cancelar a matrícula de ${m.pessoaNome ?? "aluno"}? O histórico é preservado.`)) return;
-                            const motivo = prompt("Motivo do cancelamento (opcional):") ?? undefined;
-                            try {
-                              await pedagogico.removerMatricula(m.id, motivo);
-                              setFeedback({ tipo: "ok", msg: "Matrícula cancelada." });
-                              await carregar();
-                            } catch (err: unknown) {
-                              setFeedback({ tipo: "erro", msg: err instanceof Error ? err.message : "Erro ao cancelar matrícula." });
-                            }
-                          }}
+                          onClick={() => setCancelandoMat(m)}
                         >
                           Cancelar
                         </button>
@@ -413,6 +422,21 @@ export default function AlunosPage() {
             Próxima →
           </button>
         </div>
+      )}
+
+      {cancelandoMat && (
+        <ModalPrompt
+          titulo={`Cancelar matrícula — ${cancelandoMat.pessoaNome ?? "aluno"}`}
+          descricao="O histórico é preservado. Informe o motivo do cancelamento (opcional)."
+          rotulo="Motivo"
+          placeholder="Ex.: desistência, transferência, inadimplência…"
+          obrigatorio={false}
+          rotuloConfirmar="Cancelar matrícula"
+          perigo
+          carregando={salvandoCancelMat}
+          onConfirmar={(motivo) => void confirmarCancelarMatricula(motivo)}
+          onFechar={() => setCancelandoMat(null)}
+        />
       )}
     </div>
   );
