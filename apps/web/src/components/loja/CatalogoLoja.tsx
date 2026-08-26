@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Barcode, Boxes, CheckCircle2, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Sparkles, Tag, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeftRight, Barcode, Boxes, CheckCircle2, ImageOff, Layers, Loader2, PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Tag, Trash2, Upload, X } from "lucide-react";
 import {
   lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarCodigoBarras, lojaAtualizarProduto, lojaCategorias, lojaCriarProduto,
   lojaEnriquecerEanLote, lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto, lojaMovimentos,
@@ -165,44 +165,33 @@ export function CatalogoLoja() {
   );
 }
 
-// ==================== UPLOADER DE IMAGEM (com remoção de fundo) ====================
-/**
- * Sobe a imagem do produto e, opcionalmente, remove o fundo direto no
- * navegador (@imgly/background-removal — roda em WASM, sem custo de servidor).
- * A remoção é dinâmica: só baixa o modelo quando o usuário de fato usa. Se
- * falhar, cai para o upload da imagem original — nunca trava o cadastro.
- */
+// ==================== UPLOADER DE IMAGEM ====================
 function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [removerFundo, setRemoverFundo] = useState(true);
-  const [etapa, setEtapa] = useState<"" | "fundo" | "enviando">("");
+  const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const ocupado = etapa !== "";
+  const [previa, setPrevia] = useState<string>(valor);
+
+  // Sincroniza prévia quando valor externo muda (ex: abrir modal com produto existente)
+  useEffect(() => { setPrevia(valor); }, [valor]);
 
   async function processar(arquivo: File) {
     setErro(null);
+    // Mostra prévia local imediatamente
+    const urlLocal = URL.createObjectURL(arquivo);
+    setPrevia(urlLocal);
+    setEnviando(true);
     try {
-      let blob: Blob = arquivo;
-      let nome = arquivo.name || "produto.png";
-      if (removerFundo) {
-        setEtapa("fundo");
-        try {
-          const { removeBackground } = await import("@imgly/background-removal");
-          blob = await removeBackground(arquivo, { output: { format: "image/png" } });
-          nome = nome.replace(/\.[^.]+$/, "") + ".png";
-        } catch (e) {
-          // Modelo indisponível/erro de WASM: segue com a imagem original.
-          console.warn("Remoção de fundo falhou, enviando original:", e);
-          setErro("Não foi possível remover o fundo — a imagem original foi enviada.");
-        }
-      }
-      setEtapa("enviando");
-      const { url } = await lojaEnviarImagemProduto(blob, nome);
+      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "produto.jpg");
+      URL.revokeObjectURL(urlLocal);
+      setPrevia(url);
       aoMudar(url);
     } catch (e) {
+      URL.revokeObjectURL(urlLocal);
+      setPrevia(valor); // volta à imagem anterior
       setErro(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
     } finally {
-      setEtapa("");
+      setEnviando(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -211,28 +200,31 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
     <div>
       <label>Imagem do produto</label>
       <div className="loja-uploader">
-        <div className={`loja-uploader-preview ${valor ? "" : "vazio"}`} onClick={() => !ocupado && inputRef.current?.click()}>
-          {ocupado ? (
-            <span className="loja-uploader-status"><Loader2 size={18} className="girando" />{etapa === "fundo" ? "Removendo fundo…" : "Enviando…"}</span>
-          ) : valor ? (
-            <img src={valor} alt="Prévia do produto" />
+        <div
+          className={`loja-uploader-preview ${previa ? "" : "vazio"}`}
+          onClick={() => !enviando && inputRef.current?.click()}
+          style={{ cursor: enviando ? "wait" : "pointer" }}
+        >
+          {previa ? (
+            <img src={previa} alt="Prévia do produto" style={{ objectFit: "contain", width: "100%", height: "100%" }} />
           ) : (
             <span className="loja-uploader-status"><ImageOff size={20} /> Sem imagem</span>
           )}
+          {enviando && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", borderRadius: "inherit" }}>
+              <Loader2 size={28} className="girando" style={{ color: "#fff" }} />
+            </div>
+          )}
         </div>
         <div className="loja-uploader-acoes">
-          <button type="button" className="loja-btn mini" disabled={ocupado} onClick={() => inputRef.current?.click()}>
-            <Upload size={13} /> {valor ? "Trocar imagem" : "Enviar imagem"}
+          <button type="button" className="loja-btn mini" disabled={enviando} onClick={() => inputRef.current?.click()}>
+            <Upload size={13} /> {previa ? "Trocar imagem" : "Enviar imagem"}
           </button>
-          {valor && (
-            <button type="button" className="loja-btn mini" disabled={ocupado} onClick={() => aoMudar("")}>
+          {previa && (
+            <button type="button" className="loja-btn mini" disabled={enviando} onClick={() => { setPrevia(""); aoMudar(""); }}>
               <Trash2 size={13} /> Remover
             </button>
           )}
-          <label className="loja-uploader-toggle" title="Deixa só o produto, sem fundo">
-            <input type="checkbox" checked={removerFundo} disabled={ocupado} onChange={(e) => setRemoverFundo(e.target.checked)} />
-            <Sparkles size={13} /> Remover fundo
-          </label>
         </div>
         <input
           ref={inputRef}
