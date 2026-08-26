@@ -39,8 +39,8 @@ import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
 import "@/app/comercial.css";
 
-const brl = (v: number) =>
-  (v / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (v: number | null | undefined) =>
+  ((Number(v) || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function dataFmt(iso: string | null | undefined) {
   if (!iso) return "—";

@@ -12,8 +12,8 @@ import { listarVendas, type ComVenda } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import "@/app/comercial.css";
 
-const brl = (v: number) =>
-  (v / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (v: number | null | undefined) =>
+  ((Number(v) || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function badgeFinanceiro(status: string) {
   const cls: Record<string, string> = {

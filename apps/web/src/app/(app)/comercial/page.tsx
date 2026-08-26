@@ -19,9 +19,9 @@ import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import "@/app/comercial.css";
 
-const brl = (v: number) =>
-  (v / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const pct = (v: number) => `${v.toFixed(1).replace(".", ",")}%`;
+const brl = (v: number | null | undefined) =>
+  ((Number(v) || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const pct = (v: number | null | undefined) => `${(Number(v) || 0).toFixed(1).replace(".", ",")}%`;
 
 function SkeletonKpi() {
   return (
