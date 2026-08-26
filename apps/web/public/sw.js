@@ -7,7 +7,7 @@
  *  - Estáticos do Next (/_next/static, ícones): cache-first (imutáveis).
  *
  * Sem libs. Bump em CACHE_VERSION invalida os caches antigos no activate. */
-const CACHE_VERSION = "febrahub-pwa-v1";
+const CACHE_VERSION = "febrahub-pwa-v2";
 const APP_SHELL = ["/pdv-movel", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-maskable.svg"];
 
 self.addEventListener("install", (event) => {
