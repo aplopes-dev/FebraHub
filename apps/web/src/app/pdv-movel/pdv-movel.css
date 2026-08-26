@@ -251,6 +251,56 @@
 .pm-desc-resumo span{font-size:10px;color:var(--pm-muted);font-weight:700;text-transform:uppercase}
 .pm-desc-resumo b{font-size:15px;font-weight:800}
 
+/* ── Hint "segure para editar" ── */
+.pm-hint-editar{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--pm-muted);margin:0 0 10px;
+  background:rgba(242,212,136,.06);border-radius:8px;padding:6px 10px;
+}
+.pm-hint-editar svg{flex-shrink:0;color:var(--pm-gold-a)}
+
+/* ícone de lápis discreto no canto superior esquerdo do card (só p/ gerentes) */
+.pm-prod-edit-hint{
+  position:absolute;top:6px;left:6px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(242,212,136,.18);
+  display:grid;place-items:center;
+  color:var(--pm-gold-a);
+  z-index:1;
+}
+
+/* ── Modal de edição de produto (PDV móvel) ── */
+/* bg abre pelo topo (não pelo rodapé) para não cobrir teclado */
+.pm-modal-bg-top{
+  align-items:flex-start;padding-top:calc(env(safe-area-inset-top) + 12px);
+}
+.pm-modal-edprod{
+  border-radius:22px;
+  max-height:90dvh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.pm-edprod-img-area{display:grid;gap:10px}
+.pm-edprod-preview{
+  width:100%;height:160px;border-radius:14px;
+  border:2px dashed var(--pm-line);
+  background:#20202a;
+  display:grid;place-items:center;cursor:pointer;position:relative;overflow:hidden;
+  transition:border-color .15s;
+}
+.pm-edprod-preview:active{border-color:var(--pm-gold-a)}
+.pm-edprod-preview img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+.pm-edprod-preview.vazio span{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--pm-muted);font-size:12px}
+.pm-edprod-sending{
+  position:absolute;inset:0;background:rgba(14,14,17,.7);
+  display:grid;place-items:center;border-radius:12px;
+}
+.pm-edprod-img-btns{display:flex;gap:8px;flex-wrap:wrap}
+.pm-edprod-campos{display:grid;gap:10px;margin-top:4px}
+
+/* spin simples */
+.pm-spin{animation:pm-spin-kf .8s linear infinite}
+@keyframes pm-spin-kf{to{transform:rotate(360deg)}}
+
 /* banner de instalação */
 .pm-install{
   position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
