@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Filter, Layers3, Plus,
 import { ModalCentro } from '@/components/ui/ModalCentro';
 import { BotaoPrimario } from '@/components/ui/BotaoPrimario';
 import { processoCriar, processosListar, processosVisao } from '@/services/api/processos';
+import type { Processo } from '@/types/processos';
 
 export const rotuloProcesso = (v: string) => v.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
 export const corSituacao: Record<string, string> = { aprovado: '#2f855a', implantado: '#b88924', aguardando_validacao: '#7652b5', ajustes_solicitados: '#c94b4b', rascunho: '#7b7b78', levantamento_iniciado: '#3976a8' };
