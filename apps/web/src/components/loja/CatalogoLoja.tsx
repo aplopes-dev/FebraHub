@@ -124,7 +124,8 @@ export function CatalogoLoja() {
             })}
           </tbody>
         </table>
-        {!prods.isLoading && !(prods.data ?? []).length && <p className="loja-empty">Nenhum produto encontrado neste filtro.</p>}
+        {prods.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar os produtos. Verifique sua conexão e tente novamente.</p>}
+        {!prods.isLoading && !prods.isError && !(prods.data ?? []).length && <p className="loja-empty">Nenhum produto encontrado neste filtro.</p>}
       </section>
 
       {editar && <ModalProduto produto={editar === "novo" ? null : editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); invalidar(); }} />}
@@ -379,7 +380,8 @@ function ModalEstoque({ produto, aoFechar, aoMudar }: { produto: LojaProduto; ao
                 <div style={{ textAlign: "right" }}><b style={{ color: Number(m.quantidade) < 0 ? "var(--down)" : "var(--up)" }}>{Number(m.quantidade) > 0 ? "+" : ""}{num(m.quantidade)}</b><small style={{ display: "block" }}>{new Date(m.criadoEm).toLocaleString("pt-BR")}</small></div>
               </div>
             ))}
-            {!movs.isLoading && !(movs.data ?? []).length && <p className="loja-empty">Sem movimentações ainda.</p>}
+            {movs.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o histórico.</p>}
+            {!movs.isLoading && !movs.isError && !(movs.data ?? []).length && <p className="loja-empty">Sem movimentações ainda.</p>}
           </div>
         )}
       </div>

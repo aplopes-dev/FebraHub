@@ -95,7 +95,8 @@ export function EstoqueGeral() {
                   })}
                 </tbody>
               </table>
-              {!prods.isLoading && !(prods.data ?? []).length && <p className="loja-empty">Nenhum produto encontrado.</p>}
+              {prods.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o estoque. Verifique sua conexão e tente novamente.</p>}
+              {!prods.isLoading && !prods.isError && !(prods.data ?? []).length && <p className="loja-empty">{busca ? "Nenhum produto encontrado para essa busca." : "Nenhum produto cadastrado ainda."}</p>}
             </div>
           </>
         )}
@@ -104,6 +105,7 @@ export function EstoqueGeral() {
           <PainelReposicao
             itens={repo.data?.itens ?? []}
             carregando={repo.isLoading}
+            erro={repo.isError}
             podeGerir={podeGerir}
             aoTransferir={(it) => {
               const prod = (prods.data ?? []).find((p) => p.id === it.id);
@@ -125,14 +127,16 @@ export function EstoqueGeral() {
 }
 
 function PainelReposicao({
-  itens, carregando, podeGerir, aoTransferir,
+  itens, carregando, erro, podeGerir, aoTransferir,
 }: {
   itens: ReposicaoItem[];
   carregando: boolean;
+  erro?: boolean;
   podeGerir: boolean;
   aoTransferir: (it: ReposicaoItem) => void;
 }) {
   if (carregando) return <p className="loja-empty">Calculando reposição…</p>;
+  if (erro) return <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível calcular a reposição. Tente novamente.</p>;
   if (!itens.length)
     return <p className="loja-empty">✓ Nenhum item abaixo do mínimo. Defina o <b>estoque mínimo</b> nos produtos para ativar as sugestões.</p>;
   return (

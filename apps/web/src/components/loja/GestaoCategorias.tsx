@@ -26,6 +26,7 @@ export function GestaoCategorias({ aoFechar }: { aoFechar: () => void }) {
   const alternar = useMutation({
     mutationFn: (c: LojaCategoria) => lojaAtualizarCategoria(c.id, { ...c, ativo: !c.ativo }),
     onSuccess: invalidar,
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao alterar a categoria."),
   });
 
   return (
@@ -42,12 +43,13 @@ export function GestaoCategorias({ aoFechar }: { aoFechar: () => void }) {
             <div key={c.id} className="linha" style={{ alignItems: "center" }}>
               <div><b>{c.nome}</b> <small>ordem {c.ordem}</small></div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button className={`loja-badge ${c.ativo ? "on" : "off"}`} style={{ border: 0, cursor: "pointer" }} onClick={() => alternar.mutate(c)}>{c.ativo ? "ativa" : "inativa"}</button>
+                <button className={`loja-badge ${c.ativo ? "on" : "off"}`} style={{ border: 0, cursor: alternar.isPending ? "default" : "pointer" }} disabled={alternar.isPending} onClick={() => { setErro(null); alternar.mutate(c); }}>{c.ativo ? "ativa" : "inativa"}</button>
                 <button className="loja-btn mini perigo" onClick={() => { setErro(null); apagar.mutate(c.id); }}><Trash2 size={13} /></button>
               </div>
             </div>
           ))}
-          {!cats.isLoading && !(cats.data ?? []).length && <p className="loja-empty">Nenhuma categoria.</p>}
+          {cats.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar as categorias.</p>}
+          {!cats.isLoading && !cats.isError && !(cats.data ?? []).length && <p className="loja-empty">Nenhuma categoria ainda. Crie a primeira acima.</p>}
         </div>
         <div className="fim"><button className="loja-btn" onClick={aoFechar}>Fechar</button></div>
       </div>
