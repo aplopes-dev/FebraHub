@@ -703,7 +703,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
    Identidade Febracis + tema. O wrapper herda a classe/estilo que o
    <select> antigo tinha (largura/posição); aqui mora a aparência.
    ============================================================ */
-.fh-select { position: relative; display: inline-flex; min-width: 0; }
+/* O wrapper pode receber a classe que o <select> nativo tinha (para herdar
+   largura/posição). Zeramos aqui a "moldura" que essas classes desenhavam no
+   elemento — o visual do dropdown mora no .fh-select-trigger. !important
+   porque as classes legadas (.ped-select, .co-form select, .loja-input…) são
+   arbitrárias e não dá para prever a especificidade. */
+.fh-select {
+  position: relative; display: inline-flex; min-width: 0;
+  border: 0 !important; background: none !important; padding: 0 !important;
+  box-shadow: none !important; height: auto !important;
+}
 .fh-select-trigger {
   display: inline-flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
   padding: 9px 11px; border-radius: 10px; border: 1px solid var(--card-line);

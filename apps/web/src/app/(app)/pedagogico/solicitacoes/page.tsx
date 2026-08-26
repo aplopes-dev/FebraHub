@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -241,14 +242,10 @@ export default function SolicitacoesPage() {
       )}
 
       <div className="ped-filtros-row">
-        <select className="ped-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-          <option value="">Todos os status</option>
-          {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="ped-select" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-          <option value="">Todos os tipos</option>
-          {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select className="ped-select" aria-label="Filtrar por status" value={filtroStatus} onChange={setFiltroStatus}
+          options={[{ value: "", label: "Todos os status" }, ...STATUS.map((s) => ({ value: s, label: s }))]} />
+        <Select className="ped-select" aria-label="Filtrar por tipo" value={filtroTipo} onChange={setFiltroTipo}
+          options={[{ value: "", label: "Todos os tipos" }, ...TIPOS.map((t) => ({ value: t, label: t }))]} />
         <span className="ped-total-label">{lista.length} solicitação(ões)</span>
       </div>
 

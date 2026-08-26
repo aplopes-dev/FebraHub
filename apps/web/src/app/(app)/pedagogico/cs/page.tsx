@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { Select } from "@/components/ui/Select";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
@@ -220,14 +221,10 @@ export default function CustomerSuccessPage() {
       )}
 
       <div className="ped-filtros-row">
-        <select className="ped-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-          <option value="">Todos os status</option>
-          {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="ped-select" value={filtroMotivo} onChange={(e) => setFiltroMotivo(e.target.value)}>
-          <option value="">Todos os motivos</option>
-          {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
+        <Select className="ped-select" aria-label="Filtrar por status" value={filtroStatus} onChange={setFiltroStatus}
+          options={[{ value: "", label: "Todos os status" }, ...STATUS.map((s) => ({ value: s, label: s }))]} />
+        <Select className="ped-select" aria-label="Filtrar por motivo" value={filtroMotivo} onChange={setFiltroMotivo}
+          options={[{ value: "", label: "Todos os motivos" }, ...MOTIVOS.map((m) => ({ value: m, label: m }))]} />
         <span className="ped-total-label">{lista.length} acompanhamento(s)</span>
       </div>
 
