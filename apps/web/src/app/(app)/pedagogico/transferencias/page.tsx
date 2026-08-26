@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula, type PedagogicoTurma } from "@/services/api/pedagogico";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR") : "—");
 
@@ -128,8 +129,9 @@ export default function TransferenciasPage() {
     }
   };
 
+  const [cancelandoTransf, setCancelandoTransf] = useState<PedagogicoMatricula | null>(null);
   const cancelar = async (m: PedagogicoMatricula) => {
-    if (!confirm(`Cancelar a solicitação de transferência de ${m.pessoaNome ?? "aluno"}?`)) return;
+    setCancelandoTransf(null);
     setProcessando(m.id);
     setFeedback(null);
     try {
@@ -291,7 +293,7 @@ export default function TransferenciasPage() {
                       <button
                         className="ped-btn-xs perigo"
                         disabled={processando === m.id}
-                        onClick={() => void cancelar(m)}
+                        onClick={() => setCancelandoTransf(m)}
                       >
                         Cancelar
                       </button>
@@ -302,6 +304,18 @@ export default function TransferenciasPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {cancelandoTransf && (
+        <ModalConfirmar
+          titulo="Cancelar transferência"
+          mensagem={<>Cancelar a solicitação de transferência de <b>{cancelandoTransf.pessoaNome ?? "aluno"}</b>?</>}
+          rotuloConfirmar="Cancelar transferência"
+          perigo
+          carregando={processando === cancelandoTransf.id}
+          onConfirmar={() => void cancelar(cancelandoTransf)}
+          onFechar={() => setCancelandoTransf(null)}
+        />
       )}
     </div>
   );

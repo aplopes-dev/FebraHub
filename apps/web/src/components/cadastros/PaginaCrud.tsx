@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { FormCrud } from "./FormCrud";
 import { TabelaCrud } from "./TabelaCrud";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import type { CampoCrud, ColunaCrud, ListaCrud } from "./tipos";
 import { BOTAO_OURO, BOTAO_SECUNDARIO, inputAv } from "@/components/ui/estilos";
 import { C, SANS } from "@/lib/tema";
@@ -43,6 +44,22 @@ export function PaginaCrud<T extends object>({
   const [editando, setEditando] = useState<T | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
+  const [apagando, setApagando] = useState<T | null>(null);
+  const [apagandoBusy, setApagandoBusy] = useState(false);
+  const confirmarApagar = async () => {
+    if (!apagando) return;
+    setApagandoBusy(true);
+    setErro(null);
+    try {
+      await apagar(apagando);
+      setApagando(null);
+      await recarregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao apagar");
+    } finally {
+      setApagandoBusy(false);
+    }
+  };
 
   const recarregar = useCallback(async () => {
     setCarregando(true);
@@ -111,15 +128,7 @@ export function PaginaCrud<T extends object>({
           linhas={lista?.itens ?? []}
           chaveLinha={chaveLinha}
           onEditar={(row) => { setEditando(row); setErroForm(null); setAberto(true); }}
-          onApagar={async (row) => {
-            if (!confirm("Apagar este registro?")) return;
-            try {
-              await apagar(row);
-              await recarregar();
-            } catch (e) {
-              alert(e instanceof Error ? e.message : "Falha ao apagar");
-            }
-          }}
+          onApagar={(row) => setApagando(row)}
           rodape={lista && (
             <>
               <span style={{ fontFamily: SANS }}>
@@ -171,6 +180,17 @@ export function PaginaCrud<T extends object>({
           }
         }}
       />
+      {apagando && (
+        <ModalConfirmar
+          titulo="Apagar registro"
+          mensagem="Apagar este registro? Esta ação não pode ser desfeita."
+          rotuloConfirmar="Apagar"
+          perigo
+          carregando={apagandoBusy}
+          onConfirmar={() => void confirmarApagar()}
+          onFechar={() => setApagando(null)}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoTurma } from "@/services/api/pedagogico";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -109,8 +110,10 @@ export default function MonitoresPage() {
     }
   };
 
+  const [removendoEscala, setRemovendoEscala] = useState<string | null>(null);
+  const [inativando, setInativando] = useState<Monitor | null>(null);
   const removerEscala = async (escalaId: string) => {
-    if (!confirm("Remover esta escala do monitor?")) return;
+    setRemovendoEscala(null);
     try {
       await pedagogico.removerEscala(escalaId);
       await carregar();
@@ -120,7 +123,7 @@ export default function MonitoresPage() {
   };
 
   const inativar = async (m: Monitor) => {
-    if (!confirm(`Inativar o monitor ${m.nome}?`)) return;
+    setInativando(null);
     try {
       await pedagogico.removerMonitor(m.id);
       setFeedback({ tipo: "ok", msg: `${m.nome} inativado.` });
@@ -223,7 +226,7 @@ export default function MonitoresPage() {
                             ) : (
                               <button className="ped-btn-xs" onClick={() => void marcarKit(e.id)}>marcar kit</button>
                             )}
-                            <button className="ped-btn-xs perigo" onClick={() => void removerEscala(e.id)}>remover</button>
+                            <button className="ped-btn-xs perigo" onClick={() => setRemovendoEscala(e.id)}>remover</button>
                           </div>
                         ))}
                       </div>
@@ -235,7 +238,7 @@ export default function MonitoresPage() {
                         Escalar
                       </button>
                       {m.status !== "inativo" && (
-                        <button className="ped-btn-xs perigo" onClick={() => void inativar(m)}>Inativar</button>
+                        <button className="ped-btn-xs perigo" onClick={() => setInativando(m)}>Inativar</button>
                       )}
                     </div>
                   </td>
@@ -279,6 +282,27 @@ export default function MonitoresPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {removendoEscala && (
+        <ModalConfirmar
+          titulo="Remover escala"
+          mensagem="Remover esta escala do monitor?"
+          rotuloConfirmar="Remover"
+          perigo
+          onConfirmar={() => void removerEscala(removendoEscala)}
+          onFechar={() => setRemovendoEscala(null)}
+        />
+      )}
+      {inativando && (
+        <ModalConfirmar
+          titulo="Inativar monitor"
+          mensagem={<>Inativar o monitor <b>{inativando.nome}</b>? Ele deixa de aparecer nas escalas.</>}
+          rotuloConfirmar="Inativar"
+          perigo
+          onConfirmar={() => void inativar(inativando)}
+          onFechar={() => setInativando(null)}
+        />
       )}
     </div>
   );

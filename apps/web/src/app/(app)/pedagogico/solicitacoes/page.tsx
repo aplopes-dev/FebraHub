@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -132,8 +133,9 @@ export default function SolicitacoesPage() {
     setConcluindo(null);
   };
 
+  const [excluindo, setExcluindo] = useState<Solicitacao | null>(null);
   const excluir = async (s: Solicitacao) => {
-    if (!confirm(`Excluir definitivamente a solicitação (${s.tipo}) de ${s.matricula?.pessoaNome ?? s.pessoaId}?`)) return;
+    setExcluindo(null);
     try {
       await pedagogico.removerSolicitacao(s.id);
       setFeedback({ tipo: "ok", msg: "Solicitação excluída." });
@@ -288,7 +290,7 @@ export default function SolicitacoesPage() {
                           <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(s, "cancelada")}>Cancelar</button>
                         </>
                       )}
-                      <button className="ped-btn-xs perigo" onClick={() => void excluir(s)}>Excluir</button>
+                      <button className="ped-btn-xs perigo" onClick={() => setExcluindo(s)}>Excluir</button>
                     </div>
                   </td>
                 </tr>
@@ -309,6 +311,16 @@ export default function SolicitacoesPage() {
           carregando={salvandoConcluir}
           onConfirmar={(r) => void confirmarConcluir(r)}
           onFechar={() => setConcluindo(null)}
+        />
+      )}
+      {excluindo && (
+        <ModalConfirmar
+          titulo="Excluir solicitação"
+          mensagem={<>Excluir definitivamente a solicitação (<b>{excluindo.tipo}</b>) de <b>{excluindo.matricula?.pessoaNome ?? excluindo.pessoaId}</b>?</>}
+          rotuloConfirmar="Excluir"
+          perigo
+          onConfirmar={() => void excluir(excluindo)}
+          onFechar={() => setExcluindo(null)}
         />
       )}
     </div>

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { pedagogico, PedagogicoTurma, PedagogicoMatricula } from "@/services/api/pedagogico";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmtData = (s?: string | null) =>
@@ -113,9 +114,10 @@ export default function DetalhesTurmaPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  const [confirmandoRemover, setConfirmandoRemover] = useState(false);
   const removerTurma = async () => {
     if (!turma) return;
-    if (!confirm(`Cancelar (arquivar) a turma "${turma.nome}"? Só é possível se não houver alunos ativos.`)) return;
+    setConfirmandoRemover(false);
     setMudandoStatus(true);
     setErro(null);
     try {
@@ -277,7 +279,7 @@ export default function DetalhesTurmaPage() {
             className="ped-btn-outline"
             style={{ color: "#b91c1c", borderColor: "#fca5a5" }}
             disabled={mudandoStatus || turma.status === "Cancelada"}
-            onClick={removerTurma}
+            onClick={() => setConfirmandoRemover(true)}
           >
             ✕ Cancelar turma
           </button>
@@ -743,6 +745,18 @@ export default function DetalhesTurmaPage() {
             </div>
           </form>
         </div>
+      )}
+
+      {confirmandoRemover && turma && (
+        <ModalConfirmar
+          titulo="Cancelar turma"
+          mensagem={<>Cancelar (arquivar) a turma <b>{turma.nome}</b>? Só é possível se não houver alunos ativos.</>}
+          rotuloConfirmar="Cancelar turma"
+          perigo
+          carregando={mudandoStatus}
+          onConfirmar={() => void removerTurma()}
+          onFechar={() => setConfirmandoRemover(false)}
+        />
       )}
     </div>
   );

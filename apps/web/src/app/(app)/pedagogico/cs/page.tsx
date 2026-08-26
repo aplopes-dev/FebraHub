@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -103,8 +104,9 @@ export default function CustomerSuccessPage() {
     setResolvendo(null);
   };
 
+  const [descartando, setDescartando] = useState<CsItem | null>(null);
   const descartar = async (c: CsItem) => {
-    if (!confirm(`Descartar o acompanhamento de ${c.pessoaNome ?? c.pessoaId}?`)) return;
+    setDescartando(null);
     try {
       await pedagogico.removerCs(c.id);
       setFeedback({ tipo: "ok", msg: "Acompanhamento descartado." });
@@ -272,7 +274,7 @@ export default function CustomerSuccessPage() {
                         </>
                       )}
                       {c.status !== "descartado" && (
-                        <button className="ped-btn-xs perigo" onClick={() => void descartar(c)}>Descartar</button>
+                        <button className="ped-btn-xs perigo" onClick={() => setDescartando(c)}>Descartar</button>
                       )}
                     </div>
                   </td>
@@ -345,6 +347,16 @@ export default function CustomerSuccessPage() {
           carregando={salvandoResolver}
           onConfirmar={(r) => void confirmarResolver(r)}
           onFechar={() => setResolvendo(null)}
+        />
+      )}
+      {descartando && (
+        <ModalConfirmar
+          titulo="Descartar acompanhamento"
+          mensagem={<>Descartar o acompanhamento de <b>{descartando.pessoaNome ?? descartando.pessoaId}</b>?</>}
+          rotuloConfirmar="Descartar"
+          perigo
+          onConfirmar={() => void descartar(descartando)}
+          onFechar={() => setDescartando(null)}
         />
       )}
     </div>
