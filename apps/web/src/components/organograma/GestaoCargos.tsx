@@ -109,6 +109,14 @@ export function GestaoCargos({ onMudou }: { onMudou?: () => void }) {
   if (consulta.isLoading) {
     return <p className="org-vazio">Carregando cargos…</p>;
   }
+  if (consulta.isError) {
+    return (
+      <p className="org-vazio" style={{ color: "var(--down)" }}>
+        Não foi possível carregar os cargos.{" "}
+        <button type="button" onClick={() => consulta.refetch()} style={{ background: "none", border: "none", color: "var(--gold)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }}>Tentar de novo</button>
+      </p>
+    );
+  }
 
   /* Formulário de cargo */
   if (form) {
