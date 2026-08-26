@@ -31,6 +31,7 @@ export function Fornecedores() {
   const [filtro, setFiltro] = useState('');
   const [editando, setEditando] = useState<Rascunho | null>(null);
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [erroSituacao, setErroSituacao] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ['fornecedores', busca, filtro],
@@ -73,7 +74,8 @@ export function Fornecedores() {
   const mudarSituacao = useMutation({
     mutationFn: ({ id, situacao }: { id: string; situacao: SituacaoFornecedor }) =>
       fornecedorSituacao(id, situacao),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['fornecedores'] }),
+    onSuccess: () => { setErroSituacao(null); qc.invalidateQueries({ queryKey: ['fornecedores'] }); },
+    onError: (e: unknown) => setErroSituacao(e instanceof Error ? e.message : 'Não foi possível alterar a situação do fornecedor.'),
   });
 
   const lista = q.data ?? [];
@@ -112,6 +114,7 @@ export function Fornecedores() {
         </header>
 
         {q.isError && <div className="co-error">Não foi possível carregar os fornecedores.</div>}
+        {erroSituacao && <div className="co-error">{erroSituacao}</div>}
 
         <div className="fo-grid">
           {lista.map((f) => (
@@ -171,6 +174,7 @@ export function Fornecedores() {
             setEditando({ ...f, contatos: f.contatos ?? [] });
           }}
           onMudarSituacao={(situacao) => mudarSituacao.mutate({ id: detalheId, situacao })}
+          mudandoSituacao={mudarSituacao.isPending}
         />
       )}
     </main>
@@ -329,11 +333,13 @@ function DetalheFornecedor({
   onFechar,
   onEditar,
   onMudarSituacao,
+  mudandoSituacao,
 }: {
   id: string;
   onFechar: () => void;
   onEditar: (f: Fornecedor) => void;
   onMudarSituacao: (s: SituacaoFornecedor) => void;
+  mudandoSituacao?: boolean;
 }) {
   const q = useQuery({ queryKey: ['fornecedor', id], queryFn: () => fornecedorObter(id) });
   const f = q.data;
@@ -347,13 +353,14 @@ function DetalheFornecedor({
           <button onClick={onFechar}><X /></button>
         </header>
         {q.isLoading && <div className="co-loading">Carregando…</div>}
+        {q.isError && !f && <div className="co-error" style={{ margin: 16 }}>Não foi possível carregar este fornecedor. Verifique sua conexão e tente novamente.</div>}
         {f && (
           <div className="fo-drawer-body fo-detalhe">
             <div className="fo-full fo-sit-bar">
               <span className="fo-sit" style={{ '--fo-cor': corSit(f.situacao) } as React.CSSProperties}>{rotuloSit(f.situacao)}</span>
               <div className="fo-sit-acoes">
                 {SITUACOES.filter((s) => s.valor !== f.situacao).map((s) => (
-                  <button key={s.valor} onClick={() => onMudarSituacao(s.valor)}>{s.rotulo}</button>
+                  <button key={s.valor} disabled={mudandoSituacao} onClick={() => onMudarSituacao(s.valor)}>{s.rotulo}</button>
                 ))}
                 <button className="fo-ghost" onClick={() => onEditar(f)}><Pencil /> Editar</button>
               </div>

@@ -57,7 +57,7 @@ export function CentralFinanceiro() {
             <button className={`fin-tab ${aba === "pagar" ? "ativo" : ""}`} onClick={() => setAba("pagar")}>A pagar</button>
           </div>
         </header>
-        <TabelaLancamentos lancamentos={lanc.data ?? []} carregando={lanc.isLoading} podeGerir={podeGerir} aoMudar={() => qc.invalidateQueries({ queryKey: ["fin"] })} />
+        <TabelaLancamentos lancamentos={lanc.data ?? []} carregando={lanc.isLoading} erro={lanc.isError} podeGerir={podeGerir} aoMudar={() => qc.invalidateQueries({ queryKey: ["fin"] })} />
       </section>
 
       {novo && <ModalLancamento operacao={aba} aoFechar={() => setNovo(false)} aoCriar={() => { setNovo(false); qc.invalidateQueries({ queryKey: ["fin"] }); }} />}
@@ -66,13 +66,15 @@ export function CentralFinanceiro() {
   );
 }
 
-function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { lancamentos: FinLancamento[]; carregando: boolean; podeGerir: boolean; aoMudar: () => void }) {
+function TabelaLancamentos({ lancamentos, carregando, erro, podeGerir, aoMudar }: { lancamentos: FinLancamento[]; carregando: boolean; erro?: boolean; podeGerir: boolean; aoMudar: () => void }) {
   const [pagar, setPagar] = useState<FinLancamento | null>(null);
   const [editar, setEditar] = useState<FinLancamento | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<FinLancamento | null>(null);
+  const [erroExcluir, setErroExcluir] = useState<string | null>(null);
   const excluir = useMutation({
     mutationFn: (id: string) => finExcluirLancamento(id),
-    onSuccess: () => { setExcluirAlvo(null); aoMudar(); },
+    onSuccess: () => { setExcluirAlvo(null); setErroExcluir(null); aoMudar(); },
+    onError: (e) => setErroExcluir(e instanceof ErroApi ? e.mensagem : "Não foi possível excluir o lançamento."),
   });
   return (
     <>
@@ -98,7 +100,10 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
           );})}
         </tbody>
       </table>
-      {!carregando && !lancamentos.length && <p className="fin-empty">Nenhum título neste filtro.</p>}
+      {carregando && !lancamentos.length && <p className="fin-empty">Carregando títulos…</p>}
+      {erro && !lancamentos.length && <p className="fin-empty" style={{ color: "var(--down)" }}>Não foi possível carregar os títulos. Tente novamente.</p>}
+      {!carregando && !erro && !lancamentos.length && <p className="fin-empty">Nenhum título neste filtro.</p>}
+      {erroExcluir && <p className="fin-empty" style={{ color: "var(--down)" }}>{erroExcluir}</p>}
       {pagar && <ModalPagar lancamento={pagar} aoFechar={() => setPagar(null)} aoPagar={() => { setPagar(null); aoMudar(); }} />}
       {editar && <ModalEditarLancamento lancamento={editar} aoFechar={() => setEditar(null)} aoSalvar={() => { setEditar(null); aoMudar(); }} />}
       {excluirAlvo && (
@@ -109,7 +114,7 @@ function TabelaLancamentos({ lancamentos, carregando, podeGerir, aoMudar }: { la
           perigo
           carregando={excluir.isPending}
           onConfirmar={() => excluir.mutate(excluirAlvo.id)}
-          onFechar={() => setExcluirAlvo(null)}
+          onFechar={() => { setExcluirAlvo(null); setErroExcluir(null); }}
         />
       )}
     </>
