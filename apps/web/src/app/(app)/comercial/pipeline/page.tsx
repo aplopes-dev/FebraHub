@@ -275,14 +275,14 @@ function ViewLista({ funil }: { funil: ComFunil }) {
     enabled: !!funilId,
   });
 
-  const itensBrutos: ComOportunidade[] = data?.itens ?? [];
   // Filtro de responsável por nome (client-side): o endpoint só aceita UUID, mas
   // o usuário quer digitar o nome. Filtramos o que a página já traz.
   const itens = useMemo(() => {
+    const base: ComOportunidade[] = data?.itens ?? [];
     const q = responsavelFiltro.trim().toLowerCase();
-    if (!q) return itensBrutos;
-    return itensBrutos.filter((op) => (op.responsavelNome ?? "").toLowerCase().includes(q));
-  }, [itensBrutos, responsavelFiltro]);
+    if (!q) return base;
+    return base.filter((op) => (op.responsavelNome ?? "").toLowerCase().includes(q));
+  }, [data?.itens, responsavelFiltro]);
   const total = data?.total ?? 0;
   const totalPaginas = Math.ceil(total / 20);
 
