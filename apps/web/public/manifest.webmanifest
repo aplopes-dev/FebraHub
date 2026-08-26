@@ -2,7 +2,7 @@
   "name": "FebraHub · Febracis Salvador",
   "short_name": "FebraHub",
   "description": "Portal corporativo da Febracis Salvador — hubs por setor, PDV da Loja, pedagógico, comercial e mais.",
-  "id": "/",
+  "id": "/pdv-movel",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

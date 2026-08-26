@@ -31,8 +31,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Também sem cache: se o manifest ficar preso (max-age antigo), o PWA
+        // continua abrindo o start_url/id velho. Precisa revalidar sempre para
+        // que a mudança de start_url (/pdv-movel → /) chegue no aparelho.
         source: "/manifest.webmanifest",
-        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
     ];
   },
