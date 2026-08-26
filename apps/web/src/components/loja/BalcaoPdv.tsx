@@ -231,18 +231,20 @@ export function BalcaoPdv() {
   const focarBusca = () => { buscaRef.current?.focus(); buscaRef.current?.select(); };
 
   // -------- Atalhos de teclado --------
+  // F1 = Cliente  |  F6 = Focar busca/scanner  |  F7 = Pagar  |
+  // F9 = Cancelar venda  |  F10 = Desconto total  |
+  // "-" = Desconto do item selecionado  |  Delete/F8 = Remover item selecionado
   const ATALHOS: { tecla: string; label: string; onClick: () => void; ativo: boolean }[] = [
-    { tecla: "F1", label: "Cliente", onClick: () => setModal("cliente"), ativo: true },
-    { tecla: "F6", label: "Produto", onClick: focarBusca, ativo: true },
-    { tecla: "F7", label: "Pagar", onClick: () => { if (podeFinalizar) abrirModalPagamento(); }, ativo: podeFinalizar },
-    { tecla: "F8", label: "Remover item", onClick: removerSelecionado, ativo: !!selecionado },
-    { tecla: "F9", label: "Cancelar venda", onClick: () => setModal("cancelar"), ativo: temItens },
-    { tecla: "F10", label: "Desconto total", onClick: () => { if (temItens) setModal("descTotal"); }, ativo: temItens },
+    { tecla: "F1",  label: "Cliente",        onClick: () => setModal("cliente"),        ativo: true },
+    { tecla: "F6",  label: "Produto",         onClick: focarBusca,                       ativo: true },
+    { tecla: "F7",  label: "Pagar",           onClick: abrirModalPagamento,              ativo: podeFinalizar },
+    { tecla: "F8",  label: "Desc. item",      onClick: () => setModal("descItem"),       ativo: !!selecionado },
+    { tecla: "F9",  label: "Cancelar venda",  onClick: () => setModal("cancelar"),       ativo: temItens },
+    { tecla: "F10", label: "Desconto total",  onClick: () => setModal("descTotal"),      ativo: temItens },
   ];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (modal) { if (e.key === "Escape") { e.preventDefault(); if (modal !== "pagamento" || estadoPgto.tipo === "aguardando") fecharModal(); } return; }
-      if (e.key === "F2") { e.preventDefault(); focarBusca(); return; }
       const a = ATALHOS.find((x) => x.tecla === e.key);
       if (a) { e.preventDefault(); if (a.ativo) a.onClick(); return; }
       const alvo = e.target as HTMLElement | null;
@@ -434,11 +436,12 @@ export function BalcaoPdv() {
               <kbd>{a.tecla}</kbd><span>{a.label}</span>
             </button>
           ))}
-          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={() => selecionado && setModal("descItem")} title="Desconto do item selecionado">
+          {/* "-" e Delete são atalhos de teclado extras (não constam no array ATALHOS) */}
+          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={() => selecionado && setModal("descItem")} title="Atalho de teclado: tecla − (hífen)">
             <kbd>−</kbd><span>Desc. item</span>
           </button>
-          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={removerSelecionado} title="Apagar item selecionado">
-            <kbd>Del</kbd><span>Apagar</span>
+          <button className={`bal-atalho ${selecionado ? "" : "off"}`} onClick={removerSelecionado} title="Atalho de teclado: Delete">
+            <kbd>Del</kbd><span>Remover</span>
           </button>
         </div>
         <div className="bal-fila">
