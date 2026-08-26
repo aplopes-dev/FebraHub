@@ -20,12 +20,26 @@ export function VendasPdv() {
   const [msg, setMsg] = useState<string | null>(null);
   const vendas = useQuery({ queryKey: ["pdv", "vendas", busca, situacao], queryFn: () => pdvVendas(busca, situacao || undefined) });
   const [erro, setErro] = useState<string | null>(null);
+  // Cancelamento com motivo obrigatório (modal — substitui o prompt() nativo).
+  const [cancelarAlvo, setCancelarAlvo] = useState<{ id: string; numero: string | number } | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   const cancelar = useMutation({
-    mutationFn: (id: string) => pdvCancelarVenda(id, prompt("Motivo do cancelamento:") || "Cancelamento"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["pdv"] }),
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) => pdvCancelarVenda(id, motivo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pdv"] });
+      setCancelarAlvo(null);
+      setMotivo("");
+      setMsg("Venda cancelada.");
+      setTimeout(() => setMsg(null), 4000);
+    },
     onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao cancelar."),
   });
+  const abrirCancelamento = (id: string, numero: string | number) => { setErro(null); setMotivo(""); setCancelarAlvo({ id, numero }); };
+  const confirmarCancelamento = () => {
+    if (!cancelarAlvo || motivo.trim().length < 3) return;
+    cancelar.mutate({ id: cancelarAlvo.id, motivo: motivo.trim() });
+  };
 
   // Comprovante não fiscal: emite o documento e abre o HTML para imprimir.
   const comprovante = useMutation({
@@ -88,7 +102,7 @@ export function VendasPdv() {
                       </>
                     )}
                     {podeGerenciar && ativa && (
-                      <button className="pdv-btn perigo" style={{ padding: "5px 9px" }} disabled={cancelar.isPending} onClick={() => { setErro(null); cancelar.mutate(v.id); }}>Cancelar</button>
+                      <button className="pdv-btn perigo" style={{ padding: "5px 9px" }} disabled={cancelar.isPending} onClick={() => abrirCancelamento(v.id, v.numero)}>Cancelar</button>
                     )}
                   </td>
                 )}
@@ -98,6 +112,31 @@ export function VendasPdv() {
         </table>
         {!vendas.isLoading && !(vendas.data ?? []).length && <p className="pdv-empty">Nenhuma venda neste filtro.</p>}
       </section>
+
+      {cancelarAlvo && (
+        <div className="pdv-modal-bg" onClick={() => !cancelar.isPending && setCancelarAlvo(null)}>
+          <div className="pdv-modal" onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === "Escape" && !cancelar.isPending) setCancelarAlvo(null); }}>
+            <h3>Cancelar venda #{cancelarAlvo.numero}</h3>
+            <p className="pdv-modal-sub">Informe o motivo — ele fica registrado na auditoria e no cupom.</p>
+            <textarea
+              className="pdv-modal-textarea"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex.: cliente desistiu, erro de lançamento, produto trocado…"
+              rows={3}
+              autoFocus
+            />
+            {erro && <p className="pdv-modal-erro">{erro}</p>}
+            <div className="pdv-modal-acoes">
+              <button className="pdv-btn" onClick={() => setCancelarAlvo(null)} disabled={cancelar.isPending}>Voltar</button>
+              <button className="pdv-btn perigo" onClick={confirmarCancelamento} disabled={cancelar.isPending || motivo.trim().length < 3}>
+                {cancelar.isPending ? "Cancelando…" : "Confirmar cancelamento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

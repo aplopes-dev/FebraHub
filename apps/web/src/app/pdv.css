@@ -53,5 +53,11 @@
 .pdv-modal h3{margin:0 0 14px}
 .pdv-modal label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin:12px 0 6px}
 .pdv-modal .fim{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.pdv-modal h3{margin:0 0 6px}
+.pdv-modal-sub{margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.4}
+.pdv-modal-textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--card-line);background:transparent;color:inherit;font-family:inherit;font-size:13px;resize:vertical;min-height:70px;outline:none}
+.pdv-modal-textarea:focus{border-color:var(--gold)}
+.pdv-modal-erro{color:var(--down);font-size:12.5px;margin:10px 0 0}
+.pdv-modal-acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 @media(max-width:900px){.pdv-kpis{grid-template-columns:repeat(2,1fr)}.pdv-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.pdv-page{padding:12px}.pdv-kpis{grid-template-columns:1fr}}
