@@ -114,9 +114,11 @@ export function CatalogoLoja() {
                   </td>
                   {(podeGerir || podePreco) && (
                     <td className="num">
-                      {podePreco && <><button className="loja-btn mini" onClick={() => setPreco(p)} title="Alterar preço"><Tag size={13} /></button>{" "}</>}
-                      {podeGerir && <><button className="loja-btn mini" onClick={() => setEstoque(p)} title="Estoque"><Boxes size={13} /></button>{" "}
-                      <button className="loja-btn mini" onClick={() => setEditar(p)} title="Editar"><Pencil size={13} /></button></>}
+                      <div className="loja-acoes-linha">
+                        {podePreco && <button className="loja-btn mini" onClick={() => setPreco(p)} title="Alterar preço"><Tag size={13} /></button>}
+                        {podeGerir && <button className="loja-btn mini" onClick={() => setEstoque(p)} title="Estoque"><Boxes size={13} /></button>}
+                        {podeGerir && <button className="loja-btn mini" onClick={() => setEditar(p)} title="Editar"><Pencil size={13} /></button>}
+                      </div>
                     </td>
                   )}
                 </tr>

@@ -11,6 +11,8 @@
 .loja-btn:disabled{opacity:.45;cursor:default}
 .loja-btn svg{width:15px}
 .loja-btn.mini{padding:6px 9px;font-size:11px}
+.loja-acoes-linha{display:inline-flex;gap:6px;justify-content:flex-end}
+.loja-acoes-linha .loja-btn.mini{width:32px;height:30px;padding:0;justify-content:center}
 
 .loja-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .loja-kpis article{padding:17px;background:var(--card);border:1px solid var(--card-line);border-radius:14px}
