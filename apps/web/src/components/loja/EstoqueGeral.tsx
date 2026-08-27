@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, Boxes, ClipboardList, Search, ShoppingCart, TriangleAlert } from "lucide-react";
@@ -11,6 +11,7 @@ import {
 } from "@/services/api/loja-produtos";
 import { InventarioLoja } from "@/components/loja/InventarioLoja";
 import { Select } from "@/components/ui/Select";
+import { TabelaDados, type ColumnDef } from "@/components/ui/TabelaDados";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ReposicaoItem } from "@/types/loja-produtos";
@@ -37,6 +38,58 @@ export function EstoqueGeral() {
 
   const i = ind.data;
   const invalidar = () => qc.invalidateQueries({ queryKey: ["loja"] });
+
+  const colunasSaldos = useMemo<ColumnDef<LojaProduto>[]>(() => {
+    const cols: ColumnDef<LojaProduto>[] = [
+      {
+        accessorKey: "nome", header: "Produto",
+        cell: ({ row }) => {
+          const p = row.original;
+          return <><b>{p.nome}</b>{p.sku && <small style={{ display: "block", color: "var(--muted)" }}>{p.sku}</small>}</>;
+        },
+      },
+      {
+        id: "loja", header: "Loja", enableSorting: false,
+        cell: ({ row }) => {
+          const l = row.original.estoque.porLocal.LOJA;
+          return <div style={{ textAlign: "right" }}>{num(l.saldoFisico)}{l.reservado > 0 && <small style={{ display: "block", color: "var(--muted)" }}>{num(l.reservado)} res.</small>}</div>;
+        },
+      },
+      {
+        id: "deposito", header: "Depósito", enableSorting: false,
+        cell: ({ row }) => {
+          const d = row.original.estoque.porLocal.DEPOSITO;
+          return <div style={{ textAlign: "right" }}>{num(d.saldoFisico)}{d.reservado > 0 && <small style={{ display: "block", color: "var(--muted)" }}>{num(d.reservado)} res.</small>}</div>;
+        },
+      },
+      {
+        id: "disponivel", header: "Disponível", enableSorting: false,
+        cell: ({ row }) => {
+          const p = row.original;
+          const baixo = Number(p.estoqueMinimo) > 0 && p.estoque.saldoTotal <= Number(p.estoqueMinimo);
+          return <div style={{ textAlign: "right" }}><b className={baixo ? "down" : ""}>{num(p.estoque.disponivelTotal)}</b></div>;
+        },
+      },
+      {
+        id: "minimo", header: "Mínimo", enableSorting: false,
+        cell: ({ row }) => <div style={{ textAlign: "right" }}>{Number(row.original.estoqueMinimo) > 0 ? num(row.original.estoqueMinimo) : "—"}</div>,
+      },
+    ];
+    if (podeGerir) {
+      cols.push({
+        id: "acoes", header: "", enableSorting: false,
+        cell: ({ row }) => (
+          <div style={{ textAlign: "right" }}>
+            <button className="loja-btn" title="Transferir entre Loja e Depósito"
+              onClick={() => setTransferir({ produto: row.original, origem: "DEPOSITO", destino: "LOJA" })}>
+              <ArrowLeftRight size={14} /> Transferir
+            </button>
+          </div>
+        ),
+      });
+    }
+    return cols;
+  }, [podeGerir]);
 
   return (
     <main className="loja-page">
@@ -68,39 +121,17 @@ export function EstoqueGeral() {
             <header>
               <label className="loja-busca"><Search size={15} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, SKU ou código de barras" /></label>
             </header>
-            <div className="loja-tabela-wrap">
-              <table className="loja-tabela">
-                <thead>
-                  <tr><th>Produto</th><th className="dir">Loja</th><th className="dir">Depósito</th><th className="dir">Disponível</th><th className="dir">Mínimo</th>{podeGerir && <th></th>}</tr>
-                </thead>
-                <tbody>
-                  {(prods.data ?? []).map((p) => {
-                    const loja = p.estoque.porLocal.LOJA;
-                    const dep = p.estoque.porLocal.DEPOSITO;
-                    const baixo = Number(p.estoqueMinimo) > 0 && p.estoque.saldoTotal <= Number(p.estoqueMinimo);
-                    return (
-                      <tr key={p.id} className={baixo ? "baixo" : ""}>
-                        <td><b>{p.nome}</b>{p.sku && <small style={{ display: "block", color: "var(--muted)" }}>{p.sku}</small>}</td>
-                        <td className="dir">{num(loja.saldoFisico)}{loja.reservado > 0 && <small style={{ display: "block", color: "var(--muted)" }}>{num(loja.reservado)} res.</small>}</td>
-                        <td className="dir">{num(dep.saldoFisico)}{dep.reservado > 0 && <small style={{ display: "block", color: "var(--muted)" }}>{num(dep.reservado)} res.</small>}</td>
-                        <td className="dir"><b>{num(p.estoque.disponivelTotal)}</b></td>
-                        <td className="dir">{Number(p.estoqueMinimo) > 0 ? num(p.estoqueMinimo) : "—"}</td>
-                        {podeGerir && (
-                          <td className="dir">
-                            <button className="loja-btn" title="Transferir entre Loja e Depósito"
-                              onClick={() => setTransferir({ produto: p, origem: "DEPOSITO", destino: "LOJA" })}>
-                              <ArrowLeftRight size={14} /> Transferir
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {prods.isError && <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o estoque. Verifique sua conexão e tente novamente.</p>}
-              {!prods.isLoading && !prods.isError && !(prods.data ?? []).length && <p className="loja-empty">{busca ? "Nenhum produto encontrado para essa busca." : "Nenhum produto cadastrado ainda."}</p>}
-            </div>
+            {prods.isError ? (
+              <p className="loja-empty" style={{ color: "var(--down)" }}>Não foi possível carregar o estoque. Verifique sua conexão e tente novamente.</p>
+            ) : (
+              <TabelaDados
+                dados={prods.data ?? []}
+                colunas={colunasSaldos}
+                chaveLinha={(p) => p.id}
+                ordenacaoInicial={[{ id: "nome", desc: false }]}
+                vazio={busca ? "Nenhum produto encontrado para essa busca." : "Nenhum produto cadastrado ainda."}
+              />
+            )}
           </>
         )}
 
