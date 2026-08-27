@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Select } from "@/components/ui/Select";
 import { NICHE_MAP, isNicheId } from "@/lib/territorial/nichos";
 import {
   REVENUE_RANGE_MAP,
@@ -674,20 +675,13 @@ export function TabelaEmpresas({
         </div>
         <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           Por página
-          <select
-            value={porPagina}
-            onChange={(e) => {
-              setPorPagina(Number(e.target.value));
-              setPagina(1);
-            }}
+          <Select
+            value={String(porPagina)}
+            onChange={(v) => { setPorPagina(Number(v)); setPagina(1); }}
             aria-label="Registros por página"
-          >
-            {TAMANHOS_PAGINA.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            style={{ minWidth: 72 }}
+            options={TAMANHOS_PAGINA.map((s) => ({ value: String(s), label: String(s) }))}
+          />
         </label>
       </div>
     </section>

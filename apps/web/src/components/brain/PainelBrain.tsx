@@ -15,6 +15,7 @@ import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { ModalCentro } from "@/components/ui/ModalCentro";
 import { BotaoPrimario } from "@/components/ui/BotaoPrimario";
+import { Select } from "@/components/ui/Select";
 import { BOTAO_OURO, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { rotuloFonte } from "@/lib/brain/fontes";
@@ -475,19 +476,14 @@ export function PainelBrain() {
             placeholder={config.data?.temChave ? "•••••••• — digite para substituir" : "sk-..."}
           />
           <label style={{ ...labelAv, marginTop: 12 }} htmlFor="brain-modelo">Modelo</label>
-          <select
+          <Select
             id="brain-modelo"
-            style={inputAv}
+            style={{ width: "100%" }}
+            aria-label="Modelo"
             value={modelo}
-            onChange={(e) => {
-              setModelo(e.target.value);
-              salvarConfig.mutate({ modelo: e.target.value });
-            }}
-          >
-            {MODELOS_SINTESE.map((m) => (
-              <option key={m.id} value={m.id}>{m.nome} — {m.nota}</option>
-            ))}
-          </select>
+            onChange={(v) => { setModelo(v); salvarConfig.mutate({ modelo: v }); }}
+            options={MODELOS_SINTESE.map((m) => ({ value: m.id, label: `${m.nome} — ${m.nota}` }))}
+          />
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             <BotaoPrimario
               onClick={() => salvarConfig.mutate({ chaveOpenai: chave.trim(), modelo })}

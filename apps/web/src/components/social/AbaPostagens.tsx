@@ -22,6 +22,7 @@ import {
   analiseSocial, apagarPostagem, contasSocial, listarPostagens, reenviarPostagem,
 } from "@/services/api/social";
 import { C, alfaDe } from "@/lib/tema";
+import { Select } from "@/components/ui/Select";
 import type { AnalisePostagem, Postagem } from "@/types/social";
 import {
   Aviso, Selo, SeloRede, compacto, corStatusSocial, desde, estadoDe, inteiro, nomeRede, porcento,
@@ -99,19 +100,13 @@ export function AbaPostagens() {
           </button>
         ))}
         {redes.length > 1 && (
-          <select
+          <Select
             value={rede}
-            onChange={(e) => setRede(e.target.value)}
-            style={{
-              marginLeft: "auto", padding: "6px 10px", borderRadius: 9, fontSize: 12,
-              background: alfaDe(C.muted, 0.06), border: `1px solid ${C.cardLine}`, color: C.text,
-            }}
-          >
-            <option value="">Todas as redes</option>
-            {redes.map((r) => (
-              <option key={r} value={r}>{nomeRede(r)}</option>
-            ))}
-          </select>
+            onChange={setRede}
+            aria-label="Filtrar por rede"
+            style={{ marginLeft: "auto", minWidth: 150 }}
+            options={[{ value: "", label: "Todas as redes" }, ...redes.map((r) => ({ value: r, label: nomeRede(r) }))]}
+          />
         )}
       </div>
 

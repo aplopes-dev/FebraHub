@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Loader2, PlugZap, Save, Trash2 } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
@@ -239,16 +240,14 @@ export function AbaConfiguracao() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
             <div>
               <label style={labelAv}>Fuso do agendamento</label>
-              <select
+              <Select
                 value={fuso}
-                onChange={(e) => setFuso(e.target.value)}
+                onChange={setFuso}
                 disabled={!podeGerenciar}
-                style={{ ...inputAv, cursor: podeGerenciar ? "pointer" : "not-allowed" }}
-              >
-                {FUSOS.map((f) => (
-                  <option key={f.id} value={f.id}>{f.rotulo}</option>
-                ))}
-              </select>
+                style={{ width: "100%" }}
+                aria-label="Fuso do agendamento"
+                options={FUSOS.map((f) => ({ value: f.id, label: f.rotulo }))}
+              />
               <div style={{ fontSize: 10.5, color: C.faint, marginTop: 5, lineHeight: 1.5 }}>
                 A hora escolhida na aba Publicar é interpretada neste fuso.
               </div>
@@ -256,19 +255,14 @@ export function AbaConfiguracao() {
 
             <div>
               <label style={labelAv}>Conta de anúncios padrão</label>
-              <select
+              <Select
                 value={contaAnuncio}
-                onChange={(e) => setContaAnuncio(e.target.value)}
+                onChange={setContaAnuncio}
                 disabled={!podeGerenciar}
-                style={{ ...inputAv, cursor: podeGerenciar ? "pointer" : "not-allowed" }}
-              >
-                <option value="">Todas</option>
-                {contasAnuncio.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {nomeRede(x.rede)} — {x.nome ?? x.usuario ?? x.id}
-                  </option>
-                ))}
-              </select>
+                style={{ width: "100%" }}
+                aria-label="Conta de anúncios padrão"
+                options={[{ value: "", label: "Todas" }, ...contasAnuncio.map((x) => ({ value: x.id, label: `${nomeRede(x.rede)} — ${x.nome ?? x.usuario ?? x.id}` }))]}
+              />
               <div style={{ fontSize: 10.5, color: C.faint, marginTop: 5, lineHeight: 1.5 }}>
                 Evita escolher no seletor a cada abertura da aba Campanhas.
               </div>

@@ -21,6 +21,7 @@ import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { painelCampanhas, statusCampanha } from "@/services/api/social";
 import { C, alfaDe } from "@/lib/tema";
+import { Select } from "@/components/ui/Select";
 import type { Campanha } from "@/types/social";
 import {
   Aviso, Cartao, GRADE_CARTOES, Selo, SeloRede, compacto, corStatusSocial, dinheiro, estadoDe,
@@ -118,19 +119,13 @@ export function AbaCampanhas() {
           </button>
         ))}
         {(p?.contas.length ?? 0) > 1 && (
-          <select
+          <Select
             value={conta}
-            onChange={(e) => setConta(e.target.value)}
-            style={{
-              marginLeft: "auto", padding: "6px 10px", borderRadius: 9, fontSize: 12, maxWidth: 260,
-              background: alfaDe(C.muted, 0.06), border: `1px solid ${C.cardLine}`, color: C.text,
-            }}
-          >
-            <option value="">Todas as contas de anúncio</option>
-            {(p?.contas ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.nome}</option>
-            ))}
-          </select>
+            onChange={setConta}
+            aria-label="Filtrar por conta de anúncio"
+            style={{ marginLeft: "auto", minWidth: 190, maxWidth: 260 }}
+            options={[{ value: "", label: "Todas as contas de anúncio" }, ...(p?.contas ?? []).map((c) => ({ value: c.id, label: c.nome }))]}
+          />
         )}
       </div>
 
