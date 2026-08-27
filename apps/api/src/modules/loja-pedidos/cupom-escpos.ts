@@ -118,57 +118,48 @@ export function montarCupom(d: CupomDados): Buffer {
 
   w.reset().codepage850();
 
-  // ---------- MARCA ----------
+  // ---------- MARCA (compacto: sem régua/linhas em branco) ----------
   w.alinhar(1);
   w.modo(EMPH | DW).linha('FEBRACIS').modo(0);
-  w.linha(`Loja - ${d.operacao}`);
-  w.regua('=');
+  w.linha(d.operacao);
 
-  // ---------- SENHA (casamento preparo <-> cliente) ----------
+  // ---------- SENHA na mesma faixa (rótulo + número grande, sem padding) ----------
   if (d.senhaFila != null) {
-    w.alinhar(1).linha('SENHA');
-    w.modo(EMPH | DH | DW).linha(String(d.senhaFila).padStart(2, '0')).modo(0);
+    w.modo(EMPH).texto('SENHA ').modo(EMPH | DH | DW).texto(String(d.senhaFila).padStart(2, '0')).modo(0).nl();
   }
   w.alinhar(0);
   w.kv(`Pedido #${d.numero}`, formatarData(d.data));
   if (d.clienteNome) w.linha(`Cliente: ${d.clienteNome}`);
-  w.regua('=');
+  w.regua('-');
 
-  // ---------- ITENS (com preço à direita) ----------
-  w.modo(EMPH).linha('ITENS').modo(0);
+  // ---------- ITENS: 1 linha cada (qtd x nome ..... total); obs só quando houver.
+  //  Sem a sub-linha de preço unitário (redundante) e sem o rótulo "ITENS". ----------
   for (const it of d.itens) {
     const q = Number(it.quantidade);
-    const linhas = Escritor.quebrar(`${q}x `, it.descricao, COLS - 12);
+    const linhas = Escritor.quebrar(`${q}x `, it.descricao, COLS - 11);
     linhas.forEach((ln, i) => {
       if (i === linhas.length - 1) w.kv(ln, brl(Number(it.total)));
       else w.linha(ln);
     });
-    w.linha(`     ${q} x ${brl(Number(it.precoUnit))}`);
-    if (it.observacao) w.modo(EMPH).linha(`     >> ${it.observacao}`).modo(0);
+    if (it.observacao) w.modo(EMPH).linha(`   >> ${it.observacao}`).modo(0);
   }
   w.regua('-');
 
-  // ---------- TOTAIS ----------
+  // ---------- TOTAIS (compactos, sem linhas em branco) ----------
   w.kv('Subtotal', brl(Number(d.subtotal)));
   if (Number(d.desconto) > 0) w.kv('Desconto', `- ${brl(Number(d.desconto))}`);
-  w.nl();
   w.modo(EMPH | DH).kv('TOTAL', brl(Number(d.total))).modo(0);
-  w.nl();
   if (d.formaPagamento) w.kv('Pagamento', d.formaPagamento);
   w.regua('=');
 
-  // ---------- RODAPÉ ----------
-  const totalItens = d.itens.reduce((s, it) => s + Number(it.quantidade), 0);
+  // ---------- RODAPÉ enxuto ----------
   w.alinhar(1);
-  w.linha(`Total de itens: ${totalItens}`);
-  w.nl();
   w.linha('Confira os itens na retirada.');
-  w.linha('Obrigado pela preferencia!');
-  w.nl();
   w.linha(endereco);
-  w.linha(`Salvador - BA - Tel ${telefone}`);
+  w.linha(`Salvador-BA - ${telefone}`);
 
-  return w.cortar().buffer();
+  // Corte com feed reduzido (2 linhas em vez de 4) — economiza papel.
+  return w.nl(2).cmd(ESC, 0x69).buffer();
 }
 
 /** dd/mm/aaaa HH:MM no fuso de São Paulo. */
