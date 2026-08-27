@@ -1,10 +1,11 @@
 "use client";
 import "@/app/pedagogico.css";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { pedagogico, type PedagogicoMatricula } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { Select } from "@/components/ui/Select";
+import { TabelaDados, type ColumnDef } from "@/components/ui/TabelaDados";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -148,6 +149,47 @@ export default function SolicitacoesPage() {
 
   const abertas = lista.filter((s) => ["aberta", "em_analise"].includes(s.status)).length;
 
+  const colunas = useMemo<ColumnDef<Solicitacao>[]>(() => [
+    {
+      accessorKey: "matricula", header: "Aluno", enableSorting: false,
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <>
+            <strong>{s.matricula?.pessoaNome ?? s.pessoaId}</strong>
+            {s.matricula?.cursoNome && <div style={{ fontSize: ".75rem", color: "var(--muted-foreground)" }}>{s.matricula.cursoNome}</div>}
+          </>
+        );
+      },
+    },
+    { accessorKey: "tipo", header: "Tipo" },
+    { accessorKey: "prioridade", header: "Prioridade", cell: (c) => <span className={`ped-badge ${c.getValue<string>()}`}>{c.getValue<string>()}</span> },
+    { accessorKey: "descricao", header: "Descrição", enableSorting: false, cell: (c) => <span style={{ display: "block", maxWidth: 280 }}>{c.getValue<string | null>() ?? "—"}</span> },
+    { accessorKey: "status", header: "Status", cell: (c) => <span className={`ped-badge ${c.getValue<string>()}`}>{c.getValue<string>()}</span> },
+    { accessorKey: "criadoEm", header: "Aberta em", cell: (c) => fmtData(c.getValue<string | null>()) },
+    {
+      id: "acoes", header: "Ações", enableSorting: false,
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <div className="ped-acoes-row">
+            {s.status === "aberta" && (
+              <button className="ped-btn-xs" onClick={() => void mudarStatus(s, "em_analise")}>Em análise</button>
+            )}
+            {["aberta", "em_analise"].includes(s.status) && (
+              <>
+                <button className="ped-btn-xs ativo" onClick={() => setConcluindo(s)}>Concluir</button>
+                <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(s, "cancelada")}>Cancelar</button>
+              </>
+            )}
+            <button className="ped-btn-xs perigo" onClick={() => setExcluindo(s)}>Excluir</button>
+          </div>
+        );
+      },
+    },
+  // mudarStatus é estável o suficiente (recriada por carregar); deps mínimas.
+  ], []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="ped-page">
       <div className="ped-page-topo">
@@ -246,50 +288,14 @@ export default function SolicitacoesPage() {
 
       {carregando ? (
         <div className="ped-loading"><span className="ped-spinner" />Carregando solicitações…</div>
-      ) : lista.length === 0 ? (
-        <div className="ped-empty">Nenhuma solicitação encontrada.</div>
       ) : (
-        <div className="ped-tabela-wrapper">
-          <table className="ped-tabela">
-            <thead>
-              <tr>
-                <th>Aluno</th>
-                <th>Tipo</th>
-                <th>Prioridade</th>
-                <th>Descrição</th>
-                <th>Status</th>
-                <th>Aberta em</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((s) => (
-                <tr key={s.id} className={["aberta", "em_analise"].includes(s.status) ? "ped-row-atencao" : ""}>
-                  <td><strong>{s.matricula?.pessoaNome ?? s.pessoaId}</strong>{s.matricula?.cursoNome && <div style={{ fontSize: ".75rem", color: "var(--muted-foreground)" }}>{s.matricula.cursoNome}</div>}</td>
-                  <td>{s.tipo}</td>
-                  <td><span className={`ped-badge ${s.prioridade}`}>{s.prioridade}</span></td>
-                  <td style={{ maxWidth: 280 }}>{s.descricao ?? "—"}</td>
-                  <td><span className={`ped-badge ${s.status}`}>{s.status}</span></td>
-                  <td>{fmtData(s.criadoEm)}</td>
-                  <td>
-                    <div className="ped-acoes-row">
-                      {s.status === "aberta" && (
-                        <button className="ped-btn-xs" onClick={() => void mudarStatus(s, "em_analise")}>Em análise</button>
-                      )}
-                      {["aberta", "em_analise"].includes(s.status) && (
-                        <>
-                          <button className="ped-btn-xs ativo" onClick={() => setConcluindo(s)}>Concluir</button>
-                          <button className="ped-btn-xs perigo" onClick={() => void mudarStatus(s, "cancelada")}>Cancelar</button>
-                        </>
-                      )}
-                      <button className="ped-btn-xs perigo" onClick={() => setExcluindo(s)}>Excluir</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TabelaDados
+          dados={lista}
+          colunas={colunas}
+          chaveLinha={(s) => s.id}
+          vazio="Nenhuma solicitação encontrada."
+          ordenacaoInicial={[{ id: "criadoEm", desc: true }]}
+        />
       )}
 
       {concluindo && (
