@@ -71,8 +71,20 @@ export function CardapioPublico({ slug }: { slug: string }) {
 
   const produtos = useMemo(() => cardapio.data?.produtos ?? [], [cardapio.data]);
 
-  // Produtos em destaque (carrossel no topo do cardápio)
-  const destaques = useMemo(() => produtos.filter((p) => p.emDestaque && !p.esgotado), [produtos]);
+  // Produtos em destaque: marcados emDestaque=true OU categoria "Bebidas" (case-insensitive).
+  // Ordem: emDestaque primeiro, depois bebidas adicionais (sem duplicar).
+  const ehBebida = (p: CardapioProduto) =>
+    /bebida/i.test(p.categoria ?? "");
+  const destaques = useMemo(() => {
+    const set = new Set<string>();
+    const result: CardapioProduto[] = [];
+    for (const p of produtos) {
+      if (!p.esgotado && (p.emDestaque || ehBebida(p))) {
+        if (!set.has(p.produtoId)) { set.add(p.produtoId); result.push(p); }
+      }
+    }
+    return result;
+  }, [produtos]);
 
   // Busca: normaliza acentos e filtra por nome ou descrição
   const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");

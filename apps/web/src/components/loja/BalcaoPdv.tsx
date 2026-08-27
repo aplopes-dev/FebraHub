@@ -98,6 +98,21 @@ export function BalcaoPdv() {
     return categoria ? rows.filter((p) => p.categoria === categoria) : rows;
   }, [produtos.data, categoria]);
 
+  // Destaques do balcão: emDestaque=true OU categoria Bebidas, sem esgotados
+  const destaquesBal = useMemo(() => {
+    const rows = produtos.data ?? [];
+    const set = new Set<string>();
+    const result: PdvProduto[] = [];
+    for (const p of rows) {
+      const esgotado = p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
+      const ehBebida = /bebida/i.test(p.categoria ?? "");
+      if (!esgotado && (p.emDestaque || ehBebida)) {
+        if (!set.has(p.produtoId)) { set.add(p.produtoId); result.push(p); }
+      }
+    }
+    return result;
+  }, [produtos.data]);
+
   const categoriasSemEstoque = useMemo(() => {
     const rows = produtos.data ?? [];
     const sem = new Set<string>();
@@ -362,6 +377,25 @@ export function BalcaoPdv() {
           </div>
 
           <div className="bal-scroll">
+            {/* ---- Destaques: bebidas + emDestaque (só quando não há busca/categoria ativa) ---- */}
+            {destaquesBal.length > 0 && !busca && !categoria && (
+              <div className="bal-destaques">
+                <div className="bal-destaques-head">
+                  <span className="bal-destaques-star">⭐</span>
+                  <span>Destaques &amp; Bebidas</span>
+                </div>
+                <div className="bal-destaques-rail">
+                  {destaquesBal.map((p) => (
+                    <CardProdutoBalcao
+                      key={p.produtoId}
+                      produto={p}
+                      onAdd={() => add(p)}
+                      onLongPress={() => podeGerir && setEditarProduto(p)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="bal-grid">
               {lista.map((p) => (
                 <CardProdutoBalcao

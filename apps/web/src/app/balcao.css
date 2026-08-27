@@ -276,3 +276,20 @@
 .bal-ean-item-preco{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;flex-shrink:0}
 .bal-ean-sel-info{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 12px;border-radius:10px;background:rgb(var(--up-rgb,111 207 151)/.1);color:var(--up);margin-bottom:6px}
 .bal-ean-sel-info code{font-family:monospace;font-weight:800}
+
+/* ---- Destaques & Bebidas (carrossel horizontal antes do grid) ---- */
+.bal-destaques{margin-bottom:18px}
+.bal-destaques-head{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.bal-destaques-star{font-size:14px}
+.bal-destaques-rail{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.bal-destaques-rail::-webkit-scrollbar{display:none}
+/* Cards no carrossel de destaques: mais compactos que o grid normal */
+.bal-destaques-rail .bal-card{flex:0 0 148px;min-width:148px}
+.bal-destaques-rail .bal-thumb{height:100px}
+.bal-destaques-rail .bal-add{top:80px;width:30px;height:30px}
+.bal-destaques-rail .bal-info{padding:9px 11px 11px}
+.bal-destaques-rail .bal-info .nome{font-size:12.5px}
+.bal-destaques-rail .bal-info .cat{margin:0 0 3px;order:-1}
+.bal-destaques-rail .bal-info .preco{font-size:15px}
+/* Linha divisória abaixo do carrossel */
+.bal-destaques::after{content:"";display:block;height:1px;background:var(--hair);margin:14px 0 0}
