@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode,
   Search, Phone, User, GripVertical, ArrowRight, MoreVertical, Pencil, X,
-  Plus, Minus, ChevronLeft, ChevronRight, MoveUp, MoveDown, MoveHorizontal,
+  Plus, Minus, MoveUp, MoveDown, MoveHorizontal,
 } from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import {

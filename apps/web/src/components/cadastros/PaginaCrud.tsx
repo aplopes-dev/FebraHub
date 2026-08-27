@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { FormCrud } from "./FormCrud";
 import { TabelaCrud } from "./TabelaCrud";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { useConfirmacao, useModalFormulario } from "@/hooks/formulario";
 import type { CampoCrud, ColunaCrud, ListaCrud } from "./tipos";
 import { BOTAO_OURO, BOTAO_SECUNDARIO, inputAv } from "@/components/ui/estilos";
 import { C, SANS } from "@/lib/tema";
@@ -40,26 +41,9 @@ export function PaginaCrud<T extends object>({
   const [lista, setLista] = useState<ListaCrud<T> | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [aberto, setAberto] = useState(false);
-  const [editando, setEditando] = useState<T | null>(null);
-  const [salvando, setSalvando] = useState(false);
-  const [erroForm, setErroForm] = useState<string | null>(null);
-  const [apagando, setApagando] = useState<T | null>(null);
-  const [apagandoBusy, setApagandoBusy] = useState(false);
-  const confirmarApagar = async () => {
-    if (!apagando) return;
-    setApagandoBusy(true);
-    setErro(null);
-    try {
-      await apagar(apagando);
-      setApagando(null);
-      await recarregar();
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao apagar");
-    } finally {
-      setApagandoBusy(false);
-    }
-  };
+  // Estado de form e de exclusão vêm dos hooks compartilhados.
+  const form = useModalFormulario<T>();
+  const exclusao = useConfirmacao<T>();
 
   const recarregar = useCallback(async () => {
     setCarregando(true);
@@ -112,7 +96,7 @@ export function PaginaCrud<T extends object>({
           <button
             type="button"
             style={BOTAO_OURO}
-            onClick={() => { setEditando(null); setErroForm(null); setAberto(true); }}
+            onClick={form.abrirNovo}
           >
             <Plus size={14} /> Novo
           </button>
@@ -127,8 +111,8 @@ export function PaginaCrud<T extends object>({
           colunas={colunas}
           linhas={lista?.itens ?? []}
           chaveLinha={chaveLinha}
-          onEditar={(row) => { setEditando(row); setErroForm(null); setAberto(true); }}
-          onApagar={(row) => setApagando(row)}
+          onEditar={(row) => form.abrirEdicao(row)}
+          onApagar={(row) => exclusao.pedir(row)}
           rodape={lista && (
             <>
               <span style={{ fontFamily: SANS }}>
@@ -159,36 +143,34 @@ export function PaginaCrud<T extends object>({
       )}
 
       <FormCrud
-        titulo={editando ? tituloEditar : tituloNovo}
+        titulo={form.editando ? tituloEditar : tituloNovo}
         campos={campos}
-        valoresIniciais={editando ? valoresDe(editando) : undefined}
-        aberto={aberto}
-        onFechar={() => setAberto(false)}
-        salvando={salvando}
-        erro={erroForm}
-        onSalvar={async (valores) => {
-          setSalvando(true);
-          setErroForm(null);
-          try {
-            await salvar(valores, editando);
-            setAberto(false);
+        valoresIniciais={form.editando ? valoresDe(form.editando) : undefined}
+        aberto={form.aberto}
+        onFechar={form.fechar}
+        salvando={form.salvando}
+        erro={form.erro}
+        onSalvar={(valores) =>
+          form.submeter(async () => {
+            await salvar(valores, form.editando);
             await recarregar();
-          } catch (e) {
-            setErroForm(e instanceof Error ? e.message : "Falha ao salvar");
-          } finally {
-            setSalvando(false);
-          }
-        }}
+          })
+        }
       />
-      {apagando && (
+      {exclusao.alvo && (
         <ModalConfirmar
           titulo="Apagar registro"
-          mensagem="Apagar este registro? Esta ação não pode ser desfeita."
+          mensagem={exclusao.erro ?? "Apagar este registro? Esta ação não pode ser desfeita."}
           rotuloConfirmar="Apagar"
           perigo
-          carregando={apagandoBusy}
-          onConfirmar={() => void confirmarApagar()}
-          onFechar={() => setApagando(null)}
+          carregando={exclusao.carregando}
+          onConfirmar={() =>
+            exclusao.executar(async (row) => {
+              await apagar(row);
+              await recarregar();
+            })
+          }
+          onFechar={exclusao.fechar}
         />
       )}
     </div>

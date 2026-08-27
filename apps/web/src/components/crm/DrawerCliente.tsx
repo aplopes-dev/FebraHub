@@ -3,7 +3,7 @@
 /* Cliente 360º em drawer: dados e estágio, contatos, timeline de
    atividades, negócios (abre o drawer de negócio) e novo negócio. */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
 import { inputAv, labelAv } from "@/components/ui/estilos";
@@ -17,6 +17,7 @@ import {
   crmRemoverContato,
 } from "@/services/api/crm";
 import { useCrmCliente, useMutacaoCrm } from "@/hooks/crm";
+import { useFecharComEsc } from "@/hooks/formulario";
 import { centavos, dataHora, paraCentavos } from "./formatos";
 
 export function DrawerCliente({
@@ -48,12 +49,7 @@ export function DrawerCliente({
   const [negTitulo, setNegTitulo] = useState("");
   const [negValor, setNegValor] = useState("");
 
-  useEffect(() => {
-    if (!id) return;
-    const aoTeclar = (e: KeyboardEvent) => e.key === "Escape" && aoFechar();
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [id, aoFechar]);
+  useFecharComEsc(aoFechar, !!id);
 
   if (!id) return null;
   const d = cliente.data;

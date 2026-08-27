@@ -17,6 +17,7 @@ import {
   crmRemoverNegocio,
 } from "@/services/api/crm";
 import { useCrmNegocio, useMutacaoCrm } from "@/hooks/crm";
+import { useFecharComEsc } from "@/hooks/formulario";
 import { centavos, dataHora, paraCentavos } from "./formatos";
 
 export function DrawerNegocio({
@@ -48,12 +49,7 @@ export function DrawerNegocio({
   const [motivo, setMotivo] = useState("");
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    const aoTeclar = (e: KeyboardEvent) => e.key === "Escape" && aoFechar();
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [id, aoFechar]);
+  useFecharComEsc(aoFechar, !!id);
 
   useEffect(() => {
     setPerdendo(null);

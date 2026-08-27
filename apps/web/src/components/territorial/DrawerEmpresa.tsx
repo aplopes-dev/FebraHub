@@ -25,6 +25,7 @@ import {
   formatInt,
 } from "@/lib/territorial/formato";
 import { useDetalheEmpresa } from "@/hooks/territorial";
+import { useFecharComEsc } from "@/hooks/formulario";
 import { mascararDocumento } from "./exportar";
 import { Botao, Skeleton, StatusPill } from "./ui";
 
@@ -60,12 +61,7 @@ export function DrawerEmpresa({
     if (id) fecharRef.current?.focus();
   }, [id]);
 
-  useEffect(() => {
-    if (!id) return;
-    const aoTeclar = (e: KeyboardEvent) => e.key === "Escape" && aoFechar();
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [id, aoFechar]);
+  useFecharComEsc(aoFechar, !!id);
 
   if (!id) return null;
 
