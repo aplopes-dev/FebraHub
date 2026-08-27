@@ -4,8 +4,8 @@
  * Gera SQL de UPDATE e opcionalmente aplica no banco homolog.
  *
  * Uso:
- *   node scripts/buscar-capas-livros-v2.mjs            # só gera o SQL
- *   node scripts/buscar-capas-livros-v2.mjs --commit   # gera + aplica no banco
+ *   node tools/capas-livros/buscar-capas-livros-v2.mjs            # só gera o SQL
+ *   node tools/capas-livros/buscar-capas-livros-v2.mjs --commit   # gera + aplica no banco
  */
 
 import { writeFileSync } from 'fs';

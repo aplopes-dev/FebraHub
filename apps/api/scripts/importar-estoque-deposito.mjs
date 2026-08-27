@@ -1,6 +1,8 @@
 /**
- * Importa o estoque do DEPÓSITO a partir da planilha
- * "CONTROLE DE ESTOQUE SALVADOR - APOSTILAS.xlsx".
+ * Importa o estoque do DEPÓSITO a partir da planilha de referência
+ * docs/referencias/controle-estoque-salvador-apostilas.xlsx
+ * (já convertida para ./estoque-deposito-apostilas.json, que é o que este
+ * script realmente lê).
  *
  * REGRAS (não misturar com o estoque da LOJA):
  *   - Cada apostila/material vira um LojaProduto marcado como item de DEPÓSITO:

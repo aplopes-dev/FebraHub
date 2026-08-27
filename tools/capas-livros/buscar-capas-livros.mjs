@@ -2,7 +2,7 @@
  * Script para buscar capas reais de livros via Google Books API
  * e gerar SQL de UPDATE para aplicar no banco homolog.
  *
- * Uso: node scripts/buscar-capas-livros.mjs [--commit]
+ * Uso: node tools/capas-livros/buscar-capas-livros.mjs [--commit]
  *   --commit  aplica o SQL no banco (via docker exec na VPS 66)
  */
 

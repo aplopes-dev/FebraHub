@@ -2,7 +2,7 @@
  * Atualiza imagem_url dos livros usando ISBNs conhecidos da edição brasileira.
  * Open Library cover API: https://covers.openlibrary.org/b/isbn/<ISBN>-L.jpg
  * 
- * Uso: node scripts/atualizar-capas-isbn.mjs [--commit]
+ * Uso: node tools/capas-livros/atualizar-capas-isbn.mjs [--commit]
  */
 
 import { writeFileSync } from 'fs';
