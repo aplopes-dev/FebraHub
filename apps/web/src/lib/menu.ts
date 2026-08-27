@@ -170,23 +170,11 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         label: "Operações e cardápio",
         href: "/loja/operacoes",
         titulo: "Operações da Loja",
-        desc: "Eventos, cardápio digital público e painel/TV",
-        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
-      },
-      {
-        id: "loja-cardapio",
-        label: "Abrir cardápio",
-        href: "/loja/cardapio",
-        titulo: "Cardápio digital",
-        desc: "Abre o cardápio público da operação ativa (para conferir/testar)",
-        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
-      },
-      {
-        id: "loja-tv",
-        label: "Painel / TV",
-        href: "/loja/tv",
-        titulo: "Painel público (TV)",
-        desc: "Fila em tela cheia — só número e status, legível à distância",
+        // Abrir cardápio, TV e QR agora vivem DENTRO desta tela (botões por
+        // operação) — os itens soltos "Abrir cardápio" e "Painel / TV" saíram
+        // do menu por serem só atalhos redundantes (rotas /loja/cardapio e
+        // /loja/tv seguem no disco p/ deep-link).
+        desc: "Eventos, cardápio digital público, painel/TV e QR",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
       },
       {
