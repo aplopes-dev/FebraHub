@@ -1,6 +1,6 @@
 import {
-  Bell, BookOpen, Bot, CreditCard, LayoutDashboard, MessageCircle,
-  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow, ShoppingBag,
+  Bell, BookOpen, Bot, LayoutDashboard, MessageCircle,
+  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Workflow, ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -81,6 +81,39 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Lista, status e aprovação de vendas fechadas",
         visivel: (ctx) =>
           ctx.pode("comercial.ver", "comercial.gerenciar", "comercial.vendas.aprovar", "comercial.relatorios"),
+      },
+    );
+  }
+
+  if (key === "financeiro") {
+    // ERP (Contas a pagar/receber, DRE, Conciliação Stone) fundido no MESMO hub
+    // Financeiro — antes eram dois itens separados no rail ("Financeiro (Painel)"
+    // + "Financeiro ERP"). Cada filho mantém seu próprio gating (setor p/ painel,
+    // financeiro.erp.ver p/ o ERP).
+    base.push(
+      {
+        id: "fin-erp-central",
+        label: "Contas a pagar/receber",
+        href: "/financeiro-erp",
+        titulo: "Financeiro ERP",
+        desc: "Títulos, baixas e fluxo de caixa",
+        visivel: comPermissao("financeiro.erp.ver"),
+      },
+      {
+        id: "fin-erp-dre",
+        label: "DRE",
+        href: "/financeiro-erp/dre",
+        titulo: "DRE",
+        desc: "Demonstrativo de resultado por competência",
+        visivel: comPermissao("financeiro.erp.ver"),
+      },
+      {
+        id: "fin-erp-conc-stone",
+        label: "Conciliação Stone",
+        href: "/financeiro-erp/conciliacao-stone",
+        titulo: "Conciliação Stone",
+        desc: "Vendas na maquininha: bruto, taxas e liquidação",
+        visivel: comPermissao("financeiro.erp.ver"),
       },
     );
   }
@@ -376,7 +409,7 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
   },
   ...HUBS.flatMap((h) => {
     const hub: MenuPrimario = { id: h.key, label: h.nome, Icone: h.Icone,
-      visivel: h.key === "marketing" ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver") : h.key === "estoque" ? (ctx: ContextoMenu) => doSetor("estoque")(ctx) || ctx.pode("compras.operar") : doSetor(h.key),
+      visivel: h.key === "marketing" ? (ctx: ContextoMenu) => doSetor("marketing")(ctx) || ctx.pode("social.ver") : h.key === "estoque" ? (ctx: ContextoMenu) => doSetor("estoque")(ctx) || ctx.pode("compras.operar") : h.key === "financeiro" ? (ctx: ContextoMenu) => doSetor("financeiro")(ctx) || ctx.pode("financeiro.erp.ver") : doSetor(h.key),
       filhos: h.key === "estoque" ? [
         { id:"estoque-resumo",label:"Estoque geral (consulta)",href:"/estoque",Icone:h.Icone,titulo:"Estoque geral",desc:"Visão geral dos saldos de produtos. Para cadastrar produto e mover estoque entre Loja e Depósito, use Loja → Produtos",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
         { id:"estoque-inventario",label:"Inventário",href:"/estoque/inventario",Icone:h.Icone,titulo:"Inventário",desc:"Bipe o produto, confira o saldo e informe a contagem real — o sistema ajusta o estoque. Também dá para trocar a foto e o código de barras.",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
@@ -397,13 +430,9 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       { id: "compras-config", label: "Configurações", href: "/compras/configuracoes", visivel: (ctx: ContextoMenu) => ctx.admin },
     ] }];
   }),
-  {
-    id: "financeiro-erp", label: "Financeiro ERP", Icone: Wallet, visivel: comPermissao("financeiro.erp.ver"), filhos: [
-      { id: "fin-erp-central", label: "Contas a pagar/receber", href: "/financeiro-erp", Icone: Wallet, titulo: "Financeiro ERP", desc: "Títulos, baixas e fluxo de caixa", visivel: comPermissao("financeiro.erp.ver") },
-      { id: "fin-erp-dre", label: "DRE", href: "/financeiro-erp/dre", desc: "Demonstrativo de resultado por competência", visivel: comPermissao("financeiro.erp.ver") },
-      { id: "fin-erp-conc-stone", label: "Conciliação Stone", href: "/financeiro-erp/conciliacao-stone", Icone: CreditCard, desc: "Vendas na maquininha: bruto, taxas e liquidação", visivel: comPermissao("financeiro.erp.ver") },
-    ],
-  },
+  // O grupo "Financeiro ERP" foi FUNDIDO no hub "Financeiro" (rail único):
+  // Contas a pagar/receber, DRE e Conciliação Stone agora são filhos do hub
+  // financeiro (ver filhosHub, bloco key === "financeiro").
   {
     id: "integracoes",
     label: "Integrações",

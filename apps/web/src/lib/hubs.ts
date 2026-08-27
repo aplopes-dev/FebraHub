@@ -12,7 +12,7 @@ export interface DefinicaoHub {
 
 export const HUBS: readonly DefinicaoHub[] = [
   { key: "comercial",  nome: "Comercial",  Icone: TrendingUp,    desc: "Pódio de consultoras e placar da semana" },
-  { key: "financeiro", nome: "Financeiro (Painel)", Icone: BarChart3,    desc: "Painel de indicadores: receita, cobertura e inadimplência" },
+  { key: "financeiro", nome: "Financeiro", Icone: BarChart3,    desc: "Painel de indicadores + ERP (contas, DRE, conciliação)" },
   { key: "marketing",  nome: "Marketing",  Icone: Megaphone,     desc: "Origem de leads e campanhas" },
   { key: "pedagogico", nome: "Pedagógico", Icone: GraduationCap, desc: "Turmas, matrículas e conclusão" },
   { key: "eventos",    nome: "Eventos",    Icone: CalendarDays,  desc: "Ingressos e receita líquida" },
