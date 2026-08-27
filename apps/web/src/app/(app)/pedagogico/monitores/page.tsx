@@ -1,9 +1,10 @@
 "use client";
 import "@/app/pedagogico.css";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { pedagogico, type PedagogicoTurma } from "@/services/api/pedagogico";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { Select } from "@/components/ui/Select";
+import { TabelaDados, type ColumnDef } from "@/components/ui/TabelaDados";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -134,6 +135,61 @@ export default function MonitoresPage() {
     }
   };
 
+  const colunas = useMemo<ColumnDef<Monitor>[]>(() => [
+    { accessorKey: "nome", header: "Monitor", cell: (c) => <strong>{c.getValue<string>()}</strong> },
+    {
+      id: "contato", header: "Contato", enableSorting: false,
+      cell: ({ row }) => {
+        const m = row.original;
+        if (!m.email && !m.telefone) return "—";
+        return (
+          <>
+            {m.email && <div>{m.email}</div>}
+            {m.telefone && <div style={{ fontSize: ".8rem", color: "var(--muted-foreground)" }}>{m.telefone}</div>}
+          </>
+        );
+      },
+    },
+    { accessorKey: "status", header: "Status", cell: (c) => <span className={`ped-badge ${c.getValue<string>() === "ativo" ? "ativo" : "inativo"}`}>{c.getValue<string>()}</span> },
+    {
+      id: "escalas", header: "Escalas", enableSorting: false,
+      cell: ({ row }) => {
+        const escalas = row.original.escalas ?? [];
+        if (escalas.length === 0) return <span style={{ color: "var(--muted-foreground)", fontSize: ".8rem" }}>Sem escalas</span>;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: ".3rem" }}>
+            {escalas.map((e) => (
+              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: ".4rem", fontSize: ".8rem" }}>
+                <span>{e.turma?.nome ?? "—"}</span>
+                <span style={{ color: "var(--muted-foreground)" }}>({fmtData(e.turma?.dataInicio)})</span>
+                {e.kitEntregue ? (
+                  <span className="ped-badge ativo">kit ✓</span>
+                ) : (
+                  <button className="ped-btn-xs" onClick={() => void marcarKit(e.id)}>marcar kit</button>
+                )}
+                <button className="ped-btn-xs perigo" onClick={() => setRemovendoEscala(e.id)}>remover</button>
+              </div>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      id: "acoes", header: "Ações", enableSorting: false,
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="ped-acoes-row">
+            <button className="ped-btn-xs" onClick={() => { setEscalaAlvo(m); setTurmaEscala(""); }}>Escalar</button>
+            {m.status !== "inativo" && (
+              <button className="ped-btn-xs perigo" onClick={() => setInativando(m)}>Inativar</button>
+            )}
+          </div>
+        );
+      },
+    },
+  ], []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="ped-page">
       <div className="ped-page-topo">
@@ -189,65 +245,14 @@ export default function MonitoresPage() {
 
       {carregando ? (
         <div className="ped-loading"><span className="ped-spinner" />Carregando monitores…</div>
-      ) : monitores.length === 0 ? (
-        <div className="ped-empty">Nenhum monitor cadastrado.</div>
       ) : (
-        <div className="ped-tabela-wrapper">
-          <table className="ped-tabela">
-            <thead>
-              <tr>
-                <th>Monitor</th>
-                <th>Contato</th>
-                <th>Status</th>
-                <th>Escalas</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monitores.map((m) => (
-                <tr key={m.id}>
-                  <td><strong>{m.nome}</strong></td>
-                  <td>
-                    {m.email && <div>{m.email}</div>}
-                    {m.telefone && <div style={{ fontSize: ".8rem", color: "var(--muted-foreground)" }}>{m.telefone}</div>}
-                    {!m.email && !m.telefone && "—"}
-                  </td>
-                  <td><span className={`ped-badge ${m.status === "ativo" ? "ativo" : "inativo"}`}>{m.status}</span></td>
-                  <td>
-                    {(m.escalas ?? []).length === 0 ? (
-                      <span style={{ color: "var(--muted-foreground)", fontSize: ".8rem" }}>Sem escalas</span>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: ".3rem" }}>
-                        {(m.escalas ?? []).map((e) => (
-                          <div key={e.id} style={{ display: "flex", alignItems: "center", gap: ".4rem", fontSize: ".8rem" }}>
-                            <span>{e.turma?.nome ?? "—"}</span>
-                            <span style={{ color: "var(--muted-foreground)" }}>({fmtData(e.turma?.dataInicio)})</span>
-                            {e.kitEntregue ? (
-                              <span className="ped-badge ativo">kit ✓</span>
-                            ) : (
-                              <button className="ped-btn-xs" onClick={() => void marcarKit(e.id)}>marcar kit</button>
-                            )}
-                            <button className="ped-btn-xs perigo" onClick={() => setRemovendoEscala(e.id)}>remover</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div className="ped-acoes-row">
-                      <button className="ped-btn-xs" onClick={() => { setEscalaAlvo(m); setTurmaEscala(""); }}>
-                        Escalar
-                      </button>
-                      {m.status !== "inativo" && (
-                        <button className="ped-btn-xs perigo" onClick={() => setInativando(m)}>Inativar</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TabelaDados
+          dados={monitores}
+          colunas={colunas}
+          chaveLinha={(m) => m.id}
+          vazio="Nenhum monitor cadastrado."
+          ordenacaoInicial={[{ id: "nome", desc: false }]}
+        />
       )}
 
       {/* Modal simples de escala */}
