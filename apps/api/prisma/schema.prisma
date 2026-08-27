@@ -208,6 +208,27 @@ model SocialConfig {
   @@map("social_config")
 }
 
+/// Conta do Instagram conectada por LOGIN DIRETO (API privada via sidecar
+/// aiograpi-rest), separada do Zernio: cobre DMs, publicacoes, stories, perfis
+/// e insights com a conta oficial. Uma linha unica (id='instagram') — a conta
+/// e uma so, da Febracis Salvador (mesmo racional do SocialConfig).
+///
+/// ATENCAO: aiograpi usa a API privada do Instagram — viola os ToS e a conta
+/// pode ser desafiada/bloqueada. Risco assumido pela diretoria.
+///
+/// `dados` guarda TODO o InstagramConfig (usuario, senha, sessionId, status,
+/// desafio pendente) serializado em JSON e cifrado com AES-256-GCM — a mesma
+/// chave dos agentes. Nunca sai daqui em claro: a tela recebe so usuario+status.
+model InstagramConfig {
+  id            String   @id @default("instagram")
+  /// JSON do InstagramConfig, cifrado (AES-256-GCM). Nulo = nao conectado.
+  dados         String?
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  atualizadoPor String?  @map("atualizado_por") @db.Uuid
+
+  @@map("instagram_config")
+}
+
 /// Notificacao de uma pessoa. Uma linha POR DESTINATARIO, mesmo quando o
 /// envio foi em lote: quem leu, quando leu e quem apagou sao respostas
 /// individuais, e uma tabela de "envio" com outra de "leitura" precisaria de

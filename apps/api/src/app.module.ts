@@ -21,6 +21,7 @@ import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PermissoesModule } from './modules/permissoes/permissoes.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { SocialModule } from './modules/social/social.module';
+import { InstagramModule } from './modules/instagram/instagram.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TerritorialModule } from './modules/territorial/territorial.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
@@ -95,6 +96,7 @@ import { SetorGuard } from './common/guards/setor.guard';
     NotificacoesModule,
     BrainModule,
     SocialModule,
+    InstagramModule,
     CrmModule,
     WhatsappModule,
     AgentesModule,

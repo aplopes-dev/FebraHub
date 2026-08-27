@@ -42,3 +42,4 @@ supabase/*.dump
 CREDENCIAIS_SEED.txt
 # Backups locais de compose
 docker-compose.prod.yml.bak.*
+_team_src/
