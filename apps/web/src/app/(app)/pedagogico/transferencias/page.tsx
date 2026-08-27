@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula, type PedagogicoTurma } from "@/services/api/pedagogico";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 
 const fmtData = (s?: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR") : "—");
 
@@ -210,12 +211,8 @@ export default function TransferenciasPage() {
               <div className="ped-form-grid">
                 <label className="ped-label">
                   Turma de destino (opcional)
-                  <select className="ped-select" value={destinoNovo} onChange={(e) => setDestinoNovo(e.target.value)}>
-                    <option value="">Definir depois…</option>
-                    {turmas.filter((t) => t.id !== selecionada.turma?.id).map((t) => (
-                      <option key={t.id} value={t.id}>{t.nome} {t.dataInicio ? `— ${fmtData(t.dataInicio)}` : ""}</option>
-                    ))}
-                  </select>
+                  <Select className="ped-select" aria-label="Turma de destino" value={destinoNovo} onChange={setDestinoNovo}
+                    options={[{ value: "", label: "Definir depois…" }, ...turmas.filter((t) => t.id !== selecionada.turma?.id).map((t) => ({ value: t.id, label: `${t.nome}${t.dataInicio ? ` — ${fmtData(t.dataInicio)}` : ""}` }))]} />
                 </label>
                 <label className="ped-label ped-full">
                   Motivo
@@ -266,20 +263,13 @@ export default function TransferenciasPage() {
                   <td>{m.turma?.nome ?? "A definir"}</td>
                   <td><span className="ped-badge solicitada">{m.status}</span></td>
                   <td>
-                    <select
+                    <Select
                       className="ped-select"
+                      aria-label="Selecionar turma de destino"
                       value={destinoPorAluno[m.id] ?? ""}
-                      onChange={(e) => setDestinoPorAluno((prev) => ({ ...prev, [m.id]: e.target.value }))}
-                    >
-                      <option value="">Selecionar turma…</option>
-                      {turmas
-                        .filter((t) => t.id !== m.turma?.id)
-                        .map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.nome} {t.dataInicio ? `— ${fmtData(t.dataInicio)}` : ""}
-                          </option>
-                        ))}
-                    </select>
+                      onChange={(v) => setDestinoPorAluno((prev) => ({ ...prev, [m.id]: v }))}
+                      options={[{ value: "", label: "Selecionar turma…" }, ...turmas.filter((t) => t.id !== m.turma?.id).map((t) => ({ value: t.id, label: `${t.nome}${t.dataInicio ? ` — ${fmtData(t.dataInicio)}` : ""}` }))]}
+                    />
                   </td>
                   <td>
                     <div className="ped-acoes-row">

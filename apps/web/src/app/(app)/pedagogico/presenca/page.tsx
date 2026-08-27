@@ -2,6 +2,7 @@
 import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoMatricula, type PedagogicoTurma } from "@/services/api/pedagogico";
+import { Select } from "@/components/ui/Select";
 
 export default function PresencaPage() {
   const [turmas, setTurmas] = useState<PedagogicoTurma[]>([]);
@@ -73,10 +74,9 @@ export default function PresencaPage() {
       <div className="ped-filtros-row">
         <label className="ped-label" style={{ minWidth: 260 }}>
           Turma
-          <select className="ped-select" value={turmaId} onChange={(e) => setTurmaId(e.target.value)} disabled={carregandoTurmas}>
-            <option value="">{carregandoTurmas ? "Carregando…" : "Selecionar turma…"}</option>
-            {turmas.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-          </select>
+          <Select className="ped-select" aria-label="Turma" value={turmaId} onChange={setTurmaId} disabled={carregandoTurmas}
+            placeholder={carregandoTurmas ? "Carregando…" : "Selecionar turma…"}
+            options={[{ value: "", label: carregandoTurmas ? "Carregando…" : "Selecionar turma…" }, ...turmas.map((t) => ({ value: t.id, label: t.nome }))]} />
         </label>
         <label className="ped-label" style={{ width: 120 }}>
           Dia
@@ -84,12 +84,13 @@ export default function PresencaPage() {
         </label>
         <label className="ped-label" style={{ width: 160 }}>
           Sessão
-          <select className="ped-select" value={sessao} onChange={(e) => setSessao(e.target.value)}>
-            <option value="manha">Manhã</option>
-            <option value="tarde">Tarde</option>
-            <option value="noite">Noite</option>
-            <option value="integral">Integral</option>
-          </select>
+          <Select className="ped-select" aria-label="Sessão" value={sessao} onChange={setSessao}
+            options={[
+              { value: "manha", label: "Manhã" },
+              { value: "tarde", label: "Tarde" },
+              { value: "noite", label: "Noite" },
+              { value: "integral", label: "Integral" },
+            ]} />
         </label>
       </div>
 

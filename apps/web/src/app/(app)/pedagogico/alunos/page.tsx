@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import React, { useEffect, useState, useCallback } from "react";
 import { pedagogico, PedagogicoMatricula, PedagogicoTurma } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { Select } from "@/components/ui/Select";
 
 const ptStatus: Record<string, string> = {
   Matriculado: "Matriculado",
@@ -216,10 +217,8 @@ export default function AlunosPage() {
           <div className="ped-form-grid">
             <label className="ped-label ped-full">
               Turma *
-              <select className="ped-select" value={novoMat.turmaId} onChange={e => setNovoMat({ ...novoMat, turmaId: e.target.value })}>
-                <option value="">Selecionar turma…</option>
-                {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-              </select>
+              <Select className="ped-select" aria-label="Turma" value={novoMat.turmaId} onChange={(v) => setNovoMat({ ...novoMat, turmaId: v })}
+                options={[{ value: "", label: "Selecionar turma…" }, ...turmas.map(t => ({ value: t.id, label: t.nome }))]} />
             </label>
             <label className="ped-label">
               ID da pessoa
@@ -282,12 +281,8 @@ export default function AlunosPage() {
           value={busca}
           onChange={e => setBusca(e.target.value)}
         />
-        <select className="ped-select" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
-          <option value="">Todos os status</option>
-          {Object.entries(ptStatus).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
+        <Select className="ped-select" aria-label="Filtrar por status" value={filtroStatus} onChange={setFiltroStatus}
+          options={[{ value: "", label: "Todos os status" }, ...Object.entries(ptStatus).map(([k, v]) => ({ value: k, label: v as string }))]} />
         <input
           className="ped-input"
           placeholder="Filtrar por curso…"
@@ -301,12 +296,13 @@ export default function AlunosPage() {
       {selecionados.size > 0 && (
         <div className="ped-massa-bar">
           <span>{selecionados.size} selecionado(s)</span>
-          <select className="ped-select" value={acaoMassa} onChange={e => setAcaoMassa(e.target.value)}>
-            <option value="">Ação em massa…</option>
-            <option value="Confirmado">✓ Marcar Confirmado</option>
-            <option value="NaoRespondeu">✕ Não Respondeu</option>
-            <option value="AguardandoContato">↩ Aguardando Contato</option>
-          </select>
+          <Select className="ped-select" aria-label="Ação em massa" value={acaoMassa} onChange={setAcaoMassa}
+            options={[
+              { value: "", label: "Ação em massa…" },
+              { value: "Confirmado", label: "✓ Marcar Confirmado" },
+              { value: "NaoRespondeu", label: "✕ Não Respondeu" },
+              { value: "AguardandoContato", label: "↩ Aguardando Contato" },
+            ]} />
           <button
             className="ped-btn-primario"
             disabled={!acaoMassa || executandoAcao}

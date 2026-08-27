@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { pedagogico, type PedagogicoTurma } from "@/services/api/pedagogico";
+import { Select } from "@/components/ui/Select";
 import "@/app/pedagogico.css";
 
 const STATUS = [
@@ -69,10 +70,8 @@ export default function TurmasPage() {
             style={{ width: "100%", paddingLeft: "2.25rem", padding: ".5rem .75rem .5rem 2.25rem", border: "1px solid var(--border)", borderRadius: ".5rem", fontSize: ".875rem", outline: "none" }}
           />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPagina(1); }}
-          style={{ padding: ".5rem .75rem", border: "1px solid var(--border)", borderRadius: ".5rem", fontSize: ".875rem", background: "var(--background)", cursor: "pointer" }}>
-          {STATUS.map(s => <option key={s}>{s}</option>)}
-        </select>
+        <Select aria-label="Filtrar por status" value={status} onChange={(v) => { setStatus(v); setPagina(1); }} style={{ minWidth: 170 }}
+          options={STATUS.map(s => ({ value: s, label: s }))} />
         <button onClick={() => void carregar()} style={{ display: "flex", alignItems: "center", gap: ".4rem", padding: ".5rem .75rem", border: "1px solid var(--border)", borderRadius: ".5rem", background: "transparent", cursor: "pointer", fontSize: ".875rem" }}>
           <RefreshCw size={13} /> Atualizar
         </button>

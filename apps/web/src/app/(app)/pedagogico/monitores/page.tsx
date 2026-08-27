@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import { useCallback, useEffect, useState } from "react";
 import { pedagogico, type PedagogicoTurma } from "@/services/api/pedagogico";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -259,20 +260,17 @@ export default function MonitoresPage() {
             <h3 style={{ marginTop: 0 }}>Escalar {escalaAlvo.nome}</h3>
             <label className="ped-label" style={{ marginBottom: ".75rem" }}>
               Turma
-              <select className="ped-select" value={turmaEscala} onChange={(e) => setTurmaEscala(e.target.value)}>
-                <option value="">Selecionar turma…</option>
-                {turmas.map((t) => (
-                  <option key={t.id} value={t.id}>{t.nome} {t.dataInicio ? `— ${fmtData(t.dataInicio)}` : ""}</option>
-                ))}
-              </select>
+              <Select className="ped-select" aria-label="Turma" value={turmaEscala} onChange={setTurmaEscala}
+                options={[{ value: "", label: "Selecionar turma…" }, ...turmas.map((t) => ({ value: t.id, label: `${t.nome}${t.dataInicio ? ` — ${fmtData(t.dataInicio)}` : ""}` }))]} />
             </label>
             <label className="ped-label">
               Função
-              <select className="ped-select" value={funcaoEscala} onChange={(e) => setFuncaoEscala(e.target.value)}>
-                <option value="monitor">Monitor</option>
-                <option value="lider">Líder de monitores</option>
-                <option value="apoio">Apoio</option>
-              </select>
+              <Select className="ped-select" aria-label="Função" value={funcaoEscala} onChange={setFuncaoEscala}
+                options={[
+                  { value: "monitor", label: "Monitor" },
+                  { value: "lider", label: "Líder de monitores" },
+                  { value: "apoio", label: "Apoio" },
+                ]} />
             </label>
             <div className="ped-form-acoes">
               <button className="ped-btn-primario" disabled={!turmaEscala || escalando} onClick={() => void escalar()}>
