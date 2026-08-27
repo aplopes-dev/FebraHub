@@ -6,6 +6,7 @@ import { pdvCancelarVenda, pdvVendas } from "@/services/api/pdv";
 import { fiscalEmitir, imprimirComprovante } from "@/services/api/fiscal";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 import "@/app/pdv.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -66,9 +67,8 @@ export function VendasPdv() {
         <div><span className="tag">PDV · VENDAS</span><h1>Vendas</h1><p>Histórico de cupons do ponto de venda.</p></div>
         <div className="acoes">
           <label className="pdv-busca"><Search size={15} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nº ou cliente" /></label>
-          <select className="pdv-select" style={{ width: "auto" }} value={situacao} onChange={(e) => setSituacao(e.target.value)}>
-            <option value="">Todas</option><option value="fechada">Fechadas</option><option value="cancelada">Canceladas</option>
-          </select>
+          <Select className="pdv-select" aria-label="Filtrar por situação" value={situacao} onChange={setSituacao} style={{ minWidth: 120 }}
+            options={[{ value: "", label: "Todas" }, { value: "fechada", label: "Fechadas" }, { value: "cancelada", label: "Canceladas" }]} />
         </div>
       </header>
       {erro && <div className="pdv-card" style={{ color: "var(--down)" }}>{erro}</div>}

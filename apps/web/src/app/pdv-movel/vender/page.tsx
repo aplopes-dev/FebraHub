@@ -14,6 +14,7 @@ import {
   lojaProduto as buscarProduto,
 } from "@/services/api/loja-produtos";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaCategoria, LojaProduto } from "@/types/loja-produtos";
 import type { PdvProduto } from "@/types/pdv";
@@ -932,16 +933,14 @@ function ModalEditarProdutoPdvMovel({
 
               <div>
                 <label className="pm-modal-label">Categoria</label>
-                <select
+                <Select
                   className="pm-modal-input"
+                  style={{ width: "100%" }}
+                  aria-label="Categoria"
                   value={categoriaId}
-                  onChange={(e) => setCategoriaId(e.target.value)}
-                >
-                  <option value="">Sem categoria</option>
-                  {categorias.filter((c) => c.ativo).map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
+                  onChange={setCategoriaId}
+                  options={[{ value: "", label: "Sem categoria" }, ...categorias.filter((c) => c.ativo).map((c) => ({ value: c.id, label: c.nome }))]}
+                />
               </div>
 
               <div>

@@ -8,6 +8,7 @@ import {
 } from "@/services/api/pdv";
 import type { ItemCarrinho, PdvProduto } from "@/types/pdv";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 import "@/app/pdv.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -41,9 +42,8 @@ function AbrirCaixa({ aoAbrir }: { aoAbrir: () => void }) {
         <p>Abra um caixa para começar a vender. O fundo de troco entra no fechamento.</p>
         <div style={{ maxWidth: 320, margin: "0 auto", display: "grid", gap: 12, textAlign: "left" }}>
           <label style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700 }}>Terminal</label>
-          <select className="pdv-select" value={terminalId} onChange={(e) => setTerminalId(e.target.value)}>
-            {(terminais.data ?? []).map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-          </select>
+          <Select className="pdv-select" aria-label="Terminal" value={terminalId} onChange={setTerminalId} style={{ width: "100%" }}
+            options={(terminais.data ?? []).map((t) => ({ value: t.id, label: t.nome }))} />
           <label style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700 }}>Fundo de troco (R$)</label>
           <input className="pdv-input" type="number" min={0} step="0.01" value={fundo} onChange={(e) => setFundo(e.target.value)} />
           {erro && <span style={{ color: "var(--down)", fontSize: 12 }}>{erro}</span>}
@@ -159,7 +159,7 @@ function CaixaAberto({ sessao }: { sessao: NonNullable<Awaited<ReturnType<typeof
               <div className="pdv-tot grande"><span>Total</span><b>{brl(total)}</b></div>
               <input className="pdv-input" style={{ marginTop: 10 }} placeholder="Cliente (opcional)" value={cliente} onChange={(e) => setCliente(e.target.value)} />
               <div className="pdv-pag">
-                <select className="pdv-select" value={forma} onChange={(e) => setForma(e.target.value)}>{FORMAS.map((f) => <option key={f}>{f}</option>)}</select>
+                <Select className="pdv-select" aria-label="Forma" value={forma} onChange={setForma} style={{ width: "100%" }} options={FORMAS.map((f) => ({ value: f, label: f }))} />
                 <button className="pdv-btn ouro" disabled={vender.isPending || total <= 0} onClick={() => { setErro(null); vender.mutate(); }}>Finalizar</button>
               </div>
               {erro && <p style={{ color: "var(--down)", fontSize: 12, marginTop: 8 }}>{erro}</p>}
