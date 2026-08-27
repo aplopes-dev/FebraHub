@@ -125,6 +125,7 @@
 .pm-prod:disabled{opacity:.45}
 /* imagem: contain (produtos têm PNG com fundo removido — cover cortava) */
 .pm-prod-img{width:100%;height:78px;object-fit:contain;background:#0d0d0d;padding:2px;box-sizing:border-box}
+.pm-prod-img-vazia{display:grid;place-items:center;color:var(--pm-dim)}
 .pm-prod-nome{font-size:12.5px;font-weight:600;line-height:1.3;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pm-prod-preco{font-size:14px;font-weight:700;color:var(--pm-gold)}
 .pm-prod-badge{position:absolute;top:0;right:0;font-size:9.5px;font-weight:700;padding:2px 7px;background:rgba(0,0,0,.72)}
@@ -182,11 +183,19 @@
 .pm-sheet-head h2{margin:0;font-size:17px;font-weight:700}
 .pm-sheet-x{background:none;border:none;color:var(--pm-muted);cursor:pointer;padding:6px}
 .pm-sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 18px 18px;-webkit-overflow-scrolling:touch}
-.pm-sheet-foot{flex-shrink:0;padding:14px 18px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--pm-line);display:grid;gap:10px;background:var(--pm-card)}
+/* rodapé do sheet: garante folga do gesture bar mesmo quando o browser reporta
+   safe-area 0 (Android nav por gestos). max() dá um piso de 20px. */
+.pm-sheet-foot{flex-shrink:0;padding:14px 18px;padding-bottom:max(20px, calc(env(safe-area-inset-bottom) + 14px));border-top:1px solid var(--pm-line);display:grid;gap:10px;background:var(--pm-card)}
 
 .pm-linha-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--pm-line)}
-.pm-linha-item .nome{flex:1;font-size:14px}
-.pm-linha-item .preco{font-size:13px;color:var(--pm-muted);width:74px;text-align:right}
+/* miniatura do item no carrinho (contain — PNG com fundo removido) */
+.pm-linha-thumb{width:44px;height:44px;flex:none;object-fit:contain;background:#0d0d0d;border:1px solid var(--pm-line);padding:2px;box-sizing:border-box}
+.pm-linha-thumb-vazia{display:grid;place-items:center;color:var(--pm-dim)}
+.pm-linha-item .nome{display:block;font-size:14px;font-weight:600;color:var(--pm-fg);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* iOS auto-detecta números como telefone e pinta o texto de azul (link).
+   Força a cor do texto em qualquer link que o browser injetar dentro do PDV. */
+.pm a,.pm a:link,.pm a:visited{color:inherit !important;-webkit-text-fill-color:currentColor !important;text-decoration:none}
+.pm-linha-item .preco{font-size:13px;color:var(--pm-muted);width:74px;text-align:right;flex:none}
 .pm-stepper{display:flex;align-items:center;gap:10px}
 .pm-stepper button{width:36px;height:36px;border:1px solid var(--pm-line);background:var(--pm-elev);color:var(--pm-fg);font-size:20px;font-weight:700;cursor:pointer;line-height:1}
 .pm-stepper button:active{background:rgba(255,255,255,.06)}

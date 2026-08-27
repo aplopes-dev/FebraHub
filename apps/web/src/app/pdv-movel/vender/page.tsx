@@ -116,7 +116,7 @@ function CardProdutoMovel({
       {p.imagemUrl
         // eslint-disable-next-line @next/next/no-img-element
         ? <img className="pm-prod-img" src={p.imagemUrl} alt={p.descricao ?? ""} />
-        : <div className="pm-prod-img" />}
+        : <div className="pm-prod-img pm-prod-img-vazia"><ImageOff size={24} /></div>}
       <span className="pm-prod-nome">{p.descricao}</span>
       <span className="pm-prod-preco">{brl(p.preco)}</span>
     </button>
@@ -421,7 +421,11 @@ export default function Vender() {
                       className={`pm-linha-item ${selecionado === l.p.produtoId ? "sel" : ""}`}
                       onClick={() => setSelecionado((s) => s === l.p.produtoId ? null : l.p.produtoId)}
                     >
-                      <div style={{ flex: 1 }}>
+                      {l.p.imagemUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img className="pm-linha-thumb" src={l.p.imagemUrl} alt="" />
+                        : <div className="pm-linha-thumb pm-linha-thumb-vazia"><ImageOff size={16} /></div>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <span className="nome">{l.p.descricao}</span>
                         {l.descItem > 0 && <span className="pm-desc-chip">−{brl(l.descItem)}</span>}
                       </div>

@@ -24,6 +24,27 @@ export default function LayoutPdvMovel({ children }: { children: ReactNode }) {
     if (sessao === null) router.replace("/login");
   }, [sessao, router]);
 
+  // (1) edge-to-edge (viewport-fit=cover) — faz os env(safe-area-inset-*)
+  //     reportarem valores reais (gesture bar / notch).
+  // (2) format-detection=telephone=no — impede o iOS de transformar nomes de
+  //     produto com números em link azul clicável.
+  // Só enquanto o PDV móvel está montado; restaura ao sair.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="viewport"]');
+    const anterior = meta?.getAttribute("content") ?? "";
+    if (meta && !/viewport-fit=cover/.test(anterior)) {
+      meta.setAttribute("content", `${anterior}, viewport-fit=cover`);
+    }
+    const fmt = document.createElement("meta");
+    fmt.name = "format-detection";
+    fmt.content = "telephone=no";
+    document.head.appendChild(fmt);
+    return () => {
+      if (meta) meta.setAttribute("content", anterior);
+      fmt.remove();
+    };
+  }, []);
+
   if (sessao === undefined || (sessao && perfil.isLoading)) {
     return <div className="pm"><div className="pm-center">Carregando…</div></div>;
   }
