@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { criarLead, listarProdutos } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
+import { Select } from "@/components/ui/Select";
 import "@/app/comercial.css";
 
 const ORIGENS = [
@@ -311,29 +312,27 @@ function CriarLeadForm() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="com-form-campo">
               <label className="com-form-label">Origem</label>
-              <select
+              <Select
                 className="com-form-input"
+                style={{ width: "100%" }}
+                aria-label="Origem"
                 value={form.origem}
-                onChange={(e) => campo("origem", e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {ORIGENS.map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
+                onChange={(v) => campo("origem", v)}
+                placeholder="Selecione..."
+                options={[{ value: "", label: "Selecione..." }, ...ORIGENS.map((o) => ({ value: o, label: o }))]}
+              />
             </div>
             <div className="com-form-campo">
               <label className="com-form-label">Canal</label>
-              <select
+              <Select
                 className="com-form-input"
+                style={{ width: "100%" }}
+                aria-label="Canal"
                 value={form.canal}
-                onChange={(e) => campo("canal", e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {CANAIS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                onChange={(v) => campo("canal", v)}
+                placeholder="Selecione..."
+                options={[{ value: "", label: "Selecione..." }, ...CANAIS.map((c) => ({ value: c, label: c }))]}
+              />
             </div>
           </div>
 
@@ -352,18 +351,15 @@ function CriarLeadForm() {
           {produtos.length > 0 && (
             <div className="com-form-campo">
               <label className="com-form-label">Produto de interesse</label>
-              <select
+              <Select
                 className="com-form-input"
+                style={{ width: "100%" }}
+                aria-label="Produto de interesse"
                 value={form.produtoId}
-                onChange={(e) => campo("produtoId", e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {produtos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => campo("produtoId", v)}
+                placeholder="Selecione..."
+                options={[{ value: "", label: "Selecione..." }, ...produtos.map((p) => ({ value: p.id, label: p.nome }))]}
+              />
             </div>
           )}
 

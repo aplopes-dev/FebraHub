@@ -37,6 +37,7 @@ import {
 } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { Select } from "@/components/ui/Select";
 import "@/app/comercial.css";
 
 const brl = (v: number | null | undefined) =>
@@ -129,17 +130,20 @@ function ModalInteracao({
 
         <div className="com-form-campo" style={{ marginBottom: 12 }}>
           <label className="com-form-label">Tipo</label>
-          <select
+          <Select
             className="com-form-input"
+            style={{ width: "100%" }}
+            aria-label="Tipo"
             value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-          >
-            <option value="mensagem">Mensagem (WhatsApp / chat)</option>
-            <option value="ligacao">Ligação</option>
-            <option value="email">E-mail</option>
-            <option value="reuniao">Reunião</option>
-            <option value="outro">Outro</option>
-          </select>
+            onChange={setTipo}
+            options={[
+              { value: "mensagem", label: "Mensagem (WhatsApp / chat)" },
+              { value: "ligacao", label: "Ligação" },
+              { value: "email", label: "E-mail" },
+              { value: "reuniao", label: "Reunião" },
+              { value: "outro", label: "Outro" },
+            ]}
+          />
         </div>
 
         <div className="com-form-campo" style={{ marginBottom: 16 }}>
@@ -325,20 +329,15 @@ function ModalMoverEtapa({
 
         <div className="com-form-campo" style={{ marginBottom: 16 }}>
           <label className="com-form-label">Nova etapa</label>
-          <select
+          <Select
             className="com-form-input"
+            style={{ width: "100%" }}
+            aria-label="Nova etapa"
             value={etapaId}
-            onChange={(e) => setEtapaId(e.target.value)}
-          >
-            <option value="">Selecione...</option>
-            {etapas
-              .filter((e) => e.id !== etapaAtualId)
-              .map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nome}
-                </option>
-              ))}
-          </select>
+            onChange={setEtapaId}
+            placeholder="Selecione..."
+            options={[{ value: "", label: "Selecione..." }, ...etapas.filter((e) => e.id !== etapaAtualId).map((e) => ({ value: e.id, label: e.nome }))]}
+          />
         </div>
 
         {erro && <p className="com-form-erro" style={{ marginBottom: 10 }}>{erro}</p>}
@@ -485,13 +484,14 @@ function SecaoNegociacao({
                 </div>
                 <div className="com-form-campo">
                   <label className="com-form-label">Forma de Pagamento</label>
-                  <select className="com-form-input" value={forma} onChange={(e) => setForma(e.target.value)}>
-                    <option value="a_vista">À vista</option>
-                    <option value="pix">PIX</option>
-                    <option value="cartao_credito">Cartão de crédito</option>
-                    <option value="boleto">Boleto</option>
-                    <option value="transferencia">Transferência</option>
-                  </select>
+                  <Select className="com-form-input" style={{ width: "100%" }} aria-label="Forma de Pagamento" value={forma} onChange={setForma}
+                    options={[
+                      { value: "a_vista", label: "À vista" },
+                      { value: "pix", label: "PIX" },
+                      { value: "cartao_credito", label: "Cartão de crédito" },
+                      { value: "boleto", label: "Boleto" },
+                      { value: "transferencia", label: "Transferência" },
+                    ]} />
                 </div>
               </div>
               <div className="com-form-campo">
