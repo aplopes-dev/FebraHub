@@ -149,6 +149,10 @@ export interface PainelCampanhas {
 
 export interface ConfigSocial {
   temChave: boolean;
+  /** A chave existe no banco mas não abre com a chave de cifra atual
+   *  (rotação da AGENTES_CHAVE_CIFRA, banco restaurado de outro ambiente…).
+   *  A integração está desligada até ser digitada de novo. */
+  chaveIlegivel?: boolean;
   /** Os 4 últimos caracteres — confere QUAL chave está gravada sem revelá-la. */
   finalChave: string | null;
   perfilZernio: string | null;

@@ -28,15 +28,36 @@ export class SocialConfigService {
 
   async configuracao() {
     const linha = await this.linha();
+    // A chave pode existir no banco mas ter sido cifrada com OUTRA
+    // AGENTES_CHAVE_CIFRA (rotação da chave, ou banco restaurado de outro
+    // ambiente — ex.: dump de produção). Nesse caso `decifrar` lança
+    // "Unsupported state or unable to authenticate data". Isso NÃO pode
+    // derrubar a tela inteira com 500: degrada para "precisa reconfigurar",
+    // e o painel mostra o estado sem-chave (a diretoria digita de novo).
+    const legivel = this.chaveLegivel(linha.chaveZernio);
     return {
-      temChave: !!linha.chaveZernio,
+      temChave: !!legivel,
+      /** A chave existe mas não abre com a chave de cifra atual. */
+      chaveIlegivel: !!linha.chaveZernio && !legivel,
       /** Os 4 últimos caracteres — identifica a chave sem entregá-la. */
-      finalChave: linha.chaveZernio ? decifrar(this.config, linha.chaveZernio).slice(-4) : null,
+      finalChave: legivel ? legivel.slice(-4) : null,
       perfilZernio: linha.perfilZernio,
       contaAnuncio: linha.contaAnuncio,
       fuso: linha.fuso,
       atualizadoEm: linha.atualizadoEm,
     };
+  }
+
+  /** Decifra sem estourar: devolve null quando o texto cifrado não abre com a
+   *  AGENTES_CHAVE_CIFRA atual (chave rotacionada, banco restaurado de outro
+   *  ambiente…). O chamador trata como "sem chave utilizável". */
+  private chaveLegivel(cifrado: string | null): string | null {
+    if (!cifrado) return null;
+    try {
+      return decifrar(this.config, cifrado);
+    } catch {
+      return null;
+    }
   }
 
   /** `chaveZernio: null` desliga a integração. Ausente = não mexe na chave. */
@@ -88,10 +109,13 @@ export class SocialConfigService {
     return this.configuracao();
   }
 
-  /** A chave em claro. Só o cliente HTTP chama — nada mais. */
+  /** A chave em claro. Só o cliente HTTP chama — nada mais. Se o texto cifrado
+   *  não abre com a chave de cifra atual, devolve null (o cliente HTTP trata
+   *  como SEM_CHAVE — 503 legível — em vez de propagar um erro de crypto que
+   *  vira 500 e trava o painel). */
   async chave(): Promise<string | null> {
     const linha = await this.linha();
-    return linha.chaveZernio ? decifrar(this.config, linha.chaveZernio) : null;
+    return this.chaveLegivel(linha.chaveZernio);
   }
 
   async preferencias(): Promise<{ perfilZernio: string | null; contaAnuncio: string | null; fuso: string }> {

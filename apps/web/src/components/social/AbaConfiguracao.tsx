@@ -112,6 +112,16 @@ export function AbaConfiguracao() {
         </Aviso>
       )}
 
+      {c?.chaveIlegivel && (
+        <Aviso erro>
+          <span>
+            Havia uma chave gravada, mas ela não pode mais ser lida por este servidor
+            (a chave de criptografia mudou, ou o banco veio de outro ambiente). A integração
+            está <strong>desligada</strong> até você digitar a chave do Zernio de novo abaixo.
+          </span>
+        </Aviso>
+      )}
+
       <Bloco
         titulo={
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
