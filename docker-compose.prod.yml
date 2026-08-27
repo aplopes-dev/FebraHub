@@ -130,6 +130,9 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       APP_URL: ${APP_URL}
       ETL_TOKEN: ${ETL_TOKEN}
+      # Conciliação Stone (API de conciliação — extrato de cartão da maquininha)
+      STONE_CONCILIACAO_KEY: ${STONE_CONCILIACAO_KEY:-}
+      STONE_CODE: ${STONE_CODE:-}
       APP_VERSION: ${TAG:-1.0.0}
       # Sessão do WhatsApp (Baileys) em volume: sem ela, cada deploy exigiria
       # escanear o QR de novo. A chave dos agentes cifra os tokens da
