@@ -859,7 +859,10 @@ export class LojaPedidosService {
         saldos: { where: { local: 'LOJA' } },
         categoria: { select: { nome: true, cor: true } },
       },
-      orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
+      // Destaques primeiro: garante que um produto marcado como destaque sempre
+      // aparece (senão, com >100 produtos, o cap `take` podia deixá-lo de fora e
+      // a vitrine de Destaques nunca o mostrava).
+      orderBy: [{ emDestaque: 'desc' }, { ordem: 'asc' }, { nome: 'asc' }],
       take: 100,
     });
     return rows.map((p) => {

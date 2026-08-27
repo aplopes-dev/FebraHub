@@ -655,7 +655,9 @@ export default function Vender() {
           categorias={categorias.data ?? []}
           onFechar={() => setEditarProduto(null)}
           onSalvo={() => {
-            qc.invalidateQueries({ queryKey: ["pdv-movel-produtos"] });
+            // refetch (não só invalidate) para o grid E a vitrine de Destaques
+            // refletirem o novo emDestaque na hora.
+            qc.refetchQueries({ queryKey: ["pdv-movel-produtos"] });
             qc.invalidateQueries({ queryKey: ["loja"] });
             setEditarProduto(null);
           }}
