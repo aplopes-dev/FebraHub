@@ -10,6 +10,7 @@ import {
   lojaTransferirEstoque,
 } from "@/services/api/loja-produtos";
 import { InventarioLoja } from "@/components/loja/InventarioLoja";
+import { Select } from "@/components/ui/Select";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ReposicaoItem } from "@/types/loja-produtos";
@@ -218,8 +219,8 @@ function ModalTransferencia({
         </div>
 
         <div className="loja-grid2" style={{ alignItems: "end" }}>
-          <div><label>De</label><select className="loja-select" value={origem} onChange={(e) => setOrigem(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-          <div><label>Para</label><select className="loja-select" value={destino} onChange={(e) => setDestino(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
+          <div><label>De</label><Select className="loja-select" aria-label="Local de origem" value={origem} onChange={(v) => setOrigem(v as LojaLocal)} options={[{ value: "LOJA", label: "Loja" }, { value: "DEPOSITO", label: "Depósito" }]} /></div>
+          <div><label>Para</label><Select className="loja-select" aria-label="Local de destino" value={destino} onChange={(v) => setDestino(v as LojaLocal)} options={[{ value: "LOJA", label: "Loja" }, { value: "DEPOSITO", label: "Depósito" }]} /></div>
         </div>
         <div style={{ margin: "8px 0" }}>
           <button className="loja-btn" onClick={inverter}><ArrowLeftRight size={13} /> Inverter sentido</button>

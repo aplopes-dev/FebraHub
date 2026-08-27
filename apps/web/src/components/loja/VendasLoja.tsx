@@ -18,6 +18,7 @@ import {
   Clock, Package, ChevronLeft, ChevronRight, Link2,
 } from "lucide-react";
 import { useSessao, pode, ehAdmin } from "@/hooks/auth";
+import { Select } from "@/components/ui/Select";
 import {
   omieVendas, omieConfig, omieConfigSalvar, omieTestar,
   omieSyncSku, omieLancarUm, omieLancarFiltrados,
@@ -316,21 +317,23 @@ export function VendasLoja() {
                 value={filtros.busca ?? ""}
                 onChange={(e) => setFiltro("busca", e.target.value)}
               />
-              <select className="vnd-select" value={filtros.status ?? ""} onChange={(e) => setFiltro("status", e.target.value)}>
-                <option value="">Todos os status</option>
-                <option value="CONFIRMADO">Confirmado</option>
-                <option value="NA_FILA">Na fila</option>
-                <option value="EM_PREPARACAO">Preparando</option>
-                <option value="PRONTO">Pronto</option>
-                <option value="RETIRADO">Retirado</option>
-                <option value="CANCELADO">Cancelado</option>
-              </select>
-              <select className="vnd-select" value={filtros.statusOmie ?? "todos"} onChange={(e) => setFiltro("statusOmie", e.target.value)}>
-                <option value="todos">Omie: todos</option>
-                <option value="pendente">Não lançados</option>
-                <option value="lancado">Lançados</option>
-                <option value="erro">Com erro</option>
-              </select>
+              <Select className="vnd-select" aria-label="Filtrar por status" value={filtros.status ?? ""} onChange={(v) => setFiltro("status", v)}
+                options={[
+                  { value: "", label: "Todos os status" },
+                  { value: "CONFIRMADO", label: "Confirmado" },
+                  { value: "NA_FILA", label: "Na fila" },
+                  { value: "EM_PREPARACAO", label: "Preparando" },
+                  { value: "PRONTO", label: "Pronto" },
+                  { value: "RETIRADO", label: "Retirado" },
+                  { value: "CANCELADO", label: "Cancelado" },
+                ]} />
+              <Select className="vnd-select" aria-label="Filtrar por Omie" value={filtros.statusOmie ?? "todos"} onChange={(v) => setFiltro("statusOmie", v)}
+                options={[
+                  { value: "todos", label: "Omie: todos" },
+                  { value: "pendente", label: "Não lançados" },
+                  { value: "lancado", label: "Lançados" },
+                  { value: "erro", label: "Com erro" },
+                ]} />
               <input
                 className="vnd-input"
                 type="date"

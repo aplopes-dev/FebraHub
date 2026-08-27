@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { lojaAuditoria } from "@/services/api/loja-pedidos";
+import { Select } from "@/components/ui/Select";
 import "@/app/loja.css";
 import "@/app/fila.css";
 
@@ -31,7 +32,7 @@ export function AuditoriaLoja() {
     queryFn: () => lojaAuditoria({ entidade: entidade || undefined, acao: acao || undefined }),
   });
 
-  const selStyle: React.CSSProperties = { padding: "9px 12px", borderRadius: 10, border: "1px solid var(--card-line)", background: "var(--card)", color: "inherit", fontSize: 13 };
+
 
   return (
     <div className="loja-page">
@@ -45,16 +46,15 @@ export function AuditoriaLoja() {
       </header>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <select value={entidade} onChange={(e) => setEntidade(e.target.value)} style={selStyle}>
-          <option value="">Todas as entidades</option>
-          <option value="pedido">Pedido</option>
-          <option value="operacao">Operação</option>
-          <option value="produto">Produto</option>
-        </select>
-        <select value={acao} onChange={(e) => setAcao(e.target.value)} style={selStyle}>
-          <option value="">Todas as ações</option>
-          {Object.entries(ACAO_ROTULO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <Select aria-label="Filtrar por entidade" value={entidade} onChange={setEntidade} style={{ minWidth: 170 }}
+          options={[
+            { value: "", label: "Todas as entidades" },
+            { value: "pedido", label: "Pedido" },
+            { value: "operacao", label: "Operação" },
+            { value: "produto", label: "Produto" },
+          ]} />
+        <Select aria-label="Filtrar por ação" value={acao} onChange={setAcao} style={{ minWidth: 170 }}
+          options={[{ value: "", label: "Todas as ações" }, ...Object.entries(ACAO_ROTULO).map(([k, v]) => ({ value: k, label: v as string }))]} />
       </div>
 
       <div className="loja-card" style={{ padding: 0, overflow: "hidden" }}>
