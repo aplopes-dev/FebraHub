@@ -6,6 +6,7 @@ import { stoneConcImportarPeriodo, stoneConcImports, stoneConcStatus, stoneConcT
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import { Select } from "@/components/ui/Select";
+import { TabelaDados, type ColumnDef } from "@/components/ui/TabelaDados";
 import type { StoneConcTransacao } from "@/types/stone-conciliacao";
 import "@/app/financeiro-erp.css";
 
@@ -62,6 +63,36 @@ export function ConciliacaoStone() {
 
   const naoConfig = status.data && !status.data.configurado;
 
+  const colunas = useMemo<ColumnDef<StoneConcTransacao>[]>(() => [
+    {
+      id: "data", header: "Data", enableSorting: false,
+      cell: ({ row }) => {
+        const t = row.original;
+        return <>{dataCurta(t.captureDateTime ?? t.referenceDate)} <span className="fin-help" style={{ display: "inline" }}>{horaCurta(t.captureDateTime)}</span></>;
+      },
+    },
+    {
+      id: "tipo", header: "Tipo", enableSorting: false,
+      cell: ({ row }) => {
+        const t = row.original;
+        return (
+          <span style={t.cancelado ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
+            <CreditCard size={13} style={{ verticalAlign: "-2px", opacity: 0.6 }} /> {tipo(t)}
+            {t.cancelado && <span className="fin-help" style={{ display: "inline", marginLeft: 6 }}>cancelada</span>}
+          </span>
+        );
+      },
+    },
+    { accessorKey: "brandNome", header: "Bandeira", cell: (c) => c.getValue<string | null>() ?? "—" },
+    { accessorKey: "cardNumber", header: "Cartão", enableSorting: false, cell: (c) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{c.getValue<string | null>() ?? "—"}</span> },
+    { accessorKey: "numberOfInstallments", header: "Parc.", cell: (c) => `${c.getValue<number>()}x` },
+    { accessorKey: "poiSerialNumber", header: "Maquininha", enableSorting: false, cell: (c) => <span className="fin-help" style={{ display: "table-cell" }}>{c.getValue<string | null>() ?? "—"}</span> },
+    { accessorKey: "grossAmount", header: "Bruto", cell: (c) => <div className="num">{brl(c.getValue<string>())}</div> },
+    { accessorKey: "feeAmount", header: "Taxa", cell: (c) => <div className="num fin-neg">{brl(c.getValue<string>())}</div> },
+    { accessorKey: "netAmount", header: "Líquido", cell: (c) => <div className="num up" style={{ color: "var(--up)" }}>{brl(c.getValue<string>())}</div> },
+    { accessorKey: "previsionPaymentDate", header: "Liquidação", cell: (c) => dataCurta(c.getValue<string | null>()) },
+  ], []);
+
   return (
     <main className="fin-page">
       <header className="fin-hero">
@@ -102,35 +133,15 @@ export function ConciliacaoStone() {
 
         {lista.isLoading ? (
           <div className="fin-empty">Carregando…</div>
-        ) : !d || d.itens.length === 0 ? (
-          <div className="fin-empty">Nenhuma transação no período. Use “Importar dia” para trazer um extrato.</div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="fin-table">
-              <thead>
-                <tr>
-                  <th>Data</th><th>Tipo</th><th>Bandeira</th><th>Cartão</th><th>Parc.</th><th>Maquininha</th>
-                  <th style={{ textAlign: "right" }}>Bruto</th><th style={{ textAlign: "right" }}>Taxa</th><th style={{ textAlign: "right" }}>Líquido</th><th>Liquidação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.itens.map((t) => (
-                  <tr key={t.id} style={t.cancelado ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
-                    <td>{dataCurta(t.captureDateTime ?? t.referenceDate)} <span className="fin-help" style={{ display: "inline" }}>{horaCurta(t.captureDateTime)}</span></td>
-                    <td><CreditCard size={13} style={{ verticalAlign: "-2px", opacity: 0.6 }} /> {tipo(t)}</td>
-                    <td>{t.brandNome ?? "—"}</td>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>{t.cardNumber ?? "—"}</td>
-                    <td>{t.numberOfInstallments}x</td>
-                    <td className="fin-help" style={{ display: "table-cell" }}>{t.poiSerialNumber ?? "—"}</td>
-                    <td className="num">{brl(t.grossAmount)}</td>
-                    <td className="num fin-neg">{brl(t.feeAmount)}</td>
-                    <td className="num up" style={{ color: "var(--up)" }}>{brl(t.netAmount)}</td>
-                    <td>{dataCurta(t.previsionPaymentDate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TabelaDados
+            dados={d?.itens ?? []}
+            colunas={colunas}
+            chaveLinha={(t) => t.id}
+            porPaginaInicial={50}
+            tamanhosPagina={[25, 50, 100, 200]}
+            vazio="Nenhuma transação no período. Use “Importar dia” para trazer um extrato."
+          />
         )}
       </section>
 
