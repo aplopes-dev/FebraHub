@@ -844,6 +844,7 @@ function ModalEditarProdutoPdvMovel({
   const [preco, setPreco] = useState(String(prodInicial.preco));
   const [categoriaId, setCategoriaId] = useState<string>("");
   const [exibeCardapio, setExibeCardapio] = useState(true);
+  const [emDestaque, setEmDestaque] = useState(!!prodInicial.emDestaque);
   const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
   const [enviandoImg, setEnviandoImg] = useState(false);
   const [erroImg, setErroImg] = useState<string | null>(null);
@@ -865,6 +866,7 @@ function ModalEditarProdutoPdvMovel({
       setEan(prodQuery.data.codigoBarras ?? "");
       setCategoriaId(prodQuery.data.categoriaId ?? "");
       setExibeCardapio(prodQuery.data.exibeCardapio);
+      setEmDestaque(prodQuery.data.emDestaque);
       if (nome === prodInicial.descricao) setNome(prodQuery.data.nome);
       const precoApi = Number(prodQuery.data.preco);
       if (!isNaN(precoApi)) setPreco(precoApi.toFixed(2).replace(".", ","));
@@ -923,7 +925,7 @@ function ModalEditarProdutoPdvMovel({
         precisaPreparacao: prodData.precisaPreparacao,
         controlaEstoque: prodData.controlaEstoque,
         vendeSemEstoque: prodData.vendeSemEstoque,
-        emDestaque: prodData.emDestaque,
+        emDestaque,
         estoqueMinimo: Number(prodData.estoqueMinimo) ?? 0,
       };
       return lojaAtualizarProduto(prodData.id, payload);
@@ -1070,6 +1072,18 @@ function ModalEditarProdutoPdvMovel({
                   inputMode="decimal"
                 />
               </div>
+
+              <label className="pm-edprod-check">
+                <input
+                  type="checkbox"
+                  checked={emDestaque}
+                  onChange={(e) => setEmDestaque(e.target.checked)}
+                />
+                <span>
+                  <span className="pm-edprod-check-tit"><Star size={14} fill={emDestaque ? "currentColor" : "none"} /> Marcar como destaque</span>
+                  <small>{emDestaque ? "Aparece na vitrine de Destaques (cardápio e PDV)." : "Produto comum, sem destaque."}</small>
+                </span>
+              </label>
 
               <label className="pm-edprod-check">
                 <input

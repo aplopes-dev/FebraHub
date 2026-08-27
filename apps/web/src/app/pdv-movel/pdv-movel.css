@@ -571,6 +571,8 @@ html.pm-overlay-aberto body{overflow:hidden}
 .pm-edprod-check input{margin-top:2px;width:18px;height:18px;flex:none;accent-color:var(--pm-gold)}
 .pm-edprod-check span{display:flex;flex-direction:column;gap:2px}
 .pm-edprod-check small{font-size:11.5px;font-weight:500;color:var(--pm-muted)}
+.pm-edprod-check-tit{flex-direction:row!important;align-items:center;gap:6px}
+.pm-edprod-check-tit svg{color:var(--pm-gold);flex:none}
 
 /* spin simples */
 .pm-spin{animation:pm-spin-kf .8s linear infinite}
