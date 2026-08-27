@@ -3507,7 +3507,7 @@ model ComVenda {
 
   produtoId               String?  @map("produto_id") @db.Uuid
   produto                 ComProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
-  produtoNome             String
+  produtoNome             String   @map("produto_nome")
   quantidade              Int      @default(1)
 
   /// Valores (OBRIGATÓRIOS — PRD §23)
