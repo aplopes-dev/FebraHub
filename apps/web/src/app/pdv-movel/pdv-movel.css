@@ -8,16 +8,83 @@
    (que na ref é preto/branco sólido) vira o DOURADO.
    Layout: app bar + área rolável + bottom navigation fixa (safe-area). */
 
+/* Trava o documento inteiro enquanto o PDV móvel está montado: sem rubber-band,
+   sem zoom por gesto/double-tap, sem scroll do <body>. Quem rola é só a .pm-main.
+   (classe .pm-root posta pelo ShellPdvMovel no <html>) */
+html.pm-root,html.pm-root body{
+  height:100%;overflow:hidden;overscroll-behavior:none;
+  touch-action:manipulation;-webkit-text-size-adjust:100%;
+}
+html.pm-overlay-aberto body{overflow:hidden}
+
 .pm{
   /* Superfícies planas da concessionária (dark): preto puro + tile #191919 */
   --pm-bg:#000; --pm-card:#191919; --pm-elev:#212121; --pm-line:#2c2c2c;
   --pm-fg:#fff; --pm-muted:#b5b5b5; --pm-dim:#666766;
   --pm-gold-a:#F2D488; --pm-gold-b:#B8934A; --pm-gold:#E4C06A; --pm-gold-rgb:228 192 106; --pm-sobre:#1a1408;
   --pm-verde:#34D399; --pm-vermelho:#F87171;
-  position:fixed;inset:0;display:flex;flex-direction:column;
+  /* folgas do sistema, publicadas p/ os overlays reaproveitarem */
+  --pm-safe-top:env(safe-area-inset-top);
+  --pm-safe-bottom:env(safe-area-inset-bottom);
+  position:fixed;inset:0;
+  /* dvh acompanha o encolher/expandir da UI do browser (barra de endereço).
+     Fallback vh primeiro, dvh por último p/ quem suporta. Sem isso o inset:0
+     "vazava" atrás da barra e a safe-area parecia sumir ao rolar. */
+  height:100vh;height:100dvh;
+  display:flex;flex-direction:column;
   background:var(--pm-bg);color:var(--pm-fg);
   font-family:var(--fonte-sans,system-ui,sans-serif);
   -webkit-font-smoothing:antialiased;letter-spacing:-.01em;
+  /* App nativo: sem seleção de texto nem callout do sistema (inputs reabilitam) */
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;
+}
+.pm input,.pm textarea,.pm [contenteditable]{
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+}
+/* iOS pinta números como link (tel/date). Neutraliza qualquer link injetado. */
+.pm a[href^="tel"],.pm a[href^="sms"],.pm a[href^="mailto"]{
+  color:inherit !important;-webkit-text-fill-color:currentColor !important;
+  text-decoration:none !important;pointer-events:none;
+}
+/* Contêiner dos overlays portados p/ o <body>: só carrega tokens/tema; cada
+   filho (sheet/modal) já é position:fixed e pinta acima da bottom-nav. */
+.pm-portal{
+  position:fixed;inset:0;height:auto;display:block;
+  background:transparent;pointer-events:none;z-index:2000;
+}
+.pm-portal>*{pointer-events:auto}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   iOS / Safari — best practices específicas (aparelhos Apple)
+   ───────────────────────────────────────────────────────────────────────── */
+/* 1) ZOOM AO FOCAR: o Safari dá zoom em qualquer campo com font-size < 16px.
+      Todo input/textarea/select do PDV móvel usa no MÍNIMO 16px. */
+.pm input,.pm textarea,.pm select,
+.pm .pm-busca input,.pm .pm-modal-input,.pm .pm-pix-copia input{
+  font-size:16px;
+}
+/* 2) Reset do chrome nativo do iOS (sombra interna, cantos, spinners). */
+.pm input,.pm textarea,.pm select{
+  -webkit-appearance:none;appearance:none;border-radius:0;
+  -webkit-border-radius:0;background-clip:padding-box;
+}
+.pm input[type="search"]::-webkit-search-decoration,
+.pm input[type="search"]::-webkit-search-cancel-button{-webkit-appearance:none}
+/* 3) Fallback de altura p/ iOS < 15.4 (sem 100dvh): usa a altura visível real.
+      Vem depois do 100vh/100dvh do .pm, então só "vence" onde é suportado. */
+@supports (-webkit-touch-callout:none){
+  .pm{min-height:-webkit-fill-available}
+}
+/* 4) Rolagem por inércia + sem "chaining" para o documento (rubber-band). */
+.pm-main,.pm-sheet-body,.pm-modal-edprod{
+  -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
+}
+/* 5) Botões: zera o realce cinza e o estilo de botão nativo do iOS. */
+.pm button{-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent}
+/* 6) Impede o "double-tap zoom" também via CSS nos alvos de toque. */
+.pm-prod,.pm-chip,.pm-tab,.pm-btn,.pm-acao-btn,.pm-forma,.pm-stepper button{
+  touch-action:manipulation;
 }
 
 /* app bar — tile plano, separado do conteúdo só pela hairline (sem sombra) */
@@ -46,18 +113,35 @@
 /* área central rolável */
 .pm-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 16px;overscroll-behavior:contain}
 
-/* bottom navigation — tile plano; item ativo = barra dourada no topo + ícone dourado */
+/* bottom navigation — tile plano; item ativo = barra dourada no topo + ícone dourado.
+   É um SÓLIDO OPACO que intercepta o toque na sua faixa inteira (incl. a tira da
+   safe-area/home-indicator). z-index alto + isola o contexto de empilhamento; a
+   safe-area vira padding do PRÓPRIO tile, e a linha de tabs preenche 100% da
+   altura útil (sem sub-linha morta por onde o toque vazaria). */
 .pm-tabs{
-  display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+  flex:none;
+  display:grid;
+  /* linha explícita p/ as tabs + faixa da safe-area, ambas dentro do MESMO tile */
+  grid-template-columns:repeat(4,1fr);
+  grid-template-rows:1fr env(safe-area-inset-bottom, 0px);
   background:var(--pm-card);border-top:1px solid var(--pm-line);
-  padding:0 0 env(safe-area-inset-bottom);
-  position:relative;z-index:2;
+  position:relative;z-index:100;isolation:isolate;
+  min-height:calc(56px + env(safe-area-inset-bottom, 0px));
+  /* captura qualquer toque na faixa da nav mesmo fora de um <a> */
+  touch-action:manipulation;
+}
+/* a tira da safe-area (2ª linha do grid) é preenchida pela cor do tile e captura
+   o toque — impede o "toque vazar" pelo home-indicator para o conteúdo. */
+.pm-tabs::after{
+  content:"";grid-column:1 / -1;grid-row:2;background:var(--pm-card);
 }
 .pm-tab{
-  position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;
-  padding:10px 0 9px;border:none;background:none;cursor:pointer;
+  grid-row:1;
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  height:100%;min-height:52px;padding:9px 2px;border:none;background:var(--pm-card);cursor:pointer;
   color:var(--pm-muted);font-size:10.5px;font-weight:600;text-decoration:none;
   transition:color .18s,background .18s;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 .pm-tab svg{width:22px;height:22px;transition:transform .12s}
 /* indicador plano: barra dourada no topo da célula ativa (Material top indicator) */
@@ -134,11 +218,27 @@
 .pm-prod-qtd{position:absolute;top:0;left:0;min-width:24px;height:24px;background:var(--pm-gold-a);color:var(--pm-sobre);font-size:12px;font-weight:800;display:grid;place-items:center}
 
 /* ── Área inferior: ações rápidas + carrinho ── */
+/* fica DENTRO da .pm-main (acima da bottom-nav) — a nav já reserva a gesture bar,
+   então aqui o padding inferior é só respiro, sem env(safe-area).
+
+   BUG DE HIT-TEST (corrigido): o fade transparente NO TOPO desta barra fazia o
+   elemento sticky COBRIR a última fileira de produtos — a área parecia "vazia"
+   (dava pra ver o grid pelo gradiente) mas quem recebia o toque era a barra, não
+   o produto. Agora o fade é um ::before com pointer-events:none (o toque atravessa
+   o fade e chega no produto), e a barra só intercepta toque onde há conteúdo real
+   (botões), que ficam num stacking context próprio ACIMA do grid. */
 .pm-bottom-area{
   position:sticky;bottom:0;margin:14px -16px -16px;
-  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,#000 28%);
-  padding:0 16px calc(env(safe-area-inset-bottom) + 12px);
+  padding:0 16px 12px;
+  z-index:5;                    /* stacking context próprio, acima dos cards */
+  pointer-events:none;          /* o container não captura toque… */
 }
+.pm-bottom-area::before{        /* …o fade é só visual, deixa o toque passar */
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,#000 28%);
+}
+/* só os controles reais recebem toque */
+.pm-bottom-area>*{pointer-events:auto}
 
 /* Barra de ações rápidas — tiles retos equivalentes às teclas F# do desktop */
 .pm-acoes-bar{
@@ -192,10 +292,12 @@
 /* miniatura do item no carrinho (contain — PNG com fundo removido) */
 .pm-linha-thumb{width:44px;height:44px;flex:none;object-fit:contain;background:#0d0d0d;border:1px solid var(--pm-line);padding:2px;box-sizing:border-box}
 .pm-linha-thumb-vazia{display:grid;place-items:center;color:var(--pm-dim)}
-.pm-linha-item .nome{display:block;font-size:14px;font-weight:600;color:var(--pm-fg);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* iOS auto-detecta números como telefone e pinta o texto de azul (link).
-   Força a cor do texto em qualquer link que o browser injetar dentro do PDV. */
-.pm a,.pm a:link,.pm a:visited{color:inherit !important;-webkit-text-fill-color:currentColor !important;text-decoration:none}
+/* nome do item — força a cor mesmo se o iOS insistir em auto-linkar números
+   (o meta format-detection já impede o link; isto é o cinto+suspensório) */
+.pm-linha-item .nome,.pm-prod-nome{
+  color:var(--pm-fg);-webkit-text-fill-color:var(--pm-fg);
+}
+.pm-linha-item .nome{display:block;font-size:14px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pm-linha-item .preco{font-size:13px;color:var(--pm-muted);width:74px;text-align:right;flex:none}
 .pm-stepper{display:flex;align-items:center;gap:10px}
 .pm-stepper button{width:36px;height:36px;border:1px solid var(--pm-line);background:var(--pm-elev);color:var(--pm-fg);font-size:20px;font-weight:700;cursor:pointer;line-height:1}
@@ -293,7 +395,8 @@
   position:relative;
   width:100%;max-width:480px;
   background:var(--pm-card);border-top:1px solid var(--pm-line);
-  padding:24px 20px calc(env(safe-area-inset-bottom) + 22px);
+  /* piso de 22px mesmo quando o browser reporta safe-area 0 (Android por gestos) */
+  padding:24px 20px max(22px, calc(env(safe-area-inset-bottom) + 20px));
   display:grid;gap:12px;
 }
 .pm-modal h3{margin:0;font-size:17px;font-weight:700}
@@ -382,15 +485,33 @@
 .pm-spin{animation:pm-spin-kf .8s linear infinite}
 @keyframes pm-spin-kf{to{transform:rotate(360deg)}}
 
-/* banner de instalação — tile dourado reto */
+/* banner de instalação — TILE MATERIAL PLANO (sólido, sem gradiente/transparência).
+   Superfície opaca #191919 + hairline, ícone dourado como acento à esquerda numa
+   "leading tile" (padrão Material). O CTA "Instalar" é o único elemento dourado. */
 .pm-install{
-  display:flex;align-items:center;gap:10px;
-  background:linear-gradient(180deg,var(--pm-gold-a),var(--pm-gold-b));color:var(--pm-sobre);
-  padding:12px 14px;margin-bottom:12px;font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:12px;
+  background:var(--pm-card);color:var(--pm-fg);
+  border:1px solid var(--pm-line);border-left:3px solid var(--pm-gold);
+  padding:12px 12px 12px 13px;margin-bottom:12px;font-size:13px;font-weight:600;line-height:1.35;
 }
-.pm-install>svg{flex:none}
-.pm-install button{margin-left:auto;background:var(--pm-sobre);color:var(--pm-gold-a);border:none;padding:9px 13px;font-weight:800;cursor:pointer;font-size:12px}
-.pm-install .x{background:rgba(16,12,4,.14);color:var(--pm-sobre);margin-left:0;padding:6px}
+/* ícone num quadrado dourado translúcido (leading icon Material) */
+.pm-install>svg{
+  flex:none;width:34px;height:34px;padding:8px;box-sizing:border-box;
+  color:var(--pm-gold);background:rgb(var(--pm-gold-rgb)/.14);
+}
+.pm-install>span{flex:1;min-width:0}
+/* CTA sólido dourado (o único acento forte) */
+.pm-install button{
+  margin-left:auto;flex:none;
+  background:linear-gradient(180deg,var(--pm-gold-a),var(--pm-gold-b));color:var(--pm-sobre);
+  border:none;padding:9px 14px;font-weight:700;cursor:pointer;font-size:12px;
+}
+.pm-install button:active{filter:brightness(1.05)}
+.pm-install .x{
+  background:transparent;color:var(--pm-muted);margin-left:0;padding:7px;
+  border:1px solid var(--pm-line);
+}
+.pm-install .x:active{background:rgba(255,255,255,.06);color:var(--pm-fg)}
 
 /* ── Destaques & Bebidas (carrossel horizontal antes do grid) ── */
 .pm-destaques{margin:0 0 16px}

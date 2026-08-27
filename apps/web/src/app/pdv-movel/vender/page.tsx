@@ -15,6 +15,7 @@ import {
 } from "@/services/api/loja-produtos";
 import { ErroApi } from "@/services/api/client";
 import { Select } from "@/components/ui/Select";
+import { PortalPdv } from "@/app/pdv-movel/PortalPdv";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaCategoria, LojaProduto } from "@/types/loja-produtos";
 import type { PdvProduto } from "@/types/pdv";
@@ -311,7 +312,18 @@ export default function Vender() {
     <>
       <div className="pm-busca">
         <Search />
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto…" inputMode="search" />
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar produto…"
+          type="search"
+          inputMode="search"
+          enterKeyHint="search"
+          autoCorrect="off"
+          autoCapitalize="none"
+          autoComplete="off"
+          spellCheck={false}
+        />
         {busca && (
           <button className="pm-busca-x" onClick={() => setBusca("")} aria-label="Limpar busca"><X size={16} /></button>
         )}
@@ -416,8 +428,9 @@ export default function Vender() {
         </div>
       )}
 
-      {/* ── Sheet do carrinho / pagamento ── */}
+      {/* ── Sheet do carrinho / pagamento (portal → escapa do scroll e da navbar) ── */}
       {sheet && (
+        <PortalPdv>
         <div className="pm-sheet-bg" onClick={fecharSheet}>
           <div className="pm-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="pm-sheet-head">
@@ -582,6 +595,7 @@ export default function Vender() {
             })()}
           </div>
         </div>
+        </PortalPdv>
       )}
 
       {/* ── Modais extras (cliente, desconto, cancelar) ── */}
@@ -619,6 +633,7 @@ export default function Vender() {
       )}
 
       {modalExtra === "cancelar" && (
+        <PortalPdv>
         <div className="pm-modal-bg" onClick={() => setModalExtra(null)}>
           <div className="pm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Cancelar venda?</h3>
@@ -629,6 +644,7 @@ export default function Vender() {
             </div>
           </div>
         </div>
+        </PortalPdv>
       )}
 
       {/* ── Modal de edição rápida (clique duplo / botão direito) ── */}
@@ -669,6 +685,7 @@ function ModalCliente({
   };
 
   return (
+    <PortalPdv>
     <div className="pm-modal-bg" onClick={onFechar}>
       <div className="pm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pm-modal-head">
@@ -684,6 +701,10 @@ function ModalCliente({
           onChange={(e) => setNome(e.target.value)}
           placeholder="Nome do cliente"
           autoFocus
+          type="text"
+          autoComplete="name"
+          autoCapitalize="words"
+          enterKeyHint="next"
           onKeyDown={(e) => { if (e.key === "Enter") salvar(); }}
         />
         <label className="pm-modal-label">Telefone <span className="pm-modal-opt">(opcional)</span></label>
@@ -692,7 +713,10 @@ function ModalCliente({
           value={tel}
           onChange={(e) => setTel(e.target.value)}
           placeholder="(71) 90000-0000"
+          type="tel"
           inputMode="tel"
+          autoComplete="tel"
+          enterKeyHint="done"
           onKeyDown={(e) => { if (e.key === "Enter") salvar(); }}
         />
         <div className="pm-modal-fim">
@@ -703,6 +727,7 @@ function ModalCliente({
         </div>
       </div>
     </div>
+    </PortalPdv>
   );
 }
 
@@ -727,6 +752,7 @@ function ModalDesconto({
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
+    <PortalPdv>
     <div className="pm-modal-bg" onClick={onFechar}>
       <div className="pm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pm-modal-head">
@@ -750,6 +776,8 @@ function ModalDesconto({
           onChange={(e) => setValor(e.target.value)}
           placeholder={tipo === "reais" ? "0,00" : "0"}
           autoFocus
+          autoComplete="off"
+          enterKeyHint="done"
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onAplicar(descReais); } }}
         />
 
@@ -765,6 +793,7 @@ function ModalDesconto({
         </div>
       </div>
     </div>
+    </PortalPdv>
   );
 }
 
@@ -905,6 +934,7 @@ function ModalEditarProdutoPdvMovel({
   const carregando = prodQuery.isLoading;
 
   return (
+    <PortalPdv>
     <div className="pm-modal-bg pm-modal-bg-top" onClick={onFechar}>
       <div className="pm-modal pm-modal-edprod" onClick={(e) => e.stopPropagation()}>
         {/* Cabeçalho */}
@@ -1070,5 +1100,6 @@ function ModalEditarProdutoPdvMovel({
         )}
       </div>
     </div>
+    </PortalPdv>
   );
 }

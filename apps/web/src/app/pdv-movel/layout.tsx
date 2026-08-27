@@ -1,101 +1,27 @@
-"use client";
-import { useEffect, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, KeyRound, ScanLine, ShoppingCart, ListOrdered, Receipt } from "lucide-react";
-import { pode, usePerfil, useSessao } from "@/hooks/auth";
-import { PromptInstalar } from "@/components/pwa/PromptInstalar";
-import "@/app/pdv-movel/pdv-movel.css";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import ShellPdvMovel from "./ShellPdvMovel";
 
-const TABS = [
-  { href: "/pdv-movel/vender", label: "Vender", Icone: ShoppingCart },
-  { href: "/pdv-movel/fila", label: "Fila", Icone: ListOrdered },
-  { href: "/pdv-movel/vendas", label: "Vendas", Icone: Receipt },
-  { href: "/pdv-movel/retirada", label: "Retir. QR", Icone: ScanLine },
-  { href: "/pdv-movel/codigo", label: "Código", Icone: KeyRound },
-];
+/* Metadados/viewport DO SEGMENTO (server component — por isso este layout não é
+   "use client"). O Next mescla estes com os do root:
+   - viewportFit:"cover" → env(safe-area-inset-*) reportam os valores reais do
+     notch / gesture bar. Fica no HTML inicial (sem flicker, sem depender de
+     efeito pós-hidratação como antes) e sobrevive à navegação PWA.
+   - format-detection: telephone/date/address=no → impede o iOS de transformar
+     nomes de produto com números em link azul clicável. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
+export const metadata: Metadata = {
+  title: "PDV · FebraHub",
+  other: { "format-detection": "telephone=no, date=no, address=no, email=no" },
+};
 
 export default function LayoutPdvMovel({ children }: { children: ReactNode }) {
-  const sessao = useSessao();
-  const perfil = usePerfil(sessao);
-  const router = useRouter();
-  const caminho = usePathname();
-
-  useEffect(() => {
-    if (sessao === null) router.replace("/login");
-  }, [sessao, router]);
-
-  // (1) edge-to-edge (viewport-fit=cover) — faz os env(safe-area-inset-*)
-  //     reportarem valores reais (gesture bar / notch).
-  // (2) format-detection=telephone=no — impede o iOS de transformar nomes de
-  //     produto com números em link azul clicável.
-  // Só enquanto o PDV móvel está montado; restaura ao sair.
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="viewport"]');
-    const anterior = meta?.getAttribute("content") ?? "";
-    if (meta && !/viewport-fit=cover/.test(anterior)) {
-      meta.setAttribute("content", `${anterior}, viewport-fit=cover`);
-    }
-    const fmt = document.createElement("meta");
-    fmt.name = "format-detection";
-    fmt.content = "telephone=no";
-    document.head.appendChild(fmt);
-    return () => {
-      if (meta) meta.setAttribute("content", anterior);
-      fmt.remove();
-    };
-  }, []);
-
-  if (sessao === undefined || (sessao && perfil.isLoading)) {
-    return <div className="pm"><div className="pm-center">Carregando…</div></div>;
-  }
-  if (!sessao) return <div className="pm"><div className="pm-center">Redirecionando…</div></div>;
-
-  const p = perfil.data;
-  if (!pode(p, "loja.pedidos.operar")) {
-    return (
-      <div className="pm">
-        <div className="pm-center">
-          <div>
-            <p style={{ fontSize: 15, color: "#fff", fontWeight: 700 }}>Sem acesso ao PDV</p>
-            <p style={{ marginTop: 6 }}>Seu perfil não tem a permissão “operar a fila da Loja”.</p>
-            <Link href="/" className="pm-btn" style={{ marginTop: 16, display: "inline-flex" }}>Voltar ao FebraHub</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pm">
-      <header className="pm-top">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="pm-top-logo" src="/logo-febracis.webp" alt="Febracis" width={30} height={30} />
-        <div className="pm-top-id">
-          <h1>FebraHub PDV</h1>
-          <p className="pm-op">{p?.nome ?? "Balcão da Loja"}</p>
-        </div>
-        <span className="pm-top-badge">LOJA</span>
-        <Link href="/" className="pm-top-sair" title="Voltar ao FebraHub" aria-label="Voltar ao FebraHub">
-          <ArrowLeft />
-        </Link>
-      </header>
-
-      <main className="pm-main">
-        <PromptInstalar rotulo="o PDV no aparelho" />
-        {children}
-      </main>
-
-      <nav className="pm-tabs">
-        {TABS.map(({ href, label, Icone }) => {
-          const ativo = caminho.startsWith(href);
-          return (
-            <Link key={href} href={href} className={`pm-tab ${ativo ? "on" : ""}`}>
-              <Icone /> {label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
-  );
+  return <ShellPdvMovel>{children}</ShellPdvMovel>;
 }
