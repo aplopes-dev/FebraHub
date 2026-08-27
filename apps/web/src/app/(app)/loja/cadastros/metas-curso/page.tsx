@@ -1,12 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { GuardaSetor } from "@/components/auth/GuardaSetor";
-import { CrudMetasCurso } from "@/components/cadastros/loja/CrudMetasCurso";
-
-export default function PaginaMetasCurso() {
-  return (
-    <GuardaSetor setor="loja">
-      <CrudMetasCurso />
-    </GuardaSetor>
-  );
+// Consolidado na tela "Planejamento e metas" (aba Metas por curso).
+// Rota mantida só para não quebrar bookmarks/deep-links.
+export default function RedirectMetasCurso() {
+  redirect("/loja/planejamento?aba=metas-curso");
 }

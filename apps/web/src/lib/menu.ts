@@ -177,29 +177,15 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Eventos, cardápio digital público, painel/TV e QR",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
       },
+      // Metas mensais, Metas por curso e Fechamento eram 3 itens soltos —
+      // agora vivem em abas numa tela só ("Planejamento e metas"). As rotas
+      // /loja/cadastros/{metas-mes,metas-curso,fechamento} redirecionam p/ lá.
       {
-        id: "loja-metas-mes",
-        label: "Metas mensais",
-        href: "/loja/cadastros/metas-mes",
-        titulo: "Metas mensais da loja",
-        desc: "Mínima, básica e máster por mês — substitui a planilha de metas",
-        visivel: doSetor("loja"),
-      },
-      {
-        id: "loja-metas-curso",
-        label: "Metas por curso",
-        href: "/loja/cadastros/metas-curso",
-        titulo: "Metas por curso",
-        desc: "Meta de produtos e curso por mês",
-        visivel: doSetor("loja"),
-      },
-
-      {
-        id: "loja-fechamento",
-        label: "Fechamento",
-        href: "/loja/cadastros/fechamento",
-        titulo: "Fechamento mensal",
-        desc: "Faturamento e metas batidas do mês",
+        id: "loja-planejamento",
+        label: "Planejamento e metas",
+        href: "/loja/planejamento",
+        titulo: "Planejamento e metas",
+        desc: "Metas mensais, metas por curso e fechamento do mês — em abas",
         visivel: doSetor("loja"),
       },
     );

@@ -1,12 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { GuardaSetor } from "@/components/auth/GuardaSetor";
-import { CrudFechamento } from "@/components/cadastros/loja/CrudFechamento";
-
-export default function PaginaFechamento() {
-  return (
-    <GuardaSetor setor="loja">
-      <CrudFechamento />
-    </GuardaSetor>
-  );
+// Consolidado na tela "Planejamento e metas" (aba Fechamento).
+// Rota mantida só para não quebrar bookmarks/deep-links.
+export default function RedirectFechamento() {
+  redirect("/loja/planejamento?aba=fechamento");
 }
