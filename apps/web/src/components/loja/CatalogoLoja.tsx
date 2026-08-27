@@ -709,11 +709,17 @@ function ModalVinculoOmie({ resultado, aoFechar }: { resultado: VinculoOmieResp;
           Vínculo por <code>codigo_produto_integracao</code> (chave imutável). Já associados são ignorados; produtos
           ausentes no Omie são criados automaticamente.
         </p>
+        {resultado.bloqueado && (
+          <p className="loja-empty" style={{ color: "var(--down)", marginBottom: 12 }}>
+            ⚠️ O Omie bloqueou o consumo da API (limite de requisições). O vínculo foi interrompido no meio —
+            <b> aguarde ~30 minutos e clique de novo</b>. A operação é idempotente: retoma de onde parou, sem duplicar.
+          </p>
+        )}
         <div className="loja-kpis" style={{ marginBottom: 16 }}>
           <article><small>TOTAL</small><b>{resultado.total}</b><span>produtos ativos</span></article>
           <article><small>VINCULADOS AGORA</small><b style={{ color: "var(--up)" }}>{resultado.vinculados}</b><span>{resultado.associados} associados · {resultado.criados} criados</span></article>
           <article><small>JÁ VINCULADOS</small><b style={{ color: "var(--muted)" }}>{resultado.jaVinculados}</b><span>sem alteração</span></article>
-          <article><small>ERROS</small><b className={resultado.erros ? "down" : ""}>{resultado.erros}</b><span>ver logs da API</span></article>
+          <article><small>ERROS</small><b className={resultado.erros ? "down" : ""}>{resultado.erros}</b><span>{resultado.bloqueado ? "bloqueio de consumo" : "ver logs da API"}</span></article>
         </div>
         <div className="fim"><button className="loja-btn ouro" onClick={aoFechar}>Fechar</button></div>
       </div>

@@ -68,6 +68,8 @@ export interface VinculoOmieResp {
   criados: number;
   jaVinculados: number;
   erros: number;
+  /** true = o Omie bloqueou o app_key por consumo (HTTP 425); rode de novo em ~30min. */
+  bloqueado: boolean;
 }
 
 // ---- Configuração (somente leitura — credenciais no ambiente da API) ----

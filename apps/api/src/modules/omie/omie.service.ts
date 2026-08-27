@@ -46,11 +46,28 @@ const FORMA_OMIE: Record<string, string> = {
   FIADO: 'A prazo',
 };
 
+/** Erro específico de bloqueio por consumo (rate limit) do Omie. */
+class OmieRateLimitError extends Error {
+  constructor(public readonly retryEmSegundos: number, msg: string) { super(msg); }
+}
+
+/**
+ * Omie permite ~60 requisições/min por app_key. Como o vínculo faz até algumas
+ * chamadas por produto, sem controle a cota estoura em segundos e o app_key é
+ * bloqueado por ~30min ("API bloqueada por consumo indevido"). Este intervalo
+ * mínimo entre chamadas mantém a taxa segura (~50/min).
+ */
+const OMIE_INTERVALO_MS = 1200;
+
 @Injectable()
 export class OmieService {
   private readonly logger = new Logger(OmieService.name);
+  /** Instante (epoch ms) em que a próxima chamada ao Omie pode ocorrer. */
+  private omieProximaChamada = 0;
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private sleep(ms: number) { return new Promise<void>((r) => setTimeout(r, Math.max(0, ms))); }
 
   // ==================== CONFIGURAÇÃO (via ambiente) ====================
 
@@ -116,22 +133,23 @@ export class OmieService {
    * `codigo_produto_integracao` (a chave de integração recomendada pela Omie —
    * imutável, diferente do `codigo`/SKU que o usuário pode alterar).
    *
-   * Para cada produto ativo, de forma idempotente:
-   *   1. Calcula o código de integração `FH-<id>`.
-   *   2. Localiza o produto no Omie (nesta ordem):
-   *        a. pelo skuOmie já conhecido (codigo_produto);
-   *        b. pelo próprio codigo_produto_integracao (já vinculado antes);
-   *        c. pelo `codigo` (= nosso SKU), se houver.
-   *   3. Se achou: grava o codigo_produto_integracao no Omie
-   *      (AssociarCodIntProduto) e guarda skuOmie + codigoIntegracaoOmie aqui.
-   *   4. Se não achou: cria o produto no Omie (IncluirProduto) já com o
-   *      codigo_produto_integracao definido, e guarda o codigo_produto retornado.
+   * Estratégia conforme as BOAS PRÁTICAS da Omie
+   * (ajuda.omie.com.br → "Boas Práticas" e "Limites de Consumo da API"):
+   *   • Usar LISTAGEM EM LOTE (`ListarProdutos`, 100/pág) para carregar o
+   *     catálogo do Omie UMA vez — NUNCA `ConsultarProduto` por produto (o
+   *     método de consulta erra quando o registro não existe, e 10 erros no
+   *     mesmo IP+AppKey+Método geram bloqueio de 30min / HTTP 425).
+   *   • Casar localmente (por `codigo`=SKU, por codigo_produto_integracao ou por
+   *     descrição normalizada) para descobrir o `codigo_produto` do Omie.
+   *   • Um único write por produto: `AssociarCodIntProduto` (já existe) ou
+   *     `IncluirProduto` (não existe), com throttle + backoff (ver chamadaOmie).
+   *   • Só grava no nosso banco após o Omie confirmar um `codigo_produto` real.
    *
-   * Substitui a antiga sincronização por SKU (`codigo`): o vínculo agora é
-   * sempre por `codigo_produto_integracao`.
+   * Idempotente: já vinculados (codigoIntegracaoOmie correto + skuOmie) são
+   * pulados sem tocar na API.
    */
   async vincularPorIntegracao(_u: UsuarioLogado): Promise<{
-    total: number; vinculados: number; associados: number; criados: number; jaVinculados: number; erros: number;
+    total: number; vinculados: number; associados: number; criados: number; jaVinculados: number; erros: number; bloqueado: boolean;
   }> {
     const cfg = this.obterConfigInterna();
     const produtos = await this.prisma.lojaProduto.findMany({
@@ -140,22 +158,27 @@ export class OmieService {
       orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
     });
 
+    // 1. Carrega o catálogo do Omie UMA vez (listagem em lote, cache local).
+    const catalogo = await this.carregarCatalogoOmie(cfg);
+    this.logger.log(`Catálogo Omie carregado: ${catalogo.porCodigoProduto.size} produtos`);
+
     let associados = 0, criados = 0, jaVinculados = 0, erros = 0;
+    let bloqueado = false;
 
     for (const p of produtos) {
       const codInt = this.codigoIntegracao(p.id);
       try {
-        // Já vinculado com o código correto dos dois lados? Nada a fazer.
-        if (p.codigoIntegracaoOmie === codInt && p.skuOmie) {
+        // Já vinculado dos dois lados? Nada a fazer (não gasta API).
+        if (p.codigoIntegracaoOmie === codInt && p.skuOmie && catalogo.porCodigoProduto.has(p.skuOmie)) {
           jaVinculados++;
           continue;
         }
 
-        // 1. Resolve o produto do lado do Omie (codigo_produto).
-        const codigoProduto = await this.resolverCodigoProdutoOmie(cfg, p.skuOmie, codInt, p.sku);
+        // 2. Resolve o codigo_produto do Omie SÓ com o cache local (0 chamadas).
+        const codigoProduto = this.acharNoCatalogo(catalogo, p.skuOmie, codInt, p.sku, p.nome);
 
         if (codigoProduto) {
-          // 2a. Já existe no Omie → grava o código de integração lá (associa).
+          // 2a. Existe no Omie → grava o código de integração lá (1 write).
           await this.chamadaOmie(cfg, 'geral/produtos/', 'AssociarCodIntProduto', {
             codigo_produto: Number(codigoProduto),
             codigo_produto_integracao: codInt,
@@ -166,8 +189,8 @@ export class OmieService {
           });
           associados++;
         } else {
-          // 2b. Não existe → cria no Omie já com o código de integração.
-          const codigoSku = p.sku?.trim() || codInt; // codigo (SKU) é obrigatório; usa o próprio codInt se não houver
+          // 2b. Não existe → cria no Omie já com o código de integração (1 write).
+          const codigoSku = p.sku?.trim() || codInt; // codigo (SKU) é obrigatório
           const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'IncluirProduto', {
             codigo_produto_integracao: codInt,
             codigo: codigoSku,
@@ -177,13 +200,20 @@ export class OmieService {
             ncm: '00000000',
             ...(p.codigoBarras ? { ean: p.codigoBarras } : {}),
             tipo_item: '04', // 04 = produto acabado
-          }) as { codigo_produto?: number; codigo_produto_integracao?: string };
+          }) as { codigo_produto?: number };
           const novoCodigoProduto = resp.codigo_produto ? String(resp.codigo_produto) : null;
+          if (!novoCodigoProduto) {
+            // Sem codigo_produto de volta = inclusão não confirmada: NÃO marca vínculo.
+            throw new Error('IncluirProduto não retornou codigo_produto.');
+          }
+          // Alimenta o cache p/ evitar recriar se aparecer de novo nesta rodada.
+          catalogo.porCodigoProduto.set(novoCodigoProduto, { codigoProduto: novoCodigoProduto });
+          catalogo.porCodInt.set(codInt, novoCodigoProduto);
           await this.prisma.lojaProduto.update({
             where: { id: p.id },
             data: {
+              skuOmie: novoCodigoProduto,
               codigoIntegracaoOmie: codInt,
-              ...(novoCodigoProduto ? { skuOmie: novoCodigoProduto } : {}),
               ...(!p.sku ? { sku: codigoSku } : {}),
             },
           });
@@ -193,39 +223,91 @@ export class OmieService {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Erro ao vincular produto ${p.id} (${codInt}) ao Omie: ${msg}`);
         erros++;
+        // Bloqueio por consumo (HTTP 425): não adianta insistir — aborta a rodada.
+        if (err instanceof OmieRateLimitError) {
+          bloqueado = true;
+          this.logger.warn(`Omie bloqueou o app_key (${err.retryEmSegundos}s). Abortando vínculo — rode de novo depois.`);
+          break;
+        }
       }
     }
 
     const vinculados = associados + criados;
-    const resultado = { total: produtos.length, vinculados, associados, criados, jaVinculados, erros };
+    const resultado = { total: produtos.length, vinculados, associados, criados, jaVinculados, erros, bloqueado };
     this.logger.log(`Vínculo Omie por codigo_integracao: ${JSON.stringify(resultado)}`);
     return resultado;
   }
 
   /**
-   * Descobre o `codigo_produto` (ID interno do Omie) de um produto, tentando,
-   * em ordem: skuOmie conhecido → codigo_produto_integracao → codigo (SKU).
-   * Retorna null se o produto não existe no Omie.
+   * Carrega o catálogo completo de produtos do Omie via `ListarProdutos`
+   * (listagem em lote, 100/página — método recomendado pela Omie), e monta
+   * índices em memória para casar sem gastar mais chamadas:
+   *   • porCodigoProduto: codigo_produto → { codigoProduto }
+   *   • porCodInt:        codigo_produto_integracao → codigo_produto
+   *   • porCodigo:        codigo (SKU) minúsculo → codigo_produto
+   *   • porDescricao:     descrição normalizada → codigo_produto
    */
-  private async resolverCodigoProdutoOmie(
-    cfg: OmieCfg,
+  private async carregarCatalogoOmie(cfg: OmieCfg): Promise<{
+    porCodigoProduto: Map<string, { codigoProduto: string }>;
+    porCodInt: Map<string, string>;
+    porCodigo: Map<string, string>;
+    porDescricao: Map<string, string>;
+  }> {
+    const porCodigoProduto = new Map<string, { codigoProduto: string }>();
+    const porCodInt = new Map<string, string>();
+    const porCodigo = new Map<string, string>();
+    const porDescricao = new Map<string, string>();
+
+    let pagina = 1;
+    let totalPaginas = 1;
+    do {
+      const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ListarProdutos', {
+        pagina, registros_por_pagina: 100, apenas_importado_api: 'N', filtrar_apenas_omiepdv: 'N',
+      }) as { total_de_paginas?: number; produto_servico_cadastro?: Array<Record<string, unknown>> };
+
+      totalPaginas = Number(resp.total_de_paginas ?? 1);
+      for (const prod of resp.produto_servico_cadastro ?? []) {
+        const codigoProduto = prod.codigo_produto != null ? String(prod.codigo_produto) : null;
+        if (!codigoProduto) continue;
+        porCodigoProduto.set(codigoProduto, { codigoProduto });
+        const codInt = (prod.codigo_produto_integracao as string | undefined)?.trim();
+        if (codInt) porCodInt.set(codInt, codigoProduto);
+        const codigo = (prod.codigo as string | undefined)?.trim();
+        if (codigo) porCodigo.set(codigo.toLowerCase(), codigoProduto);
+        const descricao = (prod.descricao as string | undefined) ?? '';
+        const chaveDesc = this.normalizar(descricao);
+        if (chaveDesc && !porDescricao.has(chaveDesc)) porDescricao.set(chaveDesc, codigoProduto);
+      }
+      pagina++;
+    } while (pagina <= totalPaginas);
+
+    return { porCodigoProduto, porCodInt, porCodigo, porDescricao };
+  }
+
+  /**
+   * Acha o codigo_produto do Omie SÓ no cache local (sem chamada à API),
+   * na ordem: skuOmie conhecido → codigo_produto_integracao → codigo (SKU) →
+   * descrição normalizada. Retorna null se não existe no catálogo.
+   */
+  private acharNoCatalogo(
+    catalogo: { porCodigoProduto: Map<string, { codigoProduto: string }>; porCodInt: Map<string, string>; porCodigo: Map<string, string>; porDescricao: Map<string, string> },
     skuOmie: string | null,
     codInt: string,
     sku: string | null,
-  ): Promise<string | null> {
-    const chaves: Record<string, unknown>[] = [];
-    if (skuOmie) chaves.push({ codigo_produto: Number(skuOmie) });
-    chaves.push({ codigo_produto_integracao: codInt });
-    if (sku?.trim()) chaves.push({ codigo: sku.trim() });
-
-    for (const chave of chaves) {
-      try {
-        const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', chave) as { codigo_produto?: number; codigo_interno?: string; nCodProd?: number };
-        const id = resp?.codigo_produto ?? resp?.nCodProd ?? (resp?.codigo_interno ? Number(resp.codigo_interno) : undefined);
-        if (id) return String(id);
-      } catch { /* essa chave não achou — tenta a próxima */ }
-    }
+    nome: string,
+  ): string | null {
+    if (skuOmie && catalogo.porCodigoProduto.has(skuOmie)) return skuOmie;
+    if (catalogo.porCodInt.has(codInt)) return catalogo.porCodInt.get(codInt)!;
+    const skuKey = sku?.trim().toLowerCase();
+    if (skuKey && catalogo.porCodigo.has(skuKey)) return catalogo.porCodigo.get(skuKey)!;
+    const descKey = this.normalizar(nome);
+    if (descKey && catalogo.porDescricao.has(descKey)) return catalogo.porDescricao.get(descKey)!;
     return null;
+  }
+
+  /** Normaliza texto p/ casar descrições: sem acento, minúsculo, espaços colapsados. */
+  private normalizar(s: string): string {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
   // ==================== LISTAR VENDAS ====================
@@ -492,7 +574,9 @@ export class OmieService {
    */
   private async sincronizarSkuProduto(cfg: OmieCfg, prodId: string, nome: string, sku: string | null, preco: number, unidade: string | null) {
     const codInt = this.codigoIntegracao(prodId);
-    const codigoProduto = await this.resolverCodigoProdutoOmie(cfg, null, codInt, sku);
+    // Caso 1 produto (lançamento): consulta pontual é aceitável (1 chamada),
+    // ao contrário do lote, que usa listagem em lote p/ evitar bloqueio.
+    const codigoProduto = await this.consultarCodigoProdutoOmie(cfg, codInt, sku);
 
     if (codigoProduto) {
       await this.chamadaOmie(cfg, 'geral/produtos/', 'AssociarCodIntProduto', {
@@ -516,18 +600,53 @@ export class OmieService {
       ncm: '00000000',
       tipo_item: '04',
     }) as { codigo_produto?: number };
+    if (!resp.codigo_produto) throw new Error('IncluirProduto não retornou codigo_produto.');
     await this.prisma.lojaProduto.update({
       where: { id: prodId },
       data: {
+        skuOmie: String(resp.codigo_produto),
         codigoIntegracaoOmie: codInt,
-        ...(resp.codigo_produto ? { skuOmie: String(resp.codigo_produto) } : {}),
         ...(!sku ? { sku: codigoSku } : {}),
       },
     });
   }
 
   /**
-   * Chamada genérica à API Omie (JSON, POST).
+   * Consulta PONTUAL do codigo_produto de UM produto (caminho de lançamento):
+   * tenta por codigo_produto_integracao, depois por `codigo` (SKU). Distingue
+   * "não cadastrado" (→ null) de erro real (rate limit etc. → re-lança), para
+   * NÃO tratar um bloqueio como "produto inexistente" e criar duplicado.
+   */
+  private async consultarCodigoProdutoOmie(cfg: OmieCfg, codInt: string, sku: string | null): Promise<string | null> {
+    const chaves: Record<string, unknown>[] = [{ codigo_produto_integracao: codInt }];
+    if (sku?.trim()) chaves.push({ codigo: sku.trim() });
+    for (const chave of chaves) {
+      try {
+        const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', chave) as { codigo_produto?: number };
+        if (resp?.codigo_produto) return String(resp.codigo_produto);
+      } catch (err) {
+        if (err instanceof OmieRateLimitError) throw err; // bloqueio: propaga
+        if (this.ehNaoCadastrado(err)) continue;          // não existe p/ essa chave: tenta a próxima
+        throw err;                                         // erro real: propaga
+      }
+    }
+    return null;
+  }
+
+  /** Fault do Omie que significa "produto não existe para essa chave". */
+  private ehNaoCadastrado(err: unknown): boolean {
+    const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    return m.includes('não cadastrado') || m.includes('nao cadastrado') || m.includes('não encontrado') || m.includes('nao encontrado');
+  }
+
+  /**
+   * Chamada genérica à API Omie (JSON, POST) com CONTROLE DE CONSUMO
+   * (conforme "Limites de Consumo da API do Omie"):
+   *   • Throttle: intervalo mínimo entre chamadas (fila global no serviço),
+   *     mantendo a taxa bem abaixo dos 240/min por IP+AppKey+Método.
+   *   • Backoff/retry em rate limit transitório ("Too many requests" / HTTP 429).
+   *   • HTTP 425 "API bloqueada por consumo indevido" → OmieRateLimitError
+   *     (bloqueio de ~30min; não adianta reintentar na hora).
    * Endpoint: https://app.omie.com.br/api/v1/<path>
    */
   private async chamadaOmie(
@@ -535,14 +654,15 @@ export class OmieService {
     path: string,
     call: string,
     params: Record<string, unknown>,
+    tentativa = 0,
   ): Promise<unknown> {
+    // Throttle global: respeita o intervalo mínimo entre chamadas ao Omie.
+    const espera = this.omieProximaChamada - Date.now();
+    if (espera > 0) await this.sleep(espera);
+    this.omieProximaChamada = Date.now() + OMIE_INTERVALO_MS;
+
     const url = `https://app.omie.com.br/api/v1/${path}`;
-    const body = JSON.stringify({
-      call,
-      app_key: cfg.appKey,
-      app_secret: cfg.appSecret,
-      param: [params],
-    });
+    const body = JSON.stringify({ call, app_key: cfg.appKey, app_secret: cfg.appSecret, param: [params] });
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -550,12 +670,35 @@ export class OmieService {
       body,
     });
 
-    const data = await resp.json() as Record<string, unknown>;
+    // HTTP 425 = bloqueio por consumo indevido (30min). 429 = too many requests.
+    if (resp.status === 425 || resp.status === 429) {
+      const texto = await resp.text().catch(() => '');
+      const seg = this.segundosDoBloqueio(texto);
+      if (resp.status === 429 && tentativa < 3) {
+        // Transitório: espera e reintenta (backoff exponencial, teto 30s).
+        await this.sleep(Math.min(30_000, seg ? seg * 1000 : 2_000 * 2 ** tentativa));
+        return this.chamadaOmie(cfg, path, call, params, tentativa + 1);
+      }
+      throw new OmieRateLimitError(seg ?? 1800, `Omie bloqueou o consumo (HTTP ${resp.status}). ${texto.slice(0, 200)}`);
+    }
 
-    // Omie retorna erros com faultstring ou campo faultCode
-    if (data.faultstring || data.faultCode) {
-      throw new Error(String(data.faultstring ?? data.faultCode ?? 'Erro Omie desconhecido'));
+    const data = await resp.json().catch(() => ({})) as Record<string, unknown>;
+
+    // Omie devolve erros no corpo (faultstring / faultcode) mesmo com HTTP 200/500.
+    if (data.faultstring || data.faultcode || data.faultCode) {
+      const msg = String(data.faultstring ?? data.faultcode ?? data.faultCode ?? 'Erro Omie desconhecido');
+      const seg = this.segundosDoBloqueio(msg);
+      if (/bloquead[ao] por consumo|too many requests|consumo indevido/i.test(msg)) {
+        throw new OmieRateLimitError(seg ?? 1800, msg);
+      }
+      throw new Error(msg);
     }
     return data;
+  }
+
+  /** Extrai "Tente novamente em N segundos" de uma mensagem de bloqueio do Omie. */
+  private segundosDoBloqueio(msg: string): number | null {
+    const m = /(\d+)\s*segundos?/i.exec(msg);
+    return m ? Number(m[1]) : null;
   }
 }
