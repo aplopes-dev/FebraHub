@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ForkKnife } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
@@ -31,6 +30,7 @@ const Icon = {
   lock: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></svg>),
   pix: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" {...p}><path d="M12 3.8 8.2 7.6a2.2 2.2 0 0 0 0 3.1L12 14.5l3.8-3.8a2.2 2.2 0 0 0 0-3.1L12 3.8ZM3.8 12l3.8 3.8L11.4 12 7.6 8.2 3.8 12ZM12.6 12l3.8 3.8L20.2 12l-3.8-3.8L12.6 12ZM8.2 16.4 12 20.2l3.8-3.8" /></svg>),
   card: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" {...p}><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 10h18" /></svg>),
+  toTop: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 15l-6-6-6 6"/><path d="M5 21h14"/></svg>),
 };
 
 export function CardapioPublico({ slug }: { slug: string }) {
@@ -137,6 +137,12 @@ export function CardapioPublico({ slug }: { slug: string }) {
     const el = secoesRef.current[id];
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 70, behavior: "smooth" });
   };
+
+  const irParaTopo = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Remove completamente um item do carrinho (botão ✕ no carrossel)
+  const removerDoCarrinho = (id: string) =>
+    setCarrinho((c) => { const cp = { ...c }; delete cp[id]; return cp; });
 
   const setQty = (id: string, delta: number, max: number | null) =>
     setCarrinho((c) => {
@@ -266,10 +272,20 @@ export function CardapioPublico({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* ---- NAV DE CATEGORIAS ---- */}
+      {/* ---- NAV DE CATEGORIAS + botão Voltar ao Topo ---- */}
       {categorias.length > 1 && !busca && (
         <nav className="cdp-nav">
           <div className="cdp-nav-inner">
+            {/* Botão Voltar ao Topo — âncora fixa no início da barra */}
+            <button
+              className="cdp-chip cdp-chip-topo"
+              onClick={irParaTopo}
+              title="Voltar ao topo"
+              aria-label="Voltar ao topo"
+            >
+              <Icon.toTop style={{ width: 13, height: 13 }} />
+              Topo
+            </button>
             {categorias.map((c) => (
               <button
                 key={c.id}
@@ -301,25 +317,37 @@ export function CardapioPublico({ slug }: { slug: string }) {
                     const q = carrinho[p.produtoId] ?? 0;
                     return (
                       <article key={p.produtoId} className="cdp-destaque-card">
-                        <div className="cdp-destaque-media">
-                          {p.imagemUrl
-                            ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" />
-                            : <div className="ph"><ForkKnife weight="fill" /></div>}
-                        </div>
+                        {/* ✕ remove item do carrinho — só quando qty > 0 */}
+                        {q > 0 && (
+                          <button
+                            className="cdp-destaque-remover"
+                            onClick={() => removerDoCarrinho(p.produtoId)}
+                            aria-label={`Remover ${p.nome} do carrinho`}
+                            title="Remover do carrinho"
+                          >
+                            <Icon.close style={{ width: 10, height: 10 }} />
+                          </button>
+                        )}
+                        {/* SEM imagem — só texto */}
                         <div className="cdp-destaque-body">
                           <h3 className="cdp-destaque-nome">{p.nome}</h3>
-                          <span className="cdp-preco">{brl(p.preco)}</span>
-                          {q === 0 ? (
-                            <button className="cdp-add" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
-                              <Icon.plus />Adicionar
-                            </button>
-                          ) : (
-                            <div className="cdp-step">
-                              <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
-                              <b>{q}</b>
-                              <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
-                            </div>
+                          {p.descricao && (
+                            <p className="cdp-destaque-desc">{p.descricao}</p>
                           )}
+                          <div className="cdp-destaque-foot">
+                            <span className="cdp-preco">{brl(p.preco)}</span>
+                            {q === 0 ? (
+                              <button className="cdp-add cdp-add-sm" onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label={`Adicionar ${p.nome}`}>
+                                <Icon.plus />Adicionar
+                              </button>
+                            ) : (
+                              <div className="cdp-step">
+                                <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Remover um">−</button>
+                                <b>{q}</b>
+                                <button onClick={() => setQty(p.produtoId, 1, p.disponivel)} aria-label="Adicionar um">+</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </article>
                     );
@@ -356,10 +384,11 @@ export function CardapioPublico({ slug }: { slug: string }) {
                     const q = carrinho[p.produtoId] ?? 0;
                     const baixo = !p.esgotado && p.disponivel != null && p.disponivel <= 5;
                     return (
-                      <article key={p.produtoId} className={`cdp-card ${p.esgotado ? "esgotado" : ""}`}>
+                      <article key={p.produtoId} className={`cdp-card cdp-card-sem-img ${p.esgotado ? "esgotado" : ""}`}>
                         <div className="cdp-card-body">
                           <h3 className="cdp-card-nome">{p.nome}</h3>
                           {p.descricao && <p className="cdp-card-desc">{p.descricao}</p>}
+                          {baixo && <span className="cdp-card-tag baixo">Últimas</span>}
                           <div className="cdp-card-foot">
                             {p.esgotado ? (
                               <span className="cdp-esgotado-lbl">Indisponível</span>
@@ -379,14 +408,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
                             ))}
                           </div>
                         </div>
-                        <div className="cdp-card-media">
-                          {p.imagemUrl ? <img src={p.imagemUrl} alt={p.nome} loading="lazy" /> : <div className="ph"><ForkKnife weight="fill" /></div>}
-                          {p.esgotado ? (
-                            <span className="cdp-card-tag zero">Esgotado</span>
-                          ) : baixo ? (
-                            <span className="cdp-card-tag baixo">Últimas</span>
-                          ) : null}
-                        </div>
+                        {/* SEM cdp-card-media — imagens removidas */}
                       </article>
                     );
                   })}
@@ -409,7 +431,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
               ) : (
                 itensCarrinho.map((p) => (
                   <div key={p.produtoId} className="cdp-cart-item">
-                    <div className="cdp-cart-thumb">{p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <ForkKnife className="cdp-cart-thumb-ph" weight="fill" />}</div>
+                    <div className="cdp-cart-thumb-txt">{p.nome.charAt(0)}</div>
                     <div className="nm">
                       <b>{p.nome}</b>
                       <small>{brl(p.preco)} · un.</small>
