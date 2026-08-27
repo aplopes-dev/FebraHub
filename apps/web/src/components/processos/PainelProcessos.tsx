@@ -15,16 +15,18 @@ const setores = ['marketing','eventos','rh','financeiro','pedagogico','loja','es
 
 function CadastroProcesso({ fechar }: { fechar: () => void }) {
   const qc = useQueryClient(); const [erro, setErro] = useState('');
+  const [setorPrincipal, setSetorPrincipal] = useState('');
+  const [criticidade, setCriticidade] = useState('media');
   const criar = useMutation({ mutationFn: processoCriar, onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['processos'] }); fechar(); }, onError: (e: Error) => setErro(e.message) });
-  const enviar = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); criar.mutate(Object.fromEntries(new FormData(e.currentTarget).entries())); };
+  const enviar = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); if(!setorPrincipal){setErro('Selecione o setor principal.');return;} criar.mutate(Object.fromEntries(new FormData(e.currentTarget).entries())); };
   return <form onSubmit={enviar} className="pc-form">
     <div className="pc-field pc-span-2"><label>Nome do processo *</label><input name="nome" required autoFocus placeholder="Ex.: Solicitação de compra" /></div>
     <div className="pc-field"><label>Código *</label><input name="codigo" required placeholder="COM-001" /></div>
-    <div className="pc-field"><label>Setor principal *</label><select name="setorPrincipal" required defaultValue=""><option value="" disabled>Selecione</option>{setores.map(s=><option key={s} value={s}>{rotuloProcesso(s)}</option>)}</select></div>
+    <div className="pc-field"><label>Setor principal *</label><Select aria-label="Setor principal" value={setorPrincipal} onChange={setSetorPrincipal} placeholder="Selecione" style={{width:'100%'}} options={[{value:'',label:'Selecione'},...setores.map(s=>({value:s,label:rotuloProcesso(s)}))]} /><input type="hidden" name="setorPrincipal" value={setorPrincipal} /></div>
     <div className="pc-field pc-span-2"><label>Objetivo *</label><textarea name="objetivo" required placeholder="Por que este processo existe?" /></div>
     <div className="pc-field"><label>Evento inicial *</label><input name="eventoInicial" required placeholder="O que dispara o processo?" /></div>
     <div className="pc-field"><label>Resultado esperado *</label><input name="resultadoEsperado" required placeholder="Como sabemos que terminou?" /></div>
-    <div className="pc-field"><label>Criticidade</label><select name="criticidade" defaultValue="media"><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></div>
+    <div className="pc-field"><label>Criticidade</label><Select aria-label="Criticidade" value={criticidade} onChange={setCriticidade} style={{width:'100%'}} options={[{value:'baixa',label:'Baixa'},{value:'media',label:'Média'},{value:'alta',label:'Alta'},{value:'critica',label:'Crítica'}]} /><input type="hidden" name="criticidade" value={criticidade} /></div>
     <input type="hidden" name="situacao" value="rascunho" />
     {erro && <p className="pc-error pc-span-2" role="alert">{erro}</p>}
     <div className="pc-form-actions pc-span-2"><BotaoPrimario variante="secundario" onClick={fechar}>Cancelar</BotaoPrimario><BotaoPrimario type="submit" carregando={criar.isPending}>Criar processo</BotaoPrimario></div>
