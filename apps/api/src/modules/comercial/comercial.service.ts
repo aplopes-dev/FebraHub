@@ -1176,6 +1176,7 @@ export class ComercialService {
       ...(filtros.vendedorId ? { vendedorId: filtros.vendedorId } : {}),
       ...(filtros.compradorId ? { compradorId: filtros.compradorId } : {}),
       ...(filtros.unidade ? { unidade: filtros.unidade } : {}),
+      ...(filtros.turmaADefinir != null ? { turmaADefinir: filtros.turmaADefinir } : {}),
       ...(filtros.periodoInicio || filtros.periodoFim
         ? {
             criadoEm: {

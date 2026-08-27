@@ -6,7 +6,7 @@
  *  - Status comercial ≠ status financeiro — NUNCA misturar.
  *  - Deduplicação: CPF > telefone > email antes de criar pessoa nova.
  */
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -264,6 +264,12 @@ export class FiltroVendasDto {
   @IsOptional() @IsISO8601() periodoInicio?: string;
 
   @IsOptional() @IsISO8601() periodoFim?: string;
+
+  /** Filtra vendas cuja turma ainda não foi definida. Aceita 1/true. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1' || value === 1)
+  @IsBoolean()
+  turmaADefinir?: boolean;
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pagina?: number;
 

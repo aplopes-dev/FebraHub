@@ -30,11 +30,21 @@ function badgeFinanceiro(status: string) {
 function badgeComercial(status: string) {
   const cls: Record<string, string> = {
     rascunho: "com-badge-com-rascunho",
-    aguardando: "com-badge-com-aguardando",
+    aguardando_aprovacao: "com-badge-com-aguardando",
     aprovada: "com-badge-com-aprovada",
     cancelada: "com-badge-com-cancelada",
   };
-  return <span className={cls[status] ?? "com-badge-com-rascunho"}>{status}</span>;
+  const rotulo: Record<string, string> = {
+    rascunho: "rascunho",
+    aguardando_aprovacao: "aguardando",
+    aprovada: "aprovada",
+    cancelada: "cancelada",
+  };
+  return (
+    <span className={cls[status] ?? "com-badge-com-rascunho"}>
+      {rotulo[status] ?? status}
+    </span>
+  );
 }
 
 function ListaVendas() {
@@ -82,7 +92,7 @@ function ListaVendas() {
           options={[
             { value: "", label: "Status comercial" },
             { value: "rascunho", label: "Rascunho" },
-            { value: "aguardando", label: "Aguardando" },
+            { value: "aguardando_aprovacao", label: "Aguardando" },
             { value: "aprovada", label: "Aprovada" },
             { value: "cancelada", label: "Cancelada" },
           ]}
@@ -277,6 +287,7 @@ export default function PaginaVendas() {
     <GuardaPermissao
       permissoes={[
         "comercial.ver",
+        "comercial.operar",
         "comercial.gerenciar",
         "comercial.vendas.aprovar",
         "comercial.relatorios",
