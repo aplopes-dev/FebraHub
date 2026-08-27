@@ -177,7 +177,7 @@ function ModalEditarItens({
         copia[idx] = { ...copia[idx], quantidade: copia[idx].quantidade + 1 };
         return copia;
       }
-      return [...prev, { produtoId: p.produtoId, descricao: p.descricao, preco: p.preco, quantidade: 1, observacao: "" }];
+      return [...prev, { produtoId: p.produtoId, descricao: p.descricao ?? "", preco: p.preco, quantidade: 1, observacao: "" }];
     });
   };
 
@@ -772,6 +772,47 @@ export function FilaLoja() {
           }}
         />
       )}
+
+      {/* Cancelamento com motivo obrigatório (substitui o prompt() nativo). */}
+      {pedidoCancelar && (
+        <ModalPrompt
+          titulo={`Cancelar pedido #${pedidoCancelar.numero}`}
+          descricao="Informe o motivo do cancelamento — fica registrado na auditoria."
+          rotulo="Motivo"
+          placeholder="Ex.: cliente desistiu, item em falta…"
+          rotuloConfirmar="Confirmar cancelamento"
+          perigo
+          carregando={acao.isPending}
+          onConfirmar={(motivo) =>
+            acao.mutate(() => cancelarPedido(pedidoCancelar.id, motivo), {
+              onSuccess: () => setPedidoCancelar(null),
+            })
+          }
+          onFechar={() => setPedidoCancelar(null)}
+        />
+      )}
+
+      {/* Movimentação manual entre colunas (substitui o confirm() nativo). */}
+      {pedidoMover && (
+        <ModalConfirmar
+          titulo="Mover pedido"
+          mensagem={`Mover pedido #${pedidoMover.pedido.numero} para "${LABEL_COLUNA[pedidoMover.paraStatus]}"?`}
+          rotuloConfirmar="Mover"
+          carregando={acao.isPending}
+          onConfirmar={() =>
+            acao.mutate(() => moverPedidoStatus(pedidoMover.pedido.id, pedidoMover.paraStatus), {
+              onSuccess: () => setPedidoMover(null),
+            })
+          }
+          onFechar={() => setPedidoMover(null)}
+        />
+      )}
     </div>
   );
 }
+
+const LABEL_COLUNA: Record<"NA_FILA" | "EM_PREPARACAO" | "PRONTO", string> = {
+  NA_FILA: "Na fila",
+  EM_PREPARACAO: "Em preparação",
+  PRONTO: "Pronto",
+};
