@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode, Search, Phone, User } from "lucide-react";
+import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode, Search, Phone, User, GripVertical, ArrowRight } from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import {
   cancelarPedido, confirmarPagamento, confirmarRetirada, iniciarPreparacao,
@@ -23,7 +23,10 @@ const COLUNAS: { status: LojaPedidoStatus; titulo: string; Icone: typeof Clock }
   { status: "PRONTO", titulo: "Prontos", Icone: PackageCheck },
 ];
 
-/** Mapeamento de transições válidas via drag: "ORIGEM->DESTINO" → fn ou null */
+/** Status fake para a zona de drop "Retirar" que aparece durante arrasto de PRONTO */
+const STATUS_RETIRAR = "RETIRADO" as LojaPedidoStatus;
+
+/** Mapeamento de transições válidas via drag: "ORIGEM->DESTINO" → fn */
 type TransicaoFn = (id: string) => Promise<unknown>;
 const TRANSICOES: Partial<Record<string, TransicaoFn>> = {
   "AGUARDANDO_PAGAMENTO->NA_FILA": (id) => confirmarPagamento(id),
@@ -35,6 +38,14 @@ const TRANSICOES: Partial<Record<string, TransicaoFn>> = {
 function transicaoFn(origem: LojaPedidoStatus, destino: LojaPedidoStatus): TransicaoFn | null {
   return TRANSICOES[`${origem}->${destino}`] ?? null;
 }
+
+/** Labels de ação para o destino (usados no tooltip da coluna) */
+const LABEL_ACAO: Partial<Record<LojaPedidoStatus, string>> = {
+  NA_FILA: "Confirmar pagamento",
+  EM_PREPARACAO: "Iniciar preparação",
+  PRONTO: "Marcar como pronto",
+  RETIRADO: "Confirmar retirada",
+};
 
 function minutosDe(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -49,12 +60,9 @@ function norm(s: string) {
 function bate(p: LojaPedido, termo: string): boolean {
   const t = norm(termo.trim());
   if (!t) return true;
-  // Senha: ex. "07" ou "7"
   if (p.senhaFila != null && String(p.senhaFila).includes(t)) return true;
   if (p.senhaFila != null && String(p.senhaFila).padStart(2, "0").includes(t)) return true;
-  // Nome do cliente
   if (p.clienteNome && norm(p.clienteNome).includes(t)) return true;
-  // Telefone (compara só dígitos)
   if (p.clienteTel) {
     const digitos = p.clienteTel.replace(/\D/g, "");
     const termoDig = t.replace(/\D/g, "");
@@ -83,7 +91,9 @@ export function FilaLoja() {
 
   // Drag-and-drop state
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingStatus, setDraggingStatus] = useState<LojaPedidoStatus | null>(null);
   const [overStatus, setOverStatus] = useState<LojaPedidoStatus | null>(null);
+  // ref para uso nos handlers sem re-render
   const draggingStatusRef = useRef<LojaPedidoStatus | null>(null);
 
   const indicadores = useQuery({
@@ -97,7 +107,6 @@ export function FilaLoja() {
     refetchInterval: 5000,
   });
 
-  // SSE: reage na hora a novos pedidos/transições; o polling acima é o fallback.
   useLojaPedidosStream(useCallback(() => {
     qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
   }, [qc]));
@@ -129,8 +138,6 @@ export function FilaLoja() {
 
   const rodar = (fn: () => Promise<unknown>) => () => acao.mutate(fn);
 
-  /** Preparar: dispara a transição e mostra um aviso de que o cupom foi enviado
-   *  à impressora (a impressão é automática no backend, best-effort). */
   const prepararEImprimir = (pedidoId: string) => () => {
     acao.mutate(() => iniciarPreparacao(pedidoId), {
       onSuccess: () => {
@@ -147,11 +154,13 @@ export function FilaLoja() {
     e.dataTransfer.setData("pedidoId", pedido.id);
     e.dataTransfer.setData("pedidoStatus", pedido.status);
     setDraggingId(pedido.id);
+    setDraggingStatus(pedido.status);
     draggingStatusRef.current = pedido.status;
   }, []);
 
   const handleDragEnd = useCallback(() => {
     setDraggingId(null);
+    setDraggingStatus(null);
     setOverStatus(null);
     draggingStatusRef.current = null;
   }, []);
@@ -159,8 +168,7 @@ export function FilaLoja() {
   const handleDragOver = useCallback((e: React.DragEvent, colStatus: LojaPedidoStatus) => {
     const origemStatus = draggingStatusRef.current;
     if (!origemStatus) return;
-    const transicaoOk = transicaoFn(origemStatus, colStatus) != null;
-    if (transicaoOk) {
+    if (transicaoFn(origemStatus, colStatus) != null) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       setOverStatus(colStatus);
@@ -168,7 +176,6 @@ export function FilaLoja() {
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Só limpa se realmente saiu do contêiner da coluna (não de filho)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const { clientX, clientY } = e;
     if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
@@ -176,16 +183,10 @@ export function FilaLoja() {
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, destStatus: LojaPedidoStatus) => {
-    e.preventDefault();
-    setOverStatus(null);
-    const pedidoId = e.dataTransfer.getData("pedidoId");
-    const origemStatus = e.dataTransfer.getData("pedidoStatus") as LojaPedidoStatus;
-    if (!pedidoId || !origemStatus || origemStatus === destStatus) return;
+  const executarTransicao = useCallback((pedidoId: string, origemStatus: LojaPedidoStatus, destStatus: LojaPedidoStatus) => {
     const fn = transicaoFn(origemStatus, destStatus);
     if (!fn) return;
 
-    // Transição especial: NA_FILA → EM_PREPARACAO usa prepararEImprimir
     if (origemStatus === "NA_FILA" && destStatus === "EM_PREPARACAO") {
       acao.mutate(() => iniciarPreparacao(pedidoId), {
         onSuccess: () => {
@@ -199,7 +200,20 @@ export function FilaLoja() {
     }
   }, [acao, qc]);
 
+  const handleDrop = useCallback((e: React.DragEvent, destStatus: LojaPedidoStatus) => {
+    e.preventDefault();
+    setOverStatus(null);
+    const pedidoId = e.dataTransfer.getData("pedidoId");
+    const origemStatus = e.dataTransfer.getData("pedidoStatus") as LojaPedidoStatus;
+    if (!pedidoId || !origemStatus || origemStatus === destStatus) return;
+    executarTransicao(pedidoId, origemStatus, destStatus);
+  }, [executarTransicao]);
+
   const i = indicadores.data;
+
+  // Zona de retirada: visível quando está arrastando um card PRONTO
+  const mostrarZonaRetirada = podeOperar && draggingStatus === "PRONTO";
+  const zonaRetiradaOver = overStatus === STATUS_RETIRAR;
 
   return (
     <div className="fila-page">
@@ -209,7 +223,12 @@ export function FilaLoja() {
           <h1>Fila de preparação</h1>
           <p>Pagamento → fila → preparação → pronto → retirada, em tempo real.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {podeOperar && (
+            <span className="fila-dica-drag">
+              <GripVertical size={13} /> Arraste para avançar
+            </span>
+          )}
           {podeOperar && (
             <Link className="loja-btn ouro" href="/loja/retirada">
               <QrCode /> Escanear retirada
@@ -233,7 +252,7 @@ export function FilaLoja() {
       {erro && <div className="fila-erro">{erro}</div>}
       {aviso && <div className="fila-aviso">{aviso}</div>}
 
-      {/* ---- Barra de busca por senha / nome / telefone ---- */}
+      {/* ---- Barra de busca ---- */}
       <label className="fila-busca">
         <Search size={16} />
         <input
@@ -242,9 +261,7 @@ export function FilaLoja() {
           placeholder="Buscar por senha, nome do cliente ou telefone…"
         />
         {busca && (
-          <button className="fila-busca-limpar" onClick={() => setBusca("")} title="Limpar busca">
-            ×
-          </button>
+          <button className="fila-busca-limpar" onClick={() => setBusca("")} title="Limpar busca">×</button>
         )}
       </label>
 
@@ -282,13 +299,30 @@ export function FilaLoja() {
         </section>
       )}
 
+      {/* ---- Zona de retirada: aparece quando arrasta um card PRONTO ---- */}
+      {mostrarZonaRetirada && (
+        <div
+          className={`fila-zona-retirada${zonaRetiradaOver ? " over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverStatus(STATUS_RETIRAR); }}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, STATUS_RETIRAR)}
+        >
+          <CheckCircle2 size={20} />
+          <span>Soltar aqui para <b>confirmar retirada</b></span>
+          <ArrowRight size={16} />
+        </div>
+      )}
+
       <section className="fila-board">
         {COLUNAS.map((col) => {
           const lista = porStatus[col.status] ?? [];
+          const origemAtual = draggingStatusRef.current;
           const podeReceberDrop = podeOperar && draggingId !== null &&
-            draggingStatusRef.current !== null &&
-            transicaoFn(draggingStatusRef.current, col.status) != null;
+            origemAtual !== null &&
+            origemAtual !== col.status &&
+            transicaoFn(origemAtual, col.status) != null;
           const estaOver = overStatus === col.status;
+          const acaoLabel = podeReceberDrop ? LABEL_ACAO[col.status] : undefined;
 
           return (
             <div
@@ -298,11 +332,22 @@ export function FilaLoja() {
               onDragLeave={podeOperar ? handleDragLeave : undefined}
               onDrop={podeOperar ? (e) => handleDrop(e, col.status) : undefined}
             >
-              <header><col.Icone /> {col.titulo} <span>{lista.length}</span></header>
+              <header>
+                <col.Icone /> {col.titulo}
+                <span>{lista.length}</span>
+              </header>
+
+              {/* Indicador de ação ao passar o mouse sobre coluna destino */}
+              {podeReceberDrop && acaoLabel && (
+                <div className={`fila-drop-hint${estaOver ? " visivel" : ""}`}>
+                  <ArrowRight size={12} /> {acaoLabel}
+                </div>
+              )}
+
               <div className="fila-cards">
                 {lista.length === 0 && (
-                  <p className={`fila-vazio${estaOver ? " fila-vazio-over" : ""}`}>
-                    {estaOver ? "Soltar aqui ↓" : busca ? "Nenhum resultado" : "—"}
+                  <p className={`fila-vazio${estaOver ? " fila-vazio-over" : ""}${podeReceberDrop && !estaOver ? " fila-vazio-alvo" : ""}`}>
+                    {estaOver ? "↓ Soltar aqui" : podeReceberDrop ? "Arraste aqui" : busca ? "Nenhum resultado" : "—"}
                   </p>
                 )}
                 {lista.map((p) => {
@@ -325,9 +370,14 @@ export function FilaLoja() {
                           <b>#{p.numero}</b>
                         )}
                         <span className="fila-canal">{p.canal === "PDV" ? "PDV" : "Cardápio"}</span>
+                        {/* Handle visual de drag — mostra no hover */}
+                        {podeOperar && (
+                          <span className="fila-drag-handle" aria-hidden="true">
+                            <GripVertical size={13} />
+                          </span>
+                        )}
                       </div>
 
-                      {/* ---- cliente (nome + telefone) ---- */}
                       {temCliente && (
                         <div className="fila-cliente">
                           {p.clienteNome && (
