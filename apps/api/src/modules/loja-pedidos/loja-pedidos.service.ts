@@ -1,8 +1,6 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
-import * as QRCode from 'qrcode';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
@@ -15,48 +13,23 @@ import {
 } from './loja-pedidos.dto';
 import { ImpressoraService } from './impressora.service';
 import { montarCupom } from './cupom-escpos';
+// Regras PURAS extraídas do service (testadas em regras/*.spec.ts). O service
+// mantém apenas orquestração + acesso a dados; as decisões de negócio (texto da
+// régua, veredito de retirada, aritmética de valores/estoque) vivem aqui.
+import { fmtSenha, mensagemRegua, mensagemLembretePronto } from './regras/mensagens';
+import { gerarTokenRetirada, renderizarQr, urlRetirada, avaliarRetirada } from './regras/retirada';
+import {
+  round2, totalLinha, descontoValido, totalComDesconto,
+  disponivel as saldoDisponivel, estoqueInsuficiente, conferirSplit,
+  parseCodigoRetirada, escolherCodigoRetirada, mediaMinutos,
+} from './regras/calculos';
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 const jsonSeguro = <T>(v: T): T =>
   JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x)));
 
-/** Token opaco do QR de retirada: 32 bytes aleatórios em base64url (~43 chars,
- *  256 bits de entropia — não adivinhável). Impresso no comprovante do cliente
- *  e escaneado pelo vendedor no balcão para resgatar a retirada. */
-const gerarTokenRetirada = () => randomBytes(32).toString('base64url');
-
 const opera = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('pdv.operar') || u.permissoes.includes('loja.pedidos.operar');
 const gerencia = (u: UsuarioLogado) => u.papel === 'admin' || u.permissoes.includes('loja.produtos.gerenciar') || u.permissoes.includes('loja.pedidos.gerenciar');
-
-/** Senha da fila formatada com no mínimo 2 dígitos (PRD §4,§13): 01,02…09,10…99,100. */
-const fmtSenha = (s: number | null | undefined) => (s == null ? '—' : String(s).padStart(2, '0'));
-
-/**
- * Régua de WhatsApp da Loja (PRD §38). A chamada operacional usa a SENHA da
- * fila (não o número do pedido). O número do pedido pode aparecer como
- * referência secundária. `posicao` só entra na confirmação.
- */
-function mensagemRegua(
-  evento: 'confirmado' | 'proximo' | 'preparacao' | 'pronto',
-  senha: number | null,
-  numeroPedido: number,
-  posicao?: number | null,
-): string {
-  const S = fmtSenha(senha);
-  const ref = `\n\n_Pedido #${numeroPedido}_`;
-  switch (evento) {
-    case 'confirmado':
-      return `✅ Pagamento confirmado!\n\nSua senha é *${S}*.` +
-        (posicao ? `\nPosição atual na fila: *${posicao}*.` : '') +
-        `\n\nAvisaremos quando estiver chegando sua vez.` + ref;
-    case 'proximo':
-      return `🔔 VOCÊ É O PRÓXIMO!\n\nSenha *${S}*.\n\nDirija-se ao balcão da Loja FEBRACIS.` + ref;
-    case 'preparacao':
-      return `🛍️ Senha *${S}* em preparação.\n\nNossa equipe já está preparando seu pedido.` + ref;
-    case 'pronto':
-      return `🎉 PEDIDO PRONTO!\n\nSenha *${S}*.\n\nSeu pedido está disponível para retirada no balcão da Loja FEBRACIS.` + ref;
-  }
-}
 
 @Injectable()
 export class LojaPedidosService {
@@ -100,11 +73,7 @@ export class LojaPedidosService {
     const base = this.basePublica(origem);
     if (!base) throw new BadRequestException('URL pública não configurada (defina FRONTEND_URL ou APP_URL).');
     const url = `${base}/cardapio/${slug}`;
-    const opcoes = { errorCorrectionLevel: 'M' as const, margin: 2, width: 512 };
-    const [pngDataUrl, svg] = await Promise.all([
-      QRCode.toDataURL(url, opcoes),
-      QRCode.toString(url, { ...opcoes, type: 'svg' }),
-    ]);
+    const { pngDataUrl, svg } = await renderizarQr(url, { margin: 2, width: 512 });
     return { slug, operacao: operacao.nome, url, pngDataUrl, svg };
   }
 
@@ -152,7 +121,7 @@ export class LojaPedidosService {
       operacao: { id: operacao.id, nome: operacao.nome, modo: operacao.modo, slug: operacao.slug },
       produtos: produtos.map((p) => {
         const saldo = p.saldos[0];
-        const disponivel = Number(saldo?.saldoFisico ?? 0) - Number(saldo?.reservado ?? 0);
+        const disponivel = saldoDisponivel(Number(saldo?.saldoFisico ?? 0), Number(saldo?.reservado ?? 0));
         return {
           produtoId: p.id, nome: p.nome, descricao: p.descricao, preco: Number(p.preco),
           imagemUrl: p.imagemUrl ?? null, categoria: p.categoria?.nome ?? null, categoriaCor: p.categoria?.cor ?? null,
@@ -204,13 +173,13 @@ export class LojaPedidosService {
         if (!produto || !produto.ativo) throw new BadRequestException(`Produto indisponível no carrinho.`);
         if (produto.controlaEstoque) {
           const saldo = produto.saldos[0];
-          const disponivel = Number(saldo?.saldoFisico ?? 0) - Number(saldo?.reservado ?? 0);
-          if (it.quantidade > disponivel) {
-            throw new ConflictException(`Estoque insuficiente para "${produto.nome}" (disponível: ${disponivel}).`);
+          const disp = saldoDisponivel(Number(saldo?.saldoFisico ?? 0), Number(saldo?.reservado ?? 0));
+          if (estoqueInsuficiente(it.quantidade, disp)) {
+            throw new ConflictException(`Estoque insuficiente para "${produto.nome}" (disponível: ${disp}).`);
           }
         }
         const preco = Number(produto.preco);
-        const total = +(preco * it.quantidade).toFixed(2);
+        const total = totalLinha(preco, it.quantidade);
         subtotal += total;
         if (produto.precisaPreparacao) precisaPreparacao = true;
         linhas.push({
@@ -218,7 +187,7 @@ export class LojaPedidosService {
           precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque,
         });
       }
-      subtotal = +subtotal.toFixed(2);
+      subtotal = round2(subtotal);
 
       // 2) Numeração pública sequencial por operação, sem race (advisory lock).
       const numero = await this.proximoNumero(tx, operacao.id);
@@ -324,14 +293,8 @@ export class LojaPedidosService {
       select: { codigoRetirada: true },
     });
     const ocupados = new Set(ativos.map((p) => p.codigoRetirada!));
-    if (ocupados.size >= 900) return null; // todos os 100..999 em uso
-    for (let tentativa = 0; tentativa < 50; tentativa++) {
-      const c = 100 + Math.floor(Math.random() * 900); // 100..999
-      if (!ocupados.has(c)) return c;
-    }
-    // Fallback determinístico: primeiro livre na faixa.
-    for (let c = 100; c <= 999; c++) if (!ocupados.has(c)) return c;
-    return null;
+    // Seleção pura (sorteio com retry + fallback de varredura) — ver regras/calculos.
+    return escolherCodigoRetirada(ocupados);
   }
 
   // ==================== PAGAMENTO ====================
@@ -571,22 +534,22 @@ export class LojaPedidosService {
         const saldo = produto.saldos[0];
         const saldoFisico = Number(saldo?.saldoFisico ?? 0);
         if (produto.controlaEstoque && !produto.vendeSemEstoque) {
-          const disponivel = saldoFisico - Number(saldo?.reservado ?? 0);
-          if (it.quantidade > disponivel) throw new ConflictException(`Estoque insuficiente para "${produto.nome}" (disponível: ${disponivel}).`);
+          const disp = saldoDisponivel(saldoFisico, Number(saldo?.reservado ?? 0));
+          if (estoqueInsuficiente(it.quantidade, disp)) throw new ConflictException(`Estoque insuficiente para "${produto.nome}" (disponível: ${disp}).`);
         }
         const preco = Number(produto.preco);
-        const total = +(preco * it.quantidade).toFixed(2);
+        const total = totalLinha(preco, it.quantidade);
         subtotal += total;
         if (produto.precisaPreparacao) precisaPreparacao = true;
         linhas.push({ produtoId: produto.id, descricao: produto.nome, quantidade: it.quantidade, precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque && !produto.vendeSemEstoque, saldoFisico });
       }
-      subtotal = +subtotal.toFixed(2);
-      const desconto = Math.min(dto.desconto ?? 0, subtotal);
-      const total = +(subtotal - desconto).toFixed(2);
+      subtotal = round2(subtotal);
+      const desconto = descontoValido(dto.desconto ?? 0, subtotal);
+      const total = totalComDesconto(subtotal, desconto);
 
       // 2) Split: as formas precisam somar o total.
-      const pago = +dto.pagamentos.reduce((s, p) => s + p.valor, 0).toFixed(2);
-      if (Math.abs(pago - total) > 0.01) {
+      const { pago, fecha } = conferirSplit(dto.pagamentos, total);
+      if (!fecha) {
         throw new BadRequestException(`O split de pagamentos (${pago.toFixed(2)}) não fecha com o total da venda (${total.toFixed(2)}).`);
       }
 
@@ -799,6 +762,7 @@ export class LojaPedidosService {
         controlaEstoque: p.controlaEstoque,
         vendeSemEstoque: p.vendeSemEstoque,
         imagemUrl: p.imagemUrl ?? null,
+        emDestaque: p.emDestaque,
       };
     });
   }
@@ -872,10 +836,7 @@ export class LojaPedidosService {
     });
     if (!p) throw new NotFoundException('Pedido não encontrado.');
 
-    const pago = !!p.confirmadoEm && p.status !== 'AGUARDANDO_PAGAMENTO' && p.status !== 'CANCELADO';
-    const retirado = p.status === 'RETIRADO';
-    const cancelado = p.status === 'CANCELADO';
-
+    const { pago, retirado, cancelado } = avaliarRetirada(p);
     const base = { ...this.comprovanteBase(p), pago, retirado, cancelado };
 
     // Sem token → sem QR (ainda não pago, ou cancelado). Devolve o essencial.
@@ -883,14 +844,9 @@ export class LojaPedidosService {
       return jsonSeguro({ ...base, token: null, urlRetirada: null, qrPngDataUrl: null, qrSvg: null });
     }
 
-    const publica = this.basePublica(origem);
-    const urlRetirada = publica ? `${publica}/loja/retirada/${p.tokenRetirada}` : p.tokenRetirada;
-    const opcoes = { errorCorrectionLevel: 'M' as const, margin: 1, width: 420 };
-    const [qrPngDataUrl, qrSvg] = await Promise.all([
-      QRCode.toDataURL(urlRetirada, opcoes),
-      QRCode.toString(urlRetirada, { ...opcoes, type: 'svg' }),
-    ]);
-    return jsonSeguro({ ...base, token: p.tokenRetirada, urlRetirada, qrPngDataUrl, qrSvg });
+    const url = urlRetirada(this.basePublica(origem), p.tokenRetirada);
+    const { pngDataUrl: qrPngDataUrl, svg: qrSvg } = await renderizarQr(url, { margin: 1, width: 420 });
+    return jsonSeguro({ ...base, token: p.tokenRetirada, urlRetirada: url, qrPngDataUrl, qrSvg });
   }
 
   /** Recorte comum do comprovante (cliente/vendedor). Sem dados sensíveis. */
@@ -927,19 +883,11 @@ export class LojaPedidosService {
    */
   async consultarRetirada(token: string) {
     const p = await this.buscarPorToken(token);
-    const pago = !!p.confirmadoEm && p.status !== 'AGUARDANDO_PAGAMENTO' && p.status !== 'CANCELADO';
-    const retirado = p.status === 'RETIRADO';
-    const cancelado = p.status === 'CANCELADO';
+    const { pago, retirado, cancelado, podeRetirar, bloqueio } = avaliarRetirada(p);
     return jsonSeguro({
       ...this.comprovanteBase(p),
-      pago, retirado, cancelado,
-      podeRetirar: pago && !retirado && !cancelado,
+      pago, retirado, cancelado, podeRetirar, bloqueio,
       posicaoFila: p.posicaoFila,
-      // motivo legível quando NÃO pode retirar
-      bloqueio: cancelado ? 'Pedido cancelado.'
-        : !pago ? 'Pagamento ainda não confirmado.'
-        : retirado ? `Já retirado${p.retiradoPorNome ? ` por ${p.retiradoPorNome}` : ''}${p.retiradoEm ? ` em ${new Date(p.retiradoEm).toLocaleString('pt-BR')}` : ''}.`
-        : null,
       retiradoPorNome: p.retiradoPorNome,
       retiradoEm: p.retiradoEm,
     });
@@ -1013,8 +961,8 @@ export class LojaPedidosService {
    * e, se quiser, editar antes de entregar/imprimir.
    */
   async buscarPorCodigo(codigoBruto: string, operacaoId?: string) {
-    const codigo = Number(String(codigoBruto).replace(/\D/g, ''));
-    if (!Number.isInteger(codigo) || codigo < 100 || codigo > 999) {
+    const codigo = parseCodigoRetirada(codigoBruto);
+    if (codigo == null) {
       throw new BadRequestException('Código inválido — informe os 3 dígitos do comprovante.');
     }
     const op = operacaoId
@@ -1082,23 +1030,24 @@ export class LojaPedidosService {
         const saldoFisico = Number(saldo?.saldoFisico ?? 0);
         const reservadoAtual = Number(saldo?.reservado ?? 0);
         const preco = Number(produto.preco);
-        const total = +(preco * it.quantidade).toFixed(2);
+        const total = totalLinha(preco, it.quantidade);
         subtotal += total;
         if (produto.precisaPreparacao) precisaPreparacao = true;
         depois.set(it.produtoId, (depois.get(it.produtoId) ?? 0) + it.quantidade);
         linhas.push({ produtoId: produto.id, descricao: produto.nome, quantidade: it.quantidade, precoUnit: preco, total, observacao: it.observacao ?? '', controla: produto.controlaEstoque, saldoFisico, reservadoAtual });
       }
-      subtotal = +subtotal.toFixed(2);
-      const desconto = Math.min(dto.desconto ?? Number(pedido.desconto), subtotal);
-      const total = +(subtotal - desconto).toFixed(2);
+      subtotal = round2(subtotal);
+      const desconto = descontoValido(dto.desconto ?? Number(pedido.desconto), subtotal);
+      const total = totalComDesconto(subtotal, desconto);
 
       // Valida DISPONIBILIDADE para os aumentos de quantidade.
       for (const l of linhas) {
         if (!l.controla) continue;
         const delta = (depois.get(l.produtoId) ?? 0) - (antes.get(l.produtoId) ?? 0);
         if (delta <= 0) continue; // reduziu ou manteve
-        const disponivel = reservado ? (l.saldoFisico - l.reservadoAtual) : (l.saldoFisico); // pago: só o físico limita
-        if (delta > disponivel) throw new ConflictException(`Estoque insuficiente para "${l.descricao}" (disponível: ${disponivel}).`);
+        // Pago: só o físico limita; ainda reservado: físico − reserva atual.
+        const disp = reservado ? saldoDisponivel(l.saldoFisico, l.reservadoAtual) : l.saldoFisico;
+        if (estoqueInsuficiente(delta, disp)) throw new ConflictException(`Estoque insuficiente para "${l.descricao}" (disponível: ${disp}).`);
       }
 
       // Aplica o DELTA de estoque produto a produto (união de antes+depois).
@@ -1298,20 +1247,12 @@ export class LojaPedidosService {
       }),
     ]);
 
-    const mediaMin = (pares: [Date | null, Date | null][]) => {
-      const difs = pares
-        .filter(([a, b]) => a && b)
-        .map(([a, b]) => (b!.getTime() - a!.getTime()) / 60000)
-        .filter((m) => m >= 0);
-      return difs.length ? +(difs.reduce((s, m) => s + m, 0) / difs.length).toFixed(1) : 0;
-    };
-
     return {
       maisVendidos: maisVendidos.map((m) => ({ descricao: m.descricao, quantidade: Number(m._sum.quantidade ?? 0), total: Number(m._sum.total ?? 0) })),
       formas: porForma.map((f) => ({ forma: f.forma, valor: Number(f._sum.valor ?? 0), transacoes: f._count })).sort((a, b) => b.valor - a.valor),
       canais: porCanal.map((c) => ({ canal: c.canal, valor: Number(c._sum.total ?? 0), pedidos: c._count })),
-      tempoMedioPreparacaoMin: mediaMin(prontos.map((p) => [p.preparacaoEm ?? p.confirmadoEm, p.prontoEm])),
-      tempoMedioEsperaMin: mediaMin(prontos.map((p) => [p.confirmadoEm, p.retiradoEm])),
+      tempoMedioPreparacaoMin: mediaMinutos(prontos.map((p) => [p.preparacaoEm ?? p.confirmadoEm, p.prontoEm])),
+      tempoMedioEsperaMin: mediaMinutos(prontos.map((p) => [p.confirmadoEm, p.retiradoEm])),
     };
   }
 
@@ -1372,8 +1313,7 @@ export class LojaPedidosService {
     });
     let avisados = 0;
     for (const p of prontos) {
-      const texto = `⏰ Pedido #${p.numero} continua pronto para retirada no balcão da Loja FEBRACIS. Passe aqui quando puder!`;
-      await this.avisar(p.clienteTel, texto);
+      await this.avisar(p.clienteTel, mensagemLembretePronto(p.numero));
       // registra o lembrete para não repetir (paraStatus sintético no histórico)
       await this.prisma.lojaPedidoHistorico.create({
         data: { pedidoId: p.id, paraStatus: 'LEMBRETE_PRONTO', origem: 'sistema', observacao: `Lembrete de retirada (${minutos} min)` },
