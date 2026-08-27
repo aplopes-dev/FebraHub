@@ -411,8 +411,8 @@ export const MENU_PRIMARIO: readonly MenuPrimario[] = [
       filhos: h.key === "estoque" ? [
         { id:"estoque-resumo",label:"Estoque geral (consulta)",href:"/estoque",Icone:h.Icone,titulo:"Estoque geral",desc:"Visão geral dos saldos de produtos. Para cadastrar produto e mover estoque entre Loja e Depósito, use Loja → Produtos",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
         { id:"estoque-inventario",label:"Inventário",href:"/estoque/inventario",Icone:h.Icone,titulo:"Inventário",desc:"Bipe o produto, confira o saldo e informe a contagem real — o sistema ajusta o estoque. Também dá para trocar a foto e o código de barras.",visivel:(ctx:ContextoMenu)=>doSetor("estoque")(ctx)||ctx.pode("compras.operar") },
-        { id:"estoque-verificacoes",label:"Verificações pendentes",href:"/compras/todas",desc:"Solicitações aguardando conferência do saldo",visivel:comPermissao("compras.operar") },
-        { id:"estoque-recebimentos",label:"Recebimentos",href:"/compras/recebimentos",desc:"Entradas aguardadas dos pedidos de compra",visivel:comPermissao("compras.operar") },
+        // "Verificações pendentes" (/compras/todas) e "Recebimentos" (/compras/recebimentos)
+        // saíram daqui: eram cópias exatas de itens do grupo Compras (rail ao lado).
       ] : filhosHub(h.key, h.nome, h.Icone, h.desc) };
     if (h.key !== "estoque") return [hub];
     return [hub, { id: "compras", label: "Compras", Icone: ShoppingCart, visivel: comPermissao("compras.ver"), filhos: [
