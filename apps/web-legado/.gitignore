@@ -1,0 +1,16 @@
+# Artefatos do Next
+.next/
+out/
+next-env.d.ts.bak
+
+# Dependências (o root já ignora, aqui é redundância barata)
+node_modules/
+
+# Ambiente — NUNCA commitar. Só o exemplo entra no git.
+.env
+.env.*
+!.env.example
+
+# Tooling
+*.tsbuildinfo
+.eslintcache

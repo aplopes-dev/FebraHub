@@ -1,30 +1,13 @@
-"use client";
+import type { ReactNode } from "react";
+import { AppShell } from "@/shell/app-shell";
 
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { Shell } from "@/components/shell/Shell";
-import { SemPerfil } from "@/components/shell/SemPerfil";
-import { TelaCarregando } from "@/components/shell/TelaCarregando";
-import { usePerfil, useSessao } from "@/hooks/auth";
-import "@/app/compras-mvp.css";
-import "@/app/comercial.css";
+/**
+ * Nenhuma tela do backoffice pode ser HTML estático: todas dependem da empresa
+ * e da unidade ativas, e várias leem a URL (`useSearchParams`) para aba, filtro
+ * e paginação. Sem isto, o build tenta pré-renderizar e falha no bailout de CSR.
+ */
+export const dynamic = "force-dynamic";
 
-/** Layout dos hubs: a sessão é resolvida uma vez aqui e o Shell (sidebar,
- *  cabeçalho e o provedor de período/categoria) envolve todas as rotas de
- *  hub. Trocar de hub troca só o conteúdo — o filtro do topo sobrevive à
- *  navegação, que é o comportamento do protótipo. */
-export default function LayoutApp({ children }: { children: ReactNode }) {
-  const sessao = useSessao();
-  const perfil = usePerfil(sessao);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (sessao === null) router.replace("/login");
-  }, [sessao, router]);
-
-  if (sessao === undefined || (sessao && perfil.isLoading)) return <TelaCarregando />;
-  if (!sessao) return <TelaCarregando />;
-  if (perfil.error || !perfil.data) return <SemPerfil />;
-
-  return <Shell perfil={perfil.data}>{children}</Shell>;
+export default function AppShellLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
 }

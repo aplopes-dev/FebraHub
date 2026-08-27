@@ -1,11 +1,5 @@
-"use client";
-import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
-import { EstoqueGeral } from "@/components/loja/EstoqueGeral";
+import { StockListPage } from "@/features/stock";
 
-export default function Pagina() {
-  return (
-    <GuardaPermissao permissoes={["loja.produtos.ver", "compras.operar"]}>
-      <EstoqueGeral />
-    </GuardaPermissao>
-  );
+export default function Page() {
+  return <StockListPage />;
 }
