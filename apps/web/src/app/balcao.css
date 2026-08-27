@@ -186,7 +186,7 @@
 
 /* ---- modais (desconto item/total, cancelar) ---- */
 .bal-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:80;padding:20px}
-.bal-modal{background:var(--card);border:1px solid var(--card-line);border-radius:16px;padding:22px;width:min(400px,94vw);box-shadow:0 20px 60px rgb(0 0 0/.3)}
+.bal-modal{background:var(--modal-fundo);border:1px solid var(--card-line);border-radius:16px;padding:22px;width:min(400px,94vw);box-shadow:0 20px 60px rgb(0 0 0/.3)}
 .bal-modal h3{margin:0 0 4px;font-size:18px;font-weight:800}
 .bal-modal p{margin:0 0 14px;font-size:13px;color:var(--muted)}
 .bal-modal p b{color:var(--text)}
