@@ -141,12 +141,6 @@ services:
       # de acesso dela permite ler; o navegador nunca vê credencial nenhuma.
       BRAIN_URL: http://brain:3131
       BRAIN_ADMIN_TOKEN: ${BRAIN_ADMIN_TOKEN}
-      # Marketing → Instagram (login direto): sidecar aiograpi-rest (API PRIVADA
-      # do IG). A API fala com ele por http://instagram:8000 na rede interna; a
-      # sessão fica CIFRADA no banco (instagram_config) e vai por X-Session-ID —
-      # o sidecar é stateless. Ausente = a seção aparece "indisponível" (sem
-      # quebrar nada). Vem do .env; default aponta para o serviço `instagram`.
-      ALOOK_AIOGRAPI_URL: ${ALOOK_AIOGRAPI_URL:-http://instagram:8000}
       TZ: America/Bahia
     env_file:
       # As credenciais OAuth (CONTAAZUL_CLIENT_ID/SECRET/SCOPE, META_APP_ID/
@@ -352,23 +346,6 @@ services:
     deploy:
       resources:
         limits: { memory: 2G }
-
-  # ---------------- Marketing · Instagram (login direto) ----------------
-  # Sidecar aiograpi-rest: wrapper HTTP da API PRIVADA do Instagram, usado pela
-  # aba Marketing para conectar a conta oficial (DMs, mídia, stories, insights).
-  # É COMPLEMENTAR ao Zernio. Stateless: a sessão de login fica CIFRADA no banco
-  # (instagram_config) e vai por X-Session-ID a cada chamada. Só a API fala com
-  # ele, pela rede interna (http://instagram:8000) — sem `ports`, o Nginx não
-  # tem rota para cá. ATENÇÃO: API privada do IG viola os ToS.
-  instagram:
-    image: subzeroid/aiograpi-rest:latest
-    container_name: febrahub_instagram
-    restart: unless-stopped
-    logging: *log
-    networks: [interna]
-    deploy:
-      resources:
-        limits: { memory: 512M }
 
   # ---------------- ETLs ----------------
   # Não fica de pé: sobe, roda um sync e sai (`compose run --rm etl ...`).

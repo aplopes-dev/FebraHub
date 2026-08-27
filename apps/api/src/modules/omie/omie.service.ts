@@ -11,12 +11,14 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { LancarOmieDto, ListaVendasQuery, OmieConfigDto } from './omie.dto';
+
+/** Tipo mínimo de cfg aceito nos métodos privados */
+type OmieCfg = { appKey: string | null; appSecret: string | null; contaCorrente?: string | null; codigoCategoria?: string | null; idVendedor?: bigint | null; ativo?: boolean };
 
 const jsonSeguro = <T>(v: T): T =>
   JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x)));
@@ -403,13 +405,13 @@ export class OmieService {
     return cfg;
   }
 
-  private async sincronizarSkuProduto(cfg: { appKey: string; appSecret: string }, prodId: string, nome: string, sku: string | null, preco: number, unidade: string | null) {
+  private async sincronizarSkuProduto(cfg: OmieCfg, prodId: string, nome: string, sku: string | null, preco: number, unidade: string | null) {
     let skuOmie: string | null = null;
     const codigoBusca = sku?.trim() || null;
 
     if (codigoBusca) {
       try {
-        const resp = await this.chamadaOmie(cfg as unknown as Awaited<ReturnType<typeof this.obterConfigInterna>>, 'geral/produtos/', 'ConsultarProduto', { codigo: codigoBusca }) as { codigo_interno?: string; nCodProd?: number };
+        const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', { codigo: codigoBusca }) as { codigo_interno?: string; nCodProd?: number };
         if (resp?.nCodProd || resp?.codigo_interno) {
           skuOmie = resp.codigo_interno || String(resp.nCodProd);
         }
@@ -418,7 +420,7 @@ export class OmieService {
 
     if (!skuOmie) {
       const skuNovo = codigoBusca || await this.gerarSkuSequencial();
-      const resp = await this.chamadaOmie(cfg as unknown as Awaited<ReturnType<typeof this.obterConfigInterna>>, 'geral/produtos/', 'UpsertProduto', {
+      const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'UpsertProduto', {
         codigo: skuNovo, descricao: nome, unidade: unidade?.toUpperCase() || 'UN',
         valor_unitario: preco, tipo_item: '04',
       }) as { codigo_interno?: string; nCodProd?: number };

@@ -62,16 +62,13 @@ fi
 say "prisma migrate deploy"
 $COMPOSE run --rm --no-deps --entrypoint sh api -c "npx prisma migrate deploy"
 
-# 4) Sobe api + web + sidecars (recria com a imagem nova e o .env atual).
-# `instagram` (aiograpi-rest) é imagem pública pull-only — sobe junto para a aba
-# Marketing → Instagram funcionar; se ALOOK_AIOGRAPI_URL apontar para fora, ele
-# apenas fica ocioso, sem atrapalhar.
+# 4) Sobe api + web (recria com a imagem nova e o .env atual).
 if [ "$DO_BUILD_WEB" = 1 ]; then
-  say "up -d api web instagram"
-  $COMPOSE up -d api web instagram
+  say "up -d api web"
+  $COMPOSE up -d api web
 else
-  say "up -d api instagram"
-  $COMPOSE up -d api instagram
+  say "up -d api"
+  $COMPOSE up -d api
 fi
 
 # 5) Health-check rápido da api.

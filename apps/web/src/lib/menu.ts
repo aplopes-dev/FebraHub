@@ -375,7 +375,7 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         label: "Configurar conexão",
         href: "/configuracoes/redes-sociais",
         titulo: "Conexão das redes",
-        desc: "Chave do Zernio e a conta do Instagram usadas para publicar",
+        desc: "Chave do Zernio e conta usada para publicar",
         visivel: comPermissao("social.ver", "social.gerenciar"),
       },
     );

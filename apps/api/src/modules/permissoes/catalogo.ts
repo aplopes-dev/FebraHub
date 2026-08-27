@@ -238,7 +238,7 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     id: 'social',
     nome: 'Redes sociais',
     descricao:
-      'O painel do Zernio e a conta do Instagram por login direto: contas conectadas, publicação, mensagens diretas e as campanhas pagas. Aqui o recorte NÃO é por setor — as contas são as oficiais da Febracis Salvador.',
+      'O painel do Zernio: contas conectadas, publicação, mensagens diretas e as campanhas pagas. Aqui o recorte NÃO é por setor — a conta do Zernio é uma só, da Febracis Salvador.',
     permissoes: [
       {
         id: 'social.ver',
@@ -250,13 +250,13 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
         id: 'social.publicar',
         nome: 'Publicar e responder',
         descricao:
-          'Criar e agendar postagens, apagar o que ainda não saiu, responder às mensagens diretas e fazer chamadas à API do Instagram conectado.',
+          'Criar e agendar postagens, apagar o que ainda não saiu e responder às mensagens diretas.',
       },
       {
         id: 'social.gerenciar',
         nome: 'Configurar a integração',
         descricao:
-          'Gravar a chave do Zernio, conectar/desconectar a conta do Instagram por login direto, escolher o perfil padrão e ligar ou desligar campanhas.',
+          'Gravar a chave do Zernio, escolher o perfil padrão e ligar ou desligar campanhas.',
       },
     ],
   },
