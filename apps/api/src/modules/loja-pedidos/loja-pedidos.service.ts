@@ -1072,6 +1072,30 @@ export class LojaPedidosService {
     return jsonSeguro({ ...this.comprovanteBase(resultado), pago: true, retirado: true, cancelado: false });
   }
 
+  /**
+   * PREPARAR pelo QR (ação do vendedor no balcão): resolve o pedido pelo token
+   * do comprovante e o envia para a preparação (NA_FILA/PROXIMO → EM_PREPARACAO),
+   * o que já IMPRIME o cupom automaticamente (ver iniciarPreparacao). Se o pedido
+   * já está em preparação/pronto, reimprime o cupom (idempotente para o operador).
+   */
+  async prepararPorToken(token: string, u: UsuarioLogado) {
+    if (!opera(u)) throw new ForbiddenException('Seu perfil não pode preparar pedidos.');
+    const p = await this.buscarPorToken(token);
+    if (p.status === 'CANCELADO') throw new BadRequestException('Pedido cancelado.');
+    if (!p.confirmadoEm || p.status === 'AGUARDANDO_PAGAMENTO') {
+      throw new BadRequestException('Pedido ainda não confirmado — não é possível preparar.');
+    }
+    if (p.status === 'NA_FILA' || p.status === 'PROXIMO') {
+      // fluxo normal: entra em preparação (imprime o cupom automaticamente)
+      return this.iniciarPreparacao(p.id, u);
+    }
+    // já em preparação / pronto / retirado: só reimprime o cupom (best-effort)
+    void this.imprimirCupom(p.id, u).catch((e) =>
+      this.logger.warn(`Falha ao reimprimir cupom do pedido ${p.id}: ${e instanceof Error ? e.message : e}`),
+    );
+    return jsonSeguro(p);
+  }
+
   private async buscarPorToken(token: string) {
     const p = await this.prisma.lojaPedido.findUnique({
       where: { tokenRetirada: token },

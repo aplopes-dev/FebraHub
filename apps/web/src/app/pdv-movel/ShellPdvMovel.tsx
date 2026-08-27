@@ -2,7 +2,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, KeyRound, ScanLine, ShoppingCart, ListOrdered, Receipt } from "lucide-react";
+import { ArrowLeft, KeyRound, ChefHat, ShoppingCart, ListOrdered, Receipt } from "lucide-react";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { PromptInstalar } from "@/components/pwa/PromptInstalar";
 import "@/app/pdv-movel/pdv-movel.css";
@@ -11,7 +11,7 @@ const TABS = [
   { href: "/pdv-movel/vender", label: "Vender", Icone: ShoppingCart },
   { href: "/pdv-movel/vendas", label: "Vendas", Icone: Receipt },
   { href: "/pdv-movel/fila", label: "Fila", Icone: ListOrdered },
-  { href: "/pdv-movel/retirada", label: "Retirada", Icone: ScanLine },
+  { href: "/pdv-movel/retirada", label: "Preparar", Icone: ChefHat },
   { href: "/pdv-movel/codigo", label: "Código", Icone: KeyRound },
 ];
 

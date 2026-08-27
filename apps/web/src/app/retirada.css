@@ -99,3 +99,7 @@
 .ret-ico{width:40px;height:40px;color:#d1444f;margin:0 auto}
 .ret-card.ret-negado h2{text-align:center}
 .ret-card.ret-negado p{text-align:center;color:var(--muted);margin:0}
+
+/* spinner do "preparando…" (ChefHat/Loader2 girando) */
+.ret-spin { animation: ret-spin-kf .8s linear infinite; }
+@keyframes ret-spin-kf { to { transform: rotate(360deg); } }

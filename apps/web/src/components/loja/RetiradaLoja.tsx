@@ -1,8 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { QrCode, ScanLine, CheckCircle2, XCircle, PackageCheck, RotateCcw, Keyboard } from "lucide-react";
-import { consultarRetirada, resgatarRetirada } from "@/services/api/loja-pedidos";
+import { QrCode, ScanLine, CheckCircle2, XCircle, ChefHat, RotateCcw, Keyboard, Printer, Loader2 } from "lucide-react";
+import { consultarRetirada, prepararPorTokenQr } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
 import { LeitorQr } from "@/components/loja/LeitorQr";
 import "@/app/loja.css";
@@ -33,6 +33,8 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
   const [manual, setManual] = useState("");
   const [erroCamera, setErroCamera] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  // evita disparar o preparar/impressão duas vezes para o mesmo token
+  const jaPreparou = useRef<string | null>(null);
 
   const consulta = useQuery({
     queryKey: ["retirada", token],
@@ -42,24 +44,37 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
     refetchOnWindowFocus: false,
   });
 
-  const confirmar = useMutation({
-    mutationFn: () => resgatarRetirada(token!),
+  const preparar = useMutation({
+    mutationFn: () => prepararPorTokenQr(token!),
     onSuccess: () => {
       setErro(null);
       qc.invalidateQueries({ queryKey: ["retirada", token] });
       qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
     },
-    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao confirmar a retirada."),
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao preparar / imprimir o pedido."),
   });
 
   const aoLer = useCallback((bruto: string) => {
     setErro(null);
+    jaPreparou.current = null;
     setToken(extrairToken(bruto));
   }, []);
 
+  // Ao confirmar que o pedido é válido/pago, PREPARA automaticamente (e imprime).
+  const c = consulta.data;
+  useEffect(() => {
+    if (!token || !c) return;
+    // podeRetirar = pago, confirmado e não retirado → pode ir para preparação
+    if (c.podeRetirar && jaPreparou.current !== token && !preparar.isPending) {
+      jaPreparou.current = token;
+      preparar.mutate();
+    }
+  }, [token, c, preparar]);
+
   function reiniciar() {
     setErro(null);
-    confirmar.reset();
+    preparar.reset();
+    jaPreparou.current = null;
     setToken(null);
     setManual("");
     setModo("scan");
@@ -70,6 +85,7 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
     const t = extrairToken(manual);
     if (!t) return;
     setErro(null);
+    jaPreparou.current = null;
     setToken(t);
   }
 
@@ -77,16 +93,15 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
     if (erroCamera) setModo("manual");
   }, [erroCamera]);
 
-  const c = consulta.data;
-  const retiradoAgora = confirmar.data?.retirado;
+  const preparado = preparar.isSuccess;
 
   return (
     <div className="ret-page">
       <header className="ret-hero">
         <div>
-          <span className="tag">LOJA · RETIRADA</span>
-          <h1>Retirada por QR</h1>
-          <p>Escaneie o comprovante do cliente para conferir a compra e entregar.</p>
+          <span className="tag">LOJA · PREPARAR</span>
+          <h1>Preparar por QR</h1>
+          <p>Escaneie o comprovante do cliente para enviar à preparação e imprimir o cupom.</p>
         </div>
         {token && (
           <button className="loja-btn" onClick={reiniciar}><RotateCcw /> Nova leitura</button>
@@ -149,15 +164,15 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
       )}
 
       {token && c && (
-        <div className={`ret-card ${retiradoAgora || c.retirado ? "ret-ok" : c.podeRetirar ? "ret-pronto" : "ret-negado"}`}>
+        <div className={`ret-card ${preparado ? "ret-ok" : c.podeRetirar ? "ret-pronto" : "ret-negado"}`}>
           <div className="ret-card-topo">
-            <div className={`ret-status-ico ${retiradoAgora || c.retirado ? "ok" : c.podeRetirar ? "pronto" : "negado"}`}>
-              {retiradoAgora || c.retirado ? <PackageCheck /> : c.podeRetirar ? <CheckCircle2 /> : <XCircle />}
+            <div className={`ret-status-ico ${preparado ? "ok" : c.podeRetirar ? "pronto" : "negado"}`}>
+              {preparar.isPending ? <Loader2 className="ret-spin" /> : preparado ? <ChefHat /> : c.podeRetirar ? <CheckCircle2 /> : <XCircle />}
             </div>
             <div>
               <span className="ret-num">#{c.numero}</span>
               <h2>
-                {retiradoAgora ? "Entregue!" : c.retirado ? "Já retirado" : c.podeRetirar ? "Pagamento confirmado" : "Não pode retirar"}
+                {preparar.isPending ? "Enviando à preparação…" : preparado ? "Em preparação — cupom impresso" : c.podeRetirar ? "Pagamento confirmado" : "Não pode preparar"}
               </h2>
               <p className="ret-op">{c.operacao} · {c.clienteNome}</p>
             </div>
@@ -171,7 +186,7 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
           </div>
 
           {/* Bloqueio (motivo legível) */}
-          {!c.podeRetirar && !retiradoAgora && c.bloqueio && (
+          {!c.podeRetirar && !preparado && c.bloqueio && (
             <p className="ret-bloqueio">{c.bloqueio}</p>
           )}
 
@@ -189,16 +204,14 @@ export function RetiradaLoja({ tokenInicial }: { tokenInicial?: string }) {
 
           {erro && <p className="ret-erro">{erro}</p>}
 
-          {/* Ação principal */}
-          {c.podeRetirar && !retiradoAgora && (
-            <button className="ret-confirmar" onClick={() => confirmar.mutate()} disabled={confirmar.isPending}>
-              <PackageCheck /> {confirmar.isPending ? "Confirmando…" : "Confirmar retirada"}
-            </button>
-          )}
-          {(retiradoAgora || c.retirado) && (
+          {/* Ações */}
+          {preparado ? (
             <button className="loja-btn" onClick={reiniciar}><ScanLine /> Escanear próximo</button>
-          )}
-          {!c.podeRetirar && !c.retirado && !retiradoAgora && (
+          ) : c.podeRetirar ? (
+            <button className="ret-confirmar" onClick={() => preparar.mutate()} disabled={preparar.isPending}>
+              <Printer /> {preparar.isPending ? "Preparando…" : "Preparar e imprimir"}
+            </button>
+          ) : (
             <button className="loja-btn" onClick={reiniciar}><RotateCcw /> Escanear outro</button>
           )}
         </div>

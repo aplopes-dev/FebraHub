@@ -162,6 +162,11 @@ export class LojaPedidosController {
   @Post('retirada/:token/confirmar') @ExigePermissao('loja.pedidos.operar')
   resgatarRetirada(@Param('token') token: string, @Usuario() u: UsuarioLogado) { return this.s.resgatarRetirada(token, u); }
 
+  /** PREPARAR pelo TOKEN do QR: envia o pedido para preparação e IMPRIME o cupom
+   *  automaticamente. É a ação do balcão ao escanear o comprovante do cliente. */
+  @Post('retirada/:token/preparar') @ExigePermissao('loja.pedidos.operar')
+  prepararPorToken(@Param('token') token: string, @Usuario() u: UsuarioLogado) { return this.s.prepararPorToken(token, u); }
+
   // -------------------- BALCÃO: CÓDIGO DE 3 DÍGITOS + EDIÇÃO + IMPRESSÃO --------------------
 
   /** Estado da impressora térmica do balcão (para a UI habilitar o botão). */

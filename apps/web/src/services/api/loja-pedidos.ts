@@ -56,6 +56,8 @@ export const moverPedidoStatus = (id: string, paraStatus: 'NA_FILA' | 'EM_PREPAR
 // -------------------- retirada por QR (vendedor escaneia o comprovante) --------------------
 export const consultarRetirada = (token: string) => api.get<RetiradaConsulta>(`/loja-pedidos/retirada/${encodeURIComponent(token)}`);
 export const resgatarRetirada = (token: string) => api.post<Comprovante>(`/loja-pedidos/retirada/${encodeURIComponent(token)}/confirmar`);
+/** Envia o pedido do QR para PREPARAÇÃO e imprime o cupom automaticamente. */
+export const prepararPorTokenQr = (token: string) => api.post<LojaPedido>(`/loja-pedidos/retirada/${encodeURIComponent(token)}/preparar`);
 
 // -------------------- venda PDV (fila unificada + split) --------------------
 export const vendaPdvFila = (d: VendaPdvInput) => api.post<LojaPedido>('/loja-pedidos/pdv/venda', d);
