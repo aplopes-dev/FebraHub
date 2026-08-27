@@ -15,6 +15,9 @@ export class SolicitacoesService {
     return this.prisma.pedagogicoSolicitacao.findMany({
       where,
       orderBy: [{ prioridade: 'asc' }, { criadoEm: 'desc' }],
+      // Teto de segurança: a lista cresce por matrícula/turma. Sem cap, a tabela
+      // inteira streamava pro browser. 500 cobre com folga a operação filtrada.
+      take: 500,
       include: {
         matricula: { select: { id: true, pessoaNome: true, cursoNome: true } },
       },

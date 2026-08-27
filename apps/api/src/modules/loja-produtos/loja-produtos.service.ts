@@ -454,6 +454,7 @@ export class LojaProdutosService {
       where: { ativo: true, controlaEstoque: true, estoqueMinimo: { gt: 0 } },
       include: { categoria: { select: { nome: true } }, saldos: true },
       orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
+      take: 1000, // teto de segurança: sugestão de reposição sobre o catálogo
     });
     const itens = controlados
       .map((p) => {

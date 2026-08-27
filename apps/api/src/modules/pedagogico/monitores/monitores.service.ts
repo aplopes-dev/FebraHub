@@ -20,6 +20,9 @@ export class MonitoresService {
     return this.prisma.pedagogicoMonitor.findMany({
       where,
       orderBy: { nome: 'asc' },
+      // Teto de segurança: monitores acumulam por turma e o include de escalas
+      // faz fan-out no payload. 300 cobre o quadro de monitores com folga.
+      take: 300,
       include: {
         escalas: {
           include: { turma: { select: { id: true, nome: true, dataInicio: true, status: true } } },

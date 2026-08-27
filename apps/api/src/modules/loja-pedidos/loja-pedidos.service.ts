@@ -49,6 +49,7 @@ export class LojaPedidosService {
     return jsonSeguro(await this.prisma.lojaOperacao.findMany({
       orderBy: [{ status: 'asc' }, { criadoEm: 'desc' }],
       include: { _count: { select: { pedidos: true } } },
+      take: 300, // teto de segurança: histórico de operações cresce com o tempo
     }));
   }
 

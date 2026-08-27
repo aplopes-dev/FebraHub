@@ -73,6 +73,7 @@ export class ComercialService {
       where: { ativo: true },
       include: { etapas: { orderBy: { ordem: 'asc' } } },
       orderBy: [{ ordem: 'asc' }, { criadoEm: 'asc' }],
+      take: 100, // teto de segurança (config-like, poucos funis)
     });
   }
 
@@ -87,6 +88,7 @@ export class ComercialService {
     return this.prisma.comProduto.findMany({
       where: ativo !== undefined ? { ativo } : {},
       orderBy: { nome: 'asc' },
+      take: 500, // teto de segurança: catálogo de produtos (picker)
     });
   }
 

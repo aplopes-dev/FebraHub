@@ -4,6 +4,7 @@ import {
   IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID,
   Max, MaxLength, Min,
 } from 'class-validator';
+import { PaginacaoDto } from '../../../common/dto/paginacao.dto';
 
 const STATUS_TURMA = [
   'Planejada', 'Aguardando Validação', 'Confirmada',
@@ -43,13 +44,11 @@ export class CriarTurmaDto {
 
 export class AtualizarTurmaDto extends CriarTurmaDto {}
 
-export class FiltrosTurmaQuery {
+export class FiltrosTurmaQuery extends PaginacaoDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) unidade?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) cursoId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) busca?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() dataInicioDe?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() dataInicioAte?: string;
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) pagina?: number = 1;
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) porPagina?: number = 50;
+  // pagina, porPagina e busca vêm de PaginacaoDto.
 }

@@ -7,14 +7,14 @@ import { UsuarioLogado } from '../../../common/decorators/usuario.decorator';
 import {
   AtualizarTurmaDto, CriarTurmaDto, FiltrosTurmaQuery,
 } from '../dto/turma.dto';
+import { fatiar } from '../../../common/dto/paginacao.dto';
 
 @Injectable()
 export class TurmasService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(q: FiltrosTurmaQuery) {
-    const pagina   = q.pagina   ?? 1;
-    const porPagina = q.porPagina ?? 50;
+    const { pagina, porPagina, skip, take } = fatiar(q);
     const where: Prisma.PedagogicoTurmaWhereInput = {};
 
     if (q.status)   where.status   = q.status;
@@ -36,8 +36,8 @@ export class TurmasService {
       this.prisma.pedagogicoTurma.findMany({
         where,
         orderBy: [{ dataInicio: 'asc' }, { nome: 'asc' }],
-        skip: (pagina - 1) * porPagina,
-        take: porPagina,
+        skip,
+        take,
         include: {
           _count: { select: { matriculas: true, credenciamentos: true, presencas: true } },
         },

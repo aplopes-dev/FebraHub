@@ -15,6 +15,8 @@ export class CsService {
     return this.prisma.pedagogicoCsAcompanhamento.findMany({
       where,
       orderBy: [{ prioridade: 'asc' }, { prazo: 'asc' }, { criadoEm: 'desc' }],
+      // Teto de segurança: acompanhamentos crescem por matrícula/renovação.
+      take: 500,
       include: {
         matricula: {
           select: {

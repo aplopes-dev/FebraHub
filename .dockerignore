@@ -15,8 +15,6 @@
 
 docs
 supabase
-web
-netlify.toml
 tools/migracao/dados
 backups
 **/*.ndjson

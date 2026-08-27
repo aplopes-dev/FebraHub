@@ -11,6 +11,7 @@ import {
 } from '@/services/api/fornecedores';
 import type { Fornecedor, FornecedorContato, SituacaoFornecedor } from '@/types/fornecedores';
 import { Select } from '@/components/ui/Select';
+import { useFecharComEsc } from '@/hooks/formulario';
 import '@/app/fornecedores.css';
 
 const SITUACOES: { valor: SituacaoFornecedor; rotulo: string; cor: string }[] = [
@@ -191,6 +192,7 @@ function EditorFornecedor({
   salvando: boolean;
   erro: string | null;
 }) {
+  useFecharComEsc(() => setRascunho(null));
   const set = (campo: keyof Rascunho, valor: unknown) => setRascunho({ ...rascunho, [campo]: valor });
   const cats = (rascunho.categorias ?? []).join(', ');
   const contatos = rascunho.contatos ?? [];
@@ -335,6 +337,7 @@ function DetalheFornecedor({
   onMudarSituacao: (s: SituacaoFornecedor) => void;
   mudandoSituacao?: boolean;
 }) {
+  useFecharComEsc(onFechar);
   const q = useQuery({ queryKey: ['fornecedor', id], queryFn: () => fornecedorObter(id) });
   const f = q.data;
   const contatoPrincipal = useMemo(() => f?.contatos?.find((c) => c.principal) ?? f?.contatos?.[0], [f]);
