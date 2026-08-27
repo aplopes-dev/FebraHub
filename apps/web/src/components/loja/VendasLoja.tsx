@@ -62,16 +62,20 @@ function fmtData(s: string) {
 // ──────────────────────────────────────────────────────────────
 // Sub-componente: Aba de Configuração Omie
 // ──────────────────────────────────────────────────────────────
+/** Estado do form de configuração (campos de texto, sem booleanos) */
+interface FormCfg { appKey: string; appSecret: string; contaCorrente: string; codigoCategoria: string; }
+
 function AbaConfig() {
   const qc = useQueryClient();
   const { data: cfg, isLoading } = useQuery({ queryKey: ["omie-config"], queryFn: omieConfig });
-  const [form, setForm] = useState<Partial<OmieConfig>>({});
+  const [form, setForm] = useState<Partial<FormCfg>>({});
+  const [ativoLocal, setAtivoLocal] = useState<boolean | undefined>(undefined);
   const [testando, setTestando] = useState(false);
   const [testeResp, setTesteResp] = useState<string | null>(null);
 
   const salvaMut = useMutation({
     mutationFn: (d: Partial<OmieConfig>) => omieConfigSalvar(d),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["omie-config"] }); setForm({}); },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["omie-config"] }); setForm({}); setAtivoLocal(undefined); },
   });
 
   const syncSkuMut = useMutation({
@@ -79,13 +83,15 @@ function AbaConfig() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["omie-vendas"] }),
   });
 
-  const val = (k: keyof OmieConfig) => {
-    if (k in form) return form[k] as string ?? "";
+  const val = (k: keyof FormCfg) => {
+    if (k in form) return form[k] ?? "";
     if (!cfg) return "";
-    return String(cfg[k] ?? "");
+    return String(cfg[k as keyof OmieConfig] ?? "");
   };
 
-  const set = (k: keyof OmieConfig, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof FormCfg, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const ativoEfetivo = ativoLocal !== undefined ? ativoLocal : (cfg?.ativo ?? false);
+  const temAlteracao = Object.keys(form).length > 0 || ativoLocal !== undefined;
 
   const testar = async () => {
     setTestando(true); setTesteResp(null);
@@ -108,8 +114,8 @@ function AbaConfig() {
           <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
             <input
               type="checkbox"
-              checked={form.ativo !== undefined ? !!form.ativo : !!cfg?.ativo}
-              onChange={(e) => set("ativo", e.target.checked ? "true" : "false")}
+              checked={ativoEfetivo}
+              onChange={(e) => setAtivoLocal(e.target.checked)}
             />
             Integração ativa
           </label>
@@ -138,8 +144,8 @@ function AbaConfig() {
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <button
             className="loja-btn ouro"
-            onClick={() => salvaMut.mutate({ ...form, ativo: form.ativo === "true" ? true : form.ativo === "false" ? false : cfg?.ativo })}
-            disabled={salvaMut.isPending || !Object.keys(form).length}
+            onClick={() => salvaMut.mutate({ ...form, ativo: ativoEfetivo })}
+            disabled={salvaMut.isPending || !temAlteracao}
           >
             {salvaMut.isPending ? "Salvando…" : "Salvar configuração"}
           </button>
