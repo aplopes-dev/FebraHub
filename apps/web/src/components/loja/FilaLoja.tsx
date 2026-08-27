@@ -148,7 +148,7 @@ function ModalEditarItens({
     const lista = produtos.data ?? [];
     const t = norm(busca.trim());
     if (!t) return lista;
-    return lista.filter((p) => norm(p.descricao).includes(t) || (p.codigo && norm(p.codigo).includes(t)));
+    return lista.filter((p) => norm(p.descricao).includes(t) || (p.codigo ? norm(p.codigo).includes(t) : false));
   }, [produtos.data, busca]);
 
   const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens]);
