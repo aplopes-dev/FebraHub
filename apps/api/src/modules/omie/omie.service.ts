@@ -2,10 +2,15 @@
  * OmieService — Integração bidirecional FebraHub ↔ Omie
  *
  * Responsabilidades:
- *   1. Gerenciar configuração (app_key, app_secret, conta corrente)
+ *   1. Ler a configuração das variáveis de ambiente (OMIE_APP_KEY, OMIE_APP_SECRET,
+ *      OMIE_CONTA_CORRENTE, OMIE_CODIGO_CATEGORIA, OMIE_ID_VENDEDOR)
  *   2. Sincronizar SKU bidirecional: LojaProduto.skuOmie ↔ Omie codigo_interno
  *   3. Lançar pedidos da Loja como Pedido de Venda no Omie
  *   4. Listar vendas da Loja com status do lançamento no Omie
+ *
+ * As credenciais NÃO ficam no banco nem numa tela de configuração: são segredos
+ * de aplicação (não expiram) e moram no `.env` do container da API, no mesmo
+ * padrão do ETL (`etl/omie_sync.py` usa OMIE_APP_KEY/OMIE_APP_SECRET).
  */
 import {
   BadRequestException,
@@ -15,10 +20,17 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UsuarioLogado } from '../../common/decorators/usuario.decorator';
-import { LancarOmieDto, ListaVendasQuery, OmieConfigDto } from './omie.dto';
+import { LancarOmieDto, ListaVendasQuery } from './omie.dto';
 
-/** Tipo mínimo de cfg aceito nos métodos privados */
-type OmieCfg = { appKey: string | null; appSecret: string | null; contaCorrente?: string | null; codigoCategoria?: string | null; idVendedor?: bigint | null; ativo?: boolean };
+/** Configuração da integração Omie, resolvida do ambiente. */
+type OmieCfg = {
+  appKey: string | null;
+  appSecret: string | null;
+  contaCorrente: string | null;
+  codigoCategoria: string | null;
+  idVendedor: bigint | null;
+  ativo: boolean;
+};
 
 const jsonSeguro = <T>(v: T): T =>
   JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x)));
@@ -39,39 +51,50 @@ export class OmieService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // ==================== CONFIGURAÇÃO ====================
+  // ==================== CONFIGURAÇÃO (via ambiente) ====================
 
-  async obterConfig() {
-    const cfg = await this.prisma.omieConfig.findUnique({ where: { id: 'omie' } });
-    if (!cfg) return { id: 'omie', appKey: null, appSecret: null, contaCorrente: null, codigoCategoria: null, idVendedor: null, ativo: false, configurado: false };
+  /**
+   * Lê a configuração da integração das variáveis de ambiente.
+   * `ativo` = true quando app_key e app_secret estão presentes; opcionalmente
+   * pode-se desligar com OMIE_ATIVO=false mesmo tendo credencial.
+   */
+  private lerConfigEnv(): OmieCfg {
+    const appKey = process.env.OMIE_APP_KEY?.trim() || null;
+    const appSecret = process.env.OMIE_APP_SECRET?.trim() || null;
+    const desligado = String(process.env.OMIE_ATIVO ?? '').trim().toLowerCase() === 'false';
+    const idVendedorRaw = process.env.OMIE_ID_VENDEDOR?.trim();
+    const idVendedor = idVendedorRaw && /^\d+$/.test(idVendedorRaw) ? BigInt(idVendedorRaw) : null;
+    return {
+      appKey,
+      appSecret,
+      contaCorrente: process.env.OMIE_CONTA_CORRENTE?.trim() || null,
+      codigoCategoria: process.env.OMIE_CODIGO_CATEGORIA?.trim() || null,
+      idVendedor,
+      ativo: !!(appKey && appSecret) && !desligado,
+    };
+  }
+
+  /** Status da integração para a UI — nunca expõe o secret em texto claro. */
+  obterConfig() {
+    const cfg = this.lerConfigEnv();
     return jsonSeguro({
-      ...cfg,
-      appSecret: cfg.appSecret ? '••••••••' : null, // nunca retornar o secret em texto claro
+      appKey: cfg.appKey ? this.mascarar(cfg.appKey) : null,
+      appSecret: cfg.appSecret ? '••••••••' : null,
+      contaCorrente: cfg.contaCorrente,
+      codigoCategoria: cfg.codigoCategoria,
+      idVendedor: cfg.idVendedor,
+      ativo: cfg.ativo,
       configurado: !!(cfg.appKey && cfg.appSecret && cfg.ativo),
     });
   }
 
-  async salvarConfig(dto: OmieConfigDto, u: UsuarioLogado) {
-    this.logger.log(`Omie config salva por ${u.nome}`);
-    const cfg = await this.prisma.omieConfig.findUnique({ where: { id: 'omie' } });
-    const dados: Prisma.OmieConfigUpdateInput = {};
-    if (dto.appKey !== undefined) dados.appKey = dto.appKey;
-    if (dto.appSecret !== undefined && dto.appSecret !== '••••••••') dados.appSecret = dto.appSecret;
-    if (dto.contaCorrente !== undefined) dados.contaCorrente = dto.contaCorrente;
-    if (dto.codigoCategoria !== undefined) dados.codigoCategoria = dto.codigoCategoria;
-    if (dto.idVendedor !== undefined) dados.idVendedor = dto.idVendedor ? BigInt(dto.idVendedor) : null;
-    if (dto.ativo !== undefined) dados.ativo = dto.ativo;
-
-    if (cfg) {
-      await this.prisma.omieConfig.update({ where: { id: 'omie' }, data: dados });
-    } else {
-      await this.prisma.omieConfig.create({ data: { id: 'omie', ...dados as Prisma.OmieConfigCreateInput } });
-    }
-    return this.obterConfig();
+  /** Mostra só os últimos 4 dígitos da app_key. */
+  private mascarar(v: string): string {
+    return v.length <= 4 ? '••••' : `••••${v.slice(-4)}`;
   }
 
-  async testarConexao(u: UsuarioLogado) {
-    const cfg = await this.obterConfigInterna();
+  async testarConexao(_u: UsuarioLogado) {
+    const cfg = this.obterConfigInterna();
     const resp = await this.chamadaOmie(cfg, 'geral/empresas/', 'ListarEmpresas', { pagina: 1, registros_por_pagina: 1 });
     return { ok: true, empresa: (resp as Record<string, unknown[]>).empresas_cadastro?.[0] ?? null };
   }
@@ -85,8 +108,8 @@ export class OmieService {
    *   2. Se achar, grava o codigo_interno do Omie em skuOmie
    *   3. Se não achar, cria o produto no Omie e grava o codigo_interno retornado
    */
-  async sincronizarSkus(u: UsuarioLogado): Promise<{ total: number; mapeados: number; criados: number; erros: number }> {
-    const cfg = await this.obterConfigInterna();
+  async sincronizarSkus(_u: UsuarioLogado): Promise<{ total: number; mapeados: number; criados: number; erros: number }> {
+    const cfg = this.obterConfigInterna();
     const produtos = await this.prisma.lojaProduto.findMany({
       where: { ativo: true, skuOmie: null },
       select: { id: true, nome: true, sku: true, preco: true, unidade: true, codigoBarras: true },
@@ -220,8 +243,8 @@ export class OmieService {
   }
 
   async lancarPedidos(pedidoIds: string[], u: UsuarioLogado): Promise<{ lancados: number; erros: number; resultados: Record<string, unknown>[] }> {
-    const cfg = await this.obterConfigInterna();
-    if (!cfg.ativo) throw new BadRequestException('Integração Omie não está ativa. Configure primeiro em Loja → Omie.');
+    const cfg = this.obterConfigInterna();
+    if (!cfg.ativo) throw new BadRequestException('Integração Omie desativada (OMIE_ATIVO=false). Ajuste o ambiente da API.');
 
     const pedidos = await this.prisma.lojaPedido.findMany({
       where: {
@@ -397,10 +420,12 @@ export class OmieService {
 
   // ==================== HELPERS INTERNOS ====================
 
-  private async obterConfigInterna() {
-    const cfg = await this.prisma.omieConfig.findUnique({ where: { id: 'omie' } });
-    if (!cfg?.appKey || !cfg.appSecret) {
-      throw new BadRequestException('Integração Omie não configurada. Acesse Loja → Omie → Configuração.');
+  private obterConfigInterna(): OmieCfg {
+    const cfg = this.lerConfigEnv();
+    if (!cfg.appKey || !cfg.appSecret) {
+      throw new BadRequestException(
+        'Integração Omie não configurada. Defina OMIE_APP_KEY e OMIE_APP_SECRET no ambiente da API.',
+      );
     }
     return cfg;
   }

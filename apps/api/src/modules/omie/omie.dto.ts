@@ -1,13 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsNumber } from 'class-validator';
-
-export class OmieConfigDto {
-  @IsOptional() @IsString() appKey?: string;
-  @IsOptional() @IsString() appSecret?: string;
-  @IsOptional() @IsString() contaCorrente?: string;
-  @IsOptional() @IsString() codigoCategoria?: string;
-  @IsOptional() @IsNumber() idVendedor?: number;
-  @IsOptional() @IsBoolean() ativo?: boolean;
-}
+import { IsOptional, IsString } from 'class-validator';
 
 export class LancarOmieDto {
   /** IDs dos pedidos a lançar. Vazio = todos os pedidos elegíveis filtrados. */

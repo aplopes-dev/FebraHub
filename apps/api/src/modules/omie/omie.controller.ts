@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
-import { LancarOmieDto, ListaVendasQuery, OmieConfigDto } from './omie.dto';
+import { LancarOmieDto, ListaVendasQuery } from './omie.dto';
 import { OmieService } from './omie.service';
 
 @ApiTags('omie')
@@ -11,19 +11,13 @@ import { OmieService } from './omie.service';
 export class OmieController {
   constructor(private readonly s: OmieService) {}
 
-  // ---- Configuração ----
+  // ---- Configuração (somente leitura — credenciais vêm do ambiente) ----
   @Get('config')
-  @ApiOperation({ summary: 'Retorna a configuração da integração Omie' })
+  @ApiOperation({ summary: 'Retorna o status da integração Omie (lido do ambiente)' })
   config() { return this.s.obterConfig(); }
 
-  @Put('config')
-  @ApiOperation({ summary: 'Salva a configuração da integração Omie' })
-  salvarConfig(@Body() dto: OmieConfigDto, @Usuario() u: UsuarioLogado) {
-    return this.s.salvarConfig(dto, u);
-  }
-
   @Post('config/testar')
-  @ApiOperation({ summary: 'Testa a conexão com a API Omie' })
+  @ApiOperation({ summary: 'Testa a conexão com a API Omie usando as credenciais do ambiente' })
   testar(@Usuario() u: UsuarioLogado) { return this.s.testarConexao(u); }
 
   // ---- SKU ----

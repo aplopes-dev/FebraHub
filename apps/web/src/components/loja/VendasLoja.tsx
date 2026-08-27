@@ -7,22 +7,22 @@
  *  - Indicadores KPI (total de vendas, lançadas no Omie, com erro, pendentes)
  *  - Lançar uma venda individual no Omie (botão por linha)
  *  - Lançar em lote todas as filtradas / não-lançadas
- *  - Aba "Configuração Omie" para gerenciar app_key / app_secret / conta
- *  - Aba "Sync SKU" para sincronizar códigos de produto
+ *
+ * As credenciais Omie (app_key/app_secret) vivem no ambiente da API
+ * (OMIE_APP_KEY/OMIE_APP_SECRET) — não há tela de configuração.
  */
 import "@/app/loja.css";
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Settings, RefreshCw, Upload, CheckCircle2, AlertCircle,
+  Upload, CheckCircle2, AlertCircle,
   Clock, Package, ChevronLeft, ChevronRight, Link2,
 } from "lucide-react";
 import { useSessao, pode, ehAdmin } from "@/hooks/auth";
 import { Select } from "@/components/ui/Select";
 import {
-  omieVendas, omieConfig, omieConfigSalvar, omieTestar,
-  omieSyncSku, omieLancarUm, omieLancarFiltrados,
-  type FiltrosVendas, type OmieConfig,
+  omieVendas, omieLancarUm, omieLancarFiltrados,
+  type FiltrosVendas,
 } from "@/services/api/omie";
 
 const STATUS_PEDIDO_LABEL: Record<string, string> = {
@@ -62,136 +62,6 @@ function fmtData(s: string) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Sub-componente: Aba de Configuração Omie
-// ──────────────────────────────────────────────────────────────
-/** Estado do form de configuração (campos de texto, sem booleanos) */
-interface FormCfg { appKey: string; appSecret: string; contaCorrente: string; codigoCategoria: string; }
-
-function AbaConfig() {
-  const qc = useQueryClient();
-  const { data: cfg, isLoading } = useQuery({ queryKey: ["omie-config"], queryFn: omieConfig });
-  const [form, setForm] = useState<Partial<FormCfg>>({});
-  const [ativoLocal, setAtivoLocal] = useState<boolean | undefined>(undefined);
-  const [testando, setTestando] = useState(false);
-  const [testeResp, setTesteResp] = useState<string | null>(null);
-
-  const salvaMut = useMutation({
-    mutationFn: (d: Partial<OmieConfig>) => omieConfigSalvar(d),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["omie-config"] }); setForm({}); setAtivoLocal(undefined); },
-  });
-
-  const syncSkuMut = useMutation({
-    mutationFn: omieSyncSku,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["omie-vendas"] }),
-  });
-
-  const val = (k: keyof FormCfg) => {
-    if (k in form) return form[k] ?? "";
-    if (!cfg) return "";
-    return String(cfg[k as keyof OmieConfig] ?? "");
-  };
-
-  const set = (k: keyof FormCfg, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const ativoEfetivo = ativoLocal !== undefined ? ativoLocal : (cfg?.ativo ?? false);
-  const temAlteracao = Object.keys(form).length > 0 || ativoLocal !== undefined;
-
-  const testar = async () => {
-    setTestando(true); setTesteResp(null);
-    try {
-      const r = await omieTestar();
-      setTesteResp(r.ok ? "✅ Conexão OK!" : "❌ Falha na conexão");
-    } catch (e: unknown) {
-      setTesteResp(`❌ ${e instanceof Error ? e.message : "Erro"}`);
-    } finally { setTestando(false); }
-  };
-
-  if (isLoading) return <div className="vnd-vazio">Carregando…</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Card principal */}
-      <div className="vnd-config-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>Credenciais da API Omie</h3>
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={ativoEfetivo}
-              onChange={(e) => setAtivoLocal(e.target.checked)}
-            />
-            Integração ativa
-          </label>
-        </div>
-        <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "0 0 16px" }}>
-          Obtenha app_key e app_secret em <b>app.omie.com.br → Engrenagem → API</b>
-        </p>
-        <div className="vnd-config-grid">
-          <div className="vnd-config-campo">
-            <label className="vnd-config-label">App Key</label>
-            <input className="vnd-input" value={val("appKey")} onChange={(e) => set("appKey", e.target.value)} placeholder="Ex: 1234567890" />
-          </div>
-          <div className="vnd-config-campo">
-            <label className="vnd-config-label">App Secret</label>
-            <input className="vnd-input" type="password" value={val("appSecret")} onChange={(e) => set("appSecret", e.target.value)} placeholder="Deixe em branco para manter" />
-          </div>
-          <div className="vnd-config-campo">
-            <label className="vnd-config-label">Conta Corrente (ID Omie)</label>
-            <input className="vnd-input" value={val("contaCorrente")} onChange={(e) => set("contaCorrente", e.target.value)} placeholder="Ex: 1234567890" />
-          </div>
-          <div className="vnd-config-campo">
-            <label className="vnd-config-label">Código Categoria Financeira</label>
-            <input className="vnd-input" value={val("codigoCategoria")} onChange={(e) => set("codigoCategoria", e.target.value)} placeholder="Ex: 1.01.01" />
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-          <button
-            className="loja-btn ouro"
-            onClick={() => salvaMut.mutate({ ...form, ativo: ativoEfetivo })}
-            disabled={salvaMut.isPending || !temAlteracao}
-          >
-            {salvaMut.isPending ? "Salvando…" : "Salvar configuração"}
-          </button>
-          <button className="loja-btn outline" onClick={testar} disabled={testando || !cfg?.configurado}>
-            {testando ? "Testando…" : "Testar conexão"}
-          </button>
-        </div>
-        {testeResp && <div style={{ marginTop: 10, fontSize: 13.5, fontWeight: 700 }}>{testeResp}</div>}
-        {salvaMut.isSuccess && <div style={{ marginTop: 8, fontSize: 13, color: "#059669" }}>✅ Configuração salva!</div>}
-      </div>
-
-      {/* Sync SKU */}
-      <div className="vnd-config-card">
-        <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>Sincronizar SKU de Produtos</h3>
-        <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "0 0 16px" }}>
-          Para cada produto sem SKU Omie: busca pelo código no Omie, ou cria o produto lá e popula
-          <code style={{ background: "rgb(var(--gold-rgb)/.1)", borderRadius: 4, padding: "1px 5px", marginLeft: 4 }}>sku_omie</code>.
-          Produtos já mapeados são ignorados.
-        </p>
-        <button
-          className="loja-btn ouro"
-          onClick={() => syncSkuMut.mutate()}
-          disabled={syncSkuMut.isPending || !cfg?.configurado}
-        >
-          <RefreshCw size={14} />
-          {syncSkuMut.isPending ? "Sincronizando…" : "Sincronizar SKU agora"}
-        </button>
-        {syncSkuMut.isSuccess && (
-          <div style={{ marginTop: 10, fontSize: 13 }}>
-            ✅ Concluído — <b>{syncSkuMut.data.mapeados}</b> mapeados, <b>{syncSkuMut.data.criados}</b> criados no Omie,
-            <b> {syncSkuMut.data.erros}</b> erros (de {syncSkuMut.data.total} produtos).
-          </div>
-        )}
-        {syncSkuMut.isError && (
-          <div className="vnd-err-box" style={{ marginTop: 10 }}>
-            {syncSkuMut.error instanceof Error ? syncSkuMut.error.message : "Erro ao sincronizar"}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────
 // Componente principal
 // ──────────────────────────────────────────────────────────────
 export function VendasLoja() {
@@ -200,7 +70,6 @@ export function VendasLoja() {
   const qc = useQueryClient();
   const podeGerenciar = pode(perfil, "loja.pedidos.gerenciar") || (perfil ? ehAdmin(perfil) : false);
 
-  const [aba, setAba] = useState<"vendas" | "config">("vendas");
   const [filtros, setFiltros] = useState<FiltrosVendas>({ statusOmie: "todos", pagina: 1, porPagina: 30 });
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [lancandoId, setLancandoId] = useState<string | null>(null);
@@ -264,24 +133,7 @@ export function VendasLoja() {
 
   return (
     <div className="vnd-page">
-      {/* Abas */}
-      <div className="vnd-tabs">
-        <button className={`vnd-tab${aba === "vendas" ? " ativo" : ""}`} onClick={() => setAba("vendas")}>
-          Vendas
-        </button>
-        {podeGerenciar && (
-          <button className={`vnd-tab${aba === "config" ? " ativo" : ""}`} onClick={() => setAba("config")}>
-            <Settings size={13} style={{ marginRight: 5 }} />
-            Configuração Omie
-          </button>
-        )}
-      </div>
-
-      {aba === "config" ? (
-        <AbaConfig />
-      ) : (
-        <>
-          {/* KPIs */}
+      {/* KPIs */}
           <div className="vnd-resumo">
             <div className="vnd-kpi">
               <div className="vnd-kpi-label">Total de vendas</div>
@@ -495,8 +347,6 @@ export function VendasLoja() {
               <div style={{ fontSize: 11, color: "var(--muted)", padding: "4px 16px" }}>Atualizando…</div>
             )}
           </div>
-        </>
-      )}
     </div>
   );
 }

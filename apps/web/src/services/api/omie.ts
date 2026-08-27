@@ -1,7 +1,11 @@
 import { api } from './client';
 
+/**
+ * Status da integração Omie — somente leitura. As credenciais
+ * (app_key/app_secret) vivem no ambiente da API (OMIE_APP_KEY/OMIE_APP_SECRET),
+ * não há tela de configuração. `appKey`/`appSecret` vêm mascarados.
+ */
 export interface OmieConfig {
-  id: string;
   appKey: string | null;
   appSecret: string | null;
   contaCorrente: string | null;
@@ -63,9 +67,8 @@ export interface SyncSkuResp {
   erros: number;
 }
 
-// ---- Configuração ----
+// ---- Configuração (somente leitura — credenciais no ambiente da API) ----
 export const omieConfig = () => api.get<OmieConfig>('/loja/omie/config');
-export const omieConfigSalvar = (d: Partial<OmieConfig>) => api.put<OmieConfig>('/loja/omie/config', d);
 export const omieTestar = () => api.post<{ ok: boolean; empresa: unknown }>('/loja/omie/config/testar', {});
 
 // ---- SKU ----
