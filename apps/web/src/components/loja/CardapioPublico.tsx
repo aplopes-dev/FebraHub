@@ -2,12 +2,47 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, editarItensPedidoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
+import {
+  Coffee, Hamburger, IceCream, Pizza, ForkKnife, Cookie, Bread, Martini,
+  Wine, Cake, Popcorn, Fish, Carrot, Pepper, Basket, Storefront, ShoppingBag,
+  Star, ArrowUp, MapPin, Clock, Wallet, PencilSimple, Receipt,
+  X, FloppyDisk, CaretRight, Trash, Plus,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
+import { AcompanharPedido } from "@/components/loja/AcompanharPedido";
+import { acompanharPedido, cardapioPublico, checkout, editarItensPedidoPublico, fazerPedidoBalcao } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
-import type { CardapioProduto, LojaPedidoPagamento } from "@/types/loja-pedidos";
+import type { CardapioProduto } from "@/types/loja-pedidos";
 import "@/app/cardapio.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/* Ícone (Phosphor) por categoria — casa por palavra-chave no nome, sem depender
+   de cadastro. Fallback = Basket. Mesma categoria → mesmo ícone sempre. */
+const REGRAS_ICONE: [RegExp, PhosphorIcon][] = [
+  [/caf[eé]|expresso|cappuccino|coado/i, Coffee],
+  [/lanche|burg|x-|sandu|hot ?dog|cachorro/i, Hamburger],
+  [/pizza|esfi/i, Pizza],
+  [/sorvete|gelato|a[çc]a[ií]|milk/i, IceCream],
+  [/sobremesa|doce|pudim|brigadeiro|torta/i, Cake],
+  [/bolo|fatia/i, Cake],
+  [/biscoito|cookie|bolacha/i, Cookie],
+  [/p[ãa]o|padaria|assado/i, Bread],
+  [/drink|coquetel|caipirinha|gin|vodka/i, Martini],
+  [/vinho|espumante/i, Wine],
+  [/pipoca|snack|salgadinho/i, Popcorn],
+  [/peixe|frutos do mar|sushi|sashimi/i, Fish],
+  [/salada|vegano|vegetari|natural|fit/i, Carrot],
+  [/tempero|molho|pimenta|condimento/i, Pepper],
+  [/bebida|refri|suco|[aá]gua|cerveja|chopp|refrigerante/i, Martini],
+  [/combo|kit|promo/i, ShoppingBag],
+  [/prato|refei[çc]|almo[çc]|marmita|executivo/i, ForkKnife],
+  [/mercado|loja|diversos|geral|produto/i, Storefront],
+];
+const iconeDaCategoria = (nome: string): PhosphorIcon => {
+  for (const [re, Ic] of REGRAS_ICONE) if (re.test(nome)) return Ic;
+  return Basket;
+};
 
 /* ---- Pedido em andamento lembrado no navegador do cliente ----
    Guarda só o id do último pedido feito neste cardápio; a tela de
@@ -53,6 +88,7 @@ const Icon = {
   lock: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></svg>),
   pix: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" {...p}><path d="M12 3.8 8.2 7.6a2.2 2.2 0 0 0 0 3.1L12 14.5l3.8-3.8a2.2 2.2 0 0 0 0-3.1L12 3.8ZM3.8 12l3.8 3.8L11.4 12 7.6 8.2 3.8 12ZM12.6 12l3.8 3.8L20.2 12l-3.8-3.8L12.6 12ZM8.2 16.4 12 20.2l3.8-3.8" /></svg>),
   card: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" {...p}><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 10h18" /></svg>),
+  info: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>),
   toTop: (p: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 15l-6-6-6 6"/><path d="M5 21h14"/></svg>),
 };
 
@@ -61,14 +97,10 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
-  const [etapa, setEtapa] = useState<"catalogo" | "identificar" | "pix">("catalogo");
+  const [etapa, setEtapa] = useState<"catalogo" | "identificar">("catalogo");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [pedidoId, setPedidoId] = useState<string | null>(null);
-  const [pix, setPix] = useState<LojaPedidoPagamento | null>(null);
-  const [copiado, setCopiado] = useState(false);
-  const [forma, setForma] = useState<"PIX" | "CARTAO_CREDITO">("PIX");
-  const [cartao, setCartao] = useState({ numero: "", titular: "", validade: "", cvv: "", cpfCnpj: "" });
+  const [, setPedidoId] = useState<string | null>(null);
   const [catAtiva, setCatAtiva] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const secoesRef = useRef<Record<string, HTMLElement | null>>({});
@@ -77,20 +109,6 @@ export function CardapioPublico({ slug }: { slug: string }) {
     queryKey: ["cardapio", slug],
     queryFn: () => cardapioPublico(slug),
   });
-
-  // Enquanto aguarda pagamento, checa o status: o webhook do ASAAS confirma e o
-  // pedido sai de AGUARDANDO_PAGAMENTO — aí levamos o cliente ao acompanhamento.
-  const statusPedido = useQuery({
-    queryKey: ["cardapio-status", pedidoId],
-    queryFn: () => acompanharPedido(pedidoId!),
-    enabled: etapa === "pix" && !!pedidoId,
-    refetchInterval: 4000,
-  });
-  useEffect(() => {
-    if (etapa === "pix" && pedidoId && statusPedido.data && statusPedido.data.status !== "AGUARDANDO_PAGAMENTO") {
-      router.push(`/pedido/${pedidoId}`);
-    }
-  }, [etapa, pedidoId, statusPedido.data, router]);
 
   // Pedido em andamento lembrado do navegador: se ainda estiver aberto, mostra
   // um aviso no topo com atalho pra tela de acompanhamento (senha, QR, fila).
@@ -116,15 +134,20 @@ export function CardapioPublico({ slug }: { slug: string }) {
 
   // ---- Modo EDIÇÃO: o cliente ajusta o próprio pedido (ainda na fila / não pago) ----
   const [edicao, setEdicao] = useState<{ pedidoId: string; numero: number; pago: boolean; totalOriginal: number } | null>(null);
+  // O modal de edição fica na frente; "Adicionar itens" o esconde p/ navegar o
+  // cardápio, e uma barra "voltar à edição" reabre.
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [verPedidoModal, setVerPedidoModal] = useState<string | null>(null);
   const entrarEdicao = (ped: typeof pedidoAberto.data) => {
     if (!ped || !ped.editavelPeloCliente) return;
     setCarrinho(Object.fromEntries(ped.itens.map((it) => [it.produtoId, it.quantidade])));
     setEdicao({ pedidoId: ped.id, numero: ped.numero, pago: ped.pago, totalOriginal: Number(ped.total) });
+    setModalEdicaoAberto(true);
     setErro(null);
     setEtapa("catalogo");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const sairEdicao = () => { setEdicao(null); setCarrinho({}); setErro(null); };
+  const sairEdicao = () => { setEdicao(null); setModalEdicaoAberto(false); setCarrinho({}); setErro(null); };
   // Entra em edição via ?editar=<pedidoId> (link vindo da tela de acompanhamento).
   const [editarParam, setEditarParam] = useState<string | null>(null);
   useEffect(() => {
@@ -232,6 +255,15 @@ export function CardapioPublico({ slug }: { slug: string }) {
 
   const irParaTopo = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
+  // FAB "voltar ao topo": aparece depois de rolar ~1 tela.
+  const [mostrarFabTopo, setMostrarFabTopo] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setMostrarFabTopo(window.scrollY > 520);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Remove completamente um item do carrinho (botão ✕ no carrossel)
   const removerDoCarrinho = (id: string) =>
     setCarrinho((c) => { const cp = { ...c }; delete cp[id]; return cp; });
@@ -247,14 +279,11 @@ export function CardapioPublico({ slug }: { slug: string }) {
       return copia;
     });
 
+  // FAZER PEDIDO — o cardápio NÃO cobra online (sem gateway integrado): o
+  // pagamento é no BALCÃO. Registra o pedido, entra na fila com senha + código
+  // de retirada, e leva ao acompanhamento.
   async function finalizar() {
     setErro(null);
-    if (forma === "CARTAO_CREDITO") {
-      const [mes, ano] = cartao.validade.split("/").map((s) => s.trim());
-      if (cartao.numero.replace(/\s/g, "").length < 13 || !cartao.titular || !mes || !ano || cartao.cvv.length < 3) {
-        setErro("Preencha os dados do cartão corretamente."); return;
-      }
-    }
     setOcupado(true);
     try {
       const itens = Object.entries(carrinho).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
@@ -267,50 +296,14 @@ export function CardapioPublico({ slug }: { slug: string }) {
       });
       setPedidoId(pedido.id);
       salvarPedidoLocal(slug, pedido.id); // lembra pra recuperar o acompanhamento depois
-
-      if (forma === "CARTAO_CREDITO") {
-        // Cartão: o backend cobra tokenizado no ASAAS e confirma na hora.
-        const [mes, ano] = cartao.validade.split("/").map((s) => s.trim());
-        await iniciarPagamento(pedido.id, {
-          forma: "CARTAO_CREDITO",
-          cartao: {
-            numero: cartao.numero.replace(/\s/g, ""), titular: cartao.titular,
-            validadeMes: mes, validadeAno: ano.length === 2 ? `20${ano}` : ano,
-            cvv: cartao.cvv, cpfCnpj: cartao.cpfCnpj, telefone: tel.replace(/\D/g, ""),
-          },
-        });
-        // Aprovado → o pedido sai de AGUARDANDO_PAGAMENTO; leva ao acompanhamento.
-        router.push(`/pedido/${pedido.id}`);
-        return;
-      }
-
-      // PIX: gera a cobrança no gateway (ASAAS) e mostra o QR + copia-e-cola.
-      const pagamento = await iniciarPagamento(pedido.id, { forma: "PIX" });
-      setPix(pagamento);
-      setEtapa("pix");
+      await fazerPedidoBalcao(pedido.id); // confirma o pedido (pagamento no balcão)
+      router.push(`/pedido/${pedido.id}`);
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.mensagem : "Não foi possível finalizar o pedido.");
+      setErro(e instanceof ErroApi ? e.mensagem : "Não foi possível fazer o pedido.");
       setEtapa("identificar");
     } finally {
       setOcupado(false);
     }
-  }
-
-  // Fallback dev/homolog (sem gateway): permite marcar como pago manualmente.
-  async function simularPago() {
-    if (!pedidoId) return;
-    setErro(null);
-    try {
-      await confirmarPagamentoPublico(pedidoId, {});
-      router.push(`/pedido/${pedidoId}`);
-    } catch (e) {
-      setErro(e instanceof ErroApi ? e.mensagem : "Aguardando confirmação do pagamento.");
-    }
-  }
-
-  async function copiarPix() {
-    if (!pix?.pixCopiaCola) return;
-    try { await navigator.clipboard.writeText(pix.pixCopiaCola); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { /* sem clipboard */ }
   }
 
   if (cardapio.isLoading) {
@@ -324,7 +317,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
   const modo = cardapio.data?.operacao.modo;
 
   return (
-    <div className="cdp">
+    <div className={`cdp ${edicao && !modalEdicaoAberto ? "cdp--editando" : ""}`}>
       {/* ---- CAPA + CARTÃO DA LOJA (padrão iFood) ---- */}
       <div className="cdp-cover" />
       <div className="cdp-store">
@@ -336,40 +329,38 @@ export function CardapioPublico({ slug }: { slug: string }) {
             <span className="cdp-store-tag">Loja FEBRACIS</span>
             <h1>{nomeOperacao}</h1>
             <div className="cdp-store-meta">
-              <span className="cdp-chip-info"><Icon.pin />{modo === "SERVICO_MESA" ? "Serviço na mesa" : "Retirada no balcão"}</span>
-              <span className="dot" />
-              <span className="cdp-chip-info"><Icon.clock />Pronto na hora</span>
-              <span className="dot" />
-              <span className="cdp-chip-info"><Icon.pix />PIX & Cartão</span>
+              <span className="cdp-chip-info"><MapPin weight="fill" />{modo === "SERVICO_MESA" ? "Serviço na mesa" : "Retirada no balcão"}</span>
+              <span className="cdp-chip-info"><Clock weight="fill" />Pronto na hora</span>
+              <span className="cdp-chip-info"><Wallet weight="fill" />Pague no balcão</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ---- MODO EDIÇÃO: cliente ajustando o próprio pedido ---- */}
-      {edicao && (
-        <div className="cdp-pedido-aberto cdp-edicao">
-          <span className="cdp-pedido-aberto-ic" aria-hidden>✏️</span>
-          <span className="cdp-pedido-aberto-txt">
-            <b>Editando o pedido nº {edicao.numero}</b>
-            <small>
-              Ajuste as quantidades / itens abaixo e toque em <b>Salvar alterações</b>.
-              {edicao.pago ? " Como já está pago, dá para remover ou trocar — para incluir mais, procure o balcão." : ""}
-            </small>
-          </span>
-          <button type="button" className="cdp-edicao-cancelar" onClick={sairEdicao}>Cancelar</button>
+      {/* ---- Barra "voltar à edição": só quando o modal está escondido p/ o
+              cliente escolher itens no cardápio. ---- */}
+      {edicao && !modalEdicaoAberto && (
+        <div className="cdp-edit-bar" role="status">
+          <span className="cdp-edit-bar-ic" aria-hidden><PencilSimple weight="fill" /></span>
+          <div className="cdp-edit-bar-txt">
+            <b>Adicionando ao pedido #{edicao.numero}</b>
+            <small>Toque nos itens e volte para revisar.</small>
+          </div>
+          <button type="button" className="cdp-edit-bar-sair" onClick={sairEdicao} aria-label="Cancelar edição">
+            <X weight="bold" /> Cancelar
+          </button>
+          <button type="button" className="cdp-edit-bar-salvar" onClick={() => setModalEdicaoAberto(true)}>
+            <PencilSimple weight="fill" /> Revisar ({qtdTotal})
+          </button>
         </div>
-      )}
-      {edicao && erro && (
-        <div className="cdp-erro" style={{ maxWidth: 900, margin: "8px auto 0" }}>{erro}</div>
       )}
 
       {/* ---- PEDIDO EM ANDAMENTO (recuperado do navegador) ---- */}
       {!edicao && avisoPedido && etapa === "catalogo" && (
         <div className="cdp-pedido-aberto">
-          <span className="cdp-pedido-aberto-ic" aria-hidden>🧾</span>
+          <span className="cdp-pedido-aberto-ic" aria-hidden><Receipt weight="fill" /></span>
           <span className="cdp-pedido-aberto-txt">
-            <b>Você tem um pedido em andamento — nº {avisoPedido.numero}</b>
+            <b>Pedido #{avisoPedido.numero} em andamento</b>
             <small>
               {STATUS_CURTO[avisoPedido.status] ?? "acompanhe seu pedido"}
               {avisoPedido.posicao != null && (avisoPedido.status === "NA_FILA" || avisoPedido.status === "EM_PREPARACAO")
@@ -379,11 +370,11 @@ export function CardapioPublico({ slug }: { slug: string }) {
           <span className="cdp-pedido-aberto-acoes">
             {avisoPedido.editavelPeloCliente && (
               <button type="button" className="cdp-pedido-aberto-editar" onClick={() => entrarEdicao(avisoPedido)}>
-                Editar itens
+                <PencilSimple weight="bold" /> Editar
               </button>
             )}
-            <button type="button" className="cdp-pedido-aberto-cta" onClick={() => router.push(`/pedido/${pedidoLembrado}`)}>
-              Ver pedido <Icon.arrow />
+            <button type="button" className="cdp-pedido-aberto-cta" onClick={() => setVerPedidoModal(pedidoLembrado)}>
+              Ver pedido <CaretRight weight="bold" />
             </button>
           </span>
         </div>
@@ -419,20 +410,25 @@ export function CardapioPublico({ slug }: { slug: string }) {
               title="Voltar ao topo"
               aria-label="Voltar ao topo"
             >
-              <Icon.toTop style={{ width: 13, height: 13 }} />
-              Topo
+              <Storefront className="cdp-chip-ic" weight="fill" aria-hidden />
+              <span>Início</span>
             </button>
-            {categorias.map((c) => (
-              <button
-                key={c.id}
-                className={`cdp-chip ${catAtiva === c.id ? "on" : ""}`}
-                style={{ ["--cat" as string]: c.cor }}
-                onClick={() => irPara(c.id)}
-              >
-                <span className="cdp-chip-dot" aria-hidden />
-                {c.nome}
-              </button>
-            ))}
+            {categorias.map((c) => {
+              const Ic = iconeDaCategoria(c.nome);
+              const ativo = catAtiva === c.id;
+              return (
+                <button
+                  key={c.id}
+                  className={`cdp-chip ${ativo ? "on" : ""}`}
+                  style={{ ["--cat" as string]: c.cor }}
+                  onClick={() => irPara(c.id)}
+                  aria-current={ativo ? "true" : undefined}
+                >
+                  <Ic className="cdp-chip-ic" weight={ativo ? "fill" : "regular"} aria-hidden />
+                  <span>{c.nome}</span>
+                </button>
+              );
+            })}
           </div>
         </nav>
       )}
@@ -444,8 +440,8 @@ export function CardapioPublico({ slug }: { slug: string }) {
             {/* ---- DESTAQUES (carrossel horizontal) ---- */}
             {destaques.length > 0 && !busca && (
               <section className="cdp-destaques">
-                <div className="cdp-secao-head">
-                  <span className="cdp-destaque-star" aria-hidden>⭐</span>
+                <div className="cdp-secao-head cdp-secao-destaque">
+                  <span className="cdp-secao-ic-wrap" aria-hidden><Star className="cdp-secao-ic" weight="fill" /></span>
                   <h2>Destaques</h2>
                 </div>
                 <div className="cdp-destaques-rail">
@@ -502,7 +498,9 @@ export function CardapioPublico({ slug }: { slug: string }) {
             {produtos.length === 0 && !busca && (
               <div className="cdp-full" style={{ minHeight: 240 }}><p>Nenhum item disponível no momento.</p></div>
             )}
-            {categorias.map((c) => (
+            {categorias.map((c) => {
+              const IcCat = iconeDaCategoria(c.nome);
+              return (
               <section
                 key={c.id}
                 id={c.id}
@@ -511,7 +509,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
                 ref={(el) => { secoesRef.current[c.id] = el; }}
               >
                 <div className="cdp-secao-head">
-                  <span className="cdp-secao-cor" aria-hidden />
+                  <span className="cdp-secao-ic-wrap" aria-hidden><IcCat className="cdp-secao-ic" weight="fill" /></span>
                   <h2>{c.nome}</h2>
                   <span className="cdp-secao-cont">{c.itens.length} {c.itens.length === 1 ? "item" : "itens"}</span>
                 </div>
@@ -550,7 +548,8 @@ export function CardapioPublico({ slug }: { slug: string }) {
                   })}
                 </div>
               </section>
-            ))}
+              );
+            })}
           </div>
 
           {/* ---- CARRINHO LATERAL (desktop) ---- */}
@@ -654,82 +653,117 @@ export function CardapioPublico({ slug }: { slug: string }) {
                 <input className="cdp-input" value={tel} onChange={(e) => setTel(e.target.value)} placeholder="(71) 90000-0000" inputMode="tel" />
               </label>
 
-              <p className="cdp-pay-label">Forma de pagamento</p>
-              <div className="cdp-pay">
-                <button type="button" className={forma === "PIX" ? "on" : ""} onClick={() => setForma("PIX")}><Icon.pix />PIX</button>
-                <button type="button" className={forma === "CARTAO_CREDITO" ? "on" : ""} onClick={() => setForma("CARTAO_CREDITO")}><Icon.card />Cartão</button>
+              <div className="cdp-pay-note">
+                <Icon.info />
+                <span>O pagamento é feito no <b>balcão</b>, na hora de retirar. Você recebe um código de retirada ao fazer o pedido.</span>
               </div>
-
-              {forma === "CARTAO_CREDITO" && (
-                <div style={{ marginTop: 14 }}>
-                  <label className="cdp-field">
-                    <span>Número do cartão</span>
-                    <input className="cdp-input" value={cartao.numero} onChange={(e) => setCartao((c) => ({ ...c, numero: e.target.value }))} placeholder="0000 0000 0000 0000" inputMode="numeric" />
-                  </label>
-                  <label className="cdp-field">
-                    <span>Nome impresso no cartão</span>
-                    <input className="cdp-input" value={cartao.titular} onChange={(e) => setCartao((c) => ({ ...c, titular: e.target.value }))} placeholder="Como está no cartão" />
-                  </label>
-                  <div className="cdp-row2">
-                    <label className="cdp-field">
-                      <span>Validade</span>
-                      <input className="cdp-input" value={cartao.validade} onChange={(e) => setCartao((c) => ({ ...c, validade: e.target.value }))} placeholder="MM/AA" inputMode="numeric" />
-                    </label>
-                    <label className="cdp-field">
-                      <span>CVV</span>
-                      <input className="cdp-input" value={cartao.cvv} onChange={(e) => setCartao((c) => ({ ...c, cvv: e.target.value }))} placeholder="123" inputMode="numeric" />
-                    </label>
-                  </div>
-                  <label className="cdp-field">
-                    <span>CPF do titular</span>
-                    <input className="cdp-input" value={cartao.cpfCnpj} onChange={(e) => setCartao((c) => ({ ...c, cpfCnpj: e.target.value }))} placeholder="000.000.000-00" inputMode="numeric" />
-                  </label>
-                  <div className="cdp-safe"><Icon.lock />Pagamento seguro via ASAAS. Não guardamos os dados do seu cartão.</div>
-                </div>
-              )}
 
               {erro && <div className="cdp-erro">{erro}</div>}
               <button className="cdp-cta" style={{ marginTop: 6 }} disabled={ocupado || nome.trim().length < 2} onClick={finalizar}>
-                {ocupado ? "Processando…" : forma === "PIX" ? `Pagar ${brl(total)} com PIX` : `Pagar ${brl(total)} no cartão`}
+                {ocupado ? "Enviando…" : `Fazer pedido · ${brl(total)}`}
               </button>
             </div>
           </div>
         </>
       )}
 
-      {/* ---- PIX ---- */}
-      {etapa === "pix" && (
+      {/* ---- MODAL DE EDIÇÃO DO PEDIDO ---- */}
+      {edicao && modalEdicaoAberto && (
         <>
-          <div className="cdp-sheet-veu" />
-          <div className="cdp-sheet" role="dialog" aria-modal="true">
+          <button className="cdp-sheet-veu" aria-label="Fechar" onClick={() => setModalEdicaoAberto(false)} />
+          <div className="cdp-sheet cdp-edit-modal" role="dialog" aria-modal="true" aria-label={`Editar pedido ${edicao.numero}`}>
             <div className="cdp-sheet-grip" />
-            <div className="cdp-sheet-inner cdp-pix">
-              <h2 style={{ margin: 0, fontSize: 21, fontWeight: 800 }}>Pague com PIX</h2>
-              <div className="cdp-pix-valor" style={{ marginTop: 12 }}>
-                {brl(total)}
-                <small>Escaneie o QR ou copie o código</small>
+            <div className="cdp-sheet-inner">
+              <div className="cdp-edit-modal-head">
+                <span className="cdp-edit-modal-ic" aria-hidden><PencilSimple weight="fill" /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2>Editar pedido</h2>
+                  <p className="cdp-edit-modal-sub">Pedido #{edicao.numero} · pagamento no balcão</p>
+                </div>
+                <button className="cdp-sheet-x" onClick={() => setModalEdicaoAberto(false)} aria-label="Fechar"><X weight="bold" /></button>
               </div>
-              {pix?.pixQrcode ? (
-                <img className="cdp-pix-qr" src={pix.pixQrcode} alt="QR Code PIX" />
-              ) : pix?.pixCopiaCola ? null : (
-                <p style={{ fontSize: 13, color: "var(--cdp-muted)", margin: "22px 0" }}>Gerando cobrança…</p>
-              )}
-              {pix?.pixCopiaCola && (
-                <div className="cdp-pix-copy">
-                  <input readOnly value={pix.pixCopiaCola} onFocus={(e) => e.currentTarget.select()} />
-                  <button onClick={copiarPix}>{copiado ? "Copiado!" : "Copiar"}</button>
+
+              {itensCarrinho.length === 0 ? (
+                <div className="cdp-edit-vazio">
+                  <Receipt weight="thin" />
+                  <p>Sem itens. Adicione algo do cardápio ou cancele a edição.</p>
+                </div>
+              ) : (
+                <div className="cdp-edit-lista">
+                  {itensCarrinho.map((p) => (
+                    <div key={p.produtoId} className="cdp-edit-item">
+                      <div className="cdp-edit-item-nm">
+                        <b>{p.nome}</b>
+                        <small>{brl(p.preco)} · un</small>
+                      </div>
+                      <div className="cdp-edit-item-stepper">
+                        <button onClick={() => setQty(p.produtoId, -1, p.disponivel)} aria-label="Menos um"><span>−</span></button>
+                        <b>{p.qtd}</b>
+                        <button onClick={() => setQty(p.produtoId, +1, p.disponivel)} disabled={p.disponivel != null && p.qtd >= p.disponivel} aria-label="Mais um"><span>+</span></button>
+                      </div>
+                      <button className="cdp-edit-item-rm" onClick={() => removerDoCarrinho(p.produtoId)} aria-label="Remover"><Trash weight="bold" /></button>
+                    </div>
+                  ))}
                 </div>
               )}
-              <div className="cdp-pix-wait"><span className="dot" />Aguardando confirmação do pagamento…</div>
-              {erro && <div className="cdp-erro" style={{ marginTop: 14 }}>{erro}</div>}
-              {/* Só aparece quando não há gateway configurado (dev/homolog). */}
-              {!pix?.pixQrcode && (
-                <button className="cdp-cta ghost" style={{ marginTop: 16 }} onClick={simularPago}>Já paguei (homolog)</button>
+
+              <button
+                type="button"
+                className="cdp-edit-add"
+                onClick={() => { setModalEdicaoAberto(false); irParaTopo(); }}
+              >
+                <Plus weight="bold" /> Adicionar itens do cardápio
+              </button>
+
+              <div className="cdp-edit-total">
+                <span>Novo total</span>
+                <b>{brl(total)}</b>
+              </div>
+              {edicao.totalOriginal !== total && (
+                <p className="cdp-edit-delta">
+                  Total original: {brl(edicao.totalOriginal)}
+                </p>
               )}
+
+              {erro && <div className="cdp-erro" style={{ marginTop: 12 }}>{erro}</div>}
+            </div>
+
+            <div className="cdp-edit-modal-foot">
+              <button type="button" className="cdp-cta ghost" onClick={sairEdicao}>Cancelar edição</button>
+              <button
+                type="button"
+                className="cdp-cta"
+                disabled={salvarEdicao.isPending || itensCarrinho.length === 0}
+                onClick={() => salvarEdicao.mutate()}
+              >
+                <FloppyDisk weight="fill" /> {salvarEdicao.isPending ? "Salvando…" : "Salvar alterações"}
+              </button>
             </div>
           </div>
         </>
       )}
+
+      {/* ---- MODAL "VER PEDIDO" (acompanhamento dentro do cardápio) ---- */}
+      {verPedidoModal && (
+        <>
+          <button className="cdp-sheet-veu" aria-label="Fechar" onClick={() => setVerPedidoModal(null)} />
+          <div className="cdp-sheet cdp-ver-modal" role="dialog" aria-modal="true" aria-label="Acompanhar pedido">
+            <div className="cdp-sheet-grip" />
+            <AcompanharPedido id={verPedidoModal} emModal onFechar={() => setVerPedidoModal(null)} />
+          </div>
+        </>
+      )}
+
+      {/* ---- FAB voltar ao topo ---- */}
+      <button
+        type="button"
+        className={`cdp-fab-topo ${mostrarFabTopo ? "on" : ""}`}
+        onClick={irParaTopo}
+        aria-label="Voltar ao topo"
+        title="Voltar ao topo"
+      >
+        <ArrowUp weight="bold" />
+      </button>
     </div>
   );
 }

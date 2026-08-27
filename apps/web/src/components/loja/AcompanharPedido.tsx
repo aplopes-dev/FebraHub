@@ -1,6 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PencilSimple, Bell, Confetti, Printer, X } from "@phosphor-icons/react";
 import { acompanharPedido, comprovantePedido } from "@/services/api/loja-pedidos";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import type { LojaPedidoStatus } from "@/types/loja-pedidos";
@@ -22,8 +23,8 @@ const ORDEM: Record<string, number> = {
 };
 
 const ROTULO: Record<string, string> = {
-  AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
-  PAGAMENTO_CONFIRMADO: "Pagamento confirmado",
+  AGUARDANDO_PAGAMENTO: "Registrando pedido…",
+  PAGAMENTO_CONFIRMADO: "Pedido confirmado",
   NA_FILA: "Na fila",
   PROXIMO: "Você é o próximo!",
   EM_PREPARACAO: "Em preparação",
@@ -32,7 +33,7 @@ const ROTULO: Record<string, string> = {
   CANCELADO: "Pedido cancelado",
 };
 
-export function AcompanharPedido({ id }: { id: string }) {
+export function AcompanharPedido({ id, emModal = false, onFechar }: { id: string; emModal?: boolean; onFechar?: () => void }) {
   const qc = useQueryClient();
 
   const acomp = useQuery({
@@ -54,14 +55,22 @@ export function AcompanharPedido({ id }: { id: string }) {
   const p = acomp.data;
   const c = comp.data;
 
-  if (acomp.isLoading) return <div className="acomp-page"><p>Carregando…</p></div>;
-  if (!p) return <div className="acomp-page"><p>Pedido não encontrado.</p></div>;
+  if (acomp.isLoading) return <div className={emModal ? "acomp-modal-body" : "acomp-page"}><p>Carregando…</p></div>;
+  if (!p) return <div className={emModal ? "acomp-modal-body" : "acomp-page"}><p>Pedido não encontrado.</p></div>;
 
   const nivel = ORDEM[p.status] ?? 0;
   const retirado = p.status === "RETIRADO";
 
   return (
-    <div className="acomp-page">
+    <div className={emModal ? "acomp-modal-body" : "acomp-page"}>
+      {emModal && (
+        <div className="acomp-modal-head">
+          <h2>Seu pedido</h2>
+          <button className="cmp-print acomp-modal-x" onClick={onFechar} aria-label="Fechar" style={{ width: "auto", margin: 0, padding: "8px 10px" }}>
+            <X weight="bold" size={16} />
+          </button>
+        </div>
+      )}
       <div className="acomp-card">
         {/* Informação operacional PRINCIPAL = NÚMERO DO PEDIDO (a senha da fila
             deixou de ser exibida ao cliente; a TV também chama pelo nº do pedido). */}
@@ -76,18 +85,18 @@ export function AcompanharPedido({ id }: { id: string }) {
           </>
         )}
         {p.status === "PROXIMO" && (
-          <div className="acomp-pos" style={{ color: "#e9b949", fontSize: 30, letterSpacing: ".05em" }}>
-            Dirija-se ao balcão 🔔
+          <div className="acomp-pos" style={{ color: "#e9b949", fontSize: 26, letterSpacing: ".01em", display: "inline-flex", alignItems: "center", gap: 10 }}>
+            <Bell weight="fill" size={26} /> Dirija-se ao balcão
           </div>
         )}
         {p.status === "PRONTO" && (
-          <div className="acomp-pos" style={{ color: "#5ac37a", fontSize: 30 }}>Pode retirar 🎉</div>
+          <div className="acomp-pos" style={{ color: "#5ac37a", fontSize: 26, display: "inline-flex", alignItems: "center", gap: 10 }}><Confetti weight="fill" size={26} /> Pode retirar</div>
         )}
 
         {/* Enquanto o pedido não foi para preparação, o cliente pode ajustar os itens. */}
         {p.editavelPeloCliente && p.operacaoSlug && (
           <a className="acomp-editar" href={`/cardapio/${p.operacaoSlug}?editar=${p.id}`}>
-            ✏️ Editar meu pedido
+            <PencilSimple weight="bold" size={15} /> Editar meu pedido
           </a>
         )}
 
@@ -105,17 +114,22 @@ export function AcompanharPedido({ id }: { id: string }) {
         )}
       </div>
 
-      {/* Comprovante com QR de retirada — só quando pago e ainda não retirado. */}
+      {/* Comprovante com QR de retirada — quando o pedido está confirmado (na
+          fila) e ainda não retirado. O pagamento é no balcão. */}
       {c && c.pago && !c.cancelado && (
         <div className={`cmp-card ${retirado ? "retirado" : ""}`}>
           <div className="cmp-head">
             <div>
-              <span className="cmp-badge">{retirado ? "✔ Retirado" : "✔ Pago"}</span>
-              <h2>Comprovante de compra</h2>
+              <span className="cmp-badge">{retirado ? "✔ Retirado" : "✔ Pedido confirmado"}</span>
+              <h2>Comprovante do pedido</h2>
               <p className="cmp-op">{c.operacao}</p>
             </div>
             <div className="cmp-num">#{c.numero}</div>
           </div>
+
+          {!retirado && (
+            <p className="cmp-pagar-balcao">💳 Pague no balcão ao retirar seu pedido.</p>
+          )}
 
           {!retirado && c.codigo != null && (
             <div className="cmp-codigo">
@@ -135,7 +149,7 @@ export function AcompanharPedido({ id }: { id: string }) {
           )}
           {retirado && (
             <div className="cmp-retirado">
-              <div className="cmp-retirado-icone">🎉</div>
+              <div className="cmp-retirado-icone"><Confetti weight="fill" size={38} color="#e9b949" /></div>
               <p>Pedido retirado com sucesso.</p>
               {c.retiradoEm && <small>{new Date(c.retiradoEm).toLocaleString("pt-BR")}</small>}
             </div>
@@ -160,7 +174,7 @@ export function AcompanharPedido({ id }: { id: string }) {
           </div>
 
           {!retirado && (
-            <button className="cmp-print" onClick={() => window.print()}>Salvar / imprimir comprovante</button>
+            <button className="cmp-print" onClick={() => window.print()}><Printer weight="bold" size={16} style={{ verticalAlign: "-3px", marginRight: 7 }} />Salvar / imprimir comprovante</button>
           )}
           <p className="cmp-rodape">Guarde este comprovante até a retirada. Loja FEBRACIS.</p>
         </div>

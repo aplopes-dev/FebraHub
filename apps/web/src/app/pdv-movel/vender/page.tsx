@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Banknote, Barcode, Camera, Check, ChefHat, Copy, CreditCard, ImageOff,
   Loader2, Minus, Pencil, Percent, Plus, Printer, QrCode, Search, Trash2, User, UserPlus, X,
+  Star, PartyPopper,
 } from "lucide-react";
 import {
   checkout, confirmarPagamento, imprimirCupomPedido, iniciarPagamento, iniciarPreparacao,
@@ -343,7 +344,7 @@ export default function Vender() {
       {destaquesMovel.length > 0 && !busca && !categoria && (
         <div className="pm-destaques">
           <div className="pm-destaques-head">
-            <span>⭐</span>
+            <Star size={13} fill="currentColor" />
             <span>Destaques &amp; Bebidas</span>
           </div>
           <div className="pm-destaques-rail">
@@ -559,7 +560,7 @@ export default function Vender() {
               return (
                 <div className="pm-sheet-body">
                   <div className="pm-sucesso">
-                    <div className="ico">🎉</div>
+                    <div className="ico"><PartyPopper size={46} /></div>
                     <h2>Pedido #{estado.pedido.numero}</h2>
                     <p>{emPreparo
                       ? "Em preparação — cupom enviado para a impressora."

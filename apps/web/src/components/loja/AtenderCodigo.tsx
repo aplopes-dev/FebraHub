@@ -159,6 +159,8 @@ export function AtenderCodigo() {
                 onKeyDown={(e) => e.key === "Enter" && submeterBusca()}
                 placeholder="000"
                 inputMode="numeric"
+                enterKeyHint="search"
+                autoComplete="off"
                 maxLength={3}
                 autoFocus
               />

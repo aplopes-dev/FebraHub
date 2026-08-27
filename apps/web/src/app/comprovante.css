@@ -3,32 +3,38 @@
    aparelho. Escopo .cmp-*. Inclui estilos de impressão (salvar como PDF). */
 
 .cmp-card{
-  width:100%;max-width:420px;margin:16px auto 0;
-  border:1px solid #26262c;border-radius:22px;background:#141418;color:#fff;
+  width:100%;max-width:440px;margin:14px auto 0;
+  border:1px solid #26262c;background:#16161d;color:#fff;
   padding:22px;
 }
 .cmp-card.retirado{opacity:.94}
 
 .cmp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.cmp-head h2{font-size:16px;margin:6px 0 0}
+.cmp-head h2{font-size:16px;margin:8px 0 0}
 .cmp-op{margin:2px 0 0;color:#9a9aa2;font-size:12.5px}
 .cmp-badge{
   display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;
-  padding:3px 10px;border-radius:999px;background:rgba(90,195,122,.16);
+  padding:4px 10px;background:rgba(90,195,122,.16);
   color:#5ac37a;border:1px solid rgba(90,195,122,.35);
 }
 .cmp-card.retirado .cmp-badge{background:rgba(233,185,73,.15);color:#e9b949;border-color:rgba(233,185,73,.4)}
 .cmp-num{font-size:26px;font-weight:900;color:#e9b949;line-height:1}
+/* aviso "pague no balcão" (cardápio não cobra online) — tile plano c/ faixa */
+.cmp-pagar-balcao{
+  margin:14px 0 0;padding:11px 13px;font-size:13.5px;font-weight:700;
+  color:#e9b949;background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.28);
+  border-left:3px solid #e9b949;
+}
 
 /* Código SECRETO de retirada (3 dígitos) — herói do comprovante do cliente. */
-.cmp-codigo{margin:16px 0 6px;text-align:center;background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.35);border-radius:16px;padding:16px 12px}
+.cmp-codigo{margin:16px 0 6px;text-align:center;background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.35);padding:16px 12px}
 .cmp-codigo-legenda{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#e9b949}
 .cmp-codigo-num{font-size:56px;font-weight:900;line-height:1;letter-spacing:.14em;color:#fff;font-variant-numeric:tabular-nums}
 .cmp-codigo-dica{margin:8px 0 0;font-size:12.5px;color:#cfcfd6}
 
 .cmp-qr{margin:18px 0 8px;text-align:center}
 .cmp-qr img{
-  width:220px;height:220px;background:#fff;padding:12px;border-radius:16px;
+  width:220px;height:220px;background:#fff;padding:12px;
   display:inline-block;
 }
 .cmp-qr-legenda{margin:12px 0 2px;font-size:13px;color:#cfcfd6;font-weight:600}
@@ -52,10 +58,11 @@
 .cmp-linha.total{font-size:18px;font-weight:900;color:#fff;padding-top:4px}
 
 .cmp-print{
-  width:100%;margin-top:16px;padding:12px;border-radius:12px;cursor:pointer;
-  border:1px solid #33333a;background:#1c1c22;color:#fff;font-weight:700;font-size:13.5px;
+  width:100%;margin-top:16px;padding:13px;cursor:pointer;
+  border:1px solid #33333a;background:#1c1c22;color:#fff;font-weight:700;font-size:14px;
+  touch-action:manipulation;
 }
-.cmp-print:hover{background:#23232a}
+.cmp-print:active{background:#23232a}
 .cmp-rodape{margin:12px 0 0;text-align:center;font-size:11px;color:#6f6f78}
 
 /* Impressão: fundo branco, esconde o resto, mantém o QR nítido. */

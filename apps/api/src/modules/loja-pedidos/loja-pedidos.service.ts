@@ -363,6 +363,74 @@ export class LojaPedidosService {
     return this.confirmarPagamento(pedidoId, dto, 'webhook');
   }
 
+  /**
+   * FAZER PEDIDO (cardápio SEM cobrança online) — o cliente só REGISTRA o
+   * pedido; o pagamento acontece no BALCÃO na hora da retirada. Diferente de
+   * confirmarPagamento:
+   *   - NÃO exige um pagamento PENDENTE, NÃO cria recebível no Financeiro
+   *     (a receita é lançada quando o operador cobrar no balcão);
+   *   - baixa a reserva de estoque → saída (o item já é do cliente) e entra na
+   *     FILA com senha + token de retirada (o cliente precisa do código/QR p/
+   *     retirar), mas o pedido fica marcado como "confirmado, a pagar".
+   * Idempotente por pedido (reenvio devolve o estado atual).
+   */
+  async fazerPedidoBalcao(pedidoId: string) {
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const pedido = await tx.lojaPedido.findUnique({ where: { id: pedidoId }, include: { itens: true, operacao: true } });
+      if (!pedido) throw new NotFoundException('Pedido não encontrado.');
+      if (pedido.status === 'CANCELADO') throw new BadRequestException('Pedido cancelado.');
+      if (pedido.status !== 'AGUARDANDO_PAGAMENTO') {
+        // Já registrado — idempotente.
+        return { pedido: jsonSeguro(pedido), jaFeito: true, posicao: pedido.posicaoFila, senha: pedido.senhaFila };
+      }
+
+      // Reserva → saída física (o item passa a ser do cliente ao fazer o pedido).
+      for (const it of pedido.itens) {
+        const produto = await tx.lojaProduto.findUnique({ where: { id: it.produtoId }, include: { saldos: { where: { local: 'LOJA' } } } });
+        if (!produto || !produto.controlaEstoque) continue;
+        const saldo = produto.saldos[0];
+        const saldoFisico = Number(saldo?.saldoFisico ?? 0);
+        const qtd = Number(it.quantidade);
+        await tx.lojaEstoqueSaldo.update({
+          where: { produtoId_local: { produtoId: it.produtoId, local: 'LOJA' } },
+          data: { saldoFisico: { decrement: it.quantidade }, reservado: { decrement: it.quantidade } },
+        });
+        await tx.lojaEstoqueMovimento.create({
+          data: { produtoId: it.produtoId, local: 'LOJA', tipo: 'saida', quantidade: it.quantidade, saldoApos: D(saldoFisico - qtd), origem: 'cardapio', referenciaId: `PED-${pedido.numero}`, observacao: `Pedido #${pedido.numero} (a pagar no balcão)` },
+        });
+      }
+
+      // Todo pedido do cardápio entra na fila com senha (o cliente não está no balcão).
+      let senha: number | null = pedido.senhaFila;
+      if (senha == null) senha = await this.proximaSenha(tx, pedido.operacaoId!);
+      const posicao = await this.calcularPosicaoFila(tx, pedido.operacaoId);
+
+      const atualizado = await tx.lojaPedido.update({
+        where: { id: pedido.id },
+        data: {
+          status: 'NA_FILA', confirmadoEm: new Date(),
+          // Token de retirada: o cliente precisa do QR/código p/ retirar no balcão.
+          tokenRetirada: pedido.tokenRetirada ?? gerarTokenRetirada(),
+          entrouFilaEm: new Date(), posicaoFila: posicao, senhaFila: senha,
+          historico: { create: [
+            { deStatus: 'AGUARDANDO_PAGAMENTO', paraStatus: 'NA_FILA', origem: 'cliente', observacao: senha != null ? `Pedido feito — pagamento no balcão · senha ${fmtSenha(senha)}` : 'Pedido feito — pagamento no balcão' },
+          ] },
+        },
+        include: { itens: true, operacao: true },
+      });
+      return { pedido: jsonSeguro(atualizado), jaFeito: false, posicao, senha };
+    });
+
+    if (!resultado.jaFeito) {
+      const p = resultado.pedido as unknown as { id: string; numero: number; operacaoId: string | null; clienteTel: string | null };
+      this.eventos.emitir({ tipo: 'fila', operacaoId: p.operacaoId ?? undefined });
+      this.eventos.emitir({ tipo: 'pedido', pedidoId: p.id });
+      void this.avisar(p.clienteTel, mensagemRegua('confirmado', resultado.senha ?? null, p.numero, resultado.posicao));
+      void this.auditar({ entidade: 'pedido', entidadeId: p.id, acao: 'pedido.feito.balcao', origem: 'cliente', depois: { numero: p.numero, senha: resultado.senha ?? null } });
+    }
+    return resultado.pedido;
+  }
+
   /** Webhook do gateway: confirma o pagamento de forma idempotente. Encontra o
    *  pagamento pelo gateway_id, e só age quando o status vira CONFIRMADO. Um
    *  reenvio do mesmo evento não confirma duas vezes (o confirmarPagamento já

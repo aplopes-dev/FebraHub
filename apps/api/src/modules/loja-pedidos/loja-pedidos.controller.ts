@@ -45,6 +45,14 @@ export class LojaPedidosController {
     return this.s.confirmarPagamentoPublico(id, dto);
   }
 
+  /** FAZER PEDIDO pelo cardápio SEM pagar online — o pagamento é no balcão.
+   *  Registra o pedido, baixa estoque e entra na fila (senha + código/QR de
+   *  retirada), sem gerar recebível. Idempotente. */
+  @Publica() @Post('publico/pedidos/:id/fazer')
+  fazerPedidoBalcao(@Param('id', ParseUUIDPipe) id: string) {
+    return this.s.fazerPedidoBalcao(id);
+  }
+
   /** WEBHOOK do gateway ASAAS. Autenticado pelo header `asaas-access-token`
    *  (configurado no painel do ASAAS = env ASAAS_WEBHOOK_TOKEN). Idempotente. */
   @Publica() @Post('publico/webhook/asaas')

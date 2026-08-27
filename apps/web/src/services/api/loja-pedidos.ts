@@ -19,6 +19,9 @@ export const iniciarPagamento = (
 ) => api.post<LojaPedidoPagamento>(`/loja-pedidos/publico/pedidos/${id}/pagamento`, d);
 export const confirmarPagamentoPublico = (id: string, d: { pagamentoId?: string; gatewayId?: string } = {}) =>
   api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/pagamento/confirmar`, d);
+/** Cardápio SEM cobrança online: registra o pedido (fila + código/QR); paga-se no balcão. */
+export const fazerPedidoBalcao = (id: string) =>
+  api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/fazer`, {});
 export const acompanharPedido = (id: string) => api.get<AcompanharPedido>(`/loja-pedidos/publico/pedidos/${id}/acompanhar`);
 /** O próprio cliente edita os itens do pedido pelo link do cardápio (só enquanto
  *  não pagou ou está na fila). Substitui a lista de itens por completo. */

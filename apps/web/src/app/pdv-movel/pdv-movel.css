@@ -111,7 +111,7 @@ html.pm-overlay-aberto body{overflow:hidden}
 .pm-top-sair:active{background:rgba(255,255,255,.06);color:var(--pm-fg)}
 
 /* área central rolável */
-.pm-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 16px;overscroll-behavior:contain}
+.pm-main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px 16px 16px;overscroll-behavior:contain}
 
 /* bottom navigation — tile plano; item ativo = barra dourada no topo + ícone dourado.
    É um SÓLIDO OPACO que intercepta o toque na sua faixa inteira (incl. a tira da
@@ -122,7 +122,7 @@ html.pm-overlay-aberto body{overflow:hidden}
   flex:none;
   display:grid;
   /* linha explícita p/ as tabs + faixa da safe-area, ambas dentro do MESMO tile */
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   grid-template-rows:1fr env(safe-area-inset-bottom, 0px);
   background:var(--pm-card);border-top:1px solid var(--pm-line);
   position:relative;z-index:100;isolation:isolate;
@@ -137,9 +137,10 @@ html.pm-overlay-aberto body{overflow:hidden}
 }
 .pm-tab{
   grid-row:1;
-  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  height:100%;min-height:52px;padding:9px 2px;border:none;background:var(--pm-card);cursor:pointer;
-  color:var(--pm-muted);font-size:10.5px;font-weight:600;text-decoration:none;
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  height:100%;min-height:52px;padding:9px 1px;border:none;background:var(--pm-card);cursor:pointer;
+  color:var(--pm-muted);font-size:10px;font-weight:600;text-decoration:none;line-height:1.1;
+  white-space:nowrap;
   transition:color .18s,background .18s;-webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
 }
@@ -326,7 +327,7 @@ html.pm-overlay-aberto body{overflow:hidden}
 .pm-pix-copia input{flex:1;padding:12px;border:1px solid var(--pm-line);background:var(--pm-bg);color:var(--pm-fg);font-size:11px}
 
 .pm-sucesso{text-align:center;padding:30px 10px;display:grid;gap:8px;place-items:center}
-.pm-sucesso .ico{font-size:52px}
+.pm-sucesso .ico{color:var(--pm-gold);display:grid;place-items:center}
 .pm-sucesso h2{margin:0;font-size:22px;font-weight:700}
 .pm-sucesso p{margin:0;color:var(--pm-muted)}
 
@@ -357,6 +358,96 @@ html.pm-overlay-aberto body{overflow:hidden}
 .pm-scanwrap .cod-page{padding:0;max-width:none;gap:14px}
 .pm-scanwrap .ret-hero,
 .pm-scanwrap .cod-hero{display:none}
+
+/* ── Aba CÓDIGO (chave) no PDV móvel — reaproveita AtenderCodigo (.cod-*), mas o
+   layout era desktop (linhas lado a lado, botões que não esticam, hover, inputs
+   <16px). Aqui reescrevemos SÓ dentro de .pm-scanwrap p/ ficar touch-first e
+   plano (concessionária): pilha vertical, alvos grandes, campos filled, CTAs
+   full-width. Não afeta o /loja/codigo do desktop. ── */
+
+/* Anti-overflow: a .pm-main / .cod-page são grid; itens de grid têm min-width:auto
+   e "estouram" quando o conteúdo (ex.: input com letter-spacing) é largo. Força
+   min-width:0 em tudo e trava overflow-x na coluna. */
+.pm-scanwrap,
+.pm-scanwrap .cod-page,
+.pm-scanwrap .cod-page > *{min-width:0;max-width:100%}
+.pm-scanwrap .cod-page{overflow-x:hidden}
+.pm-scanwrap *{box-sizing:border-box}
+
+/* busca do código: input grande em cima, botão full-width embaixo */
+.pm-scanwrap .cod-busca{display:grid;gap:12px}
+.pm-scanwrap .cod-busca-linha{flex-direction:column;gap:10px;align-items:stretch}
+.pm-scanwrap .cod-input-cod{
+  border-radius:0;border:1px solid var(--pm-line);border-bottom:2px solid var(--pm-line);
+  background:var(--pm-elev);padding:4px 12px;min-height:58px;min-width:0;width:100%;
+}
+.pm-scanwrap .cod-input-cod:focus-within{border-bottom-color:var(--pm-gold)}
+.pm-scanwrap .cod-input-cod input{
+  min-width:0;width:100%;padding:12px 0;
+  font-size:28px;font-weight:800;letter-spacing:.18em;text-align:center;
+  /* compensa o "trailing" do letter-spacing p/ não empurrar a largura */
+  text-indent:.18em;
+  background:transparent;
+}
+.pm-scanwrap .cod-busca .loja-btn{
+  width:100%;justify-content:center;border-radius:0;min-height:52px;font-size:16px;
+}
+.pm-scanwrap .cod-busca label,
+.pm-scanwrap .cod-dica{text-align:center}
+
+/* botões: full-width, retos, alvo ≥52px, sem hover (touch) */
+.pm-scanwrap .loja-btn,
+.pm-scanwrap .cod-imprimir{
+  width:100%;justify-content:center;border-radius:0;min-height:52px;font-size:15px;
+  touch-action:manipulation;
+}
+.pm-scanwrap .cod-acoes{flex-direction:column;gap:10px}
+.pm-scanwrap .cod-acoes .loja-btn{flex:1 1 auto}
+
+/* topo do pedido: código + status empilham confortável */
+.pm-scanwrap .cod-pedido-topo{gap:8px}
+.pm-scanwrap .cod-pedido{border-radius:0}
+
+/* item em edição: empilha stepper / observação / remover (não espremer) */
+.pm-scanwrap .cod-item{border-radius:0}
+.pm-scanwrap .cod-item-edit{
+  flex-direction:column;align-items:stretch;gap:10px;
+}
+.pm-scanwrap .cod-item-edit .cod-qtd{
+  align-self:flex-start;border-radius:0;
+}
+.pm-scanwrap .cod-qtd button{min-width:44px;min-height:44px}
+.pm-scanwrap .cod-obs{
+  width:100%;border-radius:0;background:var(--pm-elev);border:1px solid var(--pm-line);
+  min-height:46px;box-sizing:border-box;
+}
+.pm-scanwrap .cod-remove{
+  width:100%;min-height:46px;border-radius:0;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+/* adicionar produto */
+.pm-scanwrap .cod-add-busca{border-radius:0;min-height:50px}
+.pm-scanwrap .cod-add-item{border-radius:0;min-height:48px}
+.pm-scanwrap .cod-add-lista{max-height:44vh}
+/* totais planos */
+.pm-scanwrap .cod-totais{padding-top:12px}
+.pm-scanwrap .cod-desc-input input{border-radius:0;background:var(--pm-elev)}
+
+/* iOS: todo campo desta aba ≥16px p/ não dar zoom ao focar (o cod-input é 28px) */
+.pm-scanwrap .cod-obs,
+.pm-scanwrap .cod-add-busca input,
+.pm-scanwrap .cod-desc-input input{font-size:16px}
+
+/* Anti-overflow em linhas: descrições longas truncam, nada empurra a largura */
+.pm-scanwrap .cod-item-info,
+.pm-scanwrap .cod-item-view,
+.pm-scanwrap .cod-add-item{min-width:0;flex-wrap:wrap}
+.pm-scanwrap .cod-item-desc,
+.pm-scanwrap .cod-add-item > span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pm-scanwrap .cod-add-busca{min-width:0}
+.pm-scanwrap .cod-add-busca input{min-width:0;width:100%}
+/* stepper e caixa de desconto não podem exceder a coluna */
+.pm-scanwrap .cod-desc-input{max-width:100%}
+.pm-scanwrap .cod-desc-input input{width:100%;min-width:0}
 
 /* card selecionado no grid */
 .pm-prod.sel{border-color:var(--pm-gold);box-shadow:inset 0 0 0 1px var(--pm-gold)}
@@ -520,7 +611,7 @@ html.pm-overlay-aberto body{overflow:hidden}
   font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
   color:var(--pm-muted);margin-bottom:10px;
 }
-.pm-destaques-head span:first-child{font-size:13px}
+.pm-destaques-head>svg{color:var(--pm-gold)}
 .pm-destaques-rail{
   display:flex;gap:8px;overflow-x:auto;
   padding-bottom:4px;scrollbar-width:none;
