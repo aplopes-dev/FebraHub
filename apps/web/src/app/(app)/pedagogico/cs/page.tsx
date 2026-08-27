@@ -1,12 +1,14 @@
 "use client";
 import "@/app/pedagogico.css";
-import { useCallback, useEffect, useState } from "react";
-import { pedagogico } from "@/services/api/pedagogico";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { pedagogico, type PedagogicoRepresado } from "@/services/api/pedagogico";
 import { ModalPrompt } from "@/components/ui/ModalPrompt";
 import { Select } from "@/components/ui/Select";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
+const fmtDataDia = (s?: string | null) => (s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR") : "—");
 
 type CsItem = {
   id: string;
@@ -25,7 +27,147 @@ type CsItem = {
 const STATUS = ["aberto", "em_andamento", "resolvido", "cancelado"];
 const MOTIVOS = ["risco_evasao", "represado", "insatisfacao", "financeiro", "retencao", "outro"];
 
+// ─── Página com abas: Acompanhamentos (CS) + Represados ───────────────────────
+// Represados virou uma ABA aqui (mesma família de worklist de risco do aluno);
+// o item de menu "Represados" saiu do sidebar. A rota /pedagogico/represados
+// segue no disco p/ os deep-links do dashboard.
 export default function CustomerSuccessPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const aba = params.get("aba") === "represados" ? "represados" : "acompanhamentos";
+
+  const irPara = (a: "acompanhamentos" | "represados") => {
+    router.replace(a === "represados" ? "/pedagogico/cs?aba=represados" : "/pedagogico/cs");
+  };
+
+  return (
+    <div className="ped-page">
+      <div className="ped-page-header">
+        <h1>Customer Success</h1>
+        <p className="ped-page-sub">Alunos que exigem atenção: acompanhamentos ativos e a lista de represados por validade.</p>
+      </div>
+
+      <div className="ped-abas">
+        <button className={`ped-aba-btn${aba === "acompanhamentos" ? " ativo" : ""}`} onClick={() => irPara("acompanhamentos")}>
+          Acompanhamentos
+        </button>
+        <button className={`ped-aba-btn${aba === "represados" ? " ativo" : ""}`} onClick={() => irPara("represados")}>
+          Represados
+        </button>
+      </div>
+
+      <div className="ped-aba-conteudo">
+        {aba === "represados" ? <RepresadosTab /> : <AcompanhamentosCS />}
+      </div>
+    </div>
+  );
+}
+
+// ─── Aba: Represados (lista read-only por validade) ───────────────────────────
+function RepresadosTab() {
+  const [lista, setLista] = useState<PedagogicoRepresado[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [apenasVencendo, setApenasVencendo] = useState(false);
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const res = await pedagogico.represados();
+      setLista(res ?? []);
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : "Erro ao carregar represados.");
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => { void carregar(); }, [carregar]);
+
+  const filtrada = useMemo(() => lista.filter((r) => {
+    if (apenasVencendo && !r.alertaVencimento) return false;
+    if (busca) {
+      const q = busca.toLowerCase();
+      return (
+        (r.pessoaNome ?? "").toLowerCase().includes(q) ||
+        (r.pessoaCpf ?? "").toLowerCase().includes(q) ||
+        (r.cursoNome ?? "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  }), [lista, apenasVencendo, busca]);
+
+  const vencendo = lista.filter((r) => r.alertaVencimento).length;
+
+  return (
+    <div>
+      {vencendo > 0 && !apenasVencendo && (
+        <div className="ped-atencao-banner" onClick={() => setApenasVencendo(true)}>
+          <span>⚠</span>
+          <strong>{vencendo} represado(s) com validade vencendo (≤ 30 dias)</strong>
+          <span className="ped-atencao-link">Ver apenas estes →</span>
+        </div>
+      )}
+      {apenasVencendo && (
+        <div className="ped-atencao-banner ativo">
+          <span>🔍 Filtrando: represados vencendo</span>
+          <button className="ped-btn-xs" onClick={() => setApenasVencendo(false)}>Ver todos</button>
+        </div>
+      )}
+
+      <div className="ped-filtros-row">
+        <input className="ped-input" placeholder="Buscar por nome, CPF ou curso…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <button className="ped-btn-outline" onClick={() => void carregar()}>Atualizar</button>
+        <span className="ped-total-label">{filtrada.length} resultado(s)</span>
+      </div>
+
+      {erro && <div className="ped-erro">{erro}</div>}
+
+      {carregando ? (
+        <div className="ped-loading"><span className="ped-spinner" />Carregando represados…</div>
+      ) : filtrada.length === 0 ? (
+        <div className="ped-empty">Nenhum aluno represado encontrado.</div>
+      ) : (
+        <div className="ped-tabela-wrapper">
+          <table className="ped-tabela">
+            <thead>
+              <tr>
+                <th>Aluno</th><th>CPF</th><th>Telefone</th><th>Curso</th>
+                <th>Compra</th><th>Validade</th><th>Dias restantes</th><th>Última turma</th><th>Transf.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrada.map((r) => (
+                <tr key={r.id} className={r.alertaVencimento ? "ped-row-atencao" : ""}>
+                  <td><strong>{r.pessoaNome ?? "—"}</strong></td>
+                  <td>{r.pessoaCpf ?? "—"}</td>
+                  <td>{r.pessoaTelefone ?? "—"}</td>
+                  <td>{r.cursoNome ?? "—"}</td>
+                  <td>{fmtDataDia(r.dataCompra)}</td>
+                  <td>{fmtDataDia(r.validadeFim)}</td>
+                  <td>
+                    {r.diasRestantes == null ? "—" : (
+                      <span className={`ped-badge ${r.diasRestantes <= 30 ? "cancelado" : "ativo"}`}>
+                        {r.diasRestantes < 0 ? `Vencido há ${Math.abs(r.diasRestantes)}d` : `${r.diasRestantes}d`}
+                      </span>
+                    )}
+                  </td>
+                  <td>{r.turmaNome ?? "—"}{r.turmaInicio ? ` (${fmtDataDia(r.turmaInicio)})` : ""}</td>
+                  <td>{r.transferencias}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Aba: Acompanhamentos (CS) ────────────────────────────────────────────────
+function AcompanhamentosCS() {
   const [lista, setLista] = useState<CsItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState("");
@@ -155,12 +297,9 @@ export default function CustomerSuccessPage() {
   const abertos = lista.filter((c) => ["aberto", "em_andamento"].includes(c.status)).length;
 
   return (
-    <div className="ped-page">
+    <div>
       <div className="ped-page-topo">
-        <div className="ped-page-header" style={{ marginBottom: 0 }}>
-          <h1>Customer Success</h1>
-          <p className="ped-page-sub">Acompanhamento de alunos que exigem atenção: risco de evasão, represados e retenção.</p>
-        </div>
+        <div style={{ flex: 1 }} />
         <button className="ped-btn-primario" onClick={() => setMostrarForm((v) => !v)}>
           {mostrarForm ? "Fechar" : "+ Novo acompanhamento"}
         </button>

@@ -248,14 +248,9 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Registro de presença por dia e sessão",
         visivel: comPermissao("pedagogico.operar"),
       },
-      {
-        id: "ped-represados",
-        label: "Represados",
-        href: "/pedagogico/represados",
-        titulo: "Alunos Represados",
-        desc: "Alunos com validade em risco — atenção prioritária",
-        visivel: comPermissao("pedagogico.ver"),
-      },
+      // "Represados" saiu do menu: virou uma ABA dentro de "Customer Success"
+      // (/pedagogico/cs?aba=represados). A rota /pedagogico/represados segue no
+      // disco p/ os deep-links do dashboard.
       {
         id: "ped-transferencias",
         label: "Transferências",

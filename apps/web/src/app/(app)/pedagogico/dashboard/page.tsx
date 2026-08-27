@@ -103,7 +103,7 @@ export default function DashboardPedagogicoPage() {
           <div className="ped-atencao">
             <BadgeAtencao n={exigeAtencao.naoResponderam}    label="não responderam"       href="/pedagogico/alunos?status=N%C3%A3o+Respondeu" />
             <BadgeAtencao n={exigeAtencao.aguardandoContato} label="aguardando contato"    href="/pedagogico/alunos?status=Aguardando+Contato" />
-            <BadgeAtencao n={exigeAtencao.represadosVencendo} label="represados vencendo"  href="/pedagogico/represados" />
+            <BadgeAtencao n={exigeAtencao.represadosVencendo} label="represados vencendo"  href="/pedagogico/cs?aba=represados" />
             <BadgeAtencao n={exigeAtencao.solicitacoesAbertas} label="solicitações abertas" href="/pedagogico/solicitacoes" variante="aviso" />
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function DashboardPedagogicoPage() {
         {[
           { label: "Nova Turma",       href: "/pedagogico/turmas/novo",    icon: <GraduationCap size={15} /> },
           { label: "Credenciamento",   href: "/pedagogico/credenciamento", icon: <CheckCircle size={15} /> },
-          { label: "Represados",       href: "/pedagogico/represados",     icon: <UserX size={15} /> },
+          { label: "Represados",       href: "/pedagogico/cs?aba=represados", icon: <UserX size={15} /> },
           { label: "Solicitações",     href: "/pedagogico/solicitacoes",   icon: <FileQuestion size={15} /> },
           { label: "Customer Success", href: "/pedagogico/cs",             icon: <Users size={15} /> },
           { label: "Transferências",   href: "/pedagogico/transferencias", icon: <RefreshCw size={15} /> },
