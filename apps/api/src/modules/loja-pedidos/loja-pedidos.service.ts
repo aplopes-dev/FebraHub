@@ -512,7 +512,8 @@ export class LojaPedidosService {
    * Venda no balcão pela FILA UNIFICADA (PRD §36-38). Diferente do checkout do
    * cardápio, a venda do PDV já nasce PAGA (o operador recebeu na hora) e vai
    * direto para o próximo estado: ENTREGAR_AGORA → RETIRADO, ou
-   * ENVIAR_PREPARACAO → NA_FILA. Baixa o MESMO estoque (loja_estoque_saldos) e
+   * ENVIAR_PREPARACAO → NA_FILA (entra na fila mesmo sem item de preparo, para
+   * o balcão acompanhar/imprimir/entregar). Baixa o MESMO estoque (loja_estoque_saldos) e
    * alimenta o MESMO Financeiro. Suporta SPLIT: várias formas somando o total.
    */
   async vendaPdv(dto: VendaPdvDto, u: UsuarioLogado) {
@@ -554,8 +555,11 @@ export class LojaPedidosService {
         throw new BadRequestException(`O split de pagamentos (${pago.toFixed(2)}) não fecha com o total da venda (${total.toFixed(2)}).`);
       }
 
-      // 3) Estado final conforme o modo do operador.
-      const enviarPreparacao = dto.modo === 'ENVIAR_PREPARACAO' && precisaPreparacao;
+      // 3) Estado final conforme o modo do operador. Quando o operador escolhe
+      //    ENVIAR_PREPARACAO (é o padrão do PDV móvel), o pedido entra na FILA
+      //    mesmo que nenhum item exija preparo — assim o balcão acompanha,
+      //    imprime o cupom e entrega pela fila unificada.
+      const enviarPreparacao = dto.modo === 'ENVIAR_PREPARACAO';
       const numero = await this.proximoNumero(tx, operacao.id);
       let posicao: number | null = null;
       let senha: number | null = null;
@@ -613,7 +617,7 @@ export class LojaPedidosService {
           pagamentos: { create: dto.pagamentos.map((p) => ({ provider: 'manual', forma: p.forma, status: 'CONFIRMADO', valor: D(p.valor), confirmadoEm: agora })) },
           historico: { create: [
             { paraStatus: 'PAGAMENTO_CONFIRMADO', origem: 'operador', usuarioId: u.id, observacao: `Venda PDV (split: ${dto.pagamentos.map((p) => p.forma).join(', ')})` },
-            { deStatus: 'PAGAMENTO_CONFIRMADO', paraStatus: status, origem: 'operador', usuarioId: u.id, observacao: enviarPreparacao ? 'Enviado para preparação' : 'Entregue no balcão' },
+            { deStatus: 'PAGAMENTO_CONFIRMADO', paraStatus: status, origem: 'operador', usuarioId: u.id, observacao: enviarPreparacao ? (precisaPreparacao ? 'Enviado para preparação' : 'Enviado para a fila') : 'Entregue no balcão' },
           ] },
         },
         include: { itens: true, pagamentos: true },

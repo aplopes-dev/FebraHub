@@ -56,7 +56,7 @@ export const lojaInativarProduto = (id: string) => api.delete(`/loja/produtos/${
 export const lojaDefinirDestaque = (id: string, emDestaque: boolean) =>
   api.patch<LojaProduto>(`/loja/produtos/${id}/destaque`, { emDestaque });
 
-/** Sobe a imagem do produto (já com fundo removido) e devolve a URL pública. */
+/** Sobe a imagem do produto e devolve a URL pública. */
 export const lojaEnviarImagemProduto = (arquivo: Blob, nome = "produto.png") => {
   const fd = new FormData();
   fd.append("arquivo", arquivo, nome);

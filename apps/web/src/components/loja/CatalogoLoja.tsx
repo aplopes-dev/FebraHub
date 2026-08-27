@@ -226,7 +226,6 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
   const [erro, setErro] = useState<string | null>(null);
   const [previa, setPrevia] = useState<string>(valor);
   const [lightbox, setLightbox] = useState(false);
-  const [removendoFundo, setRemovendoFundo] = useState(true);
 
   // Sincroniza prévia quando valor externo muda (ex: abrir modal com produto existente)
   useEffect(() => { setPrevia(valor); }, [valor]);
@@ -238,19 +237,8 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
     setPrevia(urlLocal);
     setEnviando(true);
     try {
-      let arquivoFinal = arquivo;
-      // Remoção de fundo no navegador (WASM/ONNX) — carregada sob demanda
-      if (removendoFundo) {
-        try {
-          const { removeBackground } = await import("@imgly/background-removal");
-          const blob = await removeBackground(arquivo);
-          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
-        } catch {
-          // fallback: envia original se o modelo falhar
-        }
-      }
       URL.revokeObjectURL(urlLocal);
-      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
+      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "produto.png");
       setPrevia(url);
       aoMudar(url);
     } catch (e) {
@@ -308,10 +296,6 @@ function UploaderImagem({ valor, aoMudar }: { valor: string; aoMudar: (url: stri
               <Trash2 size={13} /> Remover
             </button>
           )}
-          <label className="loja-uploader-toggle">
-            <input type="checkbox" checked={removendoFundo} onChange={(e) => setRemovendoFundo(e.target.checked)} />
-            Remover fundo
-          </label>
         </div>
         <input
           ref={inputRef}

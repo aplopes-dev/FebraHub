@@ -1315,7 +1315,6 @@ function ModalEditarProdutoPdv({
   const [exibeCardapio, setExibeCardapio] = useState(true);
   const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
   const [enviandoImg, setEnviandoImg] = useState(false);
-  const [removendoFundo, setRemovendoFundo] = useState(true);
   const [erroImg, setErroImg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1347,16 +1346,8 @@ function ModalEditarProdutoPdv({
     setImagemUrl(urlLocal);
     setEnviandoImg(true);
     try {
-      let arquivoFinal = arquivo;
-      if (removendoFundo) {
-        try {
-          const { removeBackground } = await import("@imgly/background-removal");
-          const blob = await removeBackground(arquivo);
-          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
-        } catch { /* usa original */ }
-      }
       URL.revokeObjectURL(urlLocal);
-      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
+      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "produto.png");
       setImagemUrl(url);
     } catch (e) {
       URL.revokeObjectURL(urlLocal);
@@ -1466,10 +1457,6 @@ function ModalEditarProdutoPdv({
                     <Trash2 size={13} />
                   </button>
                 )}
-                <label className="bal-edprod-toggle">
-                  <input type="checkbox" checked={removendoFundo} onChange={(e) => setRemovendoFundo(e.target.checked)} />
-                  Remover fundo
-                </label>
               </div>
 
               {erroImg && <p className="bal-err">{erroImg}</p>}

@@ -367,7 +367,7 @@ function ContagemLocal({
   );
 }
 
-/* ─────────────── Foto do produto (trocar com remoção de fundo) ─────────────── */
+/* ─────────────────────────── Foto do produto ─────────────────────────── */
 function FotoProduto({
   produto, podeGerir, aoAtualizar,
 }: {
@@ -380,7 +380,6 @@ function FotoProduto({
   const [previa, setPrevia] = useState<string>(produto.imagemUrl ?? "");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [removerFundo, setRemoverFundo] = useState(true);
 
   useEffect(() => { setPrevia(produto.imagemUrl ?? ""); }, [produto.imagemUrl]);
 
@@ -415,16 +414,8 @@ function FotoProduto({
     setPrevia(urlLocal);
     setEnviando(true);
     try {
-      let arquivoFinal = arquivo;
-      if (removerFundo) {
-        try {
-          const { removeBackground } = await import("@imgly/background-removal");
-          const blob = await removeBackground(arquivo);
-          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
-        } catch { /* usa original se o modelo falhar */ }
-      }
       URL.revokeObjectURL(urlLocal);
-      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
+      const { url } = await lojaEnviarImagemProduto(arquivo, arquivo.name || "produto.png");
       await lojaAtualizarProduto(produto.id, payloadCom(url));
       setPrevia(url);
       aoAtualizar();
@@ -476,10 +467,6 @@ function FotoProduto({
               <Trash2 size={13} /> Remover
             </button>
           )}
-          <label className="inv-foto-toggle">
-            <input type="checkbox" checked={removerFundo} onChange={(e) => setRemoverFundo(e.target.checked)} />
-            Remover fundo
-          </label>
         </div>
       )}
       {erro && <p className="inv-aviso erro">{erro}</p>}

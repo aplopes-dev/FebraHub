@@ -1,13 +1,13 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Banknote, Barcode, Camera, Check, ChefHat, Copy, CreditCard, ImageOff,
-  Loader2, Minus, Pencil, Percent, Plus, QrCode, Search, Trash2, User, UserPlus, X,
+  Loader2, Minus, Pencil, Percent, Plus, Printer, QrCode, Search, Trash2, User, UserPlus, X,
 } from "lucide-react";
 import {
-  checkout, confirmarPagamento, iniciarPagamento, lojaPedido,
-  lojaProdutosBalcao, vendaPdvFila,
+  checkout, confirmarPagamento, imprimirCupomPedido, iniciarPagamento, iniciarPreparacao,
+  lojaPedido, lojaProdutosBalcao, vendaPdvFila,
 } from "@/services/api/loja-pedidos";
 import {
   lojaCategorias, lojaAtualizarProduto, lojaEnviarImagemProduto,
@@ -25,7 +25,7 @@ const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curren
 type Estado =
   | { t: "carrinho" }
   | { t: "pix"; pedido: LojaPedido; pgto: LojaPedidoPagamento }
-  | { t: "ok"; numero: number };
+  | { t: "ok"; pedido: LojaPedido };
 
 type ModalExtra = null | "cliente" | "descItem" | "descTotal" | "cancelar";
 
@@ -33,43 +33,8 @@ interface Cliente { nome: string; tel: string }
 interface LinhaCarrinho { p: PdvProduto; q: number; descItem: number }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hook: useLongPressProps
-// Dispara onLongPress após `delay` ms de toque/clique contínuo.
-// Funciona em touch (mobile PWA) e mouse (desktop).
-// ─────────────────────────────────────────────────────────────────────────────
-function useLongPressProps(onLongPress: () => void, delay = 500) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = useRef(false);
-
-  const start = useCallback(() => {
-    fired.current = false;
-    timer.current = setTimeout(() => {
-      fired.current = true;
-      onLongPress();
-    }, delay);
-  }, [onLongPress, delay]);
-
-  const cancel = useCallback(() => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-  }, []);
-
-  return {
-    onMouseDown: start,
-    onMouseUp: cancel,
-    onMouseLeave: cancel,
-    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); start(); },
-    onTouchEnd: cancel,
-    onTouchCancel: cancel,
-    // Bloqueia o click normal quando long-press foi disparado
-    onClick: (e: React.MouseEvent) => {
-      if (fired.current) { e.preventDefault(); e.stopPropagation(); fired.current = false; }
-    },
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Componente: CardProdutoMovel
-// Card de produto com long-press (500ms) e botão direito → abre edição.
+// Card de produto com clique duplo e botão direito → abre edição.
 // ─────────────────────────────────────────────────────────────────────────────
 function CardProdutoMovel({
   p, noCarrinho, onAdd, onEditar, podeEditar,
@@ -81,11 +46,23 @@ function CardProdutoMovel({
   podeEditar: boolean;
 }) {
   const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
-  const { onClick: lpClick, ...lpRest } = useLongPressProps(onEditar);
 
-  const handleClick = (e: React.MouseEvent) => {
-    lpClick(e);
-    if (!e.defaultPrevented) onAdd();
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleClick = () => {
+    // Aguarda brevemente para distinguir de um clique duplo (editar).
+    if (!podeEditar) { onAdd(); return; }
+    if (clickTimer.current) return;
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null;
+      onAdd();
+    }, 220);
+  };
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!podeEditar) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
+    onEditar();
   };
   const handleContextMenu = (e: React.MouseEvent) => {
     if (!podeEditar) return;
@@ -102,14 +79,14 @@ function CardProdutoMovel({
       className={`pm-prod ${sel ? "sel" : ""}`}
       disabled={esgotado}
       onClick={handleClick}
+      onDoubleClick={podeEditar ? handleDoubleClick : undefined}
       onContextMenu={podeEditar ? handleContextMenu : undefined}
-      {...(podeEditar ? lpRest : {})}
     >
       {noCarrinho > 0 && <span className="pm-prod-qtd">{noCarrinho}</span>}
       {p.controlaEstoque && <span className={`pm-prod-badge ${cls}`}>{badgeTxt}</span>}
-      {/* Indicador visual de long-press disponível */}
+      {/* Indicador visual de edição disponível */}
       {podeEditar && (
-        <span className="pm-prod-edit-hint" title="Segure para editar">
+        <span className="pm-prod-edit-hint" title="Clique duplo para editar">
           <Pencil size={10} />
         </span>
       )}
@@ -144,6 +121,7 @@ export default function Vender() {
   const [descontoTotal, setDescontoTotal] = useState(0);
   const [modalExtra, setModalExtra] = useState<ModalExtra>(null);
   const [editarProduto, setEditarProduto] = useState<PdvProduto | null>(null);
+  const [avisoImpressao, setAvisoImpressao] = useState<string | null>(null);
 
   const categorias = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });
   const produtos = useQuery({ queryKey: ["pdv-movel-produtos", busca], queryFn: () => lojaProdutosBalcao(busca) });
@@ -181,18 +159,24 @@ export default function Vender() {
   };
   const setQ = (id: string, q: number) =>
     setCarrinho((c) => {
-      if (q <= 0) { const cp = { ...c }; delete cp[id]; return cp; }
+      if (q <= 0) {
+        const cp = { ...c }; delete cp[id];
+        setSelecionado((s) => (s === id ? null : s));
+        return cp;
+      }
       return { ...c, [id]: { ...c[id], q } };
     });
   const limpar = () => {
     setCarrinho({}); setEstado({ t: "carrinho" }); setErro(null);
-    setDescontoTotal(0); setSelecionado(null); setCliente(null);
+    setDescontoTotal(0); setSelecionado(null); setCliente(null); setAvisoImpressao(null);
   };
 
   const finalizar = useMutation({
     mutationFn: () =>
       vendaPdvFila({
-        modo: precisaPreparo ? "ENVIAR_PREPARACAO" : "ENTREGAR_AGORA",
+        // PDV móvel: toda venda entra na fila unificada do balcão — de lá o
+        // operador acompanha, imprime o cupom e entrega (mesmo sem item de preparo).
+        modo: "ENVIAR_PREPARACAO",
         clienteNome: cliente?.nome || undefined,
         clienteTel: cliente?.tel || undefined,
         desconto: +(descontoTotal + descItens).toFixed(2),
@@ -200,7 +184,7 @@ export default function Vender() {
         pagamentos: [{ forma, valor: total }],
       }),
     onSuccess: (p) => {
-      setEstado({ t: "ok", numero: (p as LojaPedido).numero });
+      setEstado({ t: "ok", pedido: p as LojaPedido });
       qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
       qc.invalidateQueries({ queryKey: ["pdv-movel-produtos"] });
     },
@@ -225,7 +209,7 @@ export default function Vender() {
           const at = await lojaPedido(pedido.id);
           if (at.status !== "AGUARDANDO_PAGAMENTO") {
             clearInterval(iv);
-            setEstado({ t: "ok", numero: at.numero });
+            setEstado({ t: "ok", pedido: at });
             qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
             qc.invalidateQueries({ queryKey: ["pdv-movel-produtos"] });
           }
@@ -238,10 +222,29 @@ export default function Vender() {
   const confirmarPix = useMutation({
     mutationFn: (id: string) => confirmarPagamento(id),
     onSuccess: (p) => {
-      setEstado({ t: "ok", numero: (p as LojaPedido).numero });
+      setEstado({ t: "ok", pedido: p as LojaPedido });
       qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
     },
     onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao confirmar PIX."),
+  });
+
+  // Envia o pedido recém-concluído para preparação (o back imprime o cupom junto).
+  const preparar = useMutation({
+    mutationFn: (id: string) => iniciarPreparacao(id),
+    onSuccess: (p) => {
+      setEstado({ t: "ok", pedido: p as LojaPedido });
+      setErro(null);
+      setAvisoImpressao("Enviado para preparação — cupom na impressora.");
+      qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
+    },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao enviar para preparação."),
+  });
+
+  // Só imprime o cupom, sem mudar o status do pedido.
+  const imprimirVenda = useMutation({
+    mutationFn: (id: string) => imprimirCupomPedido(id),
+    onSuccess: () => { setErro(null); setAvisoImpressao("Cupom enviado para a impressora."); },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao imprimir o cupom."),
   });
 
   const pagar = () => {
@@ -255,6 +258,7 @@ export default function Vender() {
     setSheet(false);
     setEstado({ t: "carrinho" });
     setErro(null);
+    setAvisoImpressao(null);
   };
 
   const copiarPix = async () => {
@@ -347,7 +351,7 @@ export default function Vender() {
 
       {podeGerir && (
         <p className="pm-hint-editar">
-          <Pencil size={12} /> Segure ou clique com botão direito para editar um produto
+          <Pencil size={12} /> Clique duplo ou clique com botão direito para editar um produto
         </p>
       )}
 
@@ -367,6 +371,25 @@ export default function Vender() {
       {/* ── Barra inferior: ações rápidas + carrinho ── */}
       {temItens && (
         <div className="pm-bottom-area">
+          {/* Ajuste rápido do último item selecionado (sem abrir o carrinho) */}
+          {itemSel && (
+            <div className="pm-quick-item">
+              <span className="nome">{itemSel.p.descricao}</span>
+              <div className="pm-stepper">
+                <button onClick={() => setQ(itemSel.p.produtoId, itemSel.q - 1)} aria-label="Menos um"><Minus size={16} /></button>
+                <b>{itemSel.q}</b>
+                <button
+                  onClick={() => setQ(itemSel.p.produtoId, itemSel.q + 1)}
+                  disabled={!!itemSel.p.controlaEstoque && !itemSel.p.vendeSemEstoque && itemSel.q >= itemSel.p.disponivel}
+                  aria-label="Mais um"
+                ><Plus size={16} /></button>
+              </div>
+              <button className="pm-quick-rm" onClick={() => setQ(itemSel.p.produtoId, 0)} aria-label="Remover item">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          )}
+
           {/* Barra de ações rápidas (ícones — equivalente às teclas F no desktop) */}
           <div className="pm-acoes-bar">
             {acoes.map((a) => (
@@ -434,6 +457,9 @@ export default function Vender() {
                         <b>{l.q}</b>
                         <button onClick={(e) => { e.stopPropagation(); setQ(l.p.produtoId, l.q + 1); }} disabled={!!l.p.controlaEstoque && !l.p.vendeSemEstoque && l.q >= l.p.disponivel}><Plus size={16} /></button>
                       </div>
+                      <button className="pm-linha-rm" onClick={(e) => { e.stopPropagation(); setQ(l.p.produtoId, 0); }} aria-label="Remover item">
+                        <Trash2 size={15} />
+                      </button>
                       <span className="preco">{brl(l.p.preco * l.q - l.descItem)}</span>
                     </div>
                   ))}
@@ -468,11 +494,11 @@ export default function Vender() {
                     <div className="pm-total-linha big"><span>Total</span><span>{brl(total)}</span></div>
                   </div>
 
-                  {precisaPreparo && (
-                    <p className="pm-total-linha muted" style={{ margin: 0 }}>
-                      <ChefHat size={13} /> Vai para a fila de preparação.
-                    </p>
-                  )}
+                  <p className="pm-total-linha muted" style={{ margin: 0 }}>
+                    <ChefHat size={13} /> {precisaPreparo
+                      ? "Vai para a fila de preparação."
+                      : "Vai para a fila do balcão (dá pra imprimir e preparar)."}
+                  </p>
                   <div className="pm-formas">
                     {([["DINHEIRO", Banknote, "Dinheiro"], ["CARTAO_CREDITO", CreditCard, "Cartão"], ["PIX", QrCode, "PIX"]] as const).map(([f, I, lbl]) => (
                       <button key={f} className={`pm-forma ${forma === f ? "on" : ""}`} onClick={() => setForma(f)}><I /> {lbl}</button>
@@ -481,6 +507,9 @@ export default function Vender() {
                   {erro && <div className="pm-erro">{erro}</div>}
                   <button className="pm-btn verde bloco" disabled={finalizar.isPending || gerarPix.isPending} onClick={pagar}>
                     {finalizar.isPending || gerarPix.isPending ? "Processando…" : `Finalizar venda · ${brl(total)}`}
+                  </button>
+                  <button className="pm-btn pm-btn-danger bloco" onClick={() => setModalExtra("cancelar")}>
+                    <Trash2 size={15} /> Cancelar venda
                   </button>
                 </div>
               </>
@@ -511,16 +540,46 @@ export default function Vender() {
             )}
 
             {/* ---- Sucesso ---- */}
-            {estado.t === "ok" && (
-              <div className="pm-sheet-body">
-                <div className="pm-sucesso">
-                  <div className="ico">🎉</div>
-                  <h2>Pedido #{estado.numero}</h2>
-                  <p>{precisaPreparo ? "Enviado para a fila de preparação." : "Venda concluída."}</p>
-                  <button className="pm-btn ouro bloco" style={{ marginTop: 10 }} onClick={fecharSheet}>Nova venda</button>
+            {estado.t === "ok" && (() => {
+              const emPreparo = estado.pedido.status === "EM_PREPARACAO";
+              const naFila = estado.pedido.status === "NA_FILA" || estado.pedido.status === "PROXIMO";
+              return (
+                <div className="pm-sheet-body">
+                  <div className="pm-sucesso">
+                    <div className="ico">🎉</div>
+                    <h2>Pedido #{estado.pedido.numero}</h2>
+                    <p>{emPreparo
+                      ? "Em preparação — cupom enviado para a impressora."
+                      : naFila
+                        ? "Na fila do balcão. Envie para preparação/impressão ou imprima o cupom."
+                        : "Venda concluída."}</p>
+                    {erro && <div className="pm-erro">{erro}</div>}
+                    {avisoImpressao && <div className="pm-aviso-ok">{avisoImpressao}</div>}
+                    {naFila && (
+                      <button
+                        className="pm-btn verde bloco"
+                        style={{ marginTop: 10 }}
+                        disabled={preparar.isPending}
+                        onClick={() => preparar.mutate(estado.pedido.id)}
+                      >
+                        <ChefHat size={16} /> {preparar.isPending ? "Enviando…" : "Preparar e imprimir"}
+                      </button>
+                    )}
+                    {(naFila || emPreparo) && (
+                      <button
+                        className="pm-btn bloco"
+                        style={{ marginTop: 10 }}
+                        disabled={imprimirVenda.isPending}
+                        onClick={() => imprimirVenda.mutate(estado.pedido.id)}
+                      >
+                        <Printer size={16} /> {imprimirVenda.isPending ? "Enviando…" : "Imprimir cupom"}
+                      </button>
+                    )}
+                    <button className="pm-btn ouro bloco" style={{ marginTop: 10 }} onClick={fecharSheet}>Nova venda</button>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -572,7 +631,7 @@ export default function Vender() {
         </div>
       )}
 
-      {/* ── Modal de edição rápida (long-press / botão direito / segure) ── */}
+      {/* ── Modal de edição rápida (clique duplo / botão direito) ── */}
       {editarProduto && (
         <ModalEditarProdutoPdvMovel
           produto={editarProduto}
@@ -709,8 +768,34 @@ function ModalDesconto({
   );
 }
 
+// Redimensiona/compacta a imagem no próprio navegador antes de enviar. A câmera
+// do celular entrega fotos de 4–12 MP (3–8 MB); reduzir para ~1400px deixa o
+// upload MUITO mais rápido.
+async function comprimirImagem(file: File, maxLado = 1400, qualidade = 0.82): Promise<File> {
+  try {
+    if (typeof createImageBitmap !== "function") return file;
+    const bmp = await createImageBitmap(file);
+    const maior = Math.max(bmp.width, bmp.height);
+    const escala = maior > maxLado ? maxLado / maior : 1;
+    if (escala === 1 && file.size <= 900_000) { bmp.close(); return file; }
+    const w = Math.round(bmp.width * escala);
+    const h = Math.round(bmp.height * escala);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bmp.close(); return file; }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", qualidade));
+    if (!blob) return file;
+    return new File([blob], (file.name || "produto").replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Modal de edição rápida de produto (acionado por long-press / botão direito)
+// Modal de edição rápida de produto (acionado por clique duplo / botão direito)
 // Estilo .pm-* (tema escuro fixo do PDV móvel)
 // ─────────────────────────────────────────────────────────────────────────────
 function ModalEditarProdutoPdvMovel({
@@ -722,7 +807,7 @@ function ModalEditarProdutoPdvMovel({
   produto: PdvProduto;
   categorias: LojaCategoria[];
   onFechar: () => void;
-  onSalvo: (atualizado: LojaProduto) => void;
+  onSalvo: (atualizado?: LojaProduto) => void;
 }) {
   const [nome, setNome] = useState(prodInicial.descricao ?? "");
   const [ean, setEan] = useState("");
@@ -731,11 +816,12 @@ function ModalEditarProdutoPdvMovel({
   const [exibeCardapio, setExibeCardapio] = useState(true);
   const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
   const [enviandoImg, setEnviandoImg] = useState(false);
-  const [removendoFundo, setRemovendoFundo] = useState(true);
   const [erroImg, setErroImg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  // Ignora uploads antigos quando o usuário troca a foto rápido.
+  const imgTokenRef = useRef(0);
 
   // Carrega dados completos do produto (incl. EAN)
   const prodQuery = useQuery({
@@ -756,31 +842,32 @@ function ModalEditarProdutoPdvMovel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prodQuery.data]);
 
+  function limparInputs() {
+    if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+  }
+
+  // Envia a foto (comprimida no navegador para ficar leve e rápida).
   async function processarImagem(arquivo: File) {
+    const token = ++imgTokenRef.current;
     setErroImg(null);
     const urlLocal = URL.createObjectURL(arquivo);
     setImagemUrl(urlLocal);
     setEnviandoImg(true);
     try {
-      let arquivoFinal = arquivo;
-      if (removendoFundo) {
-        try {
-          const { removeBackground } = await import("@imgly/background-removal");
-          const blob = await removeBackground(arquivo);
-          arquivoFinal = new File([blob], arquivo.name.replace(/\.\w+$/, ".png"), { type: "image/png" });
-        } catch { /* usa original se falhar */ }
-      }
+      const comprimida = await comprimirImagem(arquivo, 1400);
+      const { url } = await lojaEnviarImagemProduto(comprimida, "produto.jpg");
+      if (imgTokenRef.current !== token) { URL.revokeObjectURL(urlLocal); return; }
       URL.revokeObjectURL(urlLocal);
-      const { url } = await lojaEnviarImagemProduto(arquivoFinal, arquivoFinal.name || "produto.png");
       setImagemUrl(url);
+      setEnviandoImg(false);
+      limparInputs();
     } catch (e) {
       URL.revokeObjectURL(urlLocal);
       setImagemUrl(prodInicial.imagemUrl ?? "");
       setErroImg(e instanceof Error ? e.message : "Falha ao enviar imagem.");
-    } finally {
       setEnviandoImg(false);
-      if (fileRef.current) fileRef.current.value = "";
-      if (cameraRef.current) cameraRef.current.value = "";
+      limparInputs();
     }
   }
 
@@ -886,11 +973,6 @@ function ModalEditarProdutoPdvMovel({
                   </button>
                 )}
               </div>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--pm-muted)", cursor: "pointer" }}>
-                <input type="checkbox" checked={removendoFundo} onChange={(e) => setRemovendoFundo(e.target.checked)} />
-                Remover fundo automaticamente
-              </label>
 
               {erroImg && <p className="pm-erro" style={{ fontSize: 12 }}>{erroImg}</p>}
 
