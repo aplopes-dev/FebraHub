@@ -3,6 +3,7 @@ import "@/app/pedagogico.css";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { pedagogico } from "@/services/api/pedagogico";
+import { Select } from "@/components/ui/Select";
 
 const STATUS_OPCOES = [
   "Planejada",
@@ -107,9 +108,8 @@ export default function NovaTurmaPage() {
             </label>
             <label className="ped-label">
               Status
-              <select className="ped-select" value={form.status} onChange={set("status")}>
-                {STATUS_OPCOES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Select className="ped-select" aria-label="Status" value={form.status} onChange={(v) => setForm(prev => ({ ...prev, status: v }))}
+                options={STATUS_OPCOES.map(s => ({ value: s, label: s }))} />
             </label>
             <label className="ped-label">
               Capacidade

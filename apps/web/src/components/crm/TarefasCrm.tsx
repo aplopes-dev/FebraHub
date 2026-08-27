@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Check, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 import { inputAv } from "@/components/ui/estilos";
 import { C, alfaDe } from "@/lib/tema";
 import type { CrmTarefa } from "@/types/crm";
@@ -40,9 +41,8 @@ function Linha({ tarefa, aoAbrirVinculo }: { tarefa: CrmTarefa; aoAbrirVinculo: 
         <div style={{ display: "grid", gap: 8 }}>
           <input value={titEdit} onChange={(e) => setTitEdit(e.target.value)} style={inputAv} aria-label="Título" placeholder="Título da tarefa" />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select value={prioEdit} onChange={(e) => setPrioEdit(e.target.value)} style={{ ...inputAv, width: 130 }} aria-label="Prioridade">
-              <option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option>
-            </select>
+            <Select value={prioEdit} onChange={setPrioEdit} style={{ width: 130 }} aria-label="Prioridade"
+              options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]} />
             <input type="datetime-local" value={venceEdit} onChange={(e) => setVenceEdit(e.target.value)} style={{ ...inputAv, width: 200 }} aria-label="Prazo" />
           </div>
           <div style={{ display: "flex", gap: 6 }}>

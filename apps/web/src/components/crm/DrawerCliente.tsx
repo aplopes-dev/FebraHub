@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { inputAv, labelAv } from "@/components/ui/estilos";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
 import { ESTAGIO_LABELS, type EstagioCliente } from "@/types/crm";
@@ -79,16 +80,14 @@ export function DrawerCliente({
             <div style={{ display: "grid", gap: 16 }}>
               <div>
                 <span style={labelAv}>Estágio</span>
-                <select
+                <Select
                   value={d.estagio}
-                  onChange={(e) => atualizar.mutate({ cid: d.id, dado: { estagio: e.target.value as EstagioCliente } })}
+                  onChange={(v) => atualizar.mutate({ cid: d.id, dado: { estagio: v as EstagioCliente } })}
                   className="fh-exec-select"
+                  style={{ minWidth: 180 }}
                   aria-label="Estágio do cliente"
-                >
-                  {Object.entries(ESTAGIO_LABELS).map(([v, r]) => (
-                    <option key={v} value={v}>{r}</option>
-                  ))}
-                </select>
+                  options={Object.entries(ESTAGIO_LABELS).map(([v, r]) => ({ value: v, label: r as string }))}
+                />
               </div>
 
               {/* negócios */}

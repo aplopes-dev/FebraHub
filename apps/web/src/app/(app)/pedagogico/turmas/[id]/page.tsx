@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { pedagogico, PedagogicoTurma, PedagogicoMatricula } from "@/services/api/pedagogico";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmtData = (s?: string | null) =>
@@ -368,12 +369,8 @@ export default function DetalhesTurmaPage() {
                 value={busca}
                 onChange={e => setBusca(e.target.value)}
               />
-              <select className="ped-select" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
-                <option value="">Todos os status</option>
-                {Object.keys(ptStatus).map(s => (
-                  <option key={s} value={s}>{ptStatus[s]}</option>
-                ))}
-              </select>
+              <Select className="ped-select" aria-label="Filtrar por status" value={filtroStatus} onChange={setFiltroStatus}
+                options={[{ value: "", label: "Todos os status" }, ...Object.keys(ptStatus).map(s => ({ value: s, label: ptStatus[s] }))]} />
               <span className="ped-total-label">{matriculasFiltradas.length} aluno(s)</span>
             </div>
 
@@ -668,9 +665,8 @@ export default function DetalhesTurmaPage() {
                 </label>
                 <label className="ped-label">
                   Status
-                  <select className="ped-select" value={formEdit.status ?? ""} onChange={setEdit("status")}>
-                    {STATUS_TURMA_OPCOES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <Select className="ped-select" aria-label="Status" value={formEdit.status ?? ""} onChange={(v) => setFormEdit(prev => ({ ...prev, status: v }))}
+                    options={STATUS_TURMA_OPCOES.map(s => ({ value: s, label: s }))} />
                 </label>
                 <label className="ped-label">
                   Capacidade
