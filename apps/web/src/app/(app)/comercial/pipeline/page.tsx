@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   User,
+  UserPlus,
 } from "lucide-react";
 import {
   kanbanOportunidades,
@@ -526,8 +527,11 @@ function PipelinePage() {
           </button>
         </div>
 
+        <Link href="/comercial/leads" className="com-btn">
+          <UserPlus size={14} /> Novo lead
+        </Link>
         <Link href="/comercial/oportunidades/novo" className="com-btn-ouro">
-          <Plus size={14} /> Nova
+          <Plus size={14} /> Nova oportunidade
         </Link>
       </div>
 

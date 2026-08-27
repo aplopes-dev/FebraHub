@@ -69,14 +69,10 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Kanban e lista de oportunidades por funil",
         visivel: (ctx) => ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
       },
-      {
-        id: "com-leads",
-        label: "Novo Lead",
-        href: "/comercial/leads",
-        titulo: "Novo Lead",
-        desc: "Captura rápida de um novo lead com deduplicação automática",
-        visivel: (ctx) => ctx.pode("comercial.operar", "comercial.gerenciar"),
-      },
+      // "Novo Lead" saiu do sidebar: virou botão dentro do Pipeline (onde o lead
+      // vira oportunidade); o hub e o spotlight seguem linkando /comercial/leads.
+      // "Sympla — Eventos" saiu: apontava p/ /comercial/sympla, que NÃO existe
+      // no disco (link morto / 404).
       {
         id: "com-vendas",
         label: "Vendas",
@@ -85,14 +81,6 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         desc: "Lista, status e aprovação de vendas fechadas",
         visivel: (ctx) =>
           ctx.pode("comercial.ver", "comercial.gerenciar", "comercial.vendas.aprovar", "comercial.relatorios"),
-      },
-      {
-        id: "com-sympla",
-        label: "Sympla — Eventos",
-        href: "/comercial/sympla",
-        titulo: "Integração Sympla",
-        desc: "Eventos, pedidos e participantes da plataforma Sympla",
-        visivel: (ctx) => ctx.pode("comercial.ver", "comercial.operar", "comercial.gerenciar"),
       },
     );
   }
