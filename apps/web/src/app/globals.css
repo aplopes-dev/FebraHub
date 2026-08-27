@@ -516,6 +516,35 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .fh-page-desc { font-size: 13px; color: var(--faint); margin-top: 5px; }
 .fh-page-acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* ============ TabelaDados (TanStack) — tabela paginada padrão ============ */
+.fh-tabd { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fh-tabd-wrap { overflow-x: auto; border: 1px solid var(--card-line); border-radius: 12px; background: var(--card); }
+.fh-tabd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fh-tabd-table th {
+  text-align: left; font-size: 10.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--card-line); white-space: nowrap;
+  position: sticky; top: 0; background: var(--card); z-index: 1;
+}
+.fh-tabd-th-btn {
+  display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 0;
+  cursor: pointer; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.fh-tabd-table td { padding: 11px 12px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+.fh-tabd-table tbody tr:last-child td { border-bottom: none; }
+.fh-tabd-table tbody tr:hover td { background: rgb(var(--gold-rgb) / .04); }
+.fh-tabd-vazio { text-align: center; color: var(--faint); padding: 32px 12px !important; }
+.fh-tabd-rodape { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 2px 2px 0; }
+.fh-tabd-contagem { font-size: 12px; color: var(--muted); }
+.fh-tabd-pager { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.fh-tabd-pagina { font-size: 12px; color: var(--muted); min-width: 54px; text-align: center; }
+.fh-tabd-pg {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border: 1px solid var(--card-line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.fh-tabd-pg:hover:not(:disabled) { background: rgb(var(--gold-rgb) / .08); color: var(--gold); border-color: rgb(var(--gold-rgb) / .3); }
+.fh-tabd-pg:disabled { opacity: .4; cursor: default; }
+.fh-tabd-tam { min-width: 92px; }
+
 @media (max-width: 720px) {
   .fh-crud-desktop { display: none !important; }
 }

@@ -1,11 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { lojaAuditoria } from "@/services/api/loja-pedidos";
 import { Select } from "@/components/ui/Select";
+import { TabelaDados, type ColumnDef } from "@/components/ui/TabelaDados";
 import "@/app/loja.css";
 import "@/app/fila.css";
+
+type LinhaAuditoria = {
+  id: string; criadoEm: string; acao: string; entidade: string;
+  usuarioNome?: string | null; origem: string; observacao?: string | null;
+};
 
 const ACAO_ROTULO: Record<string, string> = {
   "pagamento.confirmado": "Pagamento confirmado",
@@ -32,7 +38,14 @@ export function AuditoriaLoja() {
     queryFn: () => lojaAuditoria({ entidade: entidade || undefined, acao: acao || undefined }),
   });
 
-
+  const colunas = useMemo<ColumnDef<LinhaAuditoria>[]>(() => [
+    { accessorKey: "criadoEm", header: "Quando", cell: (c) => new Date(c.getValue<string>()).toLocaleString("pt-BR") },
+    { accessorKey: "acao", header: "Ação", cell: (c) => <b>{ACAO_ROTULO[c.getValue<string>()] ?? c.getValue<string>()}</b> },
+    { accessorKey: "entidade", header: "Entidade" },
+    { accessorKey: "usuarioNome", header: "Quem", cell: (c) => c.getValue<string | null>() ?? "—" },
+    { accessorKey: "origem", header: "Origem" },
+    { accessorKey: "observacao", header: "Observação", cell: (c) => <span style={{ color: "var(--muted)" }}>{c.getValue<string | null>() || "—"}</span> },
+  ], []);
 
   return (
     <div className="loja-page">
@@ -57,28 +70,13 @@ export function AuditoriaLoja() {
           options={[{ value: "", label: "Todas as ações" }, ...Object.entries(ACAO_ROTULO).map(([k, v]) => ({ value: k, label: v as string }))]} />
       </div>
 
-      <div className="loja-card" style={{ padding: 0, overflow: "hidden" }}>
-        <table className="auditoria-tabela">
-          <thead>
-            <tr><th>Quando</th><th>Ação</th><th>Entidade</th><th>Quem</th><th>Origem</th><th>Observação</th></tr>
-          </thead>
-          <tbody>
-            {(auditoria.data ?? []).map((a) => (
-              <tr key={a.id}>
-                <td>{new Date(a.criadoEm).toLocaleString("pt-BR")}</td>
-                <td><b>{ACAO_ROTULO[a.acao] ?? a.acao}</b></td>
-                <td>{a.entidade}</td>
-                <td>{a.usuarioNome ?? "—"}</td>
-                <td>{a.origem}</td>
-                <td style={{ color: "var(--muted)" }}>{a.observacao || "—"}</td>
-              </tr>
-            ))}
-            {auditoria.data?.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: "center", padding: 24, color: "var(--muted)" }}>Nenhum registro.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TabelaDados
+        dados={(auditoria.data ?? []) as LinhaAuditoria[]}
+        colunas={colunas}
+        chaveLinha={(a) => a.id}
+        vazio="Nenhum registro."
+        ordenacaoInicial={[{ id: "criadoEm", desc: true }]}
+      />
     </div>
   );
 }
