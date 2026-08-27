@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { BOTAO_OURO, BOTAO_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
 import { CHAVE_NOTIFICACOES } from "@/hooks/notificacoes";
 import {
@@ -120,58 +121,44 @@ export function PainelComunicados() {
         <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <div>
             <label style={labelAv} htmlFor="c-destino">Para quem</label>
-            <select
+            <Select
               id="c-destino"
-              style={inputAv}
+              style={{ width: "100%" }}
+              aria-label="Para quem"
               value={destino}
-              onChange={(e) => {
-                setDestino(e.target.value as DestinoNotificacao);
-                setValor("");
-              }}
-            >
-              {DESTINOS.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
-            </select>
+              onChange={(v) => { setDestino(v as DestinoNotificacao); setValor(""); }}
+              options={DESTINOS.map((d) => ({ value: d.id, label: d.nome }))}
+            />
           </div>
 
           {destino === "perfil" && (
             <div>
               <label style={labelAv} htmlFor="c-perfil">Perfil</label>
-              <select id="c-perfil" style={inputAv} value={valor} onChange={(e) => setValor(e.target.value)}>
-                <option value="">Escolha…</option>
-                {(destinos.data?.perfis ?? []).map((p) => (
-                  <option key={p.slug} value={p.slug}>{p.nome}</option>
-                ))}
-              </select>
+              <Select id="c-perfil" style={{ width: "100%" }} aria-label="Perfil" value={valor} onChange={setValor} placeholder="Escolha…"
+                options={[{ value: "", label: "Escolha…" }, ...(destinos.data?.perfis ?? []).map((p) => ({ value: p.slug, label: p.nome }))]} />
             </div>
           )}
 
           {destino === "setor" && (
             <div>
               <label style={labelAv} htmlFor="c-setor">Setor</label>
-              <select id="c-setor" style={inputAv} value={valor} onChange={(e) => setValor(e.target.value)}>
-                <option value="">Escolha…</option>
-                {["geral", ...HUBS.map((h) => h.key)].map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Select id="c-setor" style={{ width: "100%" }} aria-label="Setor" value={valor} onChange={setValor} placeholder="Escolha…"
+                options={[{ value: "", label: "Escolha…" }, ...["geral", ...HUBS.map((h) => h.key)].map((s) => ({ value: s, label: s }))]} />
             </div>
           )}
 
           {destino === "usuario" && (
             <div>
               <label style={labelAv} htmlFor="c-usuario">Pessoa</label>
-              <select id="c-usuario" style={inputAv} value={valor} onChange={(e) => setValor(e.target.value)}>
-                <option value="">Escolha…</option>
-                {(destinos.data?.usuarios ?? []).map((u) => (
-                  <option key={u.id} value={u.id}>{u.nome}</option>
-                ))}
-              </select>
+              <Select id="c-usuario" style={{ width: "100%" }} aria-label="Pessoa" value={valor} onChange={setValor} placeholder="Escolha…"
+                options={[{ value: "", label: "Escolha…" }, ...(destinos.data?.usuarios ?? []).map((u) => ({ value: u.id, label: u.nome }))]} />
             </div>
           )}
 
           <div>
             <label style={labelAv} htmlFor="c-tipo">Tom</label>
-            <select id="c-tipo" style={inputAv} value={tipo} onChange={(e) => setTipo(e.target.value as TipoNotificacao)}>
-              {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-            </select>
+            <Select id="c-tipo" style={{ width: "100%" }} aria-label="Tom" value={tipo} onChange={(v) => setTipo(v as TipoNotificacao)}
+              options={TIPOS.map((t) => ({ value: t.id, label: t.nome }))} />
           </div>
         </div>
 

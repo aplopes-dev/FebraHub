@@ -16,6 +16,7 @@ import { Copy, KeyRound, Loader2, Plus, UserPlus } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
 import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
+import { Select } from "@/components/ui/Select";
 import { BOTAO_OURO, BOTAO_OURO_OFF, BOTAO_SECUNDARIO, inputAv, labelAv } from "@/components/ui/estilos";
 import { useAcoesUsuarios, usePerfisAcesso, useUsuariosAdmin } from "@/hooks/permissoes";
 import { ErroApi } from "@/services/api/client";
@@ -157,25 +158,21 @@ export function PainelUsuarios() {
               </div>
               <div>
                 <label style={labelAv} htmlFor="u-perfil">Perfil de acesso</label>
-                <select id="u-perfil" style={inputAv} value={form.perfilAcessoId}
-                  onChange={(e) => setForm({ ...form, perfilAcessoId: e.target.value })}>
-                  <option value="">Equipe (padrão)</option>
-                  {opcoesPerfil.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                </select>
+                <Select id="u-perfil" style={{ width: "100%" }} aria-label="Perfil de acesso" value={form.perfilAcessoId}
+                  onChange={(v) => setForm({ ...form, perfilAcessoId: v })}
+                  options={[{ value: "", label: "Equipe (padrão)" }, ...opcoesPerfil.map((p) => ({ value: p.id, label: p.nome }))]} />
               </div>
               <div>
                 <label style={labelAv} htmlFor="u-setor">Setor</label>
-                <select id="u-setor" style={inputAv} value={form.setor}
-                  onChange={(e) => setForm({ ...form, setor: e.target.value })}>
-                  {SETORES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select id="u-setor" style={{ width: "100%" }} aria-label="Setor" value={form.setor}
+                  onChange={(v) => setForm({ ...form, setor: v })}
+                  options={SETORES.map((s) => ({ value: s, label: s }))} />
               </div>
               <div>
                 <label style={labelAv} htmlFor="u-papel">Papel</label>
-                <select id="u-papel" style={inputAv} value={form.papel}
-                  onChange={(e) => setForm({ ...form, papel: e.target.value })}>
-                  {PAPEIS.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Select id="u-papel" style={{ width: "100%" }} aria-label="Papel" value={form.papel}
+                  onChange={(v) => setForm({ ...form, papel: v })}
+                  options={PAPEIS.map((p) => ({ value: p, label: p }))} />
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -224,27 +221,26 @@ export function PainelUsuarios() {
 
                 <div>
                   <label style={labelAv} htmlFor={`perfil-${u.id}`}>Perfil de acesso</label>
-                  <select
+                  <Select
                     id={`perfil-${u.id}`}
-                    style={{ ...inputAv, padding: "7px 9px", fontSize: 12 }}
+                    style={{ width: "100%" }}
+                    aria-label="Perfil de acesso"
                     value={u.perfilAcessoId ?? ""}
-                    onChange={(e) => salvarCampo(u, { perfilAcessoId: e.target.value || null })}
-                  >
-                    <option value="">— sem perfil —</option>
-                    {opcoesPerfil.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                  </select>
+                    onChange={(v) => salvarCampo(u, { perfilAcessoId: v || null })}
+                    options={[{ value: "", label: "— sem perfil —" }, ...opcoesPerfil.map((p) => ({ value: p.id, label: p.nome }))]}
+                  />
                 </div>
 
                 <div>
                   <label style={labelAv} htmlFor={`setor-${u.id}`}>Setor principal</label>
-                  <select
+                  <Select
                     id={`setor-${u.id}`}
-                    style={{ ...inputAv, padding: "7px 9px", fontSize: 12 }}
+                    style={{ width: "100%" }}
+                    aria-label="Setor principal"
                     value={u.setor}
-                    onChange={(e) => salvarCampo(u, { setor: e.target.value })}
-                  >
-                    {SETORES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                    onChange={(v) => salvarCampo(u, { setor: v })}
+                    options={SETORES.map((s) => ({ value: s, label: s }))}
+                  />
                   {u.setores.length > 1 && (
                     <div style={{ fontSize: 10.5, color: C.dim, marginTop: 4, fontWeight: 700 }}>
                       + {u.setores.filter((s) => s !== u.setor).join(", ")}
