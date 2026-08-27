@@ -6,6 +6,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { C, SANS } from "@/lib/tema";
+import { Select } from "@/components/ui/Select";
 import type { ModoComparacao } from "@/types/executivo";
 import { mesLabel } from "./formatos";
 
@@ -91,18 +92,14 @@ export function FiltrosExecutivo({
         <span className="fh-sem-celular" style={{ fontSize: 11, color: C.faint, fontWeight: 700, whiteSpace: "nowrap" }}>
           Comparar com
         </span>
-        <select
+        <Select
           value={comparar}
-          onChange={(e) => onComparar(e.target.value as ModoComparacao)}
+          onChange={(v) => onComparar(v as ModoComparacao)}
           aria-label="Base de comparação"
           className="fh-exec-select"
-        >
-          {MODOS.map((m) => (
-            <option key={m.valor} value={m.valor}>
-              {m.rotulo}
-            </option>
-          ))}
-        </select>
+          style={{ minWidth: 150 }}
+          options={MODOS.map((m) => ({ value: m.valor, label: m.rotulo }))}
+        />
       </label>
     </div>
   );

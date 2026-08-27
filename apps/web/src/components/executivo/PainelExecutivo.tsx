@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Download, Pencil, Printer, RefreshCw, Settings2, Target } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { SecaoTitulo } from "@/components/ui/SecaoTitulo";
 import { C, alfaDe } from "@/lib/tema";
 import { ehAdmin, usePerfil, useSessao } from "@/hooks/auth";
@@ -254,12 +255,9 @@ export function PainelExecutivo() {
                   titulo="Ritmo da meta"
                   canto={
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      <select value={codigoRitmo} onChange={(e) => setRitmoEscolhido(e.target.value)}
-                        className="fh-exec-select" aria-label="Indicador do ritmo">
-                        {candidatosRitmo.map((c) => (
-                          <option key={c.codigo} value={c.codigo}>{c.curto}</option>
-                        ))}
-                      </select>
+                      <Select value={codigoRitmo} onChange={setRitmoEscolhido}
+                        className="fh-exec-select" style={{ minWidth: 130 }} aria-label="Indicador do ritmo"
+                        options={candidatosRitmo.map((c) => ({ value: c.codigo, label: c.curto }))} />
                     </span>
                   }
                 >

@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { C, GROTESK, alfaDe } from "@/lib/tema";
 import { useAnualIndicador } from "@/hooks/executivo";
 import type { CardIndicador } from "@/types/executivo";
@@ -44,16 +45,14 @@ export function ConsolidadoAnual({ candidatos }: { candidatos: CardIndicador[] }
           <p className="fh-exec-kicker">Histórico</p>
           <h2 className="fh-exec-resumo-titulo">Consolidado dos anos</h2>
         </div>
-        <select
+        <Select
           value={codigo}
-          onChange={(e) => { setCodigo(e.target.value); setAnoFoco(null); }}
+          onChange={(v) => { setCodigo(v); setAnoFoco(null); }}
           className="fh-exec-select"
+          style={{ minWidth: 180 }}
           aria-label="Indicador do consolidado anual"
-        >
-          {candidatos.map((c) => (
-            <option key={c.codigo} value={c.codigo}>{c.nome}</option>
-          ))}
-        </select>
+          options={candidatos.map((c) => ({ value: c.codigo, label: c.nome }))}
+        />
       </div>
 
       <Estado
