@@ -1,1 +1,0 @@
-import { Type } from 'class-transformer';import { IsDateString, IsInt, IsString, Min } from 'class-validator';export class GetAvailableSlotsQueryDto {  @IsString()  professionalId!: string;  @IsDateString()  date!: string;  @Type(() => Number)  @IsInt()  @Min(1)  durationMin!: number;}

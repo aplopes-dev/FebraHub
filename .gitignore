@@ -42,4 +42,8 @@ supabase/*.dump
 CREDENCIAIS_SEED.txt
 # Backups locais de compose
 docker-compose.prod.yml.bak.*
-_team_src/
+# Material de referência (repos-fonte p/ inspiração de UX/arquitetura). Ficam
+# em disco para consulta, mas NÃO entram no git (são grandes: ~660MB no total).
+docs/references/team/
+docs/references/concessionaria/
+docs/references/citybox/

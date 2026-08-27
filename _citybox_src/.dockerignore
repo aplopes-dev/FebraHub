@@ -1,8 +1,0 @@
-**/node_modules
-**/*.tsbuildinfo
-**/.next
-**/dist
-**/dist_keycloak
-.git
-.env
-.env.*

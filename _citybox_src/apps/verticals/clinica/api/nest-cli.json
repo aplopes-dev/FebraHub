@@ -1,7 +1,0 @@
-{
-  "$schema": "https://json.schemastore.org/nest-cli",
-  "collection": "@nestjs/schematics",
-  "sourceRoot": "src",
-  "comment": "deleteOutDir=false: em watch mode o nest apagava dist/ a cada recompilação e o `node --watch dist/src/main-worker.js` do dev-with-worker.sh quebrava com MODULE_NOT_FOUND. A limpeza do build de produção é feita pelo script `build` (rm -rf dist).",
-  "compilerOptions": { "deleteOutDir": false }
-}

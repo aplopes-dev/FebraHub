@@ -1,2 +1,0 @@
--- RenameIndex
-ALTER INDEX "patient_body_region_annotations_store_id_patient_id_body_region" RENAME TO "patient_body_region_annotations_store_id_patient_id_body_re_idx";
