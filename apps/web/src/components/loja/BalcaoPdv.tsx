@@ -21,6 +21,7 @@ import {
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { PdvProduto } from "@/types/pdv";
+import { Select } from "@/components/ui/Select";
 import type { FormaPagamento, LojaPedido, LojaPedidoPagamento, VendaPdvInput } from "@/types/loja-pedidos";
 import "@/app/balcao.css";
 
@@ -499,10 +500,8 @@ export function BalcaoPdv() {
                   <div className="bal-splits">
                     {splits.map((s, i) => (
                       <div key={i} className="bal-splitrow">
-                        <select value={s.forma} onChange={(e) => setSplit(i, { forma: e.target.value as FormaPagamento })}>
-                          {FORMAS.map((f) => <option key={f.forma} value={f.forma}>{f.label}</option>)}
-                          <option value="CARTAO_DEBITO">Débito</option>
-                        </select>
+                        <Select aria-label="Forma de pagamento" value={s.forma} onChange={(v) => setSplit(i, { forma: v as FormaPagamento })} style={{ flex: 1 }}
+                          options={[...FORMAS.map((f) => ({ value: f.forma, label: f.label })), { value: "CARTAO_DEBITO", label: "Débito" }]} />
                         <input type="number" min={0} step="0.01" value={s.valor} onChange={(e) => setSplit(i, { valor: Number(e.target.value) })} />
                         <button className="rm" onClick={() => rmSplit(i)}><Trash2 size={15} /></button>
                       </div>
@@ -1520,16 +1519,14 @@ function ModalEditarProdutoPdv({
 
               <label>
                 <span>Categoria</span>
-                <select
+                <Select
                   className="bal-desc-input"
+                  aria-label="Categoria"
+                  style={{ width: "100%" }}
                   value={categoriaId}
-                  onChange={(e) => setCategoriaId(e.target.value)}
-                >
-                  <option value="">Sem categoria</option>
-                  {categorias.filter((c) => c.ativo).map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
+                  onChange={setCategoriaId}
+                  options={[{ value: "", label: "Sem categoria" }, ...categorias.filter((c) => c.ativo).map((c) => ({ value: c.id, label: c.nome }))]}
+                />
               </label>
 
               <label>

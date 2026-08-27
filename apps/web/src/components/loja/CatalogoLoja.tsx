@@ -16,6 +16,7 @@ import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ProdutoInput } from "@/types/loja-produtos";
 import { GestaoCategorias } from "@/components/loja/GestaoCategorias";
+import { Select } from "@/components/ui/Select";
 import "@/app/loja.css";
 
 const brl = (n: number | string) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -108,11 +109,8 @@ export function CatalogoLoja() {
         <header>
           <label className="loja-busca"><Search size={15} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, SKU ou código de barras" /></label>
           <div className="loja-filtros">
-            <select className="loja-select" style={{ width: "auto" }} value={situacao} onChange={(e) => setSituacao(e.target.value)}>
-              <option value="ativos">Ativos</option>
-              <option value="inativos">Inativos</option>
-              <option value="todos">Todos</option>
-            </select>
+            <Select className="loja-select" aria-label="Situação" value={situacao} onChange={setSituacao} style={{ minWidth: 120 }}
+              options={[{ value: "ativos", label: "Ativos" }, { value: "inativos", label: "Inativos" }, { value: "todos", label: "Todos" }]} />
             <button className={`loja-chip ${!categoriaId ? "ativo" : ""}`} onClick={() => setCategoriaId("")}>Todas</button>
             {(cats.data ?? []).filter((c) => c.ativo).map((c) => (
               <button key={c.id} className={`loja-chip ${categoriaId === c.id ? "ativo" : ""}`} onClick={() => setCategoriaId(c.id)}>{c.nome}</button>
@@ -483,15 +481,8 @@ function ModalProduto({
               </div>
               <div>
                 <label>Unidade</label>
-                <select className="loja-select" value={f.unidade} onChange={(e) => set("unidade", e.target.value)}>
-                  <option value="un">un</option>
-                  <option value="kg">kg</option>
-                  <option value="g">g</option>
-                  <option value="l">l</option>
-                  <option value="ml">ml</option>
-                  <option value="cx">cx</option>
-                  <option value="pct">pct</option>
-                </select>
+                <Select className="loja-select" aria-label="Unidade" value={f.unidade} onChange={(v) => set("unidade", v)}
+                  options={["un", "kg", "g", "l", "ml", "cx", "pct"].map((u) => ({ value: u, label: u }))} />
               </div>
             </div>
 
@@ -509,10 +500,8 @@ function ModalProduto({
             <div className="loja-grid2">
               <div>
                 <label>Categoria</label>
-                <select className="loja-select" value={f.categoriaId ?? ""} onChange={(e) => set("categoriaId", e.target.value)}>
-                  <option value="">Sem categoria</option>
-                  {(cats.data ?? []).filter((c) => c.ativo).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                <Select className="loja-select" aria-label="Categoria" value={f.categoriaId ?? ""} onChange={(v) => set("categoriaId", v)}
+                  options={[{ value: "", label: "Sem categoria" }, ...(cats.data ?? []).filter((c) => c.ativo).map((c) => ({ value: c.id, label: c.nome }))]} />
               </div>
               <div>
                 <label>Estoque mínimo</label>
@@ -615,8 +604,8 @@ function EstoqueInline({ produto, aoMudar }: { produto: LojaProduto; aoMudar: ()
       {tab === "ajuste" && (
         <>
           <div className="loja-grid2">
-            <div><label>Local</label><select className="loja-select" value={local} onChange={(e) => setLocal(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-            <div><label>Tipo</label><select className="loja-select" value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}><option value="entrada">Entrada (+)</option><option value="saida">Saída (−)</option><option value="inventario">Inventário (define saldo)</option></select></div>
+            <div><label>Local</label><Select className="loja-select" aria-label="Local" value={local} onChange={(v) => setLocal(v as LojaLocal)} options={[{ value: "LOJA", label: "Loja" }, { value: "DEPOSITO", label: "Depósito" }]} /></div>
+            <div><label>Tipo</label><Select className="loja-select" aria-label="Tipo" value={tipo} onChange={(v) => setTipo(v as typeof tipo)} options={[{ value: "entrada", label: "Entrada (+)" }, { value: "saida", label: "Saída (−)" }, { value: "inventario", label: "Inventário (define saldo)" }]} /></div>
           </div>
           <label>{tipo === "inventario" ? "Saldo contado" : "Quantidade"}</label>
           <input className="loja-input" type="number" min={0} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
@@ -632,8 +621,8 @@ function EstoqueInline({ produto, aoMudar }: { produto: LojaProduto; aoMudar: ()
       {tab === "transferencia" && (
         <>
           <div className="loja-grid2">
-            <div><label>De</label><select className="loja-select" value={origem} onChange={(e) => setOrigem(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
-            <div><label>Para</label><select className="loja-select" value={destino} onChange={(e) => setDestino(e.target.value as LojaLocal)}><option value="LOJA">Loja</option><option value="DEPOSITO">Depósito</option></select></div>
+            <div><label>De</label><Select className="loja-select" aria-label="Origem" value={origem} onChange={(v) => setOrigem(v as LojaLocal)} options={[{ value: "LOJA", label: "Loja" }, { value: "DEPOSITO", label: "Depósito" }]} /></div>
+            <div><label>Para</label><Select className="loja-select" aria-label="Destino" value={destino} onChange={(v) => setDestino(v as LojaLocal)} options={[{ value: "LOJA", label: "Loja" }, { value: "DEPOSITO", label: "Depósito" }]} /></div>
           </div>
           <label>Quantidade</label>
           <input className="loja-input" type="number" min={0.001} step="0.001" value={qtd} onChange={(e) => setQtd(e.target.value)} autoFocus />
