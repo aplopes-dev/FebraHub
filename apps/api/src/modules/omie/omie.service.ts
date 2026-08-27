@@ -4,7 +4,8 @@
  * Responsabilidades:
  *   1. Ler a configuração das variáveis de ambiente (OMIE_APP_KEY, OMIE_APP_SECRET,
  *      OMIE_CONTA_CORRENTE, OMIE_CODIGO_CATEGORIA, OMIE_ID_VENDEDOR)
- *   2. Sincronizar SKU bidirecional: LojaProduto.skuOmie ↔ Omie codigo_interno
+ *   2. Vincular produtos por codigo_produto_integracao (chave imutável): grava
+ *      FH-<id> no Omie e em LojaProduto.codigoIntegracaoOmie (skuOmie = id do Omie)
  *   3. Lançar pedidos da Loja como Pedido de Venda no Omie
  *   4. Listar vendas da Loja com status do lançamento no Omie
  *
@@ -99,79 +100,132 @@ export class OmieService {
     return { ok: true, empresa: (resp as Record<string, unknown[]>).empresas_cadastro?.[0] ?? null };
   }
 
-  // ==================== SKU SYNC ====================
+  // ==================== VÍNCULO POR CÓDIGO DE INTEGRAÇÃO ====================
 
   /**
-   * Sincroniza SKU entre LojaProduto e Omie.
-   * Para cada produto sem skuOmie:
-   *   1. Busca no Omie pelo campo `codigo` (= sku do produto FebraHub se houver)
-   *   2. Se achar, grava o codigo_interno do Omie em skuOmie
-   *   3. Se não achar, cria o produto no Omie e grava o codigo_interno retornado
+   * Código de integração estável do produto FebraHub → Omie.
+   * Usa o ID (UUID) do produto: NUNCA muda mesmo que nome/SKU/descrição mudem.
+   * É esse valor que gravamos no `codigo_produto_integracao` do Omie.
    */
-  async sincronizarSkus(_u: UsuarioLogado): Promise<{ total: number; mapeados: number; criados: number; erros: number }> {
+  private codigoIntegracao(produtoId: string): string {
+    return `FH-${produtoId}`;
+  }
+
+  /**
+   * Vincula TODOS os produtos da Loja aos produtos do Omie usando o campo
+   * `codigo_produto_integracao` (a chave de integração recomendada pela Omie —
+   * imutável, diferente do `codigo`/SKU que o usuário pode alterar).
+   *
+   * Para cada produto ativo, de forma idempotente:
+   *   1. Calcula o código de integração `FH-<id>`.
+   *   2. Localiza o produto no Omie (nesta ordem):
+   *        a. pelo skuOmie já conhecido (codigo_produto);
+   *        b. pelo próprio codigo_produto_integracao (já vinculado antes);
+   *        c. pelo `codigo` (= nosso SKU), se houver.
+   *   3. Se achou: grava o codigo_produto_integracao no Omie
+   *      (AssociarCodIntProduto) e guarda skuOmie + codigoIntegracaoOmie aqui.
+   *   4. Se não achou: cria o produto no Omie (IncluirProduto) já com o
+   *      codigo_produto_integracao definido, e guarda o codigo_produto retornado.
+   *
+   * Substitui a antiga sincronização por SKU (`codigo`): o vínculo agora é
+   * sempre por `codigo_produto_integracao`.
+   */
+  async vincularPorIntegracao(_u: UsuarioLogado): Promise<{
+    total: number; vinculados: number; associados: number; criados: number; jaVinculados: number; erros: number;
+  }> {
     const cfg = this.obterConfigInterna();
     const produtos = await this.prisma.lojaProduto.findMany({
-      where: { ativo: true, skuOmie: null },
-      select: { id: true, nome: true, sku: true, preco: true, unidade: true, codigoBarras: true },
+      where: { ativo: true },
+      select: { id: true, nome: true, sku: true, preco: true, unidade: true, codigoBarras: true, skuOmie: true, codigoIntegracaoOmie: true },
+      orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
     });
 
-    let mapeados = 0, criados = 0, erros = 0;
+    let associados = 0, criados = 0, jaVinculados = 0, erros = 0;
 
     for (const p of produtos) {
+      const codInt = this.codigoIntegracao(p.id);
       try {
-        // 1. Tentar localizar no Omie pelo sku/codigo
-        const codigoBusca = p.sku?.trim() || null;
-        let codigoInterno: string | null = null;
-
-        if (codigoBusca) {
-          try {
-            const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', {
-              codigo: codigoBusca,
-            }) as { codigo_interno?: string; nCodProd?: number };
-            if (resp?.nCodProd || resp?.codigo_interno) {
-              codigoInterno = resp.codigo_interno || String(resp.nCodProd);
-              mapeados++;
-            }
-          } catch { /* produto não existe no Omie, criar */ }
+        // Já vinculado com o código correto dos dois lados? Nada a fazer.
+        if (p.codigoIntegracaoOmie === codInt && p.skuOmie) {
+          jaVinculados++;
+          continue;
         }
 
-        if (!codigoInterno) {
-          // 2. Criar produto no Omie
-          // Gera um SKU sequencial se não tiver
-          const skuNovo = codigoBusca || await this.gerarSkuSequencial();
-          const payloadProd = {
-            codigo: skuNovo,
+        // 1. Resolve o produto do lado do Omie (codigo_produto).
+        const codigoProduto = await this.resolverCodigoProdutoOmie(cfg, p.skuOmie, codInt, p.sku);
+
+        if (codigoProduto) {
+          // 2a. Já existe no Omie → grava o código de integração lá (associa).
+          await this.chamadaOmie(cfg, 'geral/produtos/', 'AssociarCodIntProduto', {
+            codigo_produto: Number(codigoProduto),
+            codigo_produto_integracao: codInt,
+          });
+          await this.prisma.lojaProduto.update({
+            where: { id: p.id },
+            data: { skuOmie: String(codigoProduto), codigoIntegracaoOmie: codInt },
+          });
+          associados++;
+        } else {
+          // 2b. Não existe → cria no Omie já com o código de integração.
+          const codigoSku = p.sku?.trim() || codInt; // codigo (SKU) é obrigatório; usa o próprio codInt se não houver
+          const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'IncluirProduto', {
+            codigo_produto_integracao: codInt,
+            codigo: codigoSku,
             descricao: p.nome,
             unidade: p.unidade?.toUpperCase() || 'UN',
             valor_unitario: Number(p.preco),
-            codigo_barras: p.codigoBarras || '',
-            tipo_item: '04', // 04 = produto
-          };
-          const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'UpsertProduto', payloadProd) as { codigo_interno?: string; nCodProd?: number };
-          codigoInterno = resp.codigo_interno || String(resp.nCodProd);
-
-          // Atualiza o sku do produto no FebraHub também
-          if (!p.sku && codigoBusca !== skuNovo) {
-            await this.prisma.lojaProduto.update({ where: { id: p.id }, data: { sku: skuNovo } });
-          }
-          criados++;
-        }
-
-        if (codigoInterno) {
+            ncm: '00000000',
+            ...(p.codigoBarras ? { ean: p.codigoBarras } : {}),
+            tipo_item: '04', // 04 = produto acabado
+          }) as { codigo_produto?: number; codigo_produto_integracao?: string };
+          const novoCodigoProduto = resp.codigo_produto ? String(resp.codigo_produto) : null;
           await this.prisma.lojaProduto.update({
             where: { id: p.id },
-            data: { skuOmie: codigoInterno },
+            data: {
+              codigoIntegracaoOmie: codInt,
+              ...(novoCodigoProduto ? { skuOmie: novoCodigoProduto } : {}),
+              ...(!p.sku ? { sku: codigoSku } : {}),
+            },
           });
+          criados++;
         }
       } catch (err) {
-        this.logger.warn(`Erro ao sincronizar SKU do produto ${p.id}: ${err}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Erro ao vincular produto ${p.id} (${codInt}) ao Omie: ${msg}`);
         erros++;
       }
     }
 
-    const resultado = { total: produtos.length, mapeados, criados, erros };
-    this.logger.log(`Sync SKU Omie: ${JSON.stringify(resultado)}`);
+    const vinculados = associados + criados;
+    const resultado = { total: produtos.length, vinculados, associados, criados, jaVinculados, erros };
+    this.logger.log(`Vínculo Omie por codigo_integracao: ${JSON.stringify(resultado)}`);
     return resultado;
+  }
+
+  /**
+   * Descobre o `codigo_produto` (ID interno do Omie) de um produto, tentando,
+   * em ordem: skuOmie conhecido → codigo_produto_integracao → codigo (SKU).
+   * Retorna null se o produto não existe no Omie.
+   */
+  private async resolverCodigoProdutoOmie(
+    cfg: OmieCfg,
+    skuOmie: string | null,
+    codInt: string,
+    sku: string | null,
+  ): Promise<string | null> {
+    const chaves: Record<string, unknown>[] = [];
+    if (skuOmie) chaves.push({ codigo_produto: Number(skuOmie) });
+    chaves.push({ codigo_produto_integracao: codInt });
+    if (sku?.trim()) chaves.push({ codigo: sku.trim() });
+
+    for (const chave of chaves) {
+      try {
+        const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', chave) as { codigo_produto?: number; codigo_interno?: string; nCodProd?: number };
+        const id = resp?.codigo_produto ?? resp?.nCodProd ?? (resp?.codigo_interno ? Number(resp.codigo_interno) : undefined);
+        if (id) return String(id);
+      } catch { /* essa chave não achou — tenta a próxima */ }
+    }
+    return null;
   }
 
   // ==================== LISTAR VENDAS ====================
@@ -430,42 +484,46 @@ export class OmieService {
     return cfg;
   }
 
+  /**
+   * Garante, na hora de lançar um pedido, que o produto está vinculado ao Omie
+   * pela chave de integração (codigo_produto_integracao). Mesma estratégia do
+   * vínculo em lote: acha por skuOmie/codigo_integracao/codigo, ou cria no Omie.
+   * Ao final, `skuOmie` (codigo_produto) e `codigoIntegracaoOmie` ficam gravados.
+   */
   private async sincronizarSkuProduto(cfg: OmieCfg, prodId: string, nome: string, sku: string | null, preco: number, unidade: string | null) {
-    let skuOmie: string | null = null;
-    const codigoBusca = sku?.trim() || null;
+    const codInt = this.codigoIntegracao(prodId);
+    const codigoProduto = await this.resolverCodigoProdutoOmie(cfg, null, codInt, sku);
 
-    if (codigoBusca) {
-      try {
-        const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'ConsultarProduto', { codigo: codigoBusca }) as { codigo_interno?: string; nCodProd?: number };
-        if (resp?.nCodProd || resp?.codigo_interno) {
-          skuOmie = resp.codigo_interno || String(resp.nCodProd);
-        }
-      } catch { /* não existe, criar */ }
+    if (codigoProduto) {
+      await this.chamadaOmie(cfg, 'geral/produtos/', 'AssociarCodIntProduto', {
+        codigo_produto: Number(codigoProduto),
+        codigo_produto_integracao: codInt,
+      });
+      await this.prisma.lojaProduto.update({
+        where: { id: prodId },
+        data: { skuOmie: String(codigoProduto), codigoIntegracaoOmie: codInt },
+      });
+      return;
     }
 
-    if (!skuOmie) {
-      const skuNovo = codigoBusca || await this.gerarSkuSequencial();
-      const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'UpsertProduto', {
-        codigo: skuNovo, descricao: nome, unidade: unidade?.toUpperCase() || 'UN',
-        valor_unitario: preco, tipo_item: '04',
-      }) as { codigo_interno?: string; nCodProd?: number };
-      skuOmie = resp.codigo_interno || String(resp.nCodProd);
-      if (!sku) await this.prisma.lojaProduto.update({ where: { id: prodId }, data: { sku: skuNovo } });
-    }
-
-    if (skuOmie) {
-      await this.prisma.lojaProduto.update({ where: { id: prodId }, data: { skuOmie } });
-    }
-  }
-
-  private async gerarSkuSequencial(): Promise<string> {
-    const ultimo = await this.prisma.lojaProduto.findFirst({
-      where: { sku: { startsWith: 'FH-' } },
-      orderBy: { sku: 'desc' },
-      select: { sku: true },
+    const codigoSku = sku?.trim() || codInt;
+    const resp = await this.chamadaOmie(cfg, 'geral/produtos/', 'IncluirProduto', {
+      codigo_produto_integracao: codInt,
+      codigo: codigoSku,
+      descricao: nome,
+      unidade: unidade?.toUpperCase() || 'UN',
+      valor_unitario: preco,
+      ncm: '00000000',
+      tipo_item: '04',
+    }) as { codigo_produto?: number };
+    await this.prisma.lojaProduto.update({
+      where: { id: prodId },
+      data: {
+        codigoIntegracaoOmie: codInt,
+        ...(resp.codigo_produto ? { skuOmie: String(resp.codigo_produto) } : {}),
+        ...(!sku ? { sku: codigoSku } : {}),
+      },
     });
-    const num = ultimo?.sku ? parseInt(ultimo.sku.replace('FH-', ''), 10) + 1 : 1;
-    return `FH-${String(num).padStart(5, '0')}`;
   }
 
   /**

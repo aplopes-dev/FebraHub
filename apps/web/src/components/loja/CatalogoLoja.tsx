@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeftRight, Barcode, Boxes, CheckCircle2, Copy, ImageOff, Layers, Loader2,
+  ArrowLeftRight, Barcode, Boxes, CheckCircle2, Copy, ImageOff, Layers, Link2, Loader2,
   PackageCheck, Pencil, Plus, RefreshCw, Search, SlidersHorizontal, Tag, Trash2, Upload, X, ZoomIn,
 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
   lojaMovimentos, lojaProduto, lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
   type EnriquecimentoLote,
 } from "@/services/api/loja-produtos";
+import { omieVincularProdutos, type VinculoOmieResp } from "@/services/api/omie";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ProdutoInput } from "@/types/loja-produtos";
@@ -38,6 +39,7 @@ export function CatalogoLoja() {
   const [preco, setPreco] = useState<LojaProduto | null>(null);
   const [gerirCategorias, setGerirCategorias] = useState(false);
   const [loteResultado, setLoteResultado] = useState<EnriquecimentoLote | null>(null);
+  const [vinculoOmie, setVinculoOmie] = useState<VinculoOmieResp | null>(null);
 
   // Deep-link vindo do PDV: /loja/produtos?editar=<produtoId> abre o modal de edição.
   const router = useRouter();
@@ -72,6 +74,13 @@ export function CatalogoLoja() {
     onSuccess: (r) => { setLoteResultado(r); invalidar(); },
   });
 
+  // Vincula os produtos da Loja aos do Omie por codigo_produto_integracao
+  // (chave imutável recomendada pela Omie). Idempotente.
+  const vincularOmie = useMutation({
+    mutationFn: omieVincularProdutos,
+    onSuccess: (r) => { setVinculoOmie(r); invalidar(); },
+  });
+
   return (
     <main className="loja-page">
       <header className="loja-hero loja-hero-compacto">
@@ -90,6 +99,15 @@ export function CatalogoLoja() {
             >
               {enriquecerLote.isPending ? <Loader2 size={15} className="girando" /> : <Barcode size={15} />}
               {enriquecerLote.isPending ? "Consultando EANs…" : "Atualizar EANs"}
+            </button>
+            <button
+              className="loja-btn"
+              title="Vincula todos os produtos ao Omie pelo código de integração (codigo_produto_integracao) — cria no Omie os que ainda não existem"
+              disabled={vincularOmie.isPending}
+              onClick={() => vincularOmie.mutate()}
+            >
+              {vincularOmie.isPending ? <Loader2 size={15} className="girando" /> : <Link2 size={15} />}
+              {vincularOmie.isPending ? "Vinculando ao Omie…" : "Vincular ao Omie"}
             </button>
             <button className="loja-btn ouro" onClick={() => setEditar("novo")}><Plus size={15} /> Novo produto</button>
           </div>
@@ -190,6 +208,9 @@ export function CatalogoLoja() {
       {gerirCategorias && <GestaoCategorias aoFechar={() => { setGerirCategorias(false); invalidar(); }} />}
       {loteResultado && (
         <ModalLoteEan resultado={loteResultado} aoFechar={() => setLoteResultado(null)} />
+      )}
+      {vinculoOmie && (
+        <ModalVinculoOmie resultado={vinculoOmie} aoFechar={() => setVinculoOmie(null)} />
       )}
     </main>
   );
@@ -669,6 +690,31 @@ function ModalLoteEan({ resultado, aoFechar }: { resultado: EnriquecimentoLote; 
         {resultado.verificados === 0 && (
           <p className="loja-empty">Nenhum produto com SKU numérico (EAN-8 ou EAN-13) encontrado para verificar.<br /><small>Preencha o campo SKU com o EAN numérico do produto e tente novamente.</small></p>
         )}
+        <div className="fim"><button className="loja-btn ouro" onClick={aoFechar}>Fechar</button></div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MODAL RESULTADO VÍNCULO OMIE ====================
+function ModalVinculoOmie({ resultado, aoFechar }: { resultado: VinculoOmieResp; aoFechar: () => void }) {
+  return (
+    <div className="loja-modal-bg" onClick={aoFechar}>
+      <div className="loja-modal lg" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3><Link2 size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />Vínculo com o Omie</h3>
+          <button className="loja-btn mini" onClick={aoFechar}><X size={13} /></button>
+        </div>
+        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "var(--muted)" }}>
+          Vínculo por <code>codigo_produto_integracao</code> (chave imutável). Já associados são ignorados; produtos
+          ausentes no Omie são criados automaticamente.
+        </p>
+        <div className="loja-kpis" style={{ marginBottom: 16 }}>
+          <article><small>TOTAL</small><b>{resultado.total}</b><span>produtos ativos</span></article>
+          <article><small>VINCULADOS AGORA</small><b style={{ color: "var(--up)" }}>{resultado.vinculados}</b><span>{resultado.associados} associados · {resultado.criados} criados</span></article>
+          <article><small>JÁ VINCULADOS</small><b style={{ color: "var(--muted)" }}>{resultado.jaVinculados}</b><span>sem alteração</span></article>
+          <article><small>ERROS</small><b className={resultado.erros ? "down" : ""}>{resultado.erros}</b><span>ver logs da API</span></article>
+        </div>
         <div className="fim"><button className="loja-btn ouro" onClick={aoFechar}>Fechar</button></div>
       </div>
     </div>

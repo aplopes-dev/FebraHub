@@ -20,11 +20,11 @@ export class OmieController {
   @ApiOperation({ summary: 'Testa a conexão com a API Omie usando as credenciais do ambiente' })
   testar(@Usuario() u: UsuarioLogado) { return this.s.testarConexao(u); }
 
-  // ---- SKU ----
-  @Post('sync-sku')
+  // ---- Vínculo por código de integração ----
+  @Post('vincular-integracao')
   @ExigePermissao('loja.produtos.gerenciar')
-  @ApiOperation({ summary: 'Sincroniza SKU dos produtos FebraHub com o Omie' })
-  syncSku(@Usuario() u: UsuarioLogado) { return this.s.sincronizarSkus(u); }
+  @ApiOperation({ summary: 'Vincula os produtos da Loja aos do Omie por codigo_produto_integracao (chave imutável)' })
+  vincularIntegracao(@Usuario() u: UsuarioLogado) { return this.s.vincularPorIntegracao(u); }
 
   // ---- Vendas ----
   @Get('vendas')

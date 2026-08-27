@@ -60,10 +60,13 @@ export interface LancarResp {
   resultados: Array<{ pedidoId: string; status: string; omieNumero?: string; motivo?: string; erro?: string }>;
 }
 
-export interface SyncSkuResp {
+/** Resultado do vínculo em lote dos produtos com o Omie (por codigo_produto_integracao). */
+export interface VinculoOmieResp {
   total: number;
-  mapeados: number;
+  vinculados: number;
+  associados: number;
   criados: number;
+  jaVinculados: number;
   erros: number;
 }
 
@@ -71,8 +74,12 @@ export interface SyncSkuResp {
 export const omieConfig = () => api.get<OmieConfig>('/loja/omie/config');
 export const omieTestar = () => api.post<{ ok: boolean; empresa: unknown }>('/loja/omie/config/testar', {});
 
-// ---- SKU ----
-export const omieSyncSku = () => api.post<SyncSkuResp>('/loja/omie/sync-sku', {});
+// ---- Vínculo de produtos (por codigo_produto_integracao) ----
+/**
+ * Vincula todos os produtos da Loja aos do Omie usando o codigo_produto_integracao
+ * (chave imutável recomendada pela Omie). Idempotente. Usado na tela "Produtos da Loja".
+ */
+export const omieVincularProdutos = () => api.post<VinculoOmieResp>('/loja/omie/vincular-integracao', {});
 
 // ---- Vendas ----
 export interface FiltrosVendas {

@@ -2410,8 +2410,10 @@ model LojaProduto {
   emDestaque        Boolean  @default(false) @map("em_destaque")
   estoqueMinimo     Decimal  @default(0) @map("estoque_minimo") @db.Decimal(14, 3)
   ordem             Int      @default(0)
-  /// Código interno do produto no Omie (campo codigo_interno / codigo). Sincronizado bidirecional.
+  /// Código interno do produto no Omie (codigo_produto / codigo_interno). Cache do ID do Omie; NÃO é a chave do vínculo.
   skuOmie           String?  @map("sku_omie")
+  /// Código de integração (codigo_produto_integracao no Omie) — CHAVE IMUTÁVEL do vínculo FebraHub ↔ Omie. Valor = FH-<id>.
+  codigoIntegracaoOmie String? @map("codigo_integracao_omie")
   criadoPorId       String?  @map("criado_por_id") @db.Uuid
   criadoEm          DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm      DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
@@ -2423,6 +2425,7 @@ model LojaProduto {
   omieLancamentos   OmieLancamento[]
 
   @@unique([skuOmie])
+  @@unique([codigoIntegracaoOmie])
   @@index([categoriaId])
   @@index([ativo, ordem, nome])
   @@index([produtoEstoqueId])
