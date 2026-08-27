@@ -146,9 +146,9 @@ const acoes_loja: Acao[] = [
   },
   {
     id: "loja-vendas",
-    label: "Vendas da Loja",
-    desc: "Histórico de vendas com status Omie, lançar individual ou em lote",
-    keywords: ["vendas", "omie", "lançar", "lancar", "historico", "histórico", "venda", "relatorio"],
+    label: "Central de Vendas e Conciliação",
+    desc: "Faturamento real sem duplicidade: FebraHub + Stone + Omie, conciliação",
+    keywords: ["vendas", "conciliacao", "conciliação", "stone", "omie", "faturamento", "central", "maquininha", "nsu", "tid", "divergencia", "venda", "relatorio"],
     href: "/loja/vendas",
     icone: "ShoppingBag",
     grupo: "loja",

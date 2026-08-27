@@ -2317,6 +2317,122 @@ model StoneConciliacaoImport {
   @@map("stone_conciliacao_imports")
 }
 
+// ====================================================================
+// CENTRAL DE VENDAS E CONCILIAÇÃO (migration 57)
+// Uma VENDA CONSOLIDADA representa o evento comercial real. Ela agrega
+// N registros de ORIGEM (FebraHub / Stone / Omie). Conciliar é criar a
+// relação — NUNCA fundir/sobrescrever/apagar o registro original.
+// Faturamento consolidado = soma das VendaConsolidada (nunca soma origens).
+// ====================================================================
+
+/// Venda consolidada — o evento comercial real, único, sem duplicidade.
+model VendaConsolidada {
+  id                String    @id @default(uuid()) @db.Uuid
+  /// Número humano sequencial (VC-000125). Preenchido por trigger/serviço.
+  numero            Int       @default(autoincrement())
+  unidade           String?   // FEBRACIS SSA / REC / ... ou null = não identificada
+  eventoId          String?   @map("evento_id") @db.Uuid
+  eventoNome        String?   @map("evento_nome")
+  clienteNome       String?   @map("cliente_nome")
+  clienteDoc        String?   @map("cliente_doc")   // CPF/CNPJ, quando identificado
+  dataVenda         DateTime  @map("data_venda") @db.Timestamptz(6)
+  formaPagamento    String?   @map("forma_pagamento")
+  /// Valor comercial da venda (faturamento). Base do card consolidado.
+  valorTotal        Decimal   @default(0) @map("valor_total") @db.Decimal(14, 2)
+  /// Valor financeiro efetivamente recebido (soma das transações Stone pagas).
+  valorRecebido     Decimal   @default(0) @map("valor_recebido") @db.Decimal(14, 2)
+  /// Valor líquido após taxas (quando fornecido pela adquirente).
+  valorLiquido      Decimal   @default(0) @map("valor_liquido") @db.Decimal(14, 2)
+  valorEstornado    Decimal   @default(0) @map("valor_estornado") @db.Decimal(14, 2)
+  /// Status de conciliação — ver enum textual no serviço:
+  /// CONCILIADA | PARCIALMENTE_CONCILIADA | SOMENTE_STONE | SOMENTE_FEBRAHUB |
+  /// SOMENTE_OMIE | FEBRAHUB_STONE | FEBRAHUB_OMIE | STONE_OMIE |
+  /// DIVERGENCIA_VALOR | POSSIVEL_DUPLICIDADE | REQUER_REVISAO | CANCELADA | ESTORNADA
+  statusConciliacao String    @default("REQUER_REVISAO") @map("status_conciliacao")
+  /// true quando algum vínculo foi inferido por heurística (não por ID inequívoco).
+  inferido          Boolean   @default(false)
+  observacao        String    @default("")
+  criadoEm          DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  origens           VendaOrigem[]
+
+  @@index([statusConciliacao, dataVenda(sort: Desc)])
+  @@index([dataVenda(sort: Desc)])
+  @@index([unidade])
+  @@index([valorTotal])
+  @@map("vendas_consolidadas")
+}
+
+/// Registro de ORIGEM — o registro individual recebido de cada sistema.
+/// Um por (origem, externalId). NUNCA é apagado; a conciliação só liga/desliga
+/// o vínculo com a VendaConsolidada.
+model VendaOrigem {
+  id             String    @id @default(uuid()) @db.Uuid
+  consolidadaId  String?   @map("consolidada_id") @db.Uuid
+  /// FEBRAHUB | STONE | OMIE
+  origem         String
+  /// ID inequívoco da origem (pedidoId FebraHub, acquirerTransactionKey Stone,
+  /// codigo_pedido Omie). Âncora de idempotência por origem.
+  externalId     String    @map("external_id")
+  /// Ponteiros para as tabelas de negócio existentes (reuso, sem duplicar dados).
+  lojaPedidoId   String?   @map("loja_pedido_id") @db.Uuid
+  stoneTransacaoId String? @map("stone_transacao_id") @db.Uuid
+  omieLancamentoId String? @map("omie_lancamento_id") @db.Uuid
+  valor          Decimal   @default(0) @db.Decimal(14, 2)
+  dataHora       DateTime? @map("data_hora") @db.Timestamptz(6)
+  /// Identificadores de cartão para conciliação (mascarados/permitidos por PCI).
+  nsu            String?
+  tid            String?
+  autorizacao    String?
+  bandeira       String?
+  formaPagamento String?   @map("forma_pagamento")
+  parcelas       Int?
+  terminal       String?
+  unidade        String?
+  clienteNome    String?   @map("cliente_nome")
+  clienteDoc     String?   @map("cliente_doc")
+  /// SOMENTE_STONE | CANCELADA | ESTORNADA | CHARGEBACK | OK ...
+  status         String    @default("OK")
+  /// Snapshot técnico do registro original (auditoria/investigação).
+  payload        Json?
+  /// Como o vínculo foi feito: determinístico | heuristico | manual | null.
+  vinculoModo    String?   @map("vinculo_modo")
+  /// Score 0..100 do vínculo automático (heurístico).
+  vinculoScore   Int?      @map("vinculo_score")
+  criadoEm       DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  consolidada    VendaConsolidada? @relation(fields: [consolidadaId], references: [id], onDelete: SetNull)
+
+  @@unique([origem, externalId])
+  @@index([consolidadaId])
+  @@index([origem, status])
+  @@index([nsu])
+  @@index([tid])
+  @@index([valor])
+  @@index([dataHora(sort: Desc)])
+  @@map("vendas_origens")
+}
+
+/// Trilha de auditoria de conciliação — toda ação (sync, vínculo, desvínculo,
+/// mudança de status). Registro original NUNCA é apagado.
+model ConciliacaoAuditoria {
+  id            String   @id @default(uuid()) @db.Uuid
+  consolidadaId String?  @map("consolidada_id") @db.Uuid
+  origemId      String?  @map("origem_id") @db.Uuid
+  /// sync | vinculo_auto | vinculo_manual | desvinculo | status | ajuste
+  acao          String
+  detalhe       String   @default("")
+  valorAntes    Json?    @map("valor_antes")
+  valorDepois   Json?    @map("valor_depois")
+  usuarioId     String?  @map("usuario_id") @db.Uuid
+  usuarioNome   String?  @map("usuario_nome")
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@index([consolidadaId, criadoEm(sort: Desc)])
+  @@index([acao, criadoEm(sort: Desc)])
+  @@map("conciliacao_auditoria")
+}
+
 model FinanceiroLancamento {
   id             String   @id @default(uuid()) @db.Uuid
   operacao       String   // receber | pagar

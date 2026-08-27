@@ -108,6 +108,7 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
       { id: 'loja.pedidos.operar', nome: 'Operar a fila', descricao: 'Confirmar pagamento, chamar o próximo, preparar, marcar pronto, escanear o QR do comprovante, confirmar retirada, atender por código (ver/editar/imprimir pedido).' },
       { id: 'loja.pedidos.gerenciar', nome: 'Gerenciar operações', descricao: 'Abrir/encerrar operações da Loja, cancelar pedidos e lançar vendas no Omie.' },
       { id: 'loja.omie.gerenciar', nome: 'Integração Omie — Lançar vendas', descricao: 'Vincular produtos ao Omie (por codigo_produto_integracao) e lançar pedidos da Loja no Omie (individual ou em lote). As credenciais Omie ficam no ambiente da API.' },
+      { id: 'loja.vendas.conciliar', nome: 'Central de Vendas — Conciliar', descricao: 'Sincronizar Stone, conciliar vendas (manual/automática), desvincular, resolver divergências e exportar na Central de Vendas e Conciliação.' },
     ],
   },
   {

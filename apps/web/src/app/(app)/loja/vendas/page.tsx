@@ -1,11 +1,11 @@
 "use client";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
-import { VendasLoja } from "@/components/loja/VendasLoja";
+import { CentralVendas } from "@/components/loja/CentralVendas";
 
 export default function Pagina() {
   return (
     <GuardaPermissao permissoes={["loja.pedidos.ver"]}>
-      <VendasLoja />
+      <CentralVendas />
     </GuardaPermissao>
   );
 }

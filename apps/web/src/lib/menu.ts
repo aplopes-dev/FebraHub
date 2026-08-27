@@ -131,11 +131,11 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
 
       {
         id: "loja-vendas",
-        label: "Vendas",
+        label: "Central de Vendas",
         href: "/loja/vendas",
         Icone: ShoppingBag,
-        titulo: "Vendas da Loja",
-        desc: "Histórico de todas as vendas com status de lançamento no Omie",
+        titulo: "Central de Vendas e Conciliação",
+        desc: "Faturamento real sem duplicidade: concilia FebraHub, Stone e Omie",
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
       },
       {

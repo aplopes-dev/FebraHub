@@ -1,0 +1,139 @@
+/* Central de Vendas e Conciliação — escopo .cv-* (usa tokens de tema globais). */
+
+.cv-page { gap: 16px; }
+
+/* ---------- Cards ---------- */
+.cv-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.cv-card {
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color .15s, transform .1s;
+}
+.cv-card:hover { border-color: var(--gold); transform: translateY(-1px); }
+.cv-card.destaque {
+  grid-column: span 2;
+  background: linear-gradient(135deg, rgb(var(--gold-rgb)/.10), var(--card));
+  border-color: rgb(var(--gold-rgb)/.35);
+}
+.cv-card.critico { border-color: rgb(var(--down-rgb, 224 108 117)/.45); }
+.cv-card.critico:hover { border-color: var(--down); }
+.cv-card-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.cv-card.critico .cv-card-label { color: var(--down); }
+.cv-card-valor { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.1; }
+.cv-card.destaque .cv-card-valor { font-size: 28px; color: var(--gold); }
+.cv-card-valor.pequeno { font-size: 20px; }
+.cv-card-sub { font-size: 11px; color: var(--muted); }
+
+/* ---------- Barra: filtro de origem em destaque + ações ---------- */
+.cv-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.cv-origem-tabs { display: inline-flex; background: var(--card-line); border-radius: 12px; padding: 3px; gap: 2px; }
+.cv-origem-tab {
+  border: 0; background: transparent; color: var(--muted);
+  font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 9px; cursor: pointer;
+}
+.cv-origem-tab.on { background: linear-gradient(180deg, var(--gold-top), var(--gold-base)); color: var(--sobre-ouro); }
+.cv-barra-acoes { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cv-int { font-size: 11.5px; color: var(--muted); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--card-line); }
+.cv-int.on { color: var(--up, #059669); border-color: rgb(16 185 129/.4); }
+.cv-int.off { color: var(--down); border-color: rgb(var(--down-rgb, 224 108 117)/.4); }
+.cv-girando { animation: cv-spin 1s linear infinite; }
+@keyframes cv-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Filtros ---------- */
+.cv-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cv-busca {
+  display: inline-flex; align-items: center; gap: 6px; flex: 1; min-width: 240px;
+  height: 36px; border: 1.5px solid var(--card-line); border-radius: 10px; padding: 0 12px;
+  background: var(--card); color: var(--muted);
+}
+.cv-busca:focus-within { border-color: var(--gold); }
+.cv-busca input { border: 0; background: transparent; outline: none; color: var(--text); font-size: 13.5px; width: 100%; }
+
+/* ---------- Barra de seleção ---------- */
+.cv-selbar {
+  display: flex; align-items: center; gap: 10px;
+  background: rgb(var(--gold-rgb)/.10); border: 1px solid rgb(var(--gold-rgb)/.3);
+  border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+}
+
+/* ---------- Tabela ---------- */
+.cv-tabela .cv-linha { cursor: pointer; }
+.cv-tabela tr.sel td { background: rgb(var(--gold-rgb)/.08); }
+.cv-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.cv-vc-txt { font-weight: 800; font-size: 12.5px; color: var(--gold); }
+.cv-vc { border: 0; background: transparent; color: var(--gold); font-weight: 800; font-size: 12px; cursor: pointer; padding: 0; }
+.cv-inf { color: var(--muted); margin-left: 4px; font-weight: 700; }
+.cv-origens { display: flex; gap: 4px; flex-wrap: wrap; }
+.cv-orig { font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
+.cv-orig.on { background: rgb(16 185 129/.14); color: #059669; }
+.cv-orig.off { background: var(--card-line); color: var(--muted); }
+.cv-orig.on.STONE { background: rgb(0 168 89/.16); color: #00a859; }
+.cv-orig.on.FEBRAHUB { background: rgb(var(--gold-rgb)/.16); color: var(--gold); }
+.cv-orig.on.OMIE { background: rgb(59 130 246/.16); color: #3b82f6; }
+
+/* ---------- Status ---------- */
+.cv-status { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+.cv-status.CONCILIADA { background: rgb(16 185 129/.14); color: #059669; }
+.cv-status.PARCIALMENTE_CONCILIADA, .cv-status.FEBRAHUB_STONE, .cv-status.FEBRAHUB_OMIE, .cv-status.STONE_OMIE { background: rgb(59 130 246/.14); color: #3b82f6; }
+.cv-status.SOMENTE_STONE { background: rgb(245 158 11/.16); color: #d97706; }
+.cv-status.SOMENTE_FEBRAHUB, .cv-status.SOMENTE_OMIE, .cv-status.REQUER_REVISAO { background: var(--card-line); color: var(--muted); }
+.cv-status.DIVERGENCIA_VALOR, .cv-status.POSSIVEL_DUPLICIDADE { background: rgb(var(--down-rgb, 224 108 117)/.16); color: var(--down); }
+.cv-status.CANCELADA, .cv-status.ESTORNADA { background: rgb(107 114 128/.16); color: #6b7280; text-decoration: line-through; }
+.cv-fetching { font-size: 11px; color: var(--muted); padding: 4px 16px; }
+
+/* ---------- Drawer de detalhe ---------- */
+.cv-drawer-bg { position: fixed; inset: 0; background: rgb(0 0 0/.45); z-index: 60; display: flex; justify-content: flex-end; }
+.cv-drawer { width: min(560px, 100%); height: 100%; background: var(--bg, var(--card)); border-left: 1px solid var(--card-line); display: flex; flex-direction: column; box-shadow: -8px 0 30px rgb(0 0 0/.2); animation: cv-slide .18s ease; }
+@keyframes cv-slide { from { transform: translateX(30px); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.cv-drawer-topo { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--card-line); }
+.cv-drawer-vc { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.cv-x { border: 0; background: var(--card-line); border-radius: 8px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; color: var(--text); }
+.cv-drawer-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+.cv-resumo-valores { display: flex; gap: 18px; flex-wrap: wrap; }
+.cv-resumo-valores > div { display: flex; flex-direction: column; }
+.cv-resumo-valores span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.cv-resumo-valores strong { font-size: 18px; }
+.cv-resumo-valores .est strong { color: var(--down); }
+
+.cv-bloco { border: 1px solid var(--card-line); border-radius: 12px; overflow: hidden; }
+.cv-bloco.off { opacity: .6; }
+.cv-bloco-topo { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--card-line); }
+.cv-bloco-tit { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; }
+.cv-bloco-valor { font-weight: 800; }
+.cv-bloco-nao { font-size: 12px; color: var(--muted); }
+.cv-bloco-corpo { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cv-bloco-linhas { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.cv-bloco-linhas b { color: var(--text); }
+.cv-stone-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.cv-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cv-itens li { display: flex; justify-content: space-between; font-size: 12.5px; }
+
+.cv-audit { border-top: 1px dashed var(--card-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cv-audit-tit { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.cv-audit-item { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.cv-audit-tag { align-self: flex-start; font-size: 10px; font-weight: 800; text-transform: uppercase; border-radius: 6px; padding: 2px 6px; background: var(--card-line); color: var(--muted); }
+.cv-audit-tag.vinculo_manual, .cv-audit-tag.vinculo_auto { background: rgb(16 185 129/.14); color: #059669; }
+.cv-audit-tag.desvinculo { background: rgb(var(--down-rgb, 224 108 117)/.14); color: var(--down); }
+.cv-audit-det { color: var(--text); }
+.cv-audit-meta { color: var(--muted); font-size: 11px; }
+
+@media (max-width: 720px) {
+  .cv-card.destaque { grid-column: span 2; }
+  .cv-drawer { width: 100%; }
+}
