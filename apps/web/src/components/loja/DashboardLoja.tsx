@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, Clock, CreditCard, Package, Store, TrendingUp } from "lucide-react";
 import { lojaOperacoes, lojaPedidosDashboard, lojaPedidosIndicadores } from "@/services/api/loja-pedidos";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
+import { Select } from "@/components/ui/Select";
 import "@/app/loja.css";
 import "@/app/fila.css";
 
@@ -45,11 +46,8 @@ export function DashboardLoja() {
           <h1>Indicadores da operação</h1>
           <p>Faturamento, ranking de produtos, formas de pagamento, canais e tempos — em tempo real.</p>
         </div>
-        <select value={operacaoId} onChange={(e) => setOperacaoId(e.target.value)}
-          style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid var(--card-line)", background: "var(--card)", color: "inherit", fontSize: 13 }}>
-          <option value="">Todas as operações</option>
-          {(operacoes.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
-        </select>
+        <Select aria-label="Operação" value={operacaoId} onChange={setOperacaoId} style={{ minWidth: 190 }}
+          options={[{ value: "", label: "Todas as operações" }, ...(operacoes.data ?? []).map((o) => ({ value: o.id, label: o.nome }))]} />
       </header>
 
       {/* KPIs operacionais */}

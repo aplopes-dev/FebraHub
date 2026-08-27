@@ -5,6 +5,7 @@ import { ExternalLink, Loader2, Monitor, Plus, QrCode, Store, Upload } from "luc
 import { atualizarOperacao, criarOperacao, lojaOperacoes } from "@/services/api/loja-pedidos";
 import { lojaEnviarImagemProduto } from "@/services/api/loja-produtos";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaOperacao } from "@/types/loja-pedidos";
 import { QrCardapioModal } from "@/components/loja/QrCardapioModal";
@@ -145,17 +146,19 @@ function FormOperacao({
         )}
         <div style={{ display: "flex", gap: 10 }}>
           <label style={{ fontSize: 12, flex: 1 }}>Modo
-            <select value={modo} onChange={(e) => setModo(e.target.value as LojaOperacao["modo"])} style={campo}>
-              <option value="RETIRADA_BALCAO">Retirada no balcão</option>
-              <option value="SERVICO_MESA">Serviço na mesa</option>
-            </select>
+            <Select aria-label="Modo" value={modo} onChange={(v) => setModo(v as LojaOperacao["modo"])} style={{ width: "100%", marginTop: 4 }}
+              options={[
+                { value: "RETIRADA_BALCAO", label: "Retirada no balcão" },
+                { value: "SERVICO_MESA", label: "Serviço na mesa" },
+              ]} />
           </label>
           <label style={{ fontSize: 12, flex: 1 }}>Status
-            <select value={status} onChange={(e) => setStatus(e.target.value as LojaOperacao["status"])} style={campo}>
-              <option value="ativa">Ativa</option>
-              <option value="suspensa">Suspensa</option>
-              <option value="encerrada">Encerrada</option>
-            </select>
+            <Select aria-label="Status" value={status} onChange={(v) => setStatus(v as LojaOperacao["status"])} style={{ width: "100%", marginTop: 4 }}
+              options={[
+                { value: "ativa", label: "Ativa" },
+                { value: "suspensa", label: "Suspensa" },
+                { value: "encerrada", label: "Encerrada" },
+              ]} />
           </label>
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>

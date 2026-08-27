@@ -18,6 +18,7 @@ import {
   lojaProdutos,
 } from "@/services/api/loja-produtos";
 import { LeitorQr } from "@/components/loja/LeitorQr";
+import { Select } from "@/components/ui/Select";
 import { ErroApi } from "@/services/api/client";
 import type { LojaLocal, LojaProduto, ProdutoInput } from "@/types/loja-produtos";
 
@@ -621,12 +622,8 @@ function CategoriaProduto({
   return (
     <div className="inv-cod-edit">
       <div className="inv-cod-linha">
-        <select className="loja-input" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus>
-          <option value="">Sem categoria</option>
-          {(cats.data ?? []).filter((c) => c.ativo).map((c) => (
-            <option key={c.id} value={c.id}>{c.nome}</option>
-          ))}
-        </select>
+        <Select className="loja-input" aria-label="Categoria" value={valor} onChange={setValor}
+          options={[{ value: "", label: "Sem categoria" }, ...(cats.data ?? []).filter((c) => c.ativo).map((c) => ({ value: c.id, label: c.nome }))]} />
       </div>
       {erro && <p className="inv-aviso erro">{erro}</p>}
       <div className="inv-cod-botoes">
