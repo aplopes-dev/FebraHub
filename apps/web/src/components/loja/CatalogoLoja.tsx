@@ -481,7 +481,7 @@ function ModalProduto({
               </div>
               <div>
                 <label>Unidade</label>
-                <Select className="loja-select" aria-label="Unidade" value={f.unidade} onChange={(v) => set("unidade", v)}
+                <Select className="loja-select" aria-label="Unidade" value={f.unidade ?? "un"} onChange={(v) => set("unidade", v)}
                   options={["un", "kg", "g", "l", "ml", "cx", "pct"].map((u) => ({ value: u, label: u }))} />
               </div>
             </div>
