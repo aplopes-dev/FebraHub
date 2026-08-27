@@ -335,11 +335,22 @@ html.pm-overlay-aberto body{overflow:hidden}
 .pm-fila-grupo{margin-bottom:20px}
 .pm-fila-grupo h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--pm-muted);margin:0 0 9px;display:flex;align-items:center;gap:8px;font-weight:700}
 .pm-fila-grupo h3 .n{background:var(--pm-elev);border:1px solid var(--pm-line);padding:1px 8px;font-size:11px;color:var(--pm-fg)}
-.pm-ped{border:1px solid var(--pm-line);background:var(--pm-card);padding:14px;margin-bottom:8px;transition:border-color .15s}
+/* lista ÚNICA da fila (sem seções): cada card carrega o próprio estado */
+.pm-fila-lista{display:flex;flex-direction:column;gap:8px}
+.pm-ped{border:1px solid var(--pm-line);background:var(--pm-card);padding:14px;transition:border-color .15s}
 .pm-ped.proximo{border-left:3px solid #FBBF24}
-.pm-ped-topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
-.pm-ped-topo b{font-size:19px;letter-spacing:-.01em}
-.pm-ped-canal{font-size:10px;font-weight:700;color:var(--pm-muted);border:1px solid var(--pm-line);padding:3px 9px}
+.pm-ped.pronto{border-left:3px solid var(--pm-verde)}
+.pm-ped-topo{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.pm-ped-topo b{font-size:19px;letter-spacing:-.01em;flex:none}
+/* pílula de ESTADO (em preparação, pronto, etc.) — cor por status */
+.pm-ped-estado{font-size:11px;font-weight:700;padding:3px 9px;border:1px solid var(--pm-line);color:var(--pm-muted);white-space:nowrap}
+.pm-ped-estado.s-aguardando_pagamento{color:#FBBF24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.1)}
+.pm-ped-estado.s-na_fila{color:var(--pm-muted)}
+.pm-ped-estado.s-proximo{color:#FBBF24;border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.12)}
+.pm-ped-estado.s-em_preparacao{color:var(--pm-gold);border-color:var(--pm-gold);background:rgb(var(--pm-gold-rgb)/.1)}
+.pm-ped-estado.s-pronto{color:var(--pm-verde);border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.12)}
+.pm-ped-canal{font-size:10px;font-weight:700;color:var(--pm-muted);border:1px solid var(--pm-line);padding:3px 9px;margin-left:auto;flex:none}
+.pm-ped-cliente{font-size:12.5px;font-weight:600;color:var(--pm-fg);margin-bottom:3px}
 .pm-ped-itens{font-size:12.5px;color:var(--pm-muted);line-height:1.55}
 .pm-ped-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .pm-ped-acoes .pm-btn{flex:1;padding:11px;font-size:13px;min-width:110px}
