@@ -11,6 +11,7 @@ import {
 import { listarVendas, type ComVenda } from "@/services/api/comercial";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
 import { Select } from "@/components/ui/Select";
+import { CabecalhoPagina } from "@/components/ui/CabecalhoPagina";
 import "@/app/comercial.css";
 
 const brl = (v: number | null | undefined) =>
@@ -60,23 +61,16 @@ function ListaVendas() {
 
   return (
     <div>
-      {/* Cabeçalho */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 18,
-          flexWrap: "wrap",
-        }}
-      >
-        <h1 style={{ fontSize: 19, fontWeight: 800, color: "var(--bright)", margin: 0, flex: 1 }}>
-          Vendas
-        </h1>
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>
-          {total} venda{total !== 1 ? "s" : ""}
-        </span>
-      </div>
+      <CabecalhoPagina
+        eyebrow="COMERCIAL"
+        titulo="Vendas"
+        descricao="Lista, status e aprovação das vendas fechadas."
+        acoes={
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            {total} venda{total !== 1 ? "s" : ""}
+          </span>
+        }
+      />
 
       {/* Filtros */}
       <div className="com-filtros">

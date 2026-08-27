@@ -17,6 +17,7 @@ import {
 import { dashboard, minhaOperacao } from "@/services/api/comercial";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { GuardaPermissao } from "@/components/auth/GuardaPermissao";
+import { CabecalhoPagina } from "@/components/ui/CabecalhoPagina";
 import "@/app/comercial.css";
 
 const brl = (v: number | null | undefined) =>
@@ -109,49 +110,27 @@ function DashboardComercial() {
 
   return (
     <div style={{ padding: "0 2px" }}>
-      {/* ---- Cabeçalho ---- */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: "var(--bright)",
-              margin: 0,
-            }}
-          >
-            Comercial
-          </h1>
-          <p
-            style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}
-          >
-            Pipeline, leads e vendas em um lugar só
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/comercial/leads" className="com-btn-ouro">
-            <Plus size={15} />
-            Novo Lead
-          </Link>
-          <Link href="/comercial/pipeline" className="com-btn">
-            <TrendingUp size={14} />
-            Ver Pipeline
-          </Link>
-          <Link href="/comercial/vendas" className="com-btn">
-            <ShoppingBag size={14} />
-            Vendas
-          </Link>
-        </div>
-      </div>
+      <CabecalhoPagina
+        eyebrow="COMERCIAL"
+        titulo="Comercial"
+        descricao="Pipeline, leads e vendas em um lugar só."
+        acoes={
+          <>
+            <Link href="/comercial/leads" className="com-btn-ouro">
+              <Plus size={15} />
+              Novo Lead
+            </Link>
+            <Link href="/comercial/pipeline" className="com-btn">
+              <TrendingUp size={14} />
+              Ver Pipeline
+            </Link>
+            <Link href="/comercial/vendas" className="com-btn">
+              <ShoppingBag size={14} />
+              Vendas
+            </Link>
+          </>
+        }
+      />
 
       {/* ---- KPIs ---- */}
       <div className="com-kpi-grid">
