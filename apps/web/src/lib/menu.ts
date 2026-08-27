@@ -1,6 +1,6 @@
 import {
   Bell, BookOpen, Bot, CreditCard, LayoutDashboard, MessageCircle,
-  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow,
+  FileText, Plug, Settings2, ShieldCheck, ShoppingCart, Users, Wallet, Workflow, ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
 import { HUBS, PAGINA_INTEGRACOES } from "@/lib/hubs";
@@ -108,6 +108,15 @@ function filhosHub(key: string, nome: string, Icone: LucideIcon, desc: string): 
         visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.produtos.ver"),
       },
 
+      {
+        id: "loja-vendas",
+        label: "Vendas",
+        href: "/loja/vendas",
+        Icone: ShoppingBag,
+        titulo: "Vendas da Loja",
+        desc: "Histórico de todas as vendas com status de lançamento no Omie",
+        visivel: (ctx: ContextoMenu) => doSetor("loja")(ctx) || ctx.pode("loja.pedidos.ver"),
+      },
       {
         id: "loja-balcao",
         label: "Balcão (PDV)",

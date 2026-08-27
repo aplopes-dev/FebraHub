@@ -1,11 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Sun, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Power, Search, Sun, X } from "lucide-react";
 import { BotaoBuscaGlobal, BuscaGlobal, useBuscaGlobal } from "@/components/shell/BuscaGlobal";
 import { PromptInstalar } from "@/components/pwa/PromptInstalar";
 import { SeletorCategoria } from "@/components/filtros/SeletorCategoria";
@@ -47,6 +47,8 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [buscaAberta, setBuscaAberta] = useBuscaGlobal();
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  const [buscaMenu, setBuscaMenu] = useState("");
+  const buscaMenuRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -166,12 +168,52 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
             </button>
           </div>
 
+          {/* ── Busca de menu inline (acima dos grupos) ── */}
+          <div className="fh-busca-menu-wrap">
+            <Search size={13} className="fh-busca-menu-ico" aria-hidden />
+            <input
+              ref={buscaMenuRef}
+              className="fh-busca-menu-input"
+              type="search"
+              placeholder="Buscar no menu…"
+              value={buscaMenu}
+              onChange={(e) => setBuscaMenu(e.target.value)}
+              aria-label="Filtrar itens do menu"
+            />
+            {buscaMenu && (
+              <button
+                type="button"
+                className="fh-busca-menu-limpar"
+                onClick={() => { setBuscaMenu(""); buscaMenuRef.current?.focus(); }}
+                aria-label="Limpar busca"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
           <nav className="fh-sidebar-nav">
             {primarios.map((p) => {
-              const filhos = p.filhos.filter((f) => f.visivel(ctxMenu));
-              if (!filhos.length) return null;
+              const filhosBrutos = p.filhos.filter((f) => f.visivel(ctxMenu));
+              if (!filhosBrutos.length) return null;
+
+              // Filtrar pelo texto de busca de menu
+              const q = buscaMenu.trim().toLowerCase();
+              const filhos = q
+                ? filhosBrutos.filter(
+                    (f) =>
+                      f.label.toLowerCase().includes(q) ||
+                      (f.titulo ?? "").toLowerCase().includes(q) ||
+                      (f.desc ?? "").toLowerCase().includes(q),
+                  )
+                : filhosBrutos;
+
+              // Se buscando, só mostra grupos com resultado
+              if (q && !filhos.length) return null;
+
               const grupoAtivo = primarioAtivo?.id === p.id;
-              const aberto = abertos.has(p.id) || grupoAtivo;
+              // Abrir grupo quando há busca ativa com resultados
+              const aberto = !!q || abertos.has(p.id) || grupoAtivo;
               const { Icone } = p;
               return (
                 <div key={p.id} className={`fh-grupo${aberto ? " aberto" : ""}${grupoAtivo ? " grupo-ativo" : ""}`}>
@@ -179,11 +221,11 @@ export function Shell({ perfil, children }: { perfil: Perfil; children: ReactNod
                     type="button"
                     className="fh-grupo-cabeca"
                     aria-expanded={aberto}
-                    onClick={() => alternarGrupo(p.id)}
+                    onClick={() => { if (!q) alternarGrupo(p.id); }}
                   >
                     <span className="fh-grupo-ico"><Icone size={18} /></span>
                     <span className="fh-grupo-label">{p.label}</span>
-                    <ChevronRight size={15} className="fh-grupo-chevron" aria-hidden />
+                    {!q && <ChevronRight size={15} className="fh-grupo-chevron" aria-hidden />}
                   </button>
                   {aberto && (
                     <div className="fh-grupo-itens">

@@ -207,3 +207,61 @@
 .inv-mov-tipo{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);background:rgb(var(--gold-rgb)/.08);border-radius:6px;padding:2px 6px}
 .inv-mov-tipo.inventario{color:var(--gold);background:rgb(var(--gold-rgb)/.14)}
 .inv-mov-tipo.venda,.inv-mov-tipo.saida{color:var(--down);background:rgb(var(--down-rgb,220 60 60)/.1)}
+
+/* =========================================================
+   LOJA VENDAS / OMIE — Tabela de vendas + status Omie
+   ========================================================= */
+.vnd-page{display:flex;flex-direction:column;gap:20px}
+.vnd-topo{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.vnd-filtros{display:flex;flex-wrap:wrap;gap:8px;flex:1;min-width:0}
+.vnd-input{height:36px;border:1.5px solid var(--card-line);border-radius:10px;padding:0 12px;font-size:13.5px;background:var(--card);color:var(--text);min-width:0}
+.vnd-input:focus{outline:none;border-color:var(--gold)}
+.vnd-select{height:36px;border:1.5px solid var(--card-line);border-radius:10px;padding:0 10px;font-size:13px;background:var(--card);color:var(--text);cursor:pointer}
+.vnd-select:focus{outline:none;border-color:var(--gold)}
+.vnd-acoes{display:flex;gap:8px;flex-shrink:0}
+.vnd-card{background:var(--card);border:1px solid var(--card-line);border-radius:16px;overflow:hidden}
+.vnd-tabela-wrap{overflow-x:auto}
+.vnd-tabela{width:100%;border-collapse:collapse;font-size:13px}
+.vnd-tabela th{background:var(--card-line);padding:9px 12px;text-align:left;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);white-space:nowrap}
+.vnd-tabela td{padding:10px 12px;border-top:1px solid rgb(var(--card-line-rgb,200 200 200)/.5);vertical-align:middle}
+.vnd-tabela tr:hover td{background:rgb(var(--gold-rgb)/.04)}
+.vnd-num{font-weight:800;font-size:12px;color:var(--muted)}
+.vnd-cliente{font-weight:600;font-size:13.5px}
+.vnd-canal{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.vnd-total{font-weight:800;font-size:14px;color:var(--text)}
+.vnd-data{font-size:12px;color:var(--muted);white-space:nowrap}
+.vnd-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.vnd-badge.pago,.vnd-badge.PAGO,.vnd-badge.RETIRADO,.vnd-badge.PRONTO{background:rgb(16 185 129/.12);color:#059669}
+.vnd-badge.pendente,.vnd-badge.AGUARDANDO_PAGAMENTO{background:rgb(245 158 11/.12);color:#d97706}
+.vnd-badge.lancado{background:rgb(99 102 241/.12);color:#6366f1}
+.vnd-badge.erro{background:rgb(239 68 68/.12);color:#dc2626}
+.vnd-badge.cancelado,.vnd-badge.CANCELADO,.vnd-badge.EXPIRADO{background:rgb(107 114 128/.12);color:var(--muted)}
+.vnd-badge.CONFIRMADO,.vnd-badge.EM_PREPARACAO,.vnd-badge.NA_FILA{background:rgb(14 165 233/.12);color:#0284c7}
+.vnd-badge.sem-omie{background:rgb(245 158 11/.1);color:#92400e;border:1px dashed #d97706}
+.vnd-acoes-col{display:flex;gap:6px;align-items:center}
+.vnd-btn{height:30px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s}
+.vnd-btn:hover{opacity:.85}
+.vnd-btn.lançar{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro)}
+.vnd-btn.outline{background:transparent;border:1.5px solid var(--gold-base);color:var(--gold)}
+.vnd-btn:disabled{opacity:.45;cursor:not-allowed}
+.vnd-pag{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:13px;color:var(--muted);border-top:1px solid var(--card-line)}
+.vnd-pag-btns{display:flex;gap:6px}
+.vnd-pag-btn{height:30px;min-width:30px;padding:0 10px;border-radius:8px;border:1.5px solid var(--card-line);background:var(--card);color:var(--text);cursor:pointer;font-size:12px;font-weight:700}
+.vnd-pag-btn:disabled{opacity:.4;cursor:not-allowed}
+.vnd-pag-btn.ativo{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent}
+.vnd-vazio{padding:48px 0;text-align:center;color:var(--muted);font-size:14px}
+.vnd-sku{font-size:11px;color:var(--muted);font-family:monospace}
+.vnd-itens-lista{font-size:12px;color:var(--muted);max-width:240px}
+.vnd-resumo{display:flex;gap:16px;flex-wrap:wrap}
+.vnd-kpi{flex:1;min-width:120px;background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:14px 18px}
+.vnd-kpi-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.vnd-kpi-valor{font-size:24px;font-weight:900;margin-top:4px}
+.vnd-config-card{background:var(--card);border:1px solid var(--card-line);border-radius:16px;padding:24px}
+.vnd-config-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
+.vnd-config-campo{display:flex;flex-direction:column;gap:5px}
+.vnd-config-label{font-size:12px;font-weight:700;color:var(--muted)}
+.vnd-err-box{background:rgb(239 68 68/.08);border:1px solid rgb(239 68 68/.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#dc2626;max-width:340px}
+.vnd-tabs{display:flex;gap:2px;border-bottom:2px solid var(--card-line)}
+.vnd-tab{padding:10px 18px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0}
+.vnd-tab.ativo{color:var(--gold);border-bottom-color:var(--gold);background:rgb(var(--gold-rgb)/.06)}
+.vnd-tab:hover:not(.ativo){color:var(--text);background:rgb(var(--gold-rgb)/.04)}

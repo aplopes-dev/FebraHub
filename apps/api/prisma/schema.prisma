@@ -2431,6 +2431,8 @@ model LojaProduto {
   emDestaque        Boolean  @default(false) @map("em_destaque")
   estoqueMinimo     Decimal  @default(0) @map("estoque_minimo") @db.Decimal(14, 3)
   ordem             Int      @default(0)
+  /// Código interno do produto no Omie (campo codigo_interno / codigo). Sincronizado bidirecional.
+  skuOmie           String?  @map("sku_omie")
   criadoPorId       String?  @map("criado_por_id") @db.Uuid
   criadoEm          DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm      DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
@@ -2439,7 +2441,9 @@ model LojaProduto {
   movimentos        LojaEstoqueMovimento[]
   vendaItens        PdvVendaItem[]
   pedidoItens       LojaPedidoItem[]
+  omieLancamentos   OmieLancamento[]
 
+  @@unique([skuOmie])
   @@index([categoriaId])
   @@index([ativo, ordem, nome])
   @@index([produtoEstoqueId])
@@ -2554,6 +2558,7 @@ model LojaPedido {
   itens             LojaPedidoItem[]
   pagamentos        LojaPedidoPagamento[]
   historico         LojaPedidoHistorico[]
+  omieLancamento    OmieLancamento?
 
   @@unique([operacaoId, numero])
   /// INVARIANTE 4 (PRD §46): duas entradas não têm a mesma senha na operação.
@@ -3850,4 +3855,51 @@ model SympláSyncLog {
   @@index([tipo, iniciadoEm(sort: Desc)])
   @@index([status])
   @@map("sympla_sync_log")
+}
+
+// ====================================================================
+// OMIE — Integração bidirecional com o ERP Omie
+// ====================================================================
+
+/// Configuração global da integração Omie. Linha única (id='omie').
+model OmieConfig {
+  id               String   @id @default("omie")
+  appKey           String?  @map("app_key")
+  /// app_secret CIFRADO (AES-256-GCM, chave FISCAL_CERT_ENCRYPTION_KEY)
+  appSecret        String?  @map("app_secret")
+  contaCorrente    String?  @map("conta_corrente")
+  codigoCategoria  String?  @map("codigo_categoria")
+  idVendedor       BigInt?  @map("id_vendedor")
+  ativo            Boolean  @default(false)
+  criadoEm         DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  @@map("omie_config")
+}
+
+/// Lançamentos de pedidos da Loja no Omie.
+model OmieLancamento {
+  id              String    @id @default(uuid()) @db.Uuid
+  pedidoId        String    @map("pedido_id") @db.Uuid
+  pedido          LojaPedido @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  /// Produtos envolvidos neste pedido (para rastreio de SKU)
+  produtoId       String?   @map("produto_id") @db.Uuid
+  produto         LojaProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  omieNumero      String?   @map("omie_numero")
+  omiePedidoId    BigInt?   @map("omie_pedido_id")
+  /// pendente | lancado | erro | cancelado
+  status          String    @default("pendente")
+  erro            String?
+  usuarioId       String?   @map("usuario_id") @db.Uuid
+  usuarioNome     String?   @map("usuario_nome")
+  lancadoEm       DateTime? @map("lancado_em") @db.Timestamptz(6)
+  payloadEnviado  Json?     @map("payload_enviado")
+  respostaOmie    Json?     @map("resposta_omie")
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+
+  @@unique([pedidoId], map: "omie_lancamentos_pedido_unico_idx")
+  @@index([status])
+  @@index([criadoEm(sort: Desc)])
+  @@map("omie_lancamentos")
 }

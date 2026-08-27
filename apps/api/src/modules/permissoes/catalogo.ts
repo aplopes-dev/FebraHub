@@ -106,7 +106,8 @@ export const CATALOGO_PERMISSOES: GrupoPermissoes[] = [
     permissoes: [
       { id: 'loja.pedidos.ver', nome: 'Acompanhar pedidos', descricao: 'Ver a fila, os pedidos, o painel/TV e os indicadores da operação.' },
       { id: 'loja.pedidos.operar', nome: 'Operar a fila', descricao: 'Confirmar pagamento, chamar o próximo, preparar, marcar pronto, escanear o QR do comprovante, confirmar retirada, atender por código (ver/editar/imprimir pedido).' },
-      { id: 'loja.pedidos.gerenciar', nome: 'Gerenciar operações', descricao: 'Abrir/encerrar operações da Loja e cancelar pedidos.' },
+      { id: 'loja.pedidos.gerenciar', nome: 'Gerenciar operações', descricao: 'Abrir/encerrar operações da Loja, cancelar pedidos e lançar vendas no Omie.' },
+      { id: 'loja.omie.gerenciar', nome: 'Integração Omie — Lançar vendas', descricao: 'Configurar a integração Omie, sincronizar SKU de produtos e lançar pedidos da Loja no Omie (individual ou em lote).' },
     ],
   },
   {
