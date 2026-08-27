@@ -14,6 +14,8 @@ import {
   moverPedidoStatus, editarItensPedido, lojaProdutosBalcao,
 } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
+import { ModalPrompt } from "@/components/ui/ModalPrompt";
+import { ModalConfirmar } from "@/components/ui/ModalConfirmar";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaPedido, LojaPedidoStatus } from "@/types/loja-pedidos";
 import type { PdvProduto } from "@/types/pdv";
@@ -148,7 +150,7 @@ function ModalEditarItens({
     const lista = produtos.data ?? [];
     const t = norm(busca.trim());
     if (!t) return lista;
-    return lista.filter((p) => norm(p.descricao).includes(t) || (p.codigo ? norm(p.codigo).includes(t) : false));
+    return lista.filter((p) => norm(p.descricao ?? "").includes(t) || (p.codigo != null ? norm(p.codigo).includes(t) : false));
   }, [produtos.data, busca]);
 
   const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens]);
@@ -395,6 +397,9 @@ export function FilaLoja() {
   const [verDash, setVerDash] = useState(false);
   const [busca, setBusca] = useState("");
   const [pedidoEditando, setPedidoEditando] = useState<LojaPedido | null>(null);
+  // Cancelamento e movimentação usam modais do app (substituem prompt()/confirm() nativos).
+  const [pedidoCancelar, setPedidoCancelar] = useState<LojaPedido | null>(null);
+  const [pedidoMover, setPedidoMover] = useState<{ pedido: LojaPedido; paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO" } | null>(null);
 
   // Drag-and-drop state
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -454,16 +459,9 @@ export function FilaLoja() {
     });
   };
 
-  const handleCancelar = (p: LojaPedido) => {
-    const motivo = window.prompt(`Motivo do cancelamento do pedido #${p.numero}?`);
-    if (motivo) acao.mutate(() => cancelarPedido(p.id, motivo));
-  };
-
-  const handleMover = (p: LojaPedido, paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO") => {
-    const labels: Record<string, string> = { NA_FILA: "Na fila", EM_PREPARACAO: "Em preparação", PRONTO: "Pronto" };
-    if (!window.confirm(`Mover pedido #${p.numero} para "${labels[paraStatus]}"?`)) return;
-    acao.mutate(() => moverPedidoStatus(p.id, paraStatus));
-  };
+  const handleCancelar = (p: LojaPedido) => setPedidoCancelar(p);
+  const handleMover = (p: LojaPedido, paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO") =>
+    setPedidoMover({ pedido: p, paraStatus });
 
   // ---- Drag handlers ----
 
