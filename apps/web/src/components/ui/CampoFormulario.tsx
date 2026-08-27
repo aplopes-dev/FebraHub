@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { inputAv, labelAv } from "@/components/ui/estilos";
 import { C } from "@/lib/tema";
+import { Select } from "@/components/ui/Select";
 import type { CampoCrud } from "@/components/cadastros/tipos";
 
 /**
@@ -45,17 +46,17 @@ export function CampoFormulario({
           onChange={(e) => aoMudar(e.target.value)}
         />
       ) : campo.tipo === "select" ? (
-        <select
-          style={inputAv}
+        <Select
+          style={{ width: "100%" }}
+          aria-label={campo.label}
           value={String(v)}
-          required={campo.obrigatorio}
-          onChange={(e) => aoMudar(e.target.value)}
-        >
-          <option value="">Selecione…</option>
-          {(campo.opcoes ?? []).map((o) => (
-            <option key={o.valor} value={o.valor}>{o.label}</option>
-          ))}
-        </select>
+          onChange={aoMudar}
+          placeholder="Selecione…"
+          options={[
+            { value: "", label: "Selecione…" },
+            ...(campo.opcoes ?? []).map((o) => ({ value: o.valor, label: o.label })),
+          ]}
+        />
       ) : (
         <input
           style={inputAv}
