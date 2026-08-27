@@ -411,6 +411,12 @@ export function FilaLoja() {
                               <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={prepararEImprimir(p.id)}><ChefHat /> Preparar</button>
                             </>
                           )}
+                          {p.status === "PROXIMO" && (
+                            <>
+                              <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={prepararEImprimir(p.id)}><ChefHat /> Preparar</button>
+                              <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => marcarPronto(p.id))}><PackageCheck /> Pronto</button>
+                            </>
+                          )}
                           {p.status === "EM_PREPARACAO" && (
                             <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => marcarPronto(p.id))}><PackageCheck /> Pronto</button>
                           )}
