@@ -2412,7 +2412,7 @@ model LojaProduto {
   ordem             Int      @default(0)
   /// Código interno do produto no Omie (codigo_produto / codigo_interno). Cache do ID do Omie; NÃO é a chave do vínculo.
   skuOmie           String?  @map("sku_omie")
-  /// Código de integração (codigo_produto_integracao no Omie) — CHAVE IMUTÁVEL do vínculo FebraHub ↔ Omie. Valor = FH-<id>.
+  /// Código de integração (codigo_produto_integracao no Omie, mig 56) — CHAVE IMUTÁVEL do vínculo FebraHub ↔ Omie. Valor = FH-<id>.
   codigoIntegracaoOmie String? @map("codigo_integracao_omie")
   criadoPorId       String?  @map("criado_por_id") @db.Uuid
   criadoEm          DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)

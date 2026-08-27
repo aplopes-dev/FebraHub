@@ -1,5 +1,5 @@
 -- ====================================================================
--- FebraHub · Migration 55 — OMIE: vínculo por código de integração
+-- FebraHub · Migration 56 — OMIE: vínculo por código de integração
 --
 -- Best practice de integração de produtos com o Omie (conforme a própria
 -- documentação da Omie):
