@@ -185,18 +185,13 @@ export default function CustomerSuccessPage() {
             </label>
             <label className="ped-label">
               Motivo
-              <select className="ped-select" value={novo.motivo} onChange={(e) => setNovo({ ...novo, motivo: e.target.value })}>
-                {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <Select className="ped-select" aria-label="Motivo" value={novo.motivo} onChange={(v) => setNovo({ ...novo, motivo: v })}
+                options={MOTIVOS.map((m) => ({ value: m, label: m }))} />
             </label>
             <label className="ped-label">
               Prioridade
-              <select className="ped-select" value={novo.prioridade} onChange={(e) => setNovo({ ...novo, prioridade: e.target.value })}>
-                <option value="baixa">Baixa</option>
-                <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </select>
+              <Select className="ped-select" aria-label="Prioridade" value={novo.prioridade} onChange={(v) => setNovo({ ...novo, prioridade: v })}
+                options={[{ value: "baixa", label: "Baixa" }, { value: "normal", label: "Normal" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]} />
             </label>
             <label className="ped-label">
               Próxima ação
@@ -293,18 +288,13 @@ export default function CustomerSuccessPage() {
             <div className="ped-form-grid">
               <label className="ped-label">
                 Status
-                <select className="ped-select" value={formEdit.status} onChange={(e) => setFormEdit({ ...formEdit, status: e.target.value })}>
-                  {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select className="ped-select" aria-label="Status" value={formEdit.status} onChange={(v) => setFormEdit({ ...formEdit, status: v })}
+                  options={STATUS.map((s) => ({ value: s, label: s }))} />
               </label>
               <label className="ped-label">
                 Prioridade
-                <select className="ped-select" value={formEdit.prioridade} onChange={(e) => setFormEdit({ ...formEdit, prioridade: e.target.value })}>
-                  <option value="baixa">Baixa</option>
-                  <option value="normal">Normal</option>
-                  <option value="alta">Alta</option>
-                  <option value="urgente">Urgente</option>
-                </select>
+                <Select className="ped-select" aria-label="Prioridade" value={formEdit.prioridade} onChange={(v) => setFormEdit({ ...formEdit, prioridade: v })}
+                  options={[{ value: "baixa", label: "Baixa" }, { value: "normal", label: "Normal" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]} />
               </label>
               <label className="ped-label ped-full">
                 Próxima ação

@@ -171,18 +171,13 @@ export default function SolicitacoesPage() {
           <div className="ped-form-grid">
             <label className="ped-label">
               Tipo
-              <select className="ped-select" value={nova.tipo} onChange={(e) => setNova({ ...nova, tipo: e.target.value })}>
-                {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <Select className="ped-select" aria-label="Tipo" value={nova.tipo} onChange={(v) => setNova({ ...nova, tipo: v })}
+                options={TIPOS.map((t) => ({ value: t, label: t }))} />
             </label>
             <label className="ped-label">
               Prioridade
-              <select className="ped-select" value={nova.prioridade} onChange={(e) => setNova({ ...nova, prioridade: e.target.value })}>
-                <option value="baixa">Baixa</option>
-                <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </select>
+              <Select className="ped-select" aria-label="Prioridade" value={nova.prioridade} onChange={(v) => setNova({ ...nova, prioridade: v })}
+                options={[{ value: "baixa", label: "Baixa" }, { value: "normal", label: "Normal" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]} />
             </label>
             <label className="ped-label ped-full">
               Aluno*
