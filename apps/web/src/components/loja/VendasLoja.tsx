@@ -16,7 +16,7 @@ import {
   Settings, RefreshCw, Upload, CheckCircle2, AlertCircle,
   Clock, Package, ChevronLeft, ChevronRight, Link2,
 } from "lucide-react";
-import { useSessao } from "@/hooks/auth";
+import { useSessao, pode, ehAdmin } from "@/hooks/auth";
 import {
   omieVendas, omieConfig, omieConfigSalvar, omieTestar,
   omieSyncSku, omieLancarUm, omieLancarFiltrados,
@@ -193,10 +193,10 @@ function AbaConfig() {
 // Componente principal
 // ──────────────────────────────────────────────────────────────
 export function VendasLoja() {
-  const { perfil } = useSessao();
+  const sessao = useSessao();
+  const perfil = sessao?.perfil ?? null;
   const qc = useQueryClient();
-  const podeGerenciar = perfil?.permissoes?.includes("loja.pedidos.gerenciar") ||
-    perfil?.papel === "admin";
+  const podeGerenciar = pode(perfil, "loja.pedidos.gerenciar") || (perfil ? ehAdmin(perfil) : false);
 
   const [aba, setAba] = useState<"vendas" | "config">("vendas");
   const [filtros, setFiltros] = useState<FiltrosVendas>({ statusOmie: "todos", pagina: 1, porPagina: 30 });
