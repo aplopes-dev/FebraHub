@@ -1,16 +1,19 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Banknote, Barcode, Camera, Check, ChefHat, CreditCard, ImageOff, Link2,
-  Loader2, Pencil, Percent, Plus, QrCode, ScanLine, Search, Trash2, X, Copy,
+  Banknote, Barcode, Camera, Check, ChefHat, CreditCard, ImageOff, KeyRound, Link2,
+  Loader2, Pencil, Percent, Plus, QrCode, ScanLine, Search, SquarePen, Star, Trash2, X, Copy,
   AlertCircle, Clock, User, UserPlus,
 } from "lucide-react";
 import {
-  lojaBuscarPorBarcode, lojaCategorias, lojaAtualizarCodigoBarras,
+  lojaBuscarPorBarcode, lojaCategorias, lojaAtualizarCodigoBarras, lojaDefinirDestaque,
   lojaAtualizarProduto, lojaEnviarImagemProduto, lojaProduto as buscarProduto,
 } from "@/services/api/loja-produtos";
 import type { LojaProduto } from "@/types/loja-produtos";
+import { RetiradaLoja } from "@/components/loja/RetiradaLoja";
+import { AtenderCodigo } from "@/components/loja/AtenderCodigo";
 import {
   lojaPedidosIndicadores, lojaProdutosBalcao, vendaPdvFila,
   checkout, iniciarPagamento, confirmarPagamento, lojaPedido as buscarPedido,
@@ -60,6 +63,7 @@ function grupoDe(cat?: string | null): string {
 
 export function BalcaoPdv() {
   const qc = useQueryClient();
+  const router = useRouter();
   const perfil = usePerfil(useSessao()).data;
   const podeOperar = pode(perfil, "loja.pedidos.operar");
   const podeGerir = pode(perfil, "loja.produtos.gerenciar");
@@ -75,7 +79,7 @@ export function BalcaoPdv() {
   const [erro, setErro] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
   const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente" | "ean_nao_encontrado">(null);
+  const [modal, setModal] = useState<null | "descItem" | "descTotal" | "cancelar" | "pagamento" | "cliente" | "ean_nao_encontrado" | "retiradaQr" | "retiradaCod">(null);
   const [editarProduto, setEditarProduto] = useState<PdvProduto | null>(null);
   const [eanPendente, setEanPendente] = useState<EanNaoEncontrado | null>(null);
   const [estadoPgto, setEstadoPgto] = useState<EstadoPagamento>({ tipo: "aguardando" });
@@ -134,6 +138,24 @@ export function BalcaoPdv() {
   const qtdItens = linhas.reduce((s, l) => s + l.quantidade, 0);
   const itemSel = selecionado ? carrinho[selecionado] : null;
   const precisaPreparo = linhas.some((l) => l.produto.precisaPreparacao);
+
+  // Favoritar (estrela no card) — marca/desmarca destaque, otimista sobre o cache do PDV.
+  const destaqueMut = useMutation({
+    mutationFn: ({ id, emDestaque }: { id: string; emDestaque: boolean }) => lojaDefinirDestaque(id, emDestaque),
+    onMutate: async ({ id, emDestaque }) => {
+      await qc.cancelQueries({ queryKey: ["pdv-produtos"] });
+      const anterior = qc.getQueriesData<PdvProduto[]>({ queryKey: ["pdv-produtos"] });
+      anterior.forEach(([key, rows]) => {
+        if (rows) qc.setQueryData(key, rows.map((r) => (r.produtoId === id ? { ...r, emDestaque } : r)));
+      });
+      return { anterior };
+    },
+    onError: (_e, _v, ctx) => ctx?.anterior?.forEach(([key, rows]) => qc.setQueryData(key, rows)),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["pdv-produtos"] }),
+  });
+  const toggleDestaque = (p: PdvProduto) => destaqueMut.mutate({ id: p.produtoId, emDestaque: !p.emDestaque });
+  /** Abre o cadastro completo do produto (aba Catálogo) já no modal de edição. */
+  const abrirCadastro = (p: PdvProduto) => router.push(`/loja/produtos?editar=${p.produtoId}`);
 
   const add = (p: PdvProduto) => {
     if (p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0) return;
@@ -286,11 +308,13 @@ export function BalcaoPdv() {
   };
 
   // -------- Atalhos de teclado --------
-  // F1 = Cliente  |  F6 = Focar busca/scanner  |  F7 = Pagar  |
-  // F9 = Cancelar venda  |  F10 = Desconto total  |
+  // F1 = Cliente  |  F2 = Retirada QR  |  F3 = Retirada por código  |
+  // F6 = Focar busca/scanner  |  F7 = Pagar  |  F9 = Cancelar venda  |  F10 = Desconto total
   // "-" = Desconto do item selecionado  |  Delete/F8 = Remover item selecionado
   const ATALHOS: { tecla: string; label: string; onClick: () => void; ativo: boolean }[] = [
-    { tecla: "F1",  label: "Cliente",        onClick: () => setModal("cliente"),        ativo: true },
+    { tecla: "F1",  label: "Cliente",         onClick: () => setModal("cliente"),        ativo: true },
+    { tecla: "F2",  label: "Retirada QR",     onClick: () => setModal("retiradaQr"),     ativo: true },
+    { tecla: "F3",  label: "Retirada código", onClick: () => setModal("retiradaCod"),    ativo: true },
     { tecla: "F6",  label: "Produto",         onClick: focarBusca,                       ativo: true },
     { tecla: "F7",  label: "Pagar",           onClick: abrirModalPagamento,              ativo: podeFinalizar },
     { tecla: "F8",  label: "Desc. item",      onClick: () => setModal("descItem"),       ativo: !!selecionado },
@@ -299,9 +323,12 @@ export function BalcaoPdv() {
   ];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Ignora auto-repeat de tecla segurada: manter F6 pressionado dispararia
+      // focus()/select() centenas de vezes/s e podia travar a aba.
+      if (e.repeat) return;
       if (modal) { if (e.key === "Escape") { e.preventDefault(); if (modal !== "pagamento" || estadoPgto.tipo === "aguardando") fecharModal(); } return; }
       const a = ATALHOS.find((x) => x.tecla === e.key);
-      if (a) { e.preventDefault(); if (a.ativo) a.onClick(); return; }
+      if (a) { e.preventDefault(); if (a.ativo) { try { a.onClick(); } catch { /* nunca deixa um atalho travar a tela */ } } return; }
       const alvo = e.target as HTMLElement | null;
       const digitando = !!alvo && ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName);
       if (e.key === "-" && !digitando && selecionado) { e.preventDefault(); setModal("descItem"); return; }
@@ -333,6 +360,8 @@ export function BalcaoPdv() {
             <span>{cliente ? cliente.nome : "Cliente"}</span>
           </button>
           <div className="bal-op"><small>Atendimento</small><b>{perfil?.nome?.split(/[\s.]+/)[0] ?? "Operador"}</b></div>
+          <button className="bal-iconbtn" title="Retirada por QR Code (F2)" onClick={() => setModal("retiradaQr")}><QrCode size={18} /></button>
+          <button className="bal-iconbtn" title="Retirada por código de 3 dígitos (F3)" onClick={() => setModal("retiradaCod")}><KeyRound size={18} /></button>
           <button className="bal-iconbtn" title="Ler código de barras / buscar produto (F6)" onClick={focarBusca}><ScanLine size={18} /></button>
           <div className="bal-clock">
             <b>{agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
@@ -389,8 +418,11 @@ export function BalcaoPdv() {
                     <CardProdutoBalcao
                       key={p.produtoId}
                       produto={p}
+                      podeGerir={podeGerir}
                       onAdd={() => add(p)}
                       onLongPress={() => podeGerir && setEditarProduto(p)}
+                      onToggleDestaque={() => toggleDestaque(p)}
+                      onAbrirCadastro={() => abrirCadastro(p)}
                     />
                   ))}
                 </div>
@@ -401,8 +433,11 @@ export function BalcaoPdv() {
                 <CardProdutoBalcao
                   key={p.produtoId}
                   produto={p}
+                  podeGerir={podeGerir}
                   onAdd={() => add(p)}
                   onLongPress={() => podeGerir && setEditarProduto(p)}
+                  onToggleDestaque={() => toggleDestaque(p)}
+                  onAbrirCadastro={() => abrirCadastro(p)}
                 />
               ))}
             </div>
@@ -585,6 +620,16 @@ export function BalcaoPdv() {
           </div>
         </div>
       )}
+      {(modal === "retiradaQr" || modal === "retiradaCod") && (
+        <div className="bal-modal-bg" onClick={() => setModal(null)}>
+          <div className="bal-modal bal-modal-retirada" onClick={(e) => e.stopPropagation()}>
+            <button className="bal-iconbtn bal-modal-x" onClick={() => setModal(null)} title="Fechar (Esc)"><X size={18} /></button>
+            <div className="bal-modal-retirada-corpo">
+              {modal === "retiradaQr" ? <RetiradaLoja /> : <AtenderCodigo />}
+            </div>
+          </div>
+        </div>
+      )}
       {modal === "ean_nao_encontrado" && eanPendente && (
         <ModalAssociarEan
           ean={eanPendente.ean}
@@ -609,6 +654,7 @@ export function BalcaoPdv() {
       {editarProduto && (
         <ModalEditarProdutoPdv
           produto={editarProduto}
+          categorias={categorias.data ?? []}
           onFechar={() => setEditarProduto(null)}
           onSalvo={(atualizado) => {
             // Atualiza o produto na lista local sem precisar recarregar tudo
@@ -1144,8 +1190,20 @@ function ModalDesconto({ titulo, subtitulo, base, onFechar, onAplicar }: {
 // =====================================================================
 // Componente card de produto — isola o hook useLongPressProps do .map()
 // =====================================================================
-function CardProdutoBalcao({ produto: p, onAdd, onLongPress }: { produto: PdvProduto; onAdd: () => void; onLongPress: () => void }) {
+function CardProdutoBalcao({
+  produto: p, onAdd, onLongPress, podeGerir = false, onToggleDestaque, onAbrirCadastro,
+}: {
+  produto: PdvProduto;
+  onAdd: () => void;
+  onLongPress: () => void;
+  podeGerir?: boolean;
+  onToggleDestaque?: () => void;
+  onAbrirCadastro?: () => void;
+}) {
   const s = selo(p);
+  // Impede que clicar nos botões-satélite dispare add / long-press do card.
+  const isolar = (fn?: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); fn?.(); };
+  const pararPress = (e: React.MouseEvent) => e.stopPropagation();
   const esgotado = !!p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0;
   // useLongPressProps já retorna um onClick que bloqueia o click quando long-press dispara
   // precisamos mesclar com onAdd: chamamos onAdd após a checagem do hook
@@ -1169,6 +1227,30 @@ function CardProdutoBalcao({ produto: p, onAdd, onLongPress }: { produto: PdvPro
       <div className="bal-thumb">
         {p.imagemUrl ? <img src={p.imagemUrl} alt="" /> : <span className="ph">🛍️</span>}
       </div>
+      {podeGerir && (
+        <span className="bal-card-tools" onMouseDown={pararPress}>
+          {onToggleDestaque && (
+            <span
+              className={`bal-fav${p.emDestaque ? " on" : ""}`}
+              role="button" tabIndex={-1}
+              title={p.emDestaque ? "Remover dos destaques" : "Marcar como favorito (vai para o carrossel)"}
+              onClick={isolar(onToggleDestaque)} onContextMenu={isolar()}
+            >
+              <Star size={14} />
+            </span>
+          )}
+          {onAbrirCadastro && (
+            <span
+              className="bal-cad"
+              role="button" tabIndex={-1}
+              title="Abrir cadastro completo do produto"
+              onClick={isolar(onAbrirCadastro)} onContextMenu={isolar()}
+            >
+              <SquarePen size={13} />
+            </span>
+          )}
+        </span>
+      )}
       {!esgotado && <span className="bal-add"><Plus size={16} /></span>}
       <div className="bal-info">
         <p className="nome">{p.descricao}</p>
@@ -1218,16 +1300,20 @@ function useLongPressProps(onLongPress: () => void, delay = 500) {
 // =====================================================================
 function ModalEditarProdutoPdv({
   produto: prodInicial,
+  categorias,
   onFechar,
   onSalvo,
 }: {
   produto: PdvProduto;
+  categorias: { id: string; nome: string; ativo: boolean }[];
   onFechar: () => void;
   onSalvo: (atualizado: LojaProduto) => void;
 }) {
   const [nome, setNome] = useState(prodInicial.descricao ?? "");
   const [ean, setEan] = useState("");
   const [preco, setPreco] = useState(String(prodInicial.preco / 100 > 1 ? prodInicial.preco : prodInicial.preco));
+  const [categoriaId, setCategoriaId] = useState<string>("");
+  const [exibeCardapio, setExibeCardapio] = useState(true);
   const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
   const [enviandoImg, setEnviandoImg] = useState(false);
   const [removendoFundo, setRemovendoFundo] = useState(true);
@@ -1246,6 +1332,8 @@ function ModalEditarProdutoPdv({
   useEffect(() => {
     if (prodQuery.data) {
       setEan(prodQuery.data.codigoBarras ?? "");
+      setCategoriaId(prodQuery.data.categoriaId ?? "");
+      setExibeCardapio(prodQuery.data.exibeCardapio);
       // Atualiza nome e preço se ainda estiverem com os valores iniciais
       if (nome === prodInicial.descricao) setNome(prodQuery.data.nome);
       const precoApi = Number(prodQuery.data.preco);
@@ -1294,13 +1382,13 @@ function ModalEditarProdutoPdv({
         codigoBarras: ean.trim() || undefined,
         descricao: prodData.descricao ?? "",
         imagemUrl: imagemUrl || undefined,
-        categoriaId: prodData.categoriaId ?? null,
+        categoriaId: categoriaId || null,
         preco: precoNum,
         custo: prodData.custo ? Number(prodData.custo) : undefined,
         unidade: prodData.unidade ?? "un",
         ativo: prodData.ativo,
         vendePdv: prodData.vendePdv,
-        exibeCardapio: prodData.exibeCardapio,
+        exibeCardapio,
         precisaPreparacao: prodData.precisaPreparacao,
         controlaEstoque: prodData.controlaEstoque,
         vendeSemEstoque: prodData.vendeSemEstoque,
@@ -1431,6 +1519,20 @@ function ModalEditarProdutoPdv({
               </label>
 
               <label>
+                <span>Categoria</span>
+                <select
+                  className="bal-desc-input"
+                  value={categoriaId}
+                  onChange={(e) => setCategoriaId(e.target.value)}
+                >
+                  <option value="">Sem categoria</option>
+                  {categorias.filter((c) => c.ativo).map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Preço (R$)</span>
                 <input
                   className="bal-desc-input"
@@ -1439,6 +1541,18 @@ function ModalEditarProdutoPdv({
                   placeholder="0,00"
                   inputMode="decimal"
                 />
+              </label>
+
+              <label className="bal-edprod-check">
+                <input
+                  type="checkbox"
+                  checked={!exibeCardapio}
+                  onChange={(e) => setExibeCardapio(!e.target.checked)}
+                />
+                <span>
+                  Retirar do cardápio digital
+                  <small>{exibeCardapio ? "Aparece no cardápio para o cliente." : "Fica só no PDV — o cliente não vê no cardápio."}</small>
+                </span>
               </label>
             </div>
 

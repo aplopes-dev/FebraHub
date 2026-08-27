@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeftRight, Barcode, Boxes, CheckCircle2, Copy, ImageOff, Layers, Loader2,
@@ -8,7 +9,7 @@ import {
 import {
   lojaAjustarEstoque, lojaAlterarPreco, lojaAtualizarCodigoBarras, lojaAtualizarProduto, lojaCategorias,
   lojaCriarProduto, lojaEnriquecerEanLote, lojaEnviarImagemProduto, lojaIndicadores, lojaInativarProduto,
-  lojaMovimentos, lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
+  lojaMovimentos, lojaProduto, lojaProdutos, lojaTransferirEstoque, lojaConsultarEanOnline,
   type EnriquecimentoLote,
 } from "@/services/api/loja-produtos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
@@ -36,6 +37,24 @@ export function CatalogoLoja() {
   const [preco, setPreco] = useState<LojaProduto | null>(null);
   const [gerirCategorias, setGerirCategorias] = useState(false);
   const [loteResultado, setLoteResultado] = useState<EnriquecimentoLote | null>(null);
+
+  // Deep-link vindo do PDV: /loja/produtos?editar=<produtoId> abre o modal de edição.
+  const router = useRouter();
+  const params = useSearchParams();
+  const editarId = params.get("editar");
+  const [deepLinkFeito, setDeepLinkFeito] = useState(false);
+  const deepLinkProduto = useQuery({
+    queryKey: ["loja", "produto", editarId],
+    queryFn: () => lojaProduto(editarId as string),
+    enabled: !!editarId && !deepLinkFeito,
+  });
+  useEffect(() => {
+    if (editarId && !deepLinkFeito && deepLinkProduto.data) {
+      setEditar(deepLinkProduto.data);
+      setDeepLinkFeito(true);
+      router.replace("/loja/produtos");
+    }
+  }, [editarId, deepLinkFeito, deepLinkProduto.data, router]);
 
   const ind = useQuery({ queryKey: ["loja", "indicadores"], queryFn: lojaIndicadores });
   const cats = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias });

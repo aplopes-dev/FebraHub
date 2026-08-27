@@ -10,6 +10,7 @@
  *  - Aba "Configuração Omie" para gerenciar app_key / app_secret / conta
  *  - Aba "Sync SKU" para sincronizar códigos de produto
  */
+import "@/app/loja.css";
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {

@@ -1,13 +1,36 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
+import { acompanharPedido, cardapioPublico, checkout, confirmarPagamentoPublico, editarItensPedidoPublico, iniciarPagamento } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
 import type { CardapioProduto, LojaPedidoPagamento } from "@/types/loja-pedidos";
 import "@/app/cardapio.css";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/* ---- Pedido em andamento lembrado no navegador do cliente ----
+   Guarda só o id do último pedido feito neste cardápio; a tela de
+   acompanhamento (/pedido/<id>) mostra senha, QR, posição na fila etc. */
+const CHAVE_PEDIDO = (slug: string) => `cdp:pedido:${slug}`;
+const lerPedidoLocal = (slug: string): string | null => {
+  try { return localStorage.getItem(CHAVE_PEDIDO(slug)); } catch { return null; }
+};
+const salvarPedidoLocal = (slug: string, id: string) => {
+  try { localStorage.setItem(CHAVE_PEDIDO(slug), id); } catch { /* modo privado / bloqueado */ }
+};
+const limparPedidoLocal = (slug: string) => {
+  try { localStorage.removeItem(CHAVE_PEDIDO(slug)); } catch { /* ignore */ }
+};
+const FINALIZADOS = ["RETIRADO", "CANCELADO", "EXPIRADO"];
+const STATUS_CURTO: Record<string, string> = {
+  AGUARDANDO_PAGAMENTO: "aguardando pagamento",
+  PAGAMENTO_CONFIRMADO: "pagamento confirmado",
+  NA_FILA: "na fila",
+  PROXIMO: "é o próximo — vá ao balcão",
+  EM_PREPARACAO: "em preparação",
+  PRONTO: "pronto para retirar",
+};
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 /* Paleta para diferenciar categorias sem cor cadastrada. Cor estável por nome:
@@ -68,6 +91,75 @@ export function CardapioPublico({ slug }: { slug: string }) {
       router.push(`/pedido/${pedidoId}`);
     }
   }, [etapa, pedidoId, statusPedido.data, router]);
+
+  // Pedido em andamento lembrado do navegador: se ainda estiver aberto, mostra
+  // um aviso no topo com atalho pra tela de acompanhamento (senha, QR, fila).
+  const [pedidoLembrado, setPedidoLembrado] = useState<string | null>(null);
+  useEffect(() => { setPedidoLembrado(lerPedidoLocal(slug)); }, [slug]);
+  const pedidoAberto = useQuery({
+    queryKey: ["cardapio-pedido-aberto", pedidoLembrado],
+    queryFn: () => acompanharPedido(pedidoLembrado!),
+    enabled: !!pedidoLembrado && etapa === "catalogo",
+    refetchInterval: 15000,
+    retry: false,
+  });
+  useEffect(() => {
+    if (!pedidoLembrado) return;
+    // Some da vista (e do storage) quando o pedido finaliza ou não existe mais.
+    if (pedidoAberto.isError || (pedidoAberto.data && FINALIZADOS.includes(pedidoAberto.data.status))) {
+      limparPedidoLocal(slug);
+      setPedidoLembrado(null);
+    }
+  }, [pedidoLembrado, pedidoAberto.data, pedidoAberto.isError, slug]);
+  const avisoPedido = pedidoLembrado && pedidoAberto.data && !FINALIZADOS.includes(pedidoAberto.data.status)
+    ? pedidoAberto.data : null;
+
+  // ---- Modo EDIÇÃO: o cliente ajusta o próprio pedido (ainda na fila / não pago) ----
+  const [edicao, setEdicao] = useState<{ pedidoId: string; numero: number; pago: boolean; totalOriginal: number } | null>(null);
+  const entrarEdicao = (ped: typeof pedidoAberto.data) => {
+    if (!ped || !ped.editavelPeloCliente) return;
+    setCarrinho(Object.fromEntries(ped.itens.map((it) => [it.produtoId, it.quantidade])));
+    setEdicao({ pedidoId: ped.id, numero: ped.numero, pago: ped.pago, totalOriginal: Number(ped.total) });
+    setErro(null);
+    setEtapa("catalogo");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const sairEdicao = () => { setEdicao(null); setCarrinho({}); setErro(null); };
+  // Entra em edição via ?editar=<pedidoId> (link vindo da tela de acompanhamento).
+  const [editarParam, setEditarParam] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("editar");
+      if (id) { setEditarParam(id); router.replace(`/cardapio/${slug}`); }
+    } catch { /* ignore */ }
+  }, [slug, router]);
+  const pedidoParaEditar = useQuery({
+    queryKey: ["cardapio-editar", editarParam],
+    queryFn: () => acompanharPedido(editarParam!),
+    enabled: !!editarParam && !edicao,
+    retry: false,
+  });
+  useEffect(() => {
+    if (editarParam && pedidoParaEditar.data && !edicao) {
+      if (pedidoParaEditar.data.editavelPeloCliente) entrarEdicao(pedidoParaEditar.data);
+      else setErro("Este pedido não pode mais ser editado (já entrou em preparação).");
+      setEditarParam(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editarParam, pedidoParaEditar.data]);
+
+  const salvarEdicao = useMutation({
+    mutationFn: () => {
+      const itens = Object.entries(carrinho).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
+      return editarItensPedidoPublico(edicao!.pedidoId, itens);
+    },
+    onSuccess: () => {
+      const id = edicao!.pedidoId;
+      setEdicao(null); setCarrinho({}); setErro(null);
+      router.push(`/pedido/${id}`);
+    },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Não foi possível salvar as alterações."),
+  });
 
   const produtos = useMemo(() => cardapio.data?.produtos ?? [], [cardapio.data]);
 
@@ -174,6 +266,7 @@ export function CardapioPublico({ slug }: { slug: string }) {
         itens,
       });
       setPedidoId(pedido.id);
+      salvarPedidoLocal(slug, pedido.id); // lembra pra recuperar o acompanhamento depois
 
       if (forma === "CARTAO_CREDITO") {
         // Cartão: o backend cobra tokenizado no ASAAS e confirma na hora.
@@ -252,6 +345,49 @@ export function CardapioPublico({ slug }: { slug: string }) {
           </div>
         </div>
       </div>
+
+      {/* ---- MODO EDIÇÃO: cliente ajustando o próprio pedido ---- */}
+      {edicao && (
+        <div className="cdp-pedido-aberto cdp-edicao">
+          <span className="cdp-pedido-aberto-ic" aria-hidden>✏️</span>
+          <span className="cdp-pedido-aberto-txt">
+            <b>Editando o pedido nº {edicao.numero}</b>
+            <small>
+              Ajuste as quantidades / itens abaixo e toque em <b>Salvar alterações</b>.
+              {edicao.pago ? " Como já está pago, dá para remover ou trocar — para incluir mais, procure o balcão." : ""}
+            </small>
+          </span>
+          <button type="button" className="cdp-edicao-cancelar" onClick={sairEdicao}>Cancelar</button>
+        </div>
+      )}
+      {edicao && erro && (
+        <div className="cdp-erro" style={{ maxWidth: 900, margin: "8px auto 0" }}>{erro}</div>
+      )}
+
+      {/* ---- PEDIDO EM ANDAMENTO (recuperado do navegador) ---- */}
+      {!edicao && avisoPedido && etapa === "catalogo" && (
+        <div className="cdp-pedido-aberto">
+          <span className="cdp-pedido-aberto-ic" aria-hidden>🧾</span>
+          <span className="cdp-pedido-aberto-txt">
+            <b>Você tem um pedido em andamento — nº {avisoPedido.numero}</b>
+            <small>
+              {STATUS_CURTO[avisoPedido.status] ?? "acompanhe seu pedido"}
+              {avisoPedido.posicao != null && (avisoPedido.status === "NA_FILA" || avisoPedido.status === "EM_PREPARACAO")
+                ? ` · ${avisoPedido.posicao}º na fila` : ""}
+            </small>
+          </span>
+          <span className="cdp-pedido-aberto-acoes">
+            {avisoPedido.editavelPeloCliente && (
+              <button type="button" className="cdp-pedido-aberto-editar" onClick={() => entrarEdicao(avisoPedido)}>
+                Editar itens
+              </button>
+            )}
+            <button type="button" className="cdp-pedido-aberto-cta" onClick={() => router.push(`/pedido/${pedidoLembrado}`)}>
+              Ver pedido <Icon.arrow />
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* ---- BARRA DE BUSCA ---- */}
       <div className="cdp-busca-wrap">
@@ -384,11 +520,11 @@ export function CardapioPublico({ slug }: { slug: string }) {
                     const q = carrinho[p.produtoId] ?? 0;
                     const baixo = !p.esgotado && p.disponivel != null && p.disponivel <= 5;
                     return (
-                      <article key={p.produtoId} className={`cdp-card cdp-card-sem-img ${p.esgotado ? "esgotado" : ""}`}>
+                      <article key={p.produtoId} className={`cdp-card ${p.esgotado ? "esgotado" : ""}`}>
                         <div className="cdp-card-body">
                           <h3 className="cdp-card-nome">{p.nome}</h3>
                           {p.descricao && <p className="cdp-card-desc">{p.descricao}</p>}
-                          {baixo && <span className="cdp-card-tag baixo">Últimas</span>}
+                          {baixo && <span className="cdp-card-tag">Últimas unidades</span>}
                           <div className="cdp-card-foot">
                             {p.esgotado ? (
                               <span className="cdp-esgotado-lbl">Indisponível</span>
@@ -449,9 +585,18 @@ export function CardapioPublico({ slug }: { slug: string }) {
               <div className="cdp-cart-foot">
                 <div className="cdp-cart-row"><span>Subtotal</span><span>{brl(total)}</span></div>
                 <div className="cdp-cart-row total"><span>Total</span><span>{brl(total)}</span></div>
-                <button className="cdp-cta" onClick={() => setEtapa("identificar")}>
-                  Continuar <Icon.arrow />
-                </button>
+                {edicao ? (
+                  <>
+                    {erro && <div className="cdp-erro" style={{ marginBottom: 8 }}>{erro}</div>}
+                    <button className="cdp-cta" disabled={salvarEdicao.isPending} onClick={() => salvarEdicao.mutate()}>
+                      {salvarEdicao.isPending ? "Salvando…" : "Salvar alterações"}
+                    </button>
+                  </>
+                ) : (
+                  <button className="cdp-cta" onClick={() => setEtapa("identificar")}>
+                    Continuar <Icon.arrow />
+                  </button>
+                )}
               </div>
             )}
           </aside>
@@ -461,10 +606,17 @@ export function CardapioPublico({ slug }: { slug: string }) {
       {/* ---- BARRA FLUTUANTE (mobile) ---- */}
       {qtdTotal > 0 && etapa === "catalogo" && (
         <div className="cdp-cart-bar">
-          <button onClick={() => setEtapa("identificar")}>
-            <span className="qtd"><span className="pill">{qtdTotal}</span>Ver sacola</span>
-            <span className="val">{brl(total)}<Icon.arrow /></span>
-          </button>
+          {edicao ? (
+            <button disabled={salvarEdicao.isPending} onClick={() => salvarEdicao.mutate()}>
+              <span className="qtd"><span className="pill">{qtdTotal}</span>{salvarEdicao.isPending ? "Salvando…" : "Salvar alterações"}</span>
+              <span className="val">{brl(total)}<Icon.arrow /></span>
+            </button>
+          ) : (
+            <button onClick={() => setEtapa("identificar")}>
+              <span className="qtd"><span className="pill">{qtdTotal}</span>Ver sacola</span>
+              <span className="val">{brl(total)}<Icon.arrow /></span>
+            </button>
+          )}
         </div>
       )}
 

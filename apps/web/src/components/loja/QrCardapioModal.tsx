@@ -22,19 +22,28 @@ export function QrCardapioModal({ slug, nome, aoFechar }: { slug: string; nome: 
     } catch { /* sem clipboard */ }
   };
 
+  const mensagem = (url: string) => [
+    `🍽️ *Cardápio Digital — ${nome}*`,
+    "",
+    "Faça seu pedido online, sem fila e sem complicação! 👇",
+    url,
+    "",
+    "✅ Pague por *PIX* ou *cartão*",
+    "📱 Acompanhe o preparo pelo celular",
+    "⏱️ É só retirar no balcão quando estiver pronto",
+  ].join("\n");
+
   const podeCompartilhar = typeof navigator !== "undefined" && !!navigator.share;
   const compartilhar = async () => {
     if (!d) return;
-    const texto = `📋 Cardápio ${nome} — faça seu pedido pelo link:`;
     try {
-      await navigator.share({ title: `Cardápio · ${nome}`, text: texto, url: d.url });
+      await navigator.share({ title: `Cardápio · ${nome}`, text: mensagem(d.url) });
     } catch { /* usuário cancelou ou sem suporte */ }
   };
 
   const whatsapp = () => {
     if (!d) return;
-    const msg = encodeURIComponent(`📋 Cardápio ${nome} — faça seu pedido pelo link:\n${d.url}`);
-    window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener");
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensagem(d.url))}`, "_blank", "noopener");
   };
 
   const baixar = (conteudo: string, ext: string) => {

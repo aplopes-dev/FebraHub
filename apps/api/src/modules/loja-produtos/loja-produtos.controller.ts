@@ -8,6 +8,7 @@ import {
   AlterarPrecoDto,
   AtualizarCodigoBarrasDto,
   CategoriaDto,
+  DefinirDestaqueDto,
   ListaProdutosQuery,
   ProdutoDto,
   TransferenciaEstoqueDto,
@@ -96,6 +97,13 @@ export class LojaProdutosController {
   /** Alterar SÓ o preço (PRD §40-43) — permissão dedicada, auditada. */
   @Patch('produtos/:id/preco') @ExigePermissao('loja.produtos.preco')
   alterarPreco(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AlterarPrecoDto, @Usuario() u: UsuarioLogado) { return this.s.alterarPreco(id, dto, u); }
+
+  /** Marcar/desmarcar SÓ o destaque — botão estrela do PDV. */
+  @Patch('produtos/:id/destaque') @ExigePermissao('loja.produtos.gerenciar')
+  @ApiOperation({ summary: 'Marca ou desmarca o produto como destaque (carrossel)' })
+  definirDestaque(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DefinirDestaqueDto, @Usuario() u: UsuarioLogado) {
+    return this.s.definirDestaque(id, dto.emDestaque, u);
+  }
 
   /** Atualizar SÓ o código de barras (EAN) de um produto — p/ o vendedor bipar após busca manual. */
   @Patch('produtos/:id/codigo-barras') @ExigePermissao('loja.produtos.gerenciar')

@@ -9,7 +9,7 @@ import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { PagamentosService } from './pagamentos/pagamentos.service';
 import type { FormaPagamento } from './pagamentos/payment-provider';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, EditarItensPublicoDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
 import { ImpressoraService } from './impressora.service';
 import { montarCupom } from './cupom-escpos';
@@ -835,7 +835,12 @@ export class LojaPedidosService {
   async acompanhar(pedidoId: string) {
     const p = await this.prisma.lojaPedido.findUnique({
       where: { id: pedidoId },
-      select: { id: true, numero: true, senhaFila: true, status: true, posicaoFila: true, precisaPreparacao: true, operacaoId: true, entrouFilaEm: true, criadoEm: true },
+      select: {
+        id: true, numero: true, senhaFila: true, status: true, posicaoFila: true, precisaPreparacao: true,
+        operacaoId: true, entrouFilaEm: true, criadoEm: true, total: true, confirmadoEm: true,
+        operacao: { select: { slug: true } },
+        itens: { select: { produtoId: true, descricao: true, quantidade: true, precoUnit: true, total: true } },
+      },
     });
     if (!p) throw new NotFoundException('Pedido não encontrado.');
     // Posição DINÂMICA (PRD §14,§39): enquanto o pedido está "em preparação"
@@ -853,7 +858,19 @@ export class LojaPedidosService {
       });
       posicao = aFrente + 1;
     }
-    return { id: p.id, numero: p.numero, senha: p.senhaFila, status: p.status, posicao };
+    return jsonSeguro({
+      id: p.id, numero: p.numero, senha: p.senhaFila, status: p.status, posicao,
+      total: p.total,
+      pago: p.confirmadoEm != null,
+      operacaoSlug: p.operacao?.slug ?? null,
+      // O cliente pode editar o próprio pedido enquanto não pagou OU está na
+      // fila (antes de ir para preparo).
+      editavelPeloCliente: p.status === 'AGUARDANDO_PAGAMENTO' || p.status === 'NA_FILA',
+      itens: p.itens.map((it) => ({
+        produtoId: it.produtoId, descricao: it.descricao,
+        quantidade: Number(it.quantidade), precoUnit: Number(it.precoUnit), total: Number(it.total),
+      })),
+    });
   }
 
   // ==================== COMPROVANTE + RETIRADA POR QR ====================
@@ -1040,15 +1057,48 @@ export class LojaPedidosService {
    *     (a venda já foi baixada), e reajusta o lançamento financeiro.
    * Não permite editar pedido RETIRADO/CANCELADO/PRONTO (já fechado).
    */
+  /** Edição pelo VENDEDOR (achou pelo código de 3 dígitos). Pode mexer em
+   *  qualquer estágio ainda aberto e alterar o desconto. */
   async editarItens(pedidoId: string, dto: EditarItensDto, u: UsuarioLogado) {
     if (!opera(u)) throw new ForbiddenException('Seu perfil não pode editar pedidos.');
-    if (!dto.itens.length) throw new BadRequestException('O pedido não pode ficar sem itens.');
+    return this._editarItens(pedidoId, {
+      itens: dto.itens, desconto: dto.desconto, observacoes: dto.observacoes,
+      statusesEditaveis: ['AGUARDANDO_PAGAMENTO', 'NA_FILA', 'PROXIMO', 'EM_PREPARACAO'],
+      origem: 'operador', rotulo: 'no balcão', u,
+    });
+  }
+
+  /** Edição pelo PRÓPRIO CLIENTE, pelo link do cardápio. Só enquanto ainda dá
+   *  (não pagou OU está NA_FILA — antes de ir para preparo). Não mexe no
+   *  desconto e nunca deixa o total AUMENTAR quando o pedido já foi pago
+   *  (para incluir itens o cliente vai ao balcão). */
+  async editarItensPublico(pedidoId: string, dto: EditarItensPublicoDto) {
+    return this._editarItens(pedidoId, {
+      itens: dto.itens, observacoes: dto.observacoes,
+      statusesEditaveis: ['AGUARDANDO_PAGAMENTO', 'NA_FILA'],
+      origem: 'cliente', rotulo: 'pelo cliente', bloquearAumentoSePago: true,
+    });
+  }
+
+  private async _editarItens(pedidoId: string, params: {
+    itens: { produtoId: string; quantidade: number; observacao?: string }[];
+    desconto?: number;
+    observacoes?: string;
+    statusesEditaveis: string[];
+    origem: string;
+    rotulo: string;
+    u?: UsuarioLogado;
+    bloquearAumentoSePago?: boolean;
+  }) {
+    const { itens, statusesEditaveis, origem, rotulo, u, bloquearAumentoSePago } = params;
+    if (!itens.length) throw new BadRequestException('O pedido não pode ficar sem itens.');
+    const usuarioId = u?.id ?? null;
+    const dto = { itens, desconto: params.desconto, observacoes: params.observacoes };
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const pedido = await tx.lojaPedido.findUnique({ where: { id: pedidoId }, include: { itens: true } });
       if (!pedido) throw new NotFoundException('Pedido não encontrado.');
-      const EDITAVEL = ['AGUARDANDO_PAGAMENTO', 'NA_FILA', 'PROXIMO', 'EM_PREPARACAO'];
-      if (!EDITAVEL.includes(pedido.status)) {
+      if (!statusesEditaveis.includes(pedido.status)) {
         throw new BadRequestException(`Este pedido não pode mais ser editado (${pedido.status}).`);
       }
       const reservado = pedido.status === 'AGUARDANDO_PAGAMENTO'; // ainda não baixou físico
@@ -1084,6 +1134,13 @@ export class LojaPedidosService {
       const desconto = descontoValido(dto.desconto ?? Number(pedido.desconto), subtotal);
       const total = totalComDesconto(subtotal, desconto);
 
+      // Cliente não pode aumentar o valor de um pedido já pago (vai ao balcão).
+      if (bloquearAumentoSePago && !reservado && total > Number(pedido.total) + 0.001) {
+        throw new BadRequestException(
+          'Para incluir itens em um pedido já pago, procure o balcão. Aqui dá para remover itens ou trocar por algo de valor igual ou menor.',
+        );
+      }
+
       // Valida DISPONIBILIDADE para os aumentos de quantidade.
       for (const l of linhas) {
         if (!l.controla) continue;
@@ -1105,11 +1162,11 @@ export class LojaPedidosService {
         if (!controla) continue;
         if (reservado) {
           await tx.lojaEstoqueSaldo.update({ where: { produtoId_local: { produtoId: pid, local: 'LOJA' } }, data: { reservado: { increment: D(delta) } } });
-          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: 'reserva', quantidade: D(delta), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de reserva (edição) pedido #${pedido.numero}`, usuarioId: u.id } });
+          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: 'reserva', quantidade: D(delta), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de reserva (edição) pedido #${pedido.numero}`, usuarioId } });
         } else {
           // Pago: baixa/devolve o físico direto.
           await tx.lojaEstoqueSaldo.update({ where: { produtoId_local: { produtoId: pid, local: 'LOJA' } }, data: { saldoFisico: { decrement: D(delta) } } });
-          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: delta > 0 ? 'saida' : 'entrada', quantidade: D(Math.abs(delta)), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de estoque (edição) pedido #${pedido.numero}`, usuarioId: u.id } });
+          await tx.lojaEstoqueMovimento.create({ data: { produtoId: pid, local: 'LOJA', tipo: delta > 0 ? 'saida' : 'entrada', quantidade: D(Math.abs(delta)), origem: 'balcao', referenciaId: `PED-${pedido.numero}`, observacao: `Ajuste de estoque (edição) pedido #${pedido.numero}`, usuarioId } });
         }
       }
 
@@ -1121,16 +1178,23 @@ export class LojaPedidosService {
           subtotal: D(subtotal), desconto: D(desconto), total: D(total), precisaPreparacao,
           ...(dto.observacoes != null ? { observacoes: dto.observacoes } : {}),
           itens: { create: linhas.map((l) => ({ produtoId: l.produtoId, descricao: l.descricao, quantidade: D(l.quantidade), precoUnit: D(l.precoUnit), total: D(l.total), observacao: l.observacao })) },
-          historico: { create: { deStatus: pedido.status, paraStatus: pedido.status, origem: 'operador', usuarioId: u.id, observacao: `Pedido editado no balcão — novo total ${total.toFixed(2)}` } },
+          historico: { create: {
+            deStatus: pedido.status, paraStatus: pedido.status, origem, usuarioId,
+            observacao: `Pedido editado ${rotulo} — novo total ${total.toFixed(2)}`
+              + (!reservado && total < Number(pedido.total) - 0.001
+                ? ` (devolver ${(Number(pedido.total) - total).toFixed(2)} ao cliente)` : ''),
+          } },
         },
         include: { itens: true, operacao: { select: { nome: true, slug: true } }, pagamentos: { orderBy: { criadoEm: 'desc' } } },
       });
 
       // Se já estava pago, reajusta o lançamento financeiro para o novo total.
+      // Edição do cliente que REDUZ o valor: mantém `valorPago` (gera saldo a
+      // devolver, visível no financeiro); o balcão faz o estorno.
       if (!reservado && pedido.lancamentoId) {
         await tx.financeiroLancamento.update({
           where: { id: pedido.lancamentoId },
-          data: { valor: D(total), valorPago: D(total) },
+          data: origem === 'cliente' ? { valor: D(total) } : { valor: D(total), valorPago: D(total) },
         }).catch(() => undefined);
       }
       return atualizado;
@@ -1138,7 +1202,7 @@ export class LojaPedidosService {
 
     this.eventos.emitir({ tipo: 'pedido', pedidoId });
     this.eventos.emitir({ tipo: 'fila', operacaoId: resultado.operacaoId ?? undefined });
-    void this.auditar({ entidade: 'pedido', entidadeId: pedidoId, acao: 'pedido.editado', origem: 'operador', depois: { numero: resultado.numero, total: resultado.total } }, u);
+    void this.auditar({ entidade: 'pedido', entidadeId: pedidoId, acao: 'pedido.editado', origem, depois: { numero: resultado.numero, total: resultado.total } }, u);
     return jsonSeguro(resultado);
   }
 

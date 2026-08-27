@@ -38,7 +38,7 @@
 
 /* tab bar inferior */
 .pm-tabs{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:2px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:2px;
   border-top:1px solid var(--pm-line);
   background:linear-gradient(0deg,#141419,#101014);
   padding:5px 8px calc(env(safe-area-inset-bottom) + 5px);
@@ -163,8 +163,8 @@
 .pm-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:20px 18px 8px}
 .pm-sheet-head h2{margin:0;font-size:17px}
 .pm-sheet-x{background:none;border:none;color:var(--pm-muted);cursor:pointer;padding:6px}
-.pm-sheet-body{overflow-y:auto;padding:6px 18px 18px;-webkit-overflow-scrolling:touch}
-.pm-sheet-foot{padding:14px 18px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--pm-line);display:grid;gap:10px}
+.pm-sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 18px 18px;-webkit-overflow-scrolling:touch}
+.pm-sheet-foot{flex-shrink:0;padding:14px 18px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--pm-line);display:grid;gap:10px;background:var(--pm-card)}
 
 .pm-linha-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--pm-line)}
 .pm-linha-item .nome{flex:1;font-size:14px}
@@ -221,8 +221,10 @@
   --muted:var(--pm-muted); --gold:var(--pm-gold-a); --gold-top:var(--pm-gold-a); --gold-base:var(--pm-gold-b);
   --sobre-ouro:var(--pm-sobre);
 }
-.pm-scanwrap .ret-page{padding:0;max-width:none;gap:14px}
-.pm-scanwrap .ret-hero{display:none}
+.pm-scanwrap .ret-page,
+.pm-scanwrap .cod-page{padding:0;max-width:none;gap:14px}
+.pm-scanwrap .ret-hero,
+.pm-scanwrap .cod-hero{display:none}
 
 /* card selecionado no grid */
 .pm-prod.sel{border-color:var(--pm-gold-a);box-shadow:0 0 0 2px rgba(242,212,136,.2)}
@@ -243,7 +245,7 @@
 .pm-sheet-cliente button{background:none;border:none;color:var(--pm-muted);cursor:pointer;padding:2px;display:grid;place-items:center}
 
 /* ações rápidas dentro do sheet (mini) */
-.pm-sheet-acoes{display:flex;gap:6px;flex-wrap:wrap}
+.pm-sheet-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .pm-sheet-acao{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:10px;border:1px solid var(--pm-line);background:#1c1c22;color:var(--pm-muted);font-size:12px;font-weight:700;cursor:pointer;transition:color .12s,border-color .12s,background .12s}
 .pm-sheet-acao.on{color:var(--pm-gold-a);border-color:rgba(242,212,136,.3);background:rgba(242,212,136,.08)}
 .pm-sheet-acao.off{opacity:.35;pointer-events:none}
@@ -342,6 +344,10 @@
 }
 .pm-edprod-img-btns{display:flex;gap:8px;flex-wrap:wrap}
 .pm-edprod-campos{display:grid;gap:10px;margin-top:4px}
+.pm-edprod-check{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid var(--pm-line);border-radius:12px;background:#1c1c22;cursor:pointer;font-size:13.5px;font-weight:700}
+.pm-edprod-check input{margin-top:2px;width:18px;height:18px;flex:none;accent-color:var(--pm-gold-a)}
+.pm-edprod-check span{display:flex;flex-direction:column;gap:2px}
+.pm-edprod-check small{font-size:11.5px;font-weight:500;color:var(--pm-muted)}
 
 /* spin simples */
 .pm-spin{animation:pm-spin-kf .8s linear infinite}

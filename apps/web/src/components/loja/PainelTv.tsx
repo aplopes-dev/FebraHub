@@ -7,8 +7,8 @@ import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import type { PainelTvPreparando, PainelTvPronto } from "@/types/loja-pedidos";
 import "@/app/painel.css";
 
-/** Senha com no mínimo 2 dígitos (PRD §4,§13): 01, 02 … 09, 10 … 99, 100. */
-const fmtSenha = (s: number | null) => (s == null ? "—" : String(s).padStart(2, "0"));
+/** A TV chama o cliente pelo NÚMERO DO PEDIDO (a senha da fila não é mais exibida). */
+const fmtPedido = (n: number | null) => (n == null ? "—" : `#${n}`);
 
 /**
  * Densidade + paginação (PRD §30-31). Regra simples e previsível para NUNCA
@@ -72,11 +72,11 @@ export function PainelTv({ slug }: { slug?: string }) {
     return () => clearInterval(t);
   }, []);
 
-  // Detecta a senha que ACABOU de ficar pronta para destacar (o "chamado").
+  // Detecta o pedido que ACABOU de ficar pronto para destacar (o "chamado").
   const prontosVistos = useRef<Set<number>>(new Set());
   const [novoPronto, setNovoPronto] = useState<number | null>(null);
   useEffect(() => {
-    const atuais = prontos.map((p) => p.senha ?? -1).filter((s) => s >= 0);
+    const atuais = prontos.map((p) => p.numero ?? -1).filter((s) => s >= 0);
     const novos = atuais.filter((n) => !prontosVistos.current.has(n));
     prontosVistos.current = new Set(atuais);
     if (novos.length) {
@@ -133,12 +133,12 @@ export function PainelTv({ slug }: { slug?: string }) {
           {(inicio, fim) => (
             <div className={`tv-lista dens-${densidade(prontos.length)}`}>
               {prontos.slice(inicio, fim).map((p) => {
-                const destaque = novoPronto != null && p.senha === novoPronto;
+                const destaque = novoPronto != null && p.numero === novoPronto;
                 return (
                   <div key={p.numero} className={`tv-card pronto ${destaque ? "novo" : ""}`}>
                     {destaque && <BellRinging weight="fill" className="tv-card-ic" />}
                     {/* Pedidos legados sem senha: mostra #pedido como fallback. */}
-                    <span className="tv-card-senha">{p.senha != null ? fmtSenha(p.senha) : `#${p.numero}`}</span>
+                    <span className="tv-card-senha">{fmtPedido(p.numero)}</span>
                   </div>
                 );
               })}
@@ -171,15 +171,15 @@ function FilaComResumo({ itens }: { itens: PainelTvPreparando[] }) {
     <div className={`tv-lista-fila dens-${densidade(Math.min(itens.length, MAX_FILA_INDIVIDUAL + (temResumo ? 1 : 0)))}`}>
       {visiveis.map((p) => (
         <div key={p.numero} className={`tv-card tv-card-fila ${p.estado === "PROXIMO" ? "proximo" : ""}`}>
-          <span className="tv-card-senha">{p.senha != null ? fmtSenha(p.senha) : `#${p.numero}`}</span>
+          <span className="tv-card-senha">{fmtPedido(p.numero)}</span>
           <span className="tv-card-pos">Posição {p.posicao}</span>
         </div>
       ))}
       {temResumo && (() => {
-        const senhaUlt = itens[itens.length - 1];
-        const senha5 = itens[MAX_FILA_INDIVIDUAL - 1];
-        const de = senha5.senha != null ? fmtSenha(senha5.senha) : `#${senha5.numero}`;
-        const ate = senhaUlt.senha != null ? fmtSenha(senhaUlt.senha) : `#${senhaUlt.numero}`;
+        const ultimo = itens[itens.length - 1];
+        const quinto = itens[MAX_FILA_INDIVIDUAL - 1];
+        const de = fmtPedido(quinto.numero);
+        const ate = fmtPedido(ultimo.numero);
         return (
           <div className="tv-card tv-card-resumo">
             <span className="tv-card-resumo-txt">
@@ -214,7 +214,7 @@ function ColunaInterna({ itens }: { itens: PainelTvPreparando[] }) {
       <div className={`tv-lista tv-lista-prep dens-${densidade(itens.length)}`}>
         {fatia.map((p) => (
           <div key={p.numero} className={`tv-card ${p.estado === "PROXIMO" ? "proximo" : ""}`}>
-            <span className="tv-card-senha">{p.senha != null ? fmtSenha(p.senha) : `#${p.numero}`}</span>
+            <span className="tv-card-senha">{fmtPedido(p.numero)}</span>
             <span className="tv-card-pos">Posição {p.posicao}</span>
           </div>
         ))}

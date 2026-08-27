@@ -99,6 +99,14 @@ export interface CardapioPublico {
   produtos: CardapioProduto[];
 }
 
+export interface AcompanharPedidoItem {
+  produtoId: string;
+  descricao: string;
+  quantidade: number;
+  precoUnit: number;
+  total: number;
+}
+
 export interface AcompanharPedido {
   id: string;
   numero: number;
@@ -106,6 +114,12 @@ export interface AcompanharPedido {
   senha: number | null;
   status: LojaPedidoStatus;
   posicao: number | null;
+  total: string;
+  pago: boolean;
+  operacaoSlug: string | null;
+  /** true enquanto o cliente ainda pode editar o próprio pedido (não pagou ou na fila). */
+  editavelPeloCliente: boolean;
+  itens: AcompanharPedidoItem[];
 }
 
 export interface ComprovanteItem {

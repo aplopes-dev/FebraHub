@@ -107,6 +107,14 @@ export class EditarItensDto {
   @IsOptional() @IsString() observacoes?: string;
 }
 
+/** Edição do pedido pelo PRÓPRIO CLIENTE (link do cardápio), enquanto ainda dá
+ *  (não pagou OU está na fila, antes do preparo). Sem `desconto` — o cliente
+ *  não mexe nisso. */
+export class EditarItensPublicoDto {
+  @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => ItemPedidoDto) itens!: ItemPedidoDto[];
+  @IsOptional() @IsString() observacoes?: string;
+}
+
 // -------------------- TRANSIÇÕES OPERACIONAIS --------------------
 
 export class CancelarPedidoDto {

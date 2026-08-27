@@ -15,7 +15,7 @@ import {
 } from "@/services/api/loja-produtos";
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
-import type { LojaProduto } from "@/types/loja-produtos";
+import type { LojaCategoria, LojaProduto } from "@/types/loja-produtos";
 import type { PdvProduto } from "@/types/pdv";
 import type { FormaPagamento, LojaPedido, LojaPedidoPagamento } from "@/types/loja-pedidos";
 
@@ -432,10 +432,8 @@ export default function Vender() {
                       <span className="preco">{brl(l.p.preco * l.q - l.descItem)}</span>
                     </div>
                   ))}
-                </div>
 
-                <div className="pm-sheet-foot">
-                  {/* Ações rápidas dentro do sheet também */}
+                  {/* Ações rápidas (rolam junto com a lista; o rodapé fica só com o pagamento) */}
                   <div className="pm-sheet-acoes">
                     {acoes.filter((a) => a.id !== "cancelar").map((a) => (
                       <button
@@ -449,7 +447,9 @@ export default function Vender() {
                       </button>
                     ))}
                   </div>
+                </div>
 
+                <div className="pm-sheet-foot">
                   <div className="pm-total-bloco">
                     {(descontoTotal > 0 || descItens > 0) && (
                       <div className="pm-total-linha"><span>Subtotal</span><span>{brl(bruto)}</span></div>
@@ -475,7 +475,7 @@ export default function Vender() {
                   </div>
                   {erro && <div className="pm-erro">{erro}</div>}
                   <button className="pm-btn verde bloco" disabled={finalizar.isPending || gerarPix.isPending} onClick={pagar}>
-                    {finalizar.isPending || gerarPix.isPending ? "Processando…" : `Cobrar ${brl(total)}`}
+                    {finalizar.isPending || gerarPix.isPending ? "Processando…" : `Finalizar venda · ${brl(total)}`}
                   </button>
                 </div>
               </>
@@ -571,6 +571,7 @@ export default function Vender() {
       {editarProduto && (
         <ModalEditarProdutoPdvMovel
           produto={editarProduto}
+          categorias={categorias.data ?? []}
           onFechar={() => setEditarProduto(null)}
           onSalvo={() => {
             qc.invalidateQueries({ queryKey: ["pdv-movel-produtos"] });
@@ -709,16 +710,20 @@ function ModalDesconto({
 // ─────────────────────────────────────────────────────────────────────────────
 function ModalEditarProdutoPdvMovel({
   produto: prodInicial,
+  categorias,
   onFechar,
   onSalvo,
 }: {
   produto: PdvProduto;
+  categorias: LojaCategoria[];
   onFechar: () => void;
   onSalvo: (atualizado: LojaProduto) => void;
 }) {
   const [nome, setNome] = useState(prodInicial.descricao ?? "");
   const [ean, setEan] = useState("");
   const [preco, setPreco] = useState(String(prodInicial.preco));
+  const [categoriaId, setCategoriaId] = useState<string>("");
+  const [exibeCardapio, setExibeCardapio] = useState(true);
   const [imagemUrl, setImagemUrl] = useState(prodInicial.imagemUrl ?? "");
   const [enviandoImg, setEnviandoImg] = useState(false);
   const [removendoFundo, setRemovendoFundo] = useState(true);
@@ -737,6 +742,8 @@ function ModalEditarProdutoPdvMovel({
   useEffect(() => {
     if (prodQuery.data) {
       setEan(prodQuery.data.codigoBarras ?? "");
+      setCategoriaId(prodQuery.data.categoriaId ?? "");
+      setExibeCardapio(prodQuery.data.exibeCardapio);
       if (nome === prodInicial.descricao) setNome(prodQuery.data.nome);
       const precoApi = Number(prodQuery.data.preco);
       if (!isNaN(precoApi)) setPreco(precoApi.toFixed(2).replace(".", ","));
@@ -784,13 +791,13 @@ function ModalEditarProdutoPdvMovel({
         codigoBarras: ean.trim() || undefined,
         descricao: prodData.descricao ?? "",
         imagemUrl: imagemUrl || undefined,
-        categoriaId: prodData.categoriaId ?? null,
+        categoriaId: categoriaId || null,
         preco: precoNum,
         custo: prodData.custo ? Number(prodData.custo) : undefined,
         unidade: prodData.unidade ?? "un",
         ativo: prodData.ativo,
         vendePdv: prodData.vendePdv,
-        exibeCardapio: prodData.exibeCardapio,
+        exibeCardapio,
         precisaPreparacao: prodData.precisaPreparacao,
         controlaEstoque: prodData.controlaEstoque,
         vendeSemEstoque: prodData.vendeSemEstoque,
@@ -924,6 +931,20 @@ function ModalEditarProdutoPdvMovel({
               </div>
 
               <div>
+                <label className="pm-modal-label">Categoria</label>
+                <select
+                  className="pm-modal-input"
+                  value={categoriaId}
+                  onChange={(e) => setCategoriaId(e.target.value)}
+                >
+                  <option value="">Sem categoria</option>
+                  {categorias.filter((c) => c.ativo).map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="pm-modal-label">Preço (R$)</label>
                 <input
                   className="pm-modal-input"
@@ -933,6 +954,18 @@ function ModalEditarProdutoPdvMovel({
                   inputMode="decimal"
                 />
               </div>
+
+              <label className="pm-edprod-check">
+                <input
+                  type="checkbox"
+                  checked={!exibeCardapio}
+                  onChange={(e) => setExibeCardapio(!e.target.checked)}
+                />
+                <span>
+                  Retirar do cardápio digital
+                  <small>{exibeCardapio ? "Aparece no cardápio para o cliente." : "Fica só no PDV — o cliente não vê no cardápio."}</small>
+                </span>
+              </label>
             </div>
 
             {erro && <p className="pm-erro">{erro}</p>}

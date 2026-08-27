@@ -676,6 +676,22 @@ export class LojaProdutosService {
     return this.obterProduto(id);
   }
 
+  /** Marca/desmarca o produto como destaque (carrossel do PDV e do cardápio). */
+  async definirDestaque(id: string, emDestaque: boolean, u: UsuarioLogado) {
+    this.exigeGestor(u);
+    const p = await this.prisma.lojaProduto.findUnique({ where: { id } });
+    if (!p) throw new NotFoundException('Produto não encontrado.');
+    if (p.emDestaque === emDestaque) return this.obterProduto(id); // idempotente
+
+    await this.prisma.lojaProduto.update({ where: { id }, data: { emDestaque } });
+    void this.auditar({
+      entidadeId: id, acao: emDestaque ? 'destaque.marcado' : 'destaque.desmarcado',
+      antes: { emDestaque: p.emDestaque }, depois: { emDestaque },
+      observacao: `${p.nome}: ${emDestaque ? 'adicionado aos' : 'removido dos'} destaques`,
+    }, u);
+    return this.obterProduto(id);
+  }
+
   // ==================== EAN ONLINE (Open Food Facts + Cosmos) ====================
 
   /** Faz uma requisição HTTP GET simples e retorna o corpo como string. */

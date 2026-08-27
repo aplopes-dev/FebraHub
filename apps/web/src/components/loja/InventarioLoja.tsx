@@ -11,6 +11,7 @@ import {
   lojaAtualizarCodigoBarras,
   lojaAtualizarProduto,
   lojaBuscarPorBarcode,
+  lojaCategorias,
   lojaEnviarImagemProduto,
   lojaMovimentos,
   lojaProduto,
@@ -220,6 +221,7 @@ function FichaInventario({
           <h3 className="inv-nome">{p.nome}</h3>
           <div className="inv-meta">
             {p.sku && <span className="inv-tag">SKU {p.sku}</span>}
+            <CategoriaProduto produto={p} podeGerir={podeGerir} aoAtualizar={invalidar} />
             <CodigoBarras produto={p} podeGerir={podeGerir} aoAtualizar={invalidar} />
           </div>
         </div>
@@ -553,6 +555,83 @@ function CodigoBarras({
           <button className="loja-btn mini" disabled={salvar.isPending} onClick={() => salvar.mutate(null)}>Limpar</button>
         )}
         <button className="loja-btn ouro mini" disabled={salvar.isPending || !valor.trim()} onClick={() => salvar.mutate(valor.trim())}>
+          {salvar.isPending ? <Loader2 size={13} className="girando" /> : <Save size={13} />} Salvar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────── Categoria do produto (trocar via lista) ─────────────── */
+function CategoriaProduto({
+  produto, podeGerir, aoAtualizar,
+}: {
+  produto: LojaProduto;
+  podeGerir: boolean;
+  aoAtualizar: () => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(produto.categoriaId ?? "");
+  const [erro, setErro] = useState<string | null>(null);
+  const cats = useQuery({ queryKey: ["loja", "categorias"], queryFn: lojaCategorias, enabled: editando });
+
+  useEffect(() => { setValor(produto.categoriaId ?? ""); }, [produto.categoriaId]);
+
+  const salvar = useMutation({
+    mutationFn: (categoriaId: string | null) => {
+      const payload: ProdutoInput = {
+        nome: produto.nome,
+        sku: produto.sku ?? undefined,
+        codigoBarras: produto.codigoBarras ?? null,
+        descricao: produto.descricao || undefined,
+        imagemUrl: produto.imagemUrl ?? undefined,
+        categoriaId,
+        preco: Number(produto.preco),
+        custo: produto.custo != null ? Number(produto.custo) : undefined,
+        unidade: produto.unidade,
+        produtoEstoqueId: produto.produtoEstoqueId ?? null,
+        ativo: produto.ativo,
+        vendePdv: produto.vendePdv,
+        exibeCardapio: produto.exibeCardapio,
+        precisaPreparacao: produto.precisaPreparacao,
+        controlaEstoque: produto.controlaEstoque,
+        vendeSemEstoque: produto.vendeSemEstoque,
+        emDestaque: produto.emDestaque,
+        estoqueMinimo: Number(produto.estoqueMinimo),
+        ordem: produto.ordem,
+      };
+      return lojaAtualizarProduto(produto.id, payload);
+    },
+    onSuccess: () => { setEditando(false); setErro(null); aoAtualizar(); },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Falha ao salvar a categoria."),
+  });
+
+  if (!podeGerir) {
+    return <span className="inv-tag">{produto.categoria?.nome ?? "sem categoria"}</span>;
+  }
+
+  if (!editando) {
+    return (
+      <button type="button" className="inv-tag inv-tag-btn" onClick={() => setEditando(true)} title="Trocar a categoria">
+        {produto.categoria?.nome ?? "definir categoria"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="inv-cod-edit">
+      <div className="inv-cod-linha">
+        <select className="loja-input" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus>
+          <option value="">Sem categoria</option>
+          {(cats.data ?? []).filter((c) => c.ativo).map((c) => (
+            <option key={c.id} value={c.id}>{c.nome}</option>
+          ))}
+        </select>
+      </div>
+      {erro && <p className="inv-aviso erro">{erro}</p>}
+      <div className="inv-cod-botoes">
+        <button className="loja-btn mini" onClick={() => { setEditando(false); setValor(produto.categoriaId ?? ""); }}>Cancelar</button>
+        <button className="loja-btn ouro mini" disabled={salvar.isPending} onClick={() => salvar.mutate(valor || null)}>
           {salvar.isPending ? <Loader2 size={13} className="girando" /> : <Save size={13} />} Salvar
         </button>
       </div>

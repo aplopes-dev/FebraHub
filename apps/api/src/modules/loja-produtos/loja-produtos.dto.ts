@@ -20,6 +20,12 @@ export class AlterarPrecoDto {
   @IsOptional() @IsString() motivo?: string;
 }
 
+// -------------------- MARCAR / DESMARCAR DESTAQUE --------------------
+export class DefinirDestaqueDto {
+  /** true → produto vai para o carrossel "Destaques" do PDV e do cardápio. */
+  @IsBoolean() emDestaque!: boolean;
+}
+
 // -------------------- ATUALIZAR CÓDIGO DE BARRAS --------------------
 export class AtualizarCodigoBarrasDto {
   /** Novo código de barras (EAN-8, EAN-13, ITF, Code128 etc.) ou null para limpar. */

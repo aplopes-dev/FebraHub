@@ -80,6 +80,14 @@
 .bal-thumb img{width:100%;height:100%;object-fit:cover}
 .bal-thumb .ph{font-size:30px;opacity:.25}
 .bal-add{position:absolute;top:112px;right:12px;width:34px;height:34px;border-radius:50%;border:0;background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);display:grid;place-items:center;cursor:pointer;box-shadow:0 3px 10px rgb(0 0 0/.18)}
+/* Ferramentas do card (favoritar + abrir cadastro) — canto superior esquerdo */
+.bal-card-tools{position:absolute;top:8px;left:8px;z-index:2;display:flex;gap:5px}
+.bal-fav,.bal-cad{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;cursor:pointer;background:rgb(255 255 255/.92);color:var(--muted);box-shadow:0 2px 8px rgb(0 0 0/.16);opacity:0;transition:opacity .14s ease,color .14s ease}
+.bal-card:hover .bal-fav,.bal-card:hover .bal-cad,.bal-fav.on{opacity:1}
+.bal-fav:hover,.bal-cad:hover{color:var(--gold)}
+.bal-fav.on{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro)}
+.bal-fav.on svg{fill:currentColor}
+@media(hover:none){.bal-fav,.bal-cad{opacity:1}}
 .bal-info{padding:12px 14px 14px;display:flex;flex-direction:column}
 .bal-info .nome{font-size:14px;font-weight:700;margin:0;line-height:1.25}
 .bal-info .cat{font-size:11px;color:var(--muted);margin:0 0 4px;order:-1}
@@ -182,10 +190,26 @@
 .bal-modal h3{margin:0 0 4px;font-size:18px;font-weight:800}
 .bal-modal p{margin:0 0 14px;font-size:13px;color:var(--muted)}
 .bal-modal p b{color:var(--text)}
+
+/* Modal grande p/ Retirada QR / Retirada por código embutidas no PDV */
+.bal-modal.bal-modal-retirada{position:relative;background:var(--void);width:min(680px,96vw);max-height:92vh;padding:0;overflow:hidden;display:flex;flex-direction:column}
+.bal-modal-retirada .bal-modal-x{position:absolute;top:12px;right:12px;z-index:2;background:var(--void)}
+.bal-modal-retirada-corpo{overflow-y:auto;padding:10px 20px 22px}
+.bal-modal-retirada-corpo .ret-page,
+.bal-modal-retirada-corpo .cod-page{padding:0;gap:14px}
+.bal-modal-retirada-corpo .ret-hero,
+.bal-modal-retirada-corpo .cod-hero{padding-top:12px}
 .bal-desc-tipo{display:flex;gap:8px;margin-bottom:10px}
 .bal-desc-tipo button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--card-line);background:transparent;color:var(--text);font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .bal-desc-tipo button.on{background:linear-gradient(180deg,var(--gold-top),var(--gold-base));color:var(--sobre-ouro);border-color:transparent}
 .bal-desc-input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--card-line);background:transparent;color:inherit;font-size:22px;font-weight:800;text-align:center}
+.bal-edprod-campos{display:flex;flex-direction:column;gap:12px}
+.bal-edprod-campos>label{display:flex;flex-direction:column;gap:5px}
+.bal-edprod-campos>label>span{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.bal-edprod-check{flex-direction:row!important;align-items:flex-start;gap:10px!important;padding:11px 13px;border:1px solid var(--card-line);border-radius:12px;cursor:pointer}
+.bal-edprod-check input{margin-top:2px;width:18px;height:18px;flex:none;accent-color:var(--gold)}
+.bal-edprod-check>span{display:flex;flex-direction:column;gap:2px;text-transform:none!important;letter-spacing:normal!important;font-size:13.5px!important;font-weight:700!important;color:inherit!important}
+.bal-edprod-check small{font-size:12px;font-weight:500;color:var(--muted)}
 .bal-desc-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0 4px}
 .bal-desc-resumo div{text-align:center;padding:8px;border-radius:10px;background:rgb(var(--text-rgb)/.03)}
 .bal-desc-resumo span{display:block;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}

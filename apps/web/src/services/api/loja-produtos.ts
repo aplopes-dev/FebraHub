@@ -52,6 +52,9 @@ export const lojaAlterarPreco = (id: string, d: { preco: number; motivo?: string
 export const lojaAtualizarCodigoBarras = (id: string, codigoBarras: string | null) =>
   api.patch<LojaProduto>(`/loja/produtos/${id}/codigo-barras`, { codigoBarras });
 export const lojaInativarProduto = (id: string) => api.delete(`/loja/produtos/${id}`);
+/** Marca/desmarca o produto como destaque (carrossel do PDV e do cardápio). */
+export const lojaDefinirDestaque = (id: string, emDestaque: boolean) =>
+  api.patch<LojaProduto>(`/loja/produtos/${id}/destaque`, { emDestaque });
 
 /** Sobe a imagem do produto (já com fundo removido) e devolve a URL pública. */
 export const lojaEnviarImagemProduto = (arquivo: Blob, nome = "produto.png") => {

@@ -2,7 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPip
 import { Publica, Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, EditarItensPublicoDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
 import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { LojaPedidosService } from './loja-pedidos.service';
@@ -67,6 +67,14 @@ export class LojaPedidosController {
 
   @Publica() @Get('publico/pedidos/:id/acompanhar')
   acompanhar(@Param('id', ParseUUIDPipe) id: string) { return this.s.acompanhar(id); }
+
+  /** O PRÓPRIO CLIENTE edita o pedido pelo link do cardápio — só enquanto não
+   *  pagou ou está NA_FILA (antes do preparo). Não mexe no desconto e não deixa
+   *  o total de um pedido pago aumentar. */
+  @Publica() @Patch('publico/pedidos/:id/itens')
+  editarItensPublico(@Param('id', ParseUUIDPipe) id: string, @Body() dto: EditarItensPublicoDto) {
+    return this.s.editarItensPublico(id, dto);
+  }
 
   /** Comprovante do cliente (a "receita" com o QR de retirada). Público por
    *  desenho — o cliente abre no próprio aparelho depois de pagar. Só expõe

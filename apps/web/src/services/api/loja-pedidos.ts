@@ -20,6 +20,10 @@ export const iniciarPagamento = (
 export const confirmarPagamentoPublico = (id: string, d: { pagamentoId?: string; gatewayId?: string } = {}) =>
   api.post<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/pagamento/confirmar`, d);
 export const acompanharPedido = (id: string) => api.get<AcompanharPedido>(`/loja-pedidos/publico/pedidos/${id}/acompanhar`);
+/** O próprio cliente edita os itens do pedido pelo link do cardápio (só enquanto
+ *  não pagou ou está na fila). Substitui a lista de itens por completo. */
+export const editarItensPedidoPublico = (id: string, itens: { produtoId: string; quantidade: number; observacao?: string }[]) =>
+  api.patch<LojaPedido>(`/loja-pedidos/publico/pedidos/${id}/itens`, { itens });
 /** Comprovante do cliente (a "receita" com QR de retirada). Público. */
 export const comprovantePedido = (id: string) => api.get<Comprovante>(`/loja-pedidos/publico/pedidos/${id}/comprovante`);
 export const painelPublico = (operacaoId?: string) => api.get<PainelTv>('/loja-pedidos/publico/painel', { parametros: { operacaoId } });
