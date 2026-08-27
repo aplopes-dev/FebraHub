@@ -5,6 +5,7 @@ import { CreditCard, Download, RefreshCw, Store } from "lucide-react";
 import { stoneConcImportarPeriodo, stoneConcImports, stoneConcStatus, stoneConcTransacoes } from "@/services/api/stone-conciliacao";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 import type { StoneConcTransacao } from "@/types/stone-conciliacao";
 import "@/app/financeiro-erp.css";
 
@@ -92,14 +93,10 @@ export function ConciliacaoStone() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <label className="fin-help" style={{ margin: 0 }}>De <input type="date" className="fin-input" style={{ width: 150, display: "inline-block" }} value={de} max={ate} onChange={(e) => setDe(e.target.value)} /></label>
             <label className="fin-help" style={{ margin: 0 }}>Até <input type="date" className="fin-input" style={{ width: 150, display: "inline-block" }} value={ate} min={de} max={hojeISO()} onChange={(e) => setAte(e.target.value)} /></label>
-            <select className="fin-select" style={{ width: "auto" }} value={bandeira} onChange={(e) => setBandeira(e.target.value)}>
-              <option value="">Todas as bandeiras</option>
-              {bandeiras.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
-            <select className="fin-select" style={{ width: "auto" }} value={serial} onChange={(e) => setSerial(e.target.value)}>
-              <option value="">Todas as maquininhas</option>
-              {seriais.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <Select className="fin-select" aria-label="Bandeira" value={bandeira} onChange={setBandeira} style={{ minWidth: 170 }}
+              options={[{ value: "", label: "Todas as bandeiras" }, ...bandeiras.map((b) => ({ value: b, label: b }))]} />
+            <Select className="fin-select" aria-label="Maquininha" value={serial} onChange={setSerial} style={{ minWidth: 180 }}
+              options={[{ value: "", label: "Todas as maquininhas" }, ...seriais.map((s) => ({ value: s, label: s }))]} />
           </div>
         </header>
 

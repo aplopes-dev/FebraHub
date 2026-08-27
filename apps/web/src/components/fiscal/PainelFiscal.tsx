@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Bloco } from "@/components/ui/Bloco";
 import { Estado } from "@/components/ui/Estado";
+import { Select } from "@/components/ui/Select";
 import { BOTAO_OURO, BOTAO_OURO_OFF, inputAv, labelAv } from "@/components/ui/estilos";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import { ErroApi } from "@/services/api/client";
@@ -130,17 +131,19 @@ export function PainelFiscal() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
             <div>
               <label style={labelAv}>Ambiente</label>
-              <select value={form.ambiente ?? "homologacao"} onChange={(e) => setForm((f) => ({ ...f, ambiente: e.target.value as FiscalStatus["ambiente"] }))} style={{ ...inputAv, cursor: "pointer" }}>
-                <option value="homologacao">Homologação (testes)</option>
-                <option value="producao">Produção (valor fiscal)</option>
-              </select>
+              <Select value={form.ambiente ?? "homologacao"} onChange={(v) => setForm((f) => ({ ...f, ambiente: v as FiscalStatus["ambiente"] }))} style={{ width: "100%" }} aria-label="Ambiente"
+                options={[
+                  { value: "homologacao", label: "Homologação (testes)" },
+                  { value: "producao", label: "Produção (valor fiscal)" },
+                ]} />
             </div>
             <div>
               <label style={labelAv}>Regime tributário</label>
-              <select value={form.regimeTributario ?? "3"} onChange={(e) => setForm((f) => ({ ...f, regimeTributario: e.target.value }))} style={{ ...inputAv, cursor: "pointer" }}>
-                <option value="1">Simples Nacional</option>
-                <option value="3">Regime Normal</option>
-              </select>
+              <Select value={form.regimeTributario ?? "3"} onChange={(v) => setForm((f) => ({ ...f, regimeTributario: v }))} style={{ width: "100%" }} aria-label="Regime tributário"
+                options={[
+                  { value: "1", label: "Simples Nacional" },
+                  { value: "3", label: "Regime Normal" },
+                ]} />
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelAv}>Razão social</label>

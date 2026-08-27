@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { finCadastros, finCriarCentro, finCriarConta, finCriarPlano } from "@/services/api/financeiro-erp";
 import { ErroApi } from "@/services/api/client";
+import { Select } from "@/components/ui/Select";
 
 type Aba = "contas" | "centros" | "planos";
 
@@ -124,10 +125,8 @@ function FormPlano({ planos, grupos, aoCriar }: { planos: { id: string; nome: st
       <small className="fin-help">A categoria em que o valor entra no resultado (DRE).</small>
       <div style={{ marginTop: 4 }}>
         <label>Grupo</label>
-        <select className="fin-select" value={grupoId} onChange={(e) => setGrupo(e.target.value)}>
-          <option value="">Selecione o grupo…</option>
-          {grupos.map((g) => <option key={g.id} value={g.id}>{g.nome}{g.tipo ? ` (${g.tipo})` : ""}</option>)}
-        </select>
+        <Select className="fin-select" aria-label="Grupo" value={grupoId} onChange={setGrupo} placeholder="Selecione o grupo…"
+          options={[{ value: "", label: "Selecione o grupo…" }, ...grupos.map((g) => ({ value: g.id, label: `${g.nome}${g.tipo ? ` (${g.tipo})` : ""}` }))]} />
         <small className="fin-help">Em qual bloco do DRE esta conta se agrupa (receitas, custos, despesas…).</small>
       </div>
       <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
