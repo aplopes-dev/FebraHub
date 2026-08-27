@@ -2,15 +2,21 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode, Search, Phone, User, GripVertical, ArrowRight } from "lucide-react";
+import {
+  Bell, ChefHat, CheckCircle2, Clock, PackageCheck, Ban, RefreshCw, QrCode,
+  Search, Phone, User, GripVertical, ArrowRight, MoreVertical, Pencil, X,
+  Plus, Minus, ChevronLeft, ChevronRight, MoveUp, MoveDown, MoveHorizontal,
+} from "lucide-react";
 import { useLojaPedidosStream } from "@/hooks/loja-pedidos-stream";
 import {
   cancelarPedido, confirmarPagamento, confirmarRetirada, iniciarPreparacao,
   lojaPedidos, lojaPedidosDashboard, lojaPedidosIndicadores, marcarProximo, marcarPronto,
+  moverPedidoStatus, editarItensPedido, lojaProdutosBalcao,
 } from "@/services/api/loja-pedidos";
 import { ErroApi } from "@/services/api/client";
 import { pode, usePerfil, useSessao } from "@/hooks/auth";
 import type { LojaPedido, LojaPedidoStatus } from "@/types/loja-pedidos";
+import type { PdvProduto } from "@/types/pdv";
 import "@/app/loja.css";
 import "@/app/fila.css";
 
@@ -81,6 +87,306 @@ function fmtTel(t: string | null | undefined): string | null {
   return t;
 }
 
+// ─── Destinos de mover para cada status ───────────────────────────────────────
+type MoverTarget = { label: string; paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO"; Icone: typeof MoveUp };
+const MOVER_OPCOES: Partial<Record<LojaPedidoStatus, MoverTarget[]>> = {
+  NA_FILA: [
+    { label: "Em preparação", paraStatus: "EM_PREPARACAO", Icone: MoveUp },
+    { label: "Pronto", paraStatus: "PRONTO", Icone: MoveUp },
+  ],
+  EM_PREPARACAO: [
+    { label: "Voltar à fila", paraStatus: "NA_FILA", Icone: MoveDown },
+    { label: "Pronto", paraStatus: "PRONTO", Icone: MoveUp },
+  ],
+  PRONTO: [
+    { label: "Voltar à fila", paraStatus: "NA_FILA", Icone: MoveDown },
+    { label: "Voltar para preparação", paraStatus: "EM_PREPARACAO", Icone: MoveDown },
+  ],
+  AGUARDANDO_PAGAMENTO: [],
+};
+
+// ─── Item do carrinho de edição ───────────────────────────────────────────────
+interface ItemEditar {
+  produtoId: string;
+  descricao: string;
+  preco: number;
+  quantidade: number;
+  observacao: string;
+}
+
+// ─── Modal de edição de itens ─────────────────────────────────────────────────
+function ModalEditarItens({
+  pedido,
+  onFechar,
+  onSalvo,
+}: {
+  pedido: LojaPedido;
+  onFechar: () => void;
+  onSalvo: () => void;
+}) {
+  const qc = useQueryClient();
+  const [itens, setItens] = useState<ItemEditar[]>(() =>
+    pedido.itens.map((it) => ({
+      produtoId: it.produtoId,
+      descricao: it.descricao,
+      preco: Number(it.precoUnit),
+      quantidade: Number(it.quantidade),
+      observacao: it.observacao ?? "",
+    }))
+  );
+  const [desconto, setDesconto] = useState(Number(pedido.desconto));
+  const [busca, setBusca] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+
+  const produtos = useQuery({
+    queryKey: ["loja-pedidos", "balcao-produtos"],
+    queryFn: () => lojaProdutosBalcao(),
+    staleTime: 30000,
+  });
+
+  const produtosFiltrados = useMemo(() => {
+    const lista = produtos.data ?? [];
+    const t = norm(busca.trim());
+    if (!t) return lista;
+    return lista.filter((p) => norm(p.descricao).includes(t) || (p.codigo && norm(p.codigo).includes(t)));
+  }, [produtos.data, busca]);
+
+  const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens]);
+  const total = Math.max(0, subtotal - desconto);
+
+  const salvar = useMutation({
+    mutationFn: () =>
+      editarItensPedido(pedido.id, {
+        itens: itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade, observacao: i.observacao || undefined })),
+        desconto: desconto || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["loja-pedidos"] });
+      onSalvo();
+    },
+    onError: (e) => setErro(e instanceof ErroApi ? e.mensagem : "Erro ao salvar itens."),
+  });
+
+  const addProduto = (p: PdvProduto) => {
+    setItens((prev) => {
+      const idx = prev.findIndex((i) => i.produtoId === p.produtoId);
+      if (idx >= 0) {
+        const copia = [...prev];
+        copia[idx] = { ...copia[idx], quantidade: copia[idx].quantidade + 1 };
+        return copia;
+      }
+      return [...prev, { produtoId: p.produtoId, descricao: p.descricao, preco: p.preco, quantidade: 1, observacao: "" }];
+    });
+  };
+
+  const altQtd = (idx: number, delta: number) => {
+    setItens((prev) => {
+      const copia = [...prev];
+      const nova = copia[idx].quantidade + delta;
+      if (nova <= 0) return copia.filter((_, i) => i !== idx);
+      copia[idx] = { ...copia[idx], quantidade: nova };
+      return copia;
+    });
+  };
+
+  const remItem = (idx: number) => setItens((prev) => prev.filter((_, i) => i !== idx));
+
+  return (
+    <div className="fila-modal-overlay" onClick={(e) => e.target === e.currentTarget && onFechar()}>
+      <div className="fila-modal">
+        <header className="fila-modal-header">
+          <div>
+            <h2>Editar pedido #{pedido.numero}</h2>
+            <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
+              {pedido.clienteNome && `Cliente: ${pedido.clienteNome}`}
+            </p>
+          </div>
+          <button className="fila-modal-fechar" onClick={onFechar} title="Fechar"><X size={18} /></button>
+        </header>
+
+        <div className="fila-modal-corpo">
+          {/* Carrinho atual */}
+          <section className="fila-modal-secao">
+            <h3 className="fila-modal-titulo-secao">Itens do pedido</h3>
+            {itens.length === 0 ? (
+              <p style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>Nenhum item. Adicione abaixo.</p>
+            ) : (
+              <div className="fila-edit-itens">
+                {itens.map((it, idx) => (
+                  <div key={it.produtoId + idx} className="fila-edit-item">
+                    <div className="fila-edit-item-info">
+                      <span className="fila-edit-item-nome">{it.descricao}</span>
+                      <span className="fila-edit-item-preco">{brl(it.preco)} un.</span>
+                    </div>
+                    <div className="fila-edit-item-ctrl">
+                      <button onClick={() => altQtd(idx, -1)} className="fila-qty-btn"><Minus size={12} /></button>
+                      <span className="fila-qty-val">{it.quantidade}</span>
+                      <button onClick={() => altQtd(idx, +1)} className="fila-qty-btn"><Plus size={12} /></button>
+                      <span className="fila-edit-item-total">{brl(it.preco * it.quantidade)}</span>
+                      <button onClick={() => remItem(idx)} className="fila-qty-btn perigo" title="Remover"><X size={12} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Desconto */}
+            <div className="fila-edit-desconto">
+              <label htmlFor="fila-desconto">Desconto (R$)</label>
+              <input
+                id="fila-desconto"
+                type="number"
+                min={0}
+                step={0.01}
+                value={desconto || ""}
+                onChange={(e) => setDesconto(Number(e.target.value) || 0)}
+                placeholder="0,00"
+              />
+            </div>
+
+            {/* Totais */}
+            <div className="fila-edit-totais">
+              <span>Subtotal: <b>{brl(subtotal)}</b></span>
+              {desconto > 0 && <span style={{ color: "var(--down)" }}>Desconto: <b>− {brl(desconto)}</b></span>}
+              <span style={{ fontSize: 16, fontWeight: 800 }}>Total: <b>{brl(total)}</b></span>
+            </div>
+          </section>
+
+          {/* Catálogo de produtos para adicionar */}
+          <section className="fila-modal-secao">
+            <h3 className="fila-modal-titulo-secao">Adicionar produtos</h3>
+            <label className="fila-busca" style={{ marginBottom: 10 }}>
+              <Search size={14} />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar produto…"
+              />
+              {busca && <button className="fila-busca-limpar" onClick={() => setBusca("")}>×</button>}
+            </label>
+
+            {produtos.isLoading ? (
+              <p style={{ color: "var(--muted)", fontSize: 13 }}>Carregando produtos…</p>
+            ) : (
+              <div className="fila-edit-catalogo">
+                {produtosFiltrados.slice(0, 40).map((p) => (
+                  <button
+                    key={p.produtoId}
+                    className="fila-edit-prod"
+                    onClick={() => addProduto(p)}
+                    disabled={p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0}
+                    title={p.controlaEstoque && !p.vendeSemEstoque && p.disponivel <= 0 ? "Sem estoque" : undefined}
+                  >
+                    <span className="fila-edit-prod-nome">{p.descricao}</span>
+                    <span className="fila-edit-prod-preco">{brl(p.preco)}</span>
+                    {p.controlaEstoque && (
+                      <span className={`fila-edit-prod-estoque${p.disponivel <= 0 ? " esgotado" : ""}`}>
+                        {p.disponivel <= 0 ? "Esgotado" : `${p.disponivel} un.`}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {produtosFiltrados.length === 0 && (
+                  <p style={{ color: "var(--muted)", fontSize: 12 }}>Nenhum produto encontrado.</p>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {erro && <div className="fila-erro" style={{ margin: "0 0 10px" }}>{erro}</div>}
+
+        <footer className="fila-modal-footer">
+          <button className="loja-btn" onClick={onFechar} disabled={salvar.isPending}>Cancelar</button>
+          <button
+            className="loja-btn ouro"
+            onClick={() => salvar.mutate()}
+            disabled={salvar.isPending || itens.length === 0}
+          >
+            {salvar.isPending ? "Salvando…" : "Salvar alterações"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// ─── Menu de ações (⋮) de um card ────────────────────────────────────────────
+function MenuAcoes({
+  pedido,
+  onMover,
+  onEditar,
+  onCancelar,
+  loading,
+}: {
+  pedido: LojaPedido;
+  onMover: (paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO") => void;
+  onEditar: () => void;
+  onCancelar: () => void;
+  loading: boolean;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const opcoesMover = MOVER_OPCOES[pedido.status] ?? [];
+  const podeEditar = !["RETIRADO", "CANCELADO"].includes(pedido.status);
+  const podeCancelar = !["RETIRADO", "CANCELADO"].includes(pedido.status);
+
+  if (!opcoesMover.length && !podeEditar && !podeCancelar) return null;
+
+  return (
+    <div className="fila-menu-wrapper">
+      <button
+        className="fila-menu-btn"
+        onClick={(e) => { e.stopPropagation(); setAberto((v) => !v); }}
+        title="Mais ações"
+        disabled={loading}
+      >
+        <MoreVertical size={14} />
+      </button>
+      {aberto && (
+        <>
+          <div className="fila-menu-backdrop" onClick={() => setAberto(false)} />
+          <div className="fila-menu-dropdown">
+            {podeEditar && (
+              <button className="fila-menu-item" onClick={() => { setAberto(false); onEditar(); }}>
+                <Pencil size={13} /> Editar itens
+              </button>
+            )}
+            {opcoesMover.length > 0 && (
+              <>
+                {podeEditar && <div className="fila-menu-sep" />}
+                <div className="fila-menu-grupo">Mover para</div>
+                {opcoesMover.map((op) => (
+                  <button
+                    key={op.paraStatus}
+                    className="fila-menu-item"
+                    onClick={() => { setAberto(false); onMover(op.paraStatus); }}
+                    disabled={loading}
+                  >
+                    <MoveHorizontal size={13} /> {op.label}
+                  </button>
+                ))}
+              </>
+            )}
+            {podeCancelar && (
+              <>
+                <div className="fila-menu-sep" />
+                <button
+                  className="fila-menu-item perigo"
+                  onClick={() => { setAberto(false); onCancelar(); }}
+                  disabled={loading}
+                >
+                  <Ban size={13} /> Cancelar pedido
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 export function FilaLoja() {
   const qc = useQueryClient();
   const podeOperar = pode(usePerfil(useSessao()).data, "loja.pedidos.operar");
@@ -88,6 +394,7 @@ export function FilaLoja() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [verDash, setVerDash] = useState(false);
   const [busca, setBusca] = useState("");
+  const [pedidoEditando, setPedidoEditando] = useState<LojaPedido | null>(null);
 
   // Drag-and-drop state
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -145,6 +452,17 @@ export function FilaLoja() {
         window.setTimeout(() => setAviso(null), 4000);
       },
     });
+  };
+
+  const handleCancelar = (p: LojaPedido) => {
+    const motivo = window.prompt(`Motivo do cancelamento do pedido #${p.numero}?`);
+    if (motivo) acao.mutate(() => cancelarPedido(p.id, motivo));
+  };
+
+  const handleMover = (p: LojaPedido, paraStatus: "NA_FILA" | "EM_PREPARACAO" | "PRONTO") => {
+    const labels: Record<string, string> = { NA_FILA: "Na fila", EM_PREPARACAO: "Em preparação", PRONTO: "Pronto" };
+    if (!window.confirm(`Mover pedido #${p.numero} para "${labels[paraStatus]}"?`)) return;
+    acao.mutate(() => moverPedidoStatus(p.id, paraStatus));
   };
 
   // ---- Drag handlers ----
@@ -376,6 +694,16 @@ export function FilaLoja() {
                             <GripVertical size={13} />
                           </span>
                         )}
+                        {/* Menu ⋮ de ações */}
+                        {podeOperar && (
+                          <MenuAcoes
+                            pedido={p}
+                            loading={acao.isPending}
+                            onMover={(paraStatus) => handleMover(p, paraStatus)}
+                            onEditar={() => setPedidoEditando(p)}
+                            onCancelar={() => handleCancelar(p)}
+                          />
+                        )}
                       </div>
 
                       {temCliente && (
@@ -423,12 +751,6 @@ export function FilaLoja() {
                           {p.status === "PRONTO" && (
                             <button className="loja-btn ouro mini" disabled={acao.isPending} onClick={rodar(() => confirmarRetirada(p.id))}><CheckCircle2 /> Retirar</button>
                           )}
-                          {p.status !== "RETIRADO" && p.status !== "CANCELADO" && (
-                            <button className="loja-btn perigo mini" disabled={acao.isPending} onClick={() => {
-                              const motivo = window.prompt("Motivo do cancelamento?");
-                              if (motivo) acao.mutate(() => cancelarPedido(p.id, motivo));
-                            }}><Ban /></button>
-                          )}
                         </div>
                       )}
                     </article>
@@ -439,6 +761,19 @@ export function FilaLoja() {
           );
         })}
       </section>
+
+      {/* Modal de edição de itens */}
+      {pedidoEditando && (
+        <ModalEditarItens
+          pedido={pedidoEditando}
+          onFechar={() => setPedidoEditando(null)}
+          onSalvo={() => {
+            setPedidoEditando(null);
+            setAviso("✅ Pedido atualizado com sucesso.");
+            window.setTimeout(() => setAviso(null), 4000);
+          }}
+        />
+      )}
     </div>
   );
 }

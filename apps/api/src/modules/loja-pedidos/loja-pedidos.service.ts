@@ -9,7 +9,7 @@ import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { PagamentosService } from './pagamentos/pagamentos.service';
 import type { FormaPagamento } from './pagamentos/payment-provider';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
 import { ImpressoraService } from './impressora.service';
 import { montarCupom } from './cupom-escpos';
@@ -680,9 +680,53 @@ export class LojaPedidosService {
     return jsonSeguro(pedido);
   }
 
+  /**
+   * Move o pedido para um status válido (avanço OU regressão manual).
+   * Transições permitidas:
+   *   NA_FILA   → EM_PREPARACAO | PRONTO
+   *   EM_PREPARACAO → NA_FILA | PRONTO
+   *   PRONTO    → NA_FILA | EM_PREPARACAO
+   * Não muda pagamento, estoque, financeiro — só a posição na fila.
+   */
+  async moverStatus(pedidoId: string, dto: MoverStatusDto, u: UsuarioLogado) {
+    if (!opera(u)) throw new ForbiddenException('Seu perfil não pode mover pedidos na fila.');
+    const pedido = await this.prisma.lojaPedido.findUnique({ where: { id: pedidoId } });
+    if (!pedido) throw new NotFoundException('Pedido não encontrado.');
+
+    const permitidos: Record<string, string[]> = {
+      NA_FILA: ['EM_PREPARACAO', 'PRONTO'],
+      EM_PREPARACAO: ['NA_FILA', 'PRONTO'],
+      PRONTO: ['NA_FILA', 'EM_PREPARACAO'],
+    };
+    if (!permitidos[pedido.status]?.includes(dto.paraStatus)) {
+      throw new BadRequestException(`Não é possível mover de ${pedido.status} para ${dto.paraStatus}.`);
+    }
+
+    const campoData: Record<string, string | undefined> = {
+      EM_PREPARACAO: 'preparacaoEm',
+      PRONTO: 'prontoEm',
+      NA_FILA: undefined,
+    };
+    const campo = campoData[dto.paraStatus];
+
+    const atualizado = await this.prisma.lojaPedido.update({
+      where: { id: pedidoId },
+      data: {
+        status: dto.paraStatus,
+        ...(campo ? { [campo]: new Date() } : {}),
+        historico: { create: { deStatus: pedido.status, paraStatus: dto.paraStatus, origem: 'operador', usuarioId: u.id, observacao: dto.observacao ?? `Movido manualmente para ${dto.paraStatus}` } },
+      },
+      include: { itens: true },
+    });
+    this.eventos.emitir({ tipo: 'fila', operacaoId: pedido.operacaoId ?? undefined });
+    this.eventos.emitir({ tipo: 'pedido', pedidoId });
+    void this.auditar({ entidade: 'pedido', entidadeId: pedidoId, acao: 'pedido.movido', origem: 'operador', antes: { status: pedido.status }, depois: { status: dto.paraStatus }, observacao: dto.observacao ?? undefined }, u);
+    return jsonSeguro(atualizado);
+  }
+
   /** Cancela: devolve reserva (se ainda não pago) e estorna recebível (se pago). */
   async cancelar(pedidoId: string, dto: CancelarPedidoDto, u: UsuarioLogado) {
-    if (!gerencia(u)) throw new ForbiddenException('Cancelar pedido exige permissão de gestão.');
+    if (!opera(u)) throw new ForbiddenException('Cancelar pedido exige permissão de operação.');
     return this.prisma.$transaction(async (tx) => {
       const pedido = await tx.lojaPedido.findUnique({ where: { id: pedidoId }, include: { itens: true } });
       if (!pedido) throw new NotFoundException('Pedido não encontrado.');

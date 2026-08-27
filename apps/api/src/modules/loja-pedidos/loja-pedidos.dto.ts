@@ -112,3 +112,11 @@ export class EditarItensDto {
 export class CancelarPedidoDto {
   @IsString() @IsNotEmpty() motivo!: string;
 }
+
+/** Move o pedido para um status anterior (regressão manual pelo operador). */
+export class MoverStatusDto {
+  @IsIn(['NA_FILA', 'EM_PREPARACAO', 'PRONTO'])
+  paraStatus!: string;
+
+  @IsOptional() @IsString() observacao?: string;
+}

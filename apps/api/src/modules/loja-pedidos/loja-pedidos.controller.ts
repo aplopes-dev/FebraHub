@@ -2,7 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPip
 import { Publica, Usuario, UsuarioLogado } from '../../common/decorators/usuario.decorator';
 import { ExigePermissao } from '../../common/guards/permissao.guard';
 import {
-  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, SalvarOperacaoDto, VendaPdvDto,
+  CancelarPedidoDto, CheckoutDto, ConfirmarPagamentoDto, EditarItensDto, IniciarPagamentoDto, MoverStatusDto, SalvarOperacaoDto, VendaPdvDto,
 } from './loja-pedidos.dto';
 import { LojaPedidosEventos } from './loja-pedidos.eventos';
 import { LojaPedidosService } from './loja-pedidos.service';
@@ -130,6 +130,10 @@ export class LojaPedidosController {
   @Post('pedidos/:id/retirar') @ExigePermissao('loja.pedidos.operar')
   retirar(@Param('id', ParseUUIDPipe) id: string, @Usuario() u: UsuarioLogado) { return this.s.confirmarRetirada(id, u); }
 
+  /** Move o pedido para qualquer status de fila (avanço ou regressão manual). */
+  @Post('pedidos/:id/mover') @ExigePermissao('loja.pedidos.operar')
+  mover(@Param('id', ParseUUIDPipe) id: string, @Body() dto: MoverStatusDto, @Usuario() u: UsuarioLogado) { return this.s.moverStatus(id, dto, u); }
+
   // -------------------- RETIRADA POR QR (vendedor escaneia o comprovante) --------------------
 
   /** Consulta o pedido pelo TOKEN do QR do comprovante. Só leitura — devolve o
@@ -170,7 +174,7 @@ export class LojaPedidosController {
 
   // -------------------- GESTÃO (exige loja.pedidos.gerenciar) --------------------
 
-  @Post('pedidos/:id/cancelar') @ExigePermissao('loja.pedidos.gerenciar')
+  @Post('pedidos/:id/cancelar') @ExigePermissao('loja.pedidos.operar')
   cancelar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CancelarPedidoDto, @Usuario() u: UsuarioLogado) {
     return this.s.cancelar(id, dto, u);
   }

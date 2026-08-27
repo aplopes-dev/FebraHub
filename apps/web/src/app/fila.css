@@ -124,6 +124,64 @@
 .fila-card-meta svg{width:12px;vertical-align:-2px}
 .fila-acoes{display:flex;flex-wrap:wrap;gap:6px}
 
+/* ==================== MENU ⋮ DE AÇÕES DO CARD ==================== */
+.fila-menu-wrapper{position:relative;display:inline-flex;flex-shrink:0}
+.fila-menu-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid var(--card-line);background:transparent;color:var(--muted);cursor:pointer;transition:background .12s,color .12s;flex-shrink:0}
+.fila-menu-btn:hover{background:rgb(var(--gold-rgb)/.1);color:var(--gold);border-color:rgb(var(--gold-rgb)/.4)}
+.fila-menu-btn:disabled{opacity:.4;cursor:default}
+.fila-menu-backdrop{position:fixed;inset:0;z-index:100}
+.fila-menu-dropdown{position:absolute;top:calc(100% + 4px);right:0;z-index:101;min-width:180px;background:var(--card);border:1px solid var(--card-line);border-radius:12px;box-shadow:0 8px 24px rgb(0 0 0/.18);padding:4px;display:flex;flex-direction:column;gap:1px}
+.fila-menu-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:0;background:transparent;color:inherit;cursor:pointer;font-size:13px;text-align:left;width:100%;transition:background .1s}
+.fila-menu-item:hover{background:rgb(var(--gold-rgb)/.08);color:var(--gold)}
+.fila-menu-item:hover svg{color:var(--gold)}
+.fila-menu-item.perigo:hover{background:rgb(var(--down-rgb,224 108 117)/.08);color:var(--down)}
+.fila-menu-item.perigo:hover svg{color:var(--down)}
+.fila-menu-item svg{flex-shrink:0;color:var(--muted)}
+.fila-menu-sep{height:1px;background:var(--card-line);margin:3px 8px}
+.fila-menu-grupo{padding:4px 12px 2px;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+
+/* ==================== MODAL EDITAR ITENS ==================== */
+.fila-modal-overlay{position:fixed;inset:0;z-index:200;background:rgb(0 0 0/.55);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.fila-modal{background:var(--card);border:1px solid var(--card-line);border-radius:20px;width:100%;max-width:780px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgb(0 0 0/.3)}
+.fila-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 24px 16px;border-bottom:1px solid var(--card-line)}
+.fila-modal-header h2{margin:0;font-size:18px}
+.fila-modal-fechar{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--card-line);background:transparent;color:var(--muted);cursor:pointer;flex-shrink:0}
+.fila-modal-fechar:hover{background:rgb(var(--down-rgb,224 108 117)/.08);color:var(--down);border-color:rgb(var(--down-rgb)/.3)}
+.fila-modal-corpo{flex:1;overflow-y:auto;padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:640px){.fila-modal-corpo{grid-template-columns:1fr}}
+.fila-modal-secao{display:flex;flex-direction:column;gap:10px}
+.fila-modal-titulo-secao{margin:0;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
+.fila-modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--card-line)}
+
+/* ---- Itens do carrinho de edição ---- */
+.fila-edit-itens{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.fila-edit-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--card-line);border-radius:10px;background:rgb(var(--gold-rgb)/.03)}
+.fila-edit-item-info{flex:1;min-width:0}
+.fila-edit-item-nome{display:block;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fila-edit-item-preco{display:block;font-size:11px;color:var(--muted)}
+.fila-edit-item-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.fila-edit-item-total{font-size:13px;font-weight:700;min-width:56px;text-align:right}
+.fila-qty-btn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;border:1px solid var(--card-line);background:var(--bg,#f5f5f7);color:inherit;cursor:pointer;flex-shrink:0}
+.fila-qty-btn:hover{border-color:var(--gold);color:var(--gold)}
+.fila-qty-btn.perigo:hover{border-color:var(--down);color:var(--down)}
+.fila-qty-val{font-size:13px;font-weight:700;min-width:20px;text-align:center}
+
+/* ---- Desconto + totais ---- */
+.fila-edit-desconto{display:flex;align-items:center;gap:10px;margin-top:4px}
+.fila-edit-desconto label{font-size:12px;color:var(--muted);white-space:nowrap}
+.fila-edit-desconto input{width:100px;padding:6px 10px;border:1px solid var(--card-line);border-radius:8px;background:var(--bg,#f5f5f7);color:inherit;font-size:13px}
+.fila-edit-totais{display:flex;flex-direction:column;gap:3px;margin-top:4px;padding:10px 12px;background:rgb(var(--gold-rgb)/.05);border-radius:10px;font-size:13px}
+
+/* ---- Catálogo de produtos ---- */
+.fila-edit-catalogo{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:260px;overflow-y:auto}
+.fila-edit-prod{display:flex;flex-direction:column;gap:2px;text-align:left;padding:10px;border:1px solid var(--card-line);border-radius:10px;background:var(--card);cursor:pointer;color:inherit;transition:border-color .12s}
+.fila-edit-prod:hover:not(:disabled){border-color:var(--gold)}
+.fila-edit-prod:disabled{opacity:.45;cursor:default}
+.fila-edit-prod-nome{font-size:12px;font-weight:600;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fila-edit-prod-preco{font-size:12px;font-weight:800;color:var(--gold);margin-top:2px}
+.fila-edit-prod-estoque{font-size:10px;color:var(--muted)}
+.fila-edit-prod-estoque.esgotado{color:var(--down)}
+
 /* ==================== TV / PAINEL PÚBLICO ==================== */
 .tv-page{min-height:100vh;background:#0a0a0c;color:#fff;padding:40px 48px;display:grid;gap:30px;grid-template-rows:auto 1fr}
 .tv-head{display:flex;justify-content:space-between;align-items:baseline}

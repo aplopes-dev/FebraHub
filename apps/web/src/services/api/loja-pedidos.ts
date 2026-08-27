@@ -43,6 +43,8 @@ export const iniciarPreparacao = (id: string) => api.post<LojaPedido>(`/loja-ped
 export const marcarPronto = (id: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/pronto`);
 export const confirmarRetirada = (id: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/retirar`);
 export const cancelarPedido = (id: string, motivo: string) => api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/cancelar`, { motivo });
+export const moverPedidoStatus = (id: string, paraStatus: 'NA_FILA' | 'EM_PREPARACAO' | 'PRONTO', observacao?: string) =>
+  api.post<LojaPedido>(`/loja-pedidos/pedidos/${id}/mover`, { paraStatus, observacao });
 
 // -------------------- retirada por QR (vendedor escaneia o comprovante) --------------------
 export const consultarRetirada = (token: string) => api.get<RetiradaConsulta>(`/loja-pedidos/retirada/${encodeURIComponent(token)}`);
