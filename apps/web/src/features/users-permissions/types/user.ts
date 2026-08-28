@@ -20,37 +20,28 @@ export function createDefaultUserGeneralSettings(): UserGeneralSettings {
 
 export type MembershipRole = "OWNER" | "ADMIN" | "MEMBER";
 
-/** Onde o usuário atua na hierarquia Grupo → Matriz → Filial. */
-export type GeographicScopeLevel = "group" | "matrix" | "branch";
-
-/** Papel funcional DMS — distinto do escopo geográfico. */
+/**
+ * Papel funcional na escola — o que a pessoa faz.
+ *
+ * O conjunto cobre a operação de uma escola de negócios: quem vende matrícula
+ * (comercial e pré-vendas), quem entrega o treinamento (coordenação,
+ * facilitação, eventos), quem cuida do aluno depois da venda (sucesso do
+ * aluno, secretaria) e as áreas de apoio.
+ */
 export type FunctionalRole =
   | "ADMIN"
-  | "MANAGER"
-  | "SALES_CONSULTANT"
-  | "USED_CAR_APPRAISER"
-  | "FI_CONSULTANT"
-  | "SERVICE_ADVISOR"
-  | "TECHNICIAN"
-  | "PARTS_MANAGER"
-  | "CASHIER"
-  | "DOC_CLERK"
+  | "UNIT_MANAGER"
+  | "COMMERCIAL_CONSULTANT"
+  | "SDR"
+  | "STUDENT_SUCCESS"
+  | "ACADEMIC_COORDINATOR"
+  | "FACILITATOR"
+  | "EVENT_PRODUCER"
+  | "SECRETARY"
+  | "FINANCE"
+  | "MARKETING"
   | "ACCOUNTANT"
   | "VIEWER";
-
-/** Escopo do ator logado (mock dev switcher). */
-export type ActorScope = {
-  level: GeographicScopeLevel;
-  matrixId: string | null;
-  branchId: string | null;
-};
-
-/** Escopo atribuído a um membro. */
-export type MemberScopeTarget = {
-  level: GeographicScopeLevel;
-  matrixId: string | null;
-  branchIds: string[];
-};
 
 export type PlatformUser = {
   /** membershipId na API */
@@ -60,15 +51,9 @@ export type PlatformUser = {
   email: string;
   profileId: string;
   role: MembershipRole;
-  scopeLevel: GeographicScopeLevel;
-  matrixId: string | null;
-  matrixName: string | null;
   functionalRole: FunctionalRole;
-  branchIds: string[];
-  branchNames: string[];
-  accessesAllBranches: boolean;
   active: boolean;
-  /** Derivado do papel funcional — listas de vendedor. */
+  /** Derivado do papel funcional — listas de quem vende matrícula. */
   isSeller: boolean;
   /** Código curto digitado no PDV. Null = sem acesso ao caixa. */
   pdvCode: string | null;
@@ -92,10 +77,7 @@ export type UserFormValues = {
   profileId: string;
   name: string;
   email: string;
-  scopeLevel: GeographicScopeLevel;
-  matrixId: string | null;
   functionalRole: FunctionalRole;
-  branchIds: string[];
   settings: UserGeneralSettings;
 };
 
@@ -107,10 +89,7 @@ export function createEmptyUserFormValues(): UserFormValues {
     profileId: "",
     name: "",
     email: "",
-    scopeLevel: "branch",
-    matrixId: null,
-    functionalRole: "SALES_CONSULTANT",
-    branchIds: [],
+    functionalRole: "COMMERCIAL_CONSULTANT",
     settings: createDefaultUserGeneralSettings(),
   };
 }
@@ -120,10 +99,7 @@ export function userToFormValues(user: PlatformUser): UserFormValues {
     profileId: user.profileId,
     name: user.name,
     email: user.email,
-    scopeLevel: user.scopeLevel,
-    matrixId: user.matrixId,
     functionalRole: user.functionalRole,
-    branchIds: [...user.branchIds],
     settings: { ...user.settings },
   };
 }
@@ -138,10 +114,6 @@ export type UserTabCounts = {
 export type MemberListParams = {
   tab: UserListTab;
   search: string;
-  /** `"all"` = sem filtro de matriz. */
-  matrixId: string;
-  /** `"all"` = sem filtro de filial. */
-  branchId: string;
   /** `"all"` = sem filtro de papel funcional. */
   functionalRole: string;
   page: number;

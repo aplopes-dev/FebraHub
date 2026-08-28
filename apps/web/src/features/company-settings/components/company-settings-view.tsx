@@ -18,7 +18,7 @@ function CompanySettingsSkeleton() {
       spacing={2}
       sx={{ py: 2 }}
       aria-busy
-      aria-label="Carregando dados do grupo"
+      aria-label="Carregando dados da unidade"
     >
       <Box sx={{ height: 28, width: 220, borderRadius: 1, bgcolor: "action.hover" }} />
       <Box sx={{ height: 18, width: 360, borderRadius: 1, bgcolor: "action.hover" }} />
@@ -59,16 +59,16 @@ export function CompanySettingsView() {
         >
           <Box>
             <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
-              Dados da empresa
+              Dados da unidade
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Cadastro do grupo — identificação e contato institucional.
+              Identificação, contato e endereço da unidade.
             </Typography>
           </Box>
 
           {form.loadError ? (
             <ListLoadErrorAlert
-              title="Não foi possível carregar os dados do grupo"
+              title="Não foi possível carregar os dados da unidade"
               message={form.loadError}
               onRetry={form.reload}
             />
@@ -85,7 +85,7 @@ export function CompanySettingsView() {
       </ScrollArea>
 
       <EntityFormFooter
-        ariaLabel="Ações dos dados do grupo"
+        ariaLabel="Ações dos dados da unidade"
         mode="dirty"
         isDirty={form.isDirty && !form.loadError && !form.isLoading}
         hasSavedOnce={form.hasSavedOnce}

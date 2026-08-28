@@ -11,6 +11,20 @@ import {
   getPickersOutlinedStyleOverrides,
   resolvePickersInputSize,
 } from "./control-sizes";
+import { hoverFill } from "./interaction-colors";
+
+/**
+ * Cores em que o botão `contained` recalcula o hover a partir do `main`.
+ * Ver `interaction-colors.ts` para o porquê de não usar o `dark` do MUI.
+ */
+const CONTAINED_COLORS = [
+  "primary",
+  "secondary",
+  "error",
+  "warning",
+  "info",
+  "success",
+] as const;
 
 /**
  * Tokens base do @/ui.
@@ -82,6 +96,8 @@ export const baseTokens = {
       secondary: "#5C6370",
     },
     divider: "rgba(0, 0, 0, 0.08)",
+    /** Borda do campo em repouso — o mesmo peso do padrão do MUI. */
+    controlBorder: "rgba(0, 0, 0, 0.23)",
   },
   typography: {
     /**
@@ -132,30 +148,14 @@ export const baseTokens = {
               props: { size: "large" },
               style: buttonLargeVariantStyle(),
             },
-            /**
-             * Marca com degradê (ver `PaletteColor.gradient`): o preenchimento
-             * entra como `background-image`, por cima do `background-color`
-             * que o MUI já pinta — assim o ripple, o foco e o estado
-             * desabilitado continuam derivando de `primary.main`.
-             */
-            ...(theme.palette.primary.gradient
-              ? [
-                  {
-                    props: { variant: "contained", color: "primary" },
-                    style: {
-                      backgroundImage: theme.palette.primary.gradient,
-                      "&:hover": {
-                        backgroundImage:
-                          theme.palette.primary.gradientHover ??
-                          theme.palette.primary.gradient,
-                      },
-                      "&.Mui-disabled": {
-                        backgroundImage: "none",
-                      },
-                    },
-                  },
-                ]
-              : []),
+            ...CONTAINED_COLORS.map((color) => ({
+              props: { variant: "contained" as const, color },
+              style: {
+                "&:hover": {
+                  backgroundColor: hoverFill(theme.palette[color].main),
+                },
+              },
+            })),
             {
               props: { variant: "outlined", color: "inherit" },
               style: {
@@ -224,9 +224,12 @@ export const baseTokens = {
         root: ({ theme }) => ({
           borderRadius: theme.shape.borderRadius,
           /**
-           * Campo em repouso usa o traço do tema (`Stroke/Primary` do design),
-           * e não o `rgba(0,0,0,.23)` / `rgba(255,255,255,.23)` do MUI — que no
-           * modo escuro dá uma borda cinza clara, mais forte que a do desenho.
+           * Campo em repouso usa o traço de controle do tema
+           * (`palette.controlBorder`), e não o `rgba(0,0,0,.23)` /
+           * `rgba(255,255,255,.23)` do MUI — que no modo escuro dá uma borda
+           * cinza clara, mais forte que a do desenho. É um token separado do
+           * `divider` de propósito: o contorno do campo é o único traço que o
+           * delimita, então ele pesa mais que o separador de áreas.
            *
            * A regra mora aqui, e não no slot `notchedOutline`: o MUI pinta a
            * borda pelo root com um seletor descendente
@@ -235,7 +238,7 @@ export const baseTokens = {
            * são mais específicas ainda.
            */
           [`& .${outlinedInputClasses.notchedOutline}`]: {
-            borderColor: theme.palette.divider,
+            borderColor: theme.palette.controlBorder,
           },
           variants: [
             {
@@ -294,7 +297,7 @@ export const baseTokens = {
         root: ({ theme, ownerState }) => ({
           borderRadius: theme.shape.borderRadius,
           "& .MuiPickersOutlinedInput-notchedOutline": {
-            borderColor: theme.palette.divider,
+            borderColor: theme.palette.controlBorder,
           },
           ...getPickersOutlinedStyleOverrides(
             resolvePickersInputSize(ownerState),
@@ -322,16 +325,6 @@ export const baseTokens = {
       styleOverrides: {
         root: ({ theme }) => ({
           borderRadius: theme.shape.borderRadius,
-          variants: theme.palette.primary.gradient
-            ? [
-                {
-                  props: { variant: "filled", color: "primary" },
-                  style: {
-                    backgroundImage: theme.palette.primary.gradient,
-                  },
-                },
-              ]
-            : [],
         }),
       },
     },

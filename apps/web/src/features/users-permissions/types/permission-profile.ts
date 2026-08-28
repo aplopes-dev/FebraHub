@@ -1,4 +1,4 @@
-/** Aba de permissões: módulos do backoffice DMS. */
+/** Aba de permissões: módulos do backoffice. */
 export type PermissionScope = "backoffice";
 
 export type PermissionItem = {
@@ -6,14 +6,14 @@ export type PermissionItem = {
   label: string;
 };
 
-/** Bloco de uma entidade dentro de um grupo (ex.: "Fornecedores" dentro de "Estoque"). */
+/** Bloco de uma entidade dentro de um grupo (ex.: "Turmas" dentro de "Acadêmico"). */
 export type PermissionSubgroup = {
   id: string;
   label: string;
   items: PermissionItem[];
 };
 
-/** Grupo de nível superior na árvore de permissões (ex.: "Estoque", "Vendas"). */
+/** Grupo de nível superior na árvore de permissões (ex.: "Comercial", "Acadêmico"). */
 export type PermissionGroup = {
   id: string;
   label: string;

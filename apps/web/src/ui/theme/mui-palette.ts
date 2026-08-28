@@ -72,38 +72,26 @@ export type SidebarPaletteColorOptions = PaletteColorOptions & {
 };
 
 declare module "@mui/material/styles" {
-  /**
-   * Preenchimento em degradê de uma cor da palette.
-   *
-   * O MUI só aceita cor chapada em `main` — `alpha()`, contraste e bordas
-   * dependem disso. Uma marca metálica (ouro, prata) precisa de um degradê
-   * para ler como tal, então ele vive num token à parte: `main` continua
-   * sendo a cor de verdade e o degradê pinta só as superfícies preenchidas
-   * (`background-image`, que cai sobre o `background-color`).
-   *
-   * Ausente = superfície chapada, o comportamento padrão do MUI.
-   */
-  interface PaletteColor {
-    /** `background-image` das superfícies preenchidas com esta cor. */
-    gradient?: string;
-    /** O mesmo degradê sob o cursor. Sem ele, o hover repete `gradient`. */
-    gradientHover?: string;
-  }
-
-  interface SimplePaletteColorOptions {
-    gradient?: string;
-    gradientHover?: string;
-  }
-
   interface Palette {
     sidebar: SidebarPaletteColor;
     /** Superfície neutra (chips, badges, fundos suaves). */
     muted: PaletteColor;
+    /**
+     * Traço dos controles — a borda do campo em repouso.
+     *
+     * É um token à parte de `divider` porque os dois traços têm trabalhos
+     * diferentes: `divider` separa áreas que já se distinguem por tom (card,
+     * tabela, seção) e pode ser discreto; a borda do campo é o **único**
+     * contorno de um controle sobre a superfície do formulário, e precisa
+     * segurar sozinha.
+     */
+    controlBorder: string;
   }
 
   interface PaletteOptions {
     sidebar?: SidebarPaletteColorOptions;
     muted?: PaletteColorOptions;
+    controlBorder?: string;
   }
 
   interface TypeBackground {

@@ -4,14 +4,11 @@ import { useMemo } from "react";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { Checkbox } from "@/ui";
-import { SemanticBadge } from "@/components/ui/status";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { UserProfileSelectCell } from "@/features/users-permissions/components/user-list/user-profile-select-cell";
 import { UserRowActions } from "@/features/users-permissions/components/user-list/user-row-actions";
 import {
   formatUserFunctionalRole,
-  formatUserScopeShort,
-  formatUserUnitsSummary,
 } from "@/features/users-permissions/lib/user-scope-format";
 import type { PermissionProfile } from "@/features/users-permissions/types/permission-profile";
 import type { PlatformUser } from "@/features/users-permissions/types/user";
@@ -87,33 +84,12 @@ export function UserListTable({
         ),
       },
       {
-        id: "scope",
-        header: "Escopo",
-        width: 120,
-        render: (user) => (
-          <SemanticBadge
-            label={formatUserScopeShort(user)}
-            tone={user.scopeLevel === "group" ? "info" : "neutral"}
-          />
-        ),
-      },
-      {
         id: "role",
         header: "Papel",
         width: 160,
         render: (user) => (
           <Typography variant="body2" noWrap>
             {formatUserFunctionalRole(user)}
-          </Typography>
-        ),
-      },
-      {
-        id: "units",
-        header: "Unidades",
-        width: 200,
-        render: (user) => (
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {formatUserUnitsSummary(user)}
           </Typography>
         ),
       },

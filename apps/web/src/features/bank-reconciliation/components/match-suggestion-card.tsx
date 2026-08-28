@@ -56,6 +56,7 @@ export function MatchSuggestionCard({
             gap: 1.5,
             border: "1px solid",
             borderColor: "divider",
+            bgcolor: "background.paper",
             borderRadius: 1,
             px: 1.5,
             py: 1,

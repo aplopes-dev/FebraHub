@@ -49,6 +49,7 @@ export function MovementCategoryUnitsSection({
             p: 2,
             border: 1,
             borderColor: "divider",
+            bgcolor: "background.paper",
             borderRadius: 1.5,
           }}
         >

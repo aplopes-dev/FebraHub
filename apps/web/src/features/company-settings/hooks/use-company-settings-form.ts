@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/ui";
 import { useOrganization } from "@/lib/organization-context";
 import { ApiError } from "@/lib/api/client";
-import type { BranchAddress } from "@/features/branches/types/branch";
+import type { UnitAddress } from "../types/address";
 import {
   deleteGroupLogoApi,
   updateCurrentGroupApi,
@@ -91,7 +91,7 @@ export function useCompanySettingsForm() {
   );
 
   const setAddressField = useCallback(
-    <Key extends keyof BranchAddress>(key: Key, value: BranchAddress[Key]) => {
+    <Key extends keyof UnitAddress>(key: Key, value: UnitAddress[Key]) => {
       setValues((prev) => ({
         ...prev,
         adminAddress: { ...prev.adminAddress, [key]: value },
@@ -100,7 +100,7 @@ export function useCompanySettingsForm() {
     [],
   );
 
-  const patchAddress = useCallback((partial: Partial<BranchAddress>) => {
+  const patchAddress = useCallback((partial: Partial<UnitAddress>) => {
     setValues((prev) => ({
       ...prev,
       adminAddress: { ...prev.adminAddress, ...partial },
@@ -127,7 +127,7 @@ export function useCompanySettingsForm() {
 
   const save = useCallback(async () => {
     if (!values.legalName.trim()) {
-      toast.error("Nome do grupo obrigatório");
+      toast.error("Razão social obrigatória");
       return;
     }
     if (!values.email.trim()) {
@@ -163,13 +163,13 @@ export function useCompanySettingsForm() {
         queryKey: groupCurrentKeys.detail(organizationId),
       });
       toast.success("Configurações salvas", {
-        description: "Os dados do grupo foram atualizados.",
+        description: "Os dados da unidade foram atualizados.",
       });
     } catch (error) {
       const message =
         error instanceof ApiError
           ? error.message
-          : "Não foi possível salvar os dados do grupo.";
+          : "Não foi possível salvar os dados da unidade.";
       toast.error("Erro ao salvar", { description: message });
     } finally {
       setIsSaving(false);
@@ -201,7 +201,7 @@ export function useCompanySettingsForm() {
   const loadError = groupQuery.isError
     ? groupQuery.error instanceof Error
       ? groupQuery.error.message
-      : "Não foi possível carregar os dados do grupo."
+      : "Não foi possível carregar os dados da unidade."
     : null;
 
   return {

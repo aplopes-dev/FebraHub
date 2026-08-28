@@ -101,6 +101,7 @@ function GroupFieldControl({
         p: 1.5,
         border: 1,
         borderColor: "divider",
+        bgcolor: "background.paper",
         borderRadius: 2,
       }}
     >

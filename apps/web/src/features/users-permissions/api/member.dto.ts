@@ -5,19 +5,19 @@
 
 export type MembershipRoleDto = "OWNER" | "ADMIN" | "MEMBER";
 
-export type GeographicScopeLevelDto = "group" | "matrix" | "branch";
 
 export type FunctionalRoleDto =
   | "ADMIN"
-  | "MANAGER"
-  | "SALES_CONSULTANT"
-  | "USED_CAR_APPRAISER"
-  | "FI_CONSULTANT"
-  | "SERVICE_ADVISOR"
-  | "TECHNICIAN"
-  | "PARTS_MANAGER"
-  | "CASHIER"
-  | "DOC_CLERK"
+  | "UNIT_MANAGER"
+  | "COMMERCIAL_CONSULTANT"
+  | "SDR"
+  | "STUDENT_SUCCESS"
+  | "ACADEMIC_COORDINATOR"
+  | "FACILITATOR"
+  | "EVENT_PRODUCER"
+  | "SECRETARY"
+  | "FINANCE"
+  | "MARKETING"
   | "ACCOUNTANT"
   | "VIEWER";
 
@@ -34,11 +34,8 @@ export type MemberDto = {
   email: string;
   role: MembershipRoleDto;
   active: boolean;
-  scopeLevel: GeographicScopeLevelDto;
-  matrixId: string | null;
-  matrixName: string | null;
   functionalRole: FunctionalRoleDto;
-  /** Usuário vendedor — listas ERP/PDV. */
+  /** Usuário que vende matrícula — listas comerciais. */
   isSeller: boolean;
   /** Código curto digitado no PDV (caixa). Null = sem acesso ao caixa. */
   pdvCode: string | null;
@@ -47,9 +44,6 @@ export type MemberDto = {
   pdvLockedUntil: string | null;
   pdvPinUpdatedAt: string | null;
   permissionProfile: MemberPermissionProfileDto | null;
-  branchIds: string[];
-  branchNames: string[];
-  accessesAllBranches: boolean;
   createdAt: string;
 };
 
@@ -90,10 +84,7 @@ export type CreateMemberPayload = {
   lastName: string;
   permissionProfileId: string;
   role?: MembershipRoleDto;
-  scopeLevel?: GeographicScopeLevelDto;
-  matrixId?: string | null;
   functionalRole?: FunctionalRoleDto;
-  branchIds?: string[];
   isSeller?: boolean;
 };
 
@@ -101,10 +92,7 @@ export type UpdateMemberPayload = {
   role?: MembershipRoleDto;
   active?: boolean;
   permissionProfileId?: string;
-  scopeLevel?: GeographicScopeLevelDto;
-  matrixId?: string | null;
   functionalRole?: FunctionalRoleDto;
-  branchIds?: string[];
   /** Código PDV; `null` remove o código. */
   pdvCode?: string | null;
   isSeller?: boolean;

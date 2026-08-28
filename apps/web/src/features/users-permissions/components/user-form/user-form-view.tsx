@@ -7,7 +7,6 @@ import { ScrollArea } from "@/ui";
 import { EntityFormFooter, EntityFormHeader } from "@/components/ui/form";
 import { UserGeneralSection } from "@/features/users-permissions/components/user-form/user-general-section";
 import { UserPasswordSection } from "@/features/users-permissions/components/user-form/user-password-section";
-import { UserScopeSection } from "@/features/users-permissions/components/user-form/user-scope-section";
 import type { UserFormApi } from "@/features/users-permissions/hooks/use-user-form";
 import type { PermissionProfileOption } from "@/features/users-permissions/types/permission-profile";
 
@@ -55,7 +54,6 @@ export function UserFormView({
           />
 
           <UserGeneralSection form={form} profileOptions={profileOptions} />
-          <UserScopeSection form={form} />
           <UserPasswordSection
             form={form}
             memberId={memberId}

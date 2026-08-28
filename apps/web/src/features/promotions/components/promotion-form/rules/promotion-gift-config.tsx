@@ -154,6 +154,7 @@ export function PromotionGiftConfig({
           sx={{
             border: 1,
             borderColor: "divider",
+            bgcolor: "background.paper",
             borderRadius: 1,
             p: 2,
           }}

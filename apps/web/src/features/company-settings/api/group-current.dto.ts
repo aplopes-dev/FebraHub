@@ -1,4 +1,4 @@
-import type { BranchAddress } from "@/features/branches/types/branch";
+import type { UnitAddress } from "../types/address";
 
 /** Resposta de `GET /v1/groups/current` (mock / futuro contrato). */
 export type GroupCurrentDto = {
@@ -8,7 +8,7 @@ export type GroupCurrentDto = {
   holdingDocument: string | null;
   email: string;
   phone: string | null;
-  adminAddress: BranchAddress;
+  adminAddress: UnitAddress;
   timezone: string;
   hasLogo: boolean;
   imageUrl: string | null;
@@ -27,6 +27,6 @@ export type UpdateGroupCurrentPayload = {
   holdingDocument?: string;
   email: string;
   phone?: string;
-  adminAddress: BranchAddress;
+  adminAddress: UnitAddress;
   timezone: string;
 };

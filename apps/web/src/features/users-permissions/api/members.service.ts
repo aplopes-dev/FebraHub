@@ -68,15 +68,6 @@ export async function listMembers(
 
     // Filtros client-side — a API mock não expõe todos os query params.
     let data = activeRes.data.map(toPlatformUser);
-    if (params.matrixId !== "all") {
-      data = data.filter(
-        (user) =>
-          user.scopeLevel === "group" || user.matrixId === params.matrixId,
-      );
-    }
-    if (params.branchId !== "all") {
-      data = data.filter((user) => user.branchIds.includes(params.branchId));
-    }
     if (params.functionalRole !== "all") {
       data = data.filter((user) => user.functionalRole === params.functionalRole);
     }
@@ -109,12 +100,6 @@ export async function listMembers(
     .filter((item) => !item.active)
     .map(toPlatformUser);
 
-  if (params.matrixId !== "all") {
-    inactive = inactive.filter((user) => user.matrixId === params.matrixId);
-  }
-  if (params.branchId !== "all") {
-    inactive = inactive.filter((user) => user.branchIds.includes(params.branchId));
-  }
   if (params.functionalRole !== "all") {
     inactive = inactive.filter(
       (user) => user.functionalRole === params.functionalRole,

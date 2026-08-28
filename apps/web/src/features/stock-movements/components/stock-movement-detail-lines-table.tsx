@@ -28,6 +28,7 @@ export function StockMovementDetailLinesTable({
           borderRadius: 1,
           border: 1,
           borderColor: "divider",
+          bgcolor: "background.paper",
           borderStyle: "dashed",
           px: 2,
           py: 4,
@@ -48,6 +49,7 @@ export function StockMovementDetailLinesTable({
         borderRadius: 1,
         border: 1,
         borderColor: "divider",
+        bgcolor: "background.paper",
       }}
     >
       <Table sx={{ minWidth: 480 }}>

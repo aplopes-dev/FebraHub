@@ -2,12 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import Box from "@mui/material/Box";
 import MuiLink from "@mui/material/Link";
-import Stack from "@mui/material/Stack";
-import { alpha } from "@mui/material/styles";
-import { Alert, Button, FormField, Typography } from "@/ui";
+import { Alert, Box, Button, Input, Stack, Typography } from "@/ui";
 import { LOGIN_ROUTE } from "../routes";
+import { AuthField, authInputSx } from "./auth-field";
 
 export type PasswordRecoveryFormProps = {
   /**
@@ -18,6 +16,9 @@ export type PasswordRecoveryFormProps = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** A mesma altura do CTA do login — os dois dividem o card. */
+const SUBMIT_HEIGHT = 48;
 
 export function PasswordRecoveryForm({ onSubmit }: PasswordRecoveryFormProps) {
   const [email, setEmail] = useState("");
@@ -58,30 +59,31 @@ export function PasswordRecoveryForm({ onSubmit }: PasswordRecoveryFormProps) {
   }
 
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate>
-      <Box
-        sx={(theme) => ({
-          mb: 3,
-          pb: 2.5,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-        })}
-      >
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      noValidate
+      sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+    >
+      <Stack spacing={1} sx={{ alignItems: "center", textAlign: "center" }}>
         <Typography
-          component="h2"
-          sx={{
-            fontSize: "1.125rem",
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-          }}
+          component="h1"
+          sx={{ fontSize: "2rem", lineHeight: "40px", fontWeight: 600 }}
         >
           Recuperar senha
         </Typography>
         <Typography
-          sx={{ mt: 0.5, fontSize: "0.875rem", color: "text.secondary" }}
+          sx={{
+            maxWidth: 394,
+            fontSize: "0.875rem",
+            lineHeight: "20px",
+            fontWeight: 500,
+            color: "text.secondary",
+          }}
         >
           Enviamos um link de redefinição para o e-mail da sua conta.
         </Typography>
-      </Box>
+      </Stack>
 
       <Stack spacing={2}>
         {sentTo ? (
@@ -99,41 +101,64 @@ export function PasswordRecoveryForm({ onSubmit }: PasswordRecoveryFormProps) {
           </Alert>
         ) : null}
 
-        <FormField
-          name="email"
-          label="E-mail"
-          type="email"
-          autoComplete="username"
-          autoFocus
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            setEmailError(undefined);
-          }}
-          errorMessage={emailError}
-          disabled={isSubmitting}
-        />
+        <AuthField label="E-mail" htmlFor="recovery-email">
+          <Input
+            id="recovery-email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            autoFocus
+            fullWidth
+            sx={authInputSx}
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setEmailError(undefined);
+            }}
+            error={Boolean(emailError)}
+            helperText={emailError}
+            disabled={isSubmitting}
+          />
+        </AuthField>
+      </Stack>
 
+      <Stack spacing={2} sx={{ alignItems: "center" }}>
         <Button
           type="submit"
           variant="contained"
-          size="large"
           fullWidth
           loading={isSubmitting}
+          sx={(theme) => ({
+            height: SUBMIT_HEIGHT,
+            fontSize: "1rem",
+            lineHeight: "24px",
+            fontWeight: 500,
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            // Brilho de cima do desenho, sobre a cor da marca do `contained`.
+            backgroundImage:
+              "linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%)",
+            boxShadow: `0px 1px 2px 0px rgba(14, 18, 27, 0.24), 0px 0px 0px 1px ${theme.palette.primary.main}`,
+            "&:hover": {
+              boxShadow: `0px 1px 2px 0px rgba(14, 18, 27, 0.24), 0px 0px 0px 1px ${theme.palette.primary.main}`,
+            },
+          })}
         >
           Enviar link de redefinição
         </Button>
 
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <MuiLink
-            component={Link}
-            href={LOGIN_ROUTE}
-            underline="hover"
-            sx={{ fontSize: "0.875rem", color: "text.secondary" }}
-          >
-            Voltar para o login
-          </MuiLink>
-        </Box>
+        <MuiLink
+          component={Link}
+          href={LOGIN_ROUTE}
+          sx={{
+            fontSize: "0.875rem",
+            lineHeight: "20px",
+            fontWeight: 500,
+            color: "text.primary",
+            textDecorationColor: "currentColor",
+          }}
+        >
+          Voltar para o login
+        </MuiLink>
       </Stack>
     </Box>
   );

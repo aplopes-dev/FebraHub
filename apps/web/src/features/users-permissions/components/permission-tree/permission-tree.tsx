@@ -78,7 +78,12 @@ export function PermissionTree({ groups, selected, onChange }: PermissionTreePro
         </Typography>
       </Stack>
 
-      <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>
+      <Box sx={{
+        border: 1,
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        borderRadius: 1,
+      }}>
         {visibleGroups.length === 0 ? (
           <Typography variant="body2" sx={{ color: "text.secondary", p: 2 }}>
             Nenhuma permissão encontrada para “{search}”.

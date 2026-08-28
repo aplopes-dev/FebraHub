@@ -23,13 +23,7 @@ export function toPlatformUser(dto: MemberDto): PlatformUser {
     email: dto.email,
     profileId: dto.permissionProfile?.id ?? "",
     role: dto.role,
-    scopeLevel: dto.scopeLevel ?? "branch",
-    matrixId: dto.matrixId ?? null,
-    matrixName: dto.matrixName ?? null,
     functionalRole: dto.functionalRole ?? "VIEWER",
-    branchIds: [...(dto.branchIds ?? [])],
-    branchNames: [...(dto.branchNames ?? [])],
-    accessesAllBranches: dto.accessesAllBranches,
     active: dto.active,
     isSeller: dto.isSeller ?? functionalRoleIsSeller(dto.functionalRole ?? "VIEWER"),
     pdvCode: dto.pdvCode,
@@ -71,21 +65,12 @@ export function toCreateMemberPayload(
     firstName,
     lastName,
     permissionProfileId: values.profileId,
-    scopeLevel: values.scopeLevel,
-    matrixId: values.matrixId,
     functionalRole: values.functionalRole,
     isSeller: functionalRoleIsSeller(values.functionalRole),
+    /* Unidade única: o papel na plataforma sai do perfil de acesso, não de
+       uma hierarquia de matriz/filial que não existe mais. */
+    role: values.functionalRole === "ADMIN" ? "ADMIN" : "MEMBER",
   };
-  if (values.scopeLevel === "branch" && values.branchIds.length > 0) {
-    payload.branchIds = [...values.branchIds];
-  }
-  if (values.scopeLevel === "group") {
-    payload.role = "ADMIN";
-  } else if (values.scopeLevel === "matrix") {
-    payload.role = "ADMIN";
-  } else {
-    payload.role = "MEMBER";
-  }
   return payload;
 }
 
@@ -94,17 +79,9 @@ export function toUpdateMemberPayload(
 ): UpdateMemberPayload {
   const payload: UpdateMemberPayload = {
     permissionProfileId: values.profileId,
-    scopeLevel: values.scopeLevel,
-    matrixId: values.matrixId,
     functionalRole: values.functionalRole,
     isSeller: functionalRoleIsSeller(values.functionalRole),
-    branchIds:
-      values.scopeLevel === "branch" ? [...values.branchIds] : [],
+    role: values.functionalRole === "ADMIN" ? "ADMIN" : "MEMBER",
   };
-  if (values.scopeLevel === "group" || values.scopeLevel === "matrix") {
-    payload.role = "ADMIN";
-  } else {
-    payload.role = "MEMBER";
-  }
   return payload;
 }

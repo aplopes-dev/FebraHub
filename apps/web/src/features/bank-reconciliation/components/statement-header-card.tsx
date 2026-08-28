@@ -7,7 +7,6 @@ import { Typography } from "@/ui";
 import { StatementStatusBadge } from "@/features/bank-reconciliation/components/statement-status-badge";
 import { formatIsoDateBR } from "@/features/bank-reconciliation/lib/bank-statement-format";
 import type { BankStatement } from "@/features/bank-reconciliation/types/bank-statement";
-import { brandFillSx } from "@/theme";
 
 type StatementHeaderCardProps = {
   bankStatement: BankStatement;
@@ -30,7 +29,7 @@ export function StatementHeaderCard({ bankStatement }: StatementHeaderCardProps)
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start", flexWrap: "wrap" }}>
         <Box
-          sx={(theme) => ({
+          sx={{
             width: 48,
             height: 48,
             flexShrink: 0,
@@ -38,9 +37,10 @@ export function StatementHeaderCard({ bankStatement }: StatementHeaderCardProps)
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 1,
-            ...brandFillSx(theme),
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
             fontWeight: 700,
-          })}
+          }}
         >
           {bankInitials(bankStatement.bankName || bankStatement.bankCode)}
         </Box>

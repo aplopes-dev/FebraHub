@@ -4,9 +4,10 @@ import { cookies } from "next/headers";
 import { Archivo } from "next/font/google";
 import { Toaster } from "@/ui";
 import {
+  BORDER_COLOR,
+  BORDER_COLOR_DARK,
   THEME_MODE_COOKIE,
   appDefaultBrandColor,
-  appDefaultBrandGradient,
   parseThemeMode,
 } from "@/theme";
 import { AppProviders } from "./providers";
@@ -41,12 +42,13 @@ export default async function RootLayout({
       className={
         mode === "dark" ? `${archivo.variable} dark` : archivo.variable
       }
-      // Cor de marca do preset já no primeiro byte, para a barra de progresso
-      // não piscar no cinza de `globals.css` antes do JS subir.
+      // Marca e traço já no primeiro byte, para quem pinta fora do MUI (a
+      // barra de progresso, regras de `globals.css`) não piscar antes do JS
+      // subir. O traço é o mesmo `BORDER_COLOR` que alimenta o tema.
       style={
         {
           "--primary": appDefaultBrandColor,
-          "--primary-gradient": appDefaultBrandGradient,
+          "--border": mode === "dark" ? BORDER_COLOR_DARK : BORDER_COLOR,
         } as CSSProperties
       }
       suppressHydrationWarning

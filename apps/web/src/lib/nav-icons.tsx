@@ -40,6 +40,30 @@ import WarehouseOutlined from "@mui/icons-material/WarehouseOutlined";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import AttachMoneyOutlined from "@mui/icons-material/AttachMoneyOutlined";
 import PieChartOutlineOutlined from "@mui/icons-material/PieChartOutlineOutlined";
+import AccountTreeOutlined from "@mui/icons-material/AccountTreeOutlined";
+import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
+import CableOutlined from "@mui/icons-material/CableOutlined";
+import ChatOutlined from "@mui/icons-material/ChatOutlined";
+import EventOutlined from "@mui/icons-material/EventOutlined";
+import HandshakeOutlined from "@mui/icons-material/HandshakeOutlined";
+import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
+import InboxOutlined from "@mui/icons-material/InboxOutlined";
+import MenuBookOutlined from "@mui/icons-material/MenuBookOutlined";
+import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
+import PhotoLibraryOutlined from "@mui/icons-material/PhotoLibraryOutlined";
+import PointOfSaleOutlined from "@mui/icons-material/PointOfSaleOutlined";
+import QrCodeScannerOutlined from "@mui/icons-material/QrCodeScannerOutlined";
+import RocketLaunchOutlined from "@mui/icons-material/RocketLaunchOutlined";
+import SchemaOutlined from "@mui/icons-material/SchemaOutlined";
+import SchoolOutlined from "@mui/icons-material/SchoolOutlined";
+import SendOutlined from "@mui/icons-material/SendOutlined";
+import ShieldOutlined from "@mui/icons-material/ShieldOutlined";
+import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
+import StorefrontOutlined from "@mui/icons-material/StorefrontOutlined";
+import SupportAgentOutlined from "@mui/icons-material/SupportAgentOutlined";
+import TaskAltOutlined from "@mui/icons-material/TaskAltOutlined";
+import ViewKanbanOutlined from "@mui/icons-material/ViewKanbanOutlined";
+import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 import type { ElementType } from "react";
 
 /**
@@ -93,6 +117,32 @@ export const NAV_ICON_MAP = {
   car: DirectionsCarOutlined,
   zap: BoltOutlined,
   "pie-chart": PieChartOutlineOutlined,
+
+  /* ── FebraHub: módulos e telas da unidade ── */
+  handshake: HandshakeOutlined,
+  graduation: SchoolOutlined,
+  store: StorefrontOutlined,
+  sitemap: AccountTreeOutlined,
+  workflow: SchemaOutlined,
+  pipeline: ViewKanbanOutlined,
+  "id-card": BadgeOutlined,
+  chat: ChatOutlined,
+  calendar: EventOutlined,
+  qr: QrCodeScannerOutlined,
+  inbox: InboxOutlined,
+  alert: WarningAmberOutlined,
+  support: SupportAgentOutlined,
+  pos: PointOfSaleOutlined,
+  "menu-book": MenuBookOutlined,
+  history: HistoryOutlined,
+  approval: TaskAltOutlined,
+  send: SendOutlined,
+  image: PhotoLibraryOutlined,
+  shield: ShieldOutlined,
+  plug: CableOutlined,
+  bot: SmartToyOutlined,
+  bell: NotificationsOutlined,
+  rocket: RocketLaunchOutlined,
 } as const;
 
 export type NavIconName = keyof typeof NAV_ICON_MAP;

@@ -54,6 +54,7 @@ export function ProductVariationGridConfig({
         sx={{
           borderRadius: 1,
           border: 1,
+          bgcolor: "background.paper",
           borderStyle: "dashed",
           borderColor: "divider",
           px: 2,

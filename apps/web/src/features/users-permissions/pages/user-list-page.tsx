@@ -11,6 +11,8 @@ import { ListPagePanel } from "@/components/ui/data-table";
 import { ListLoadErrorAlert, ListPageShell } from "@/components/ui/list-page";
 import { useCurrentUser } from "@/lib/current-user";
 import { ActiveSessionsDrawer } from "@/features/users-permissions/components/active-sessions-drawer";
+import { ProvisionalPasswordDialog } from "@/features/users-permissions/components/provisional-password-dialog";
+import { UserFormDrawer } from "@/features/users-permissions/components/user-form/user-form-drawer";
 import { UserListTable } from "@/features/users-permissions/components/user-list/user-list-table";
 import { UserListTabs } from "@/features/users-permissions/components/user-list/user-list-tabs";
 import { UserListToolbar } from "@/features/users-permissions/components/user-list/user-list-toolbar";
@@ -20,7 +22,10 @@ import {
   useReactivateMemberMutation,
 } from "@/features/users-permissions/hooks/use-member-mutations";
 import { useActivePermissionProfileOptionsQuery } from "@/features/users-permissions/hooks/use-permission-profile-queries";
-import type { PlatformUser } from "@/features/users-permissions/types/user";
+import type {
+  CreateMemberResult,
+  PlatformUser,
+} from "@/features/users-permissions/types/user";
 import type { PermissionProfile } from "@/features/users-permissions/types/permission-profile";
 
 export function UserListPage() {
@@ -32,10 +37,6 @@ export function UserListPage() {
     setTab,
     search,
     setSearch,
-    matrixId,
-    setMatrixId,
-    branchId,
-    setBranchId,
     functionalRole,
     setFunctionalRole,
     perPage,
@@ -69,6 +70,8 @@ export function UserListPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [created, setCreated] = useState<CreateMemberResult | null>(null);
 
   const users = useMemo(
     () =>
@@ -135,10 +138,10 @@ export function UserListPage() {
               Gerenciar perfis e permissões
             </Button>
             <Button
-              component={Link}
-              href="/settings/users-permissions/new"
+              type="button"
               variant="contained"
               startIcon={<AddIcon fontSize="small" />}
+              onClick={() => setCreateOpen(true)}
             >
               Novo usuário
             </Button>
@@ -154,10 +157,6 @@ export function UserListPage() {
         />
 
         <UserListToolbar
-          matrixId={matrixId}
-          onMatrixIdChange={setMatrixId}
-          branchId={branchId}
-          onBranchIdChange={setBranchId}
           functionalRole={functionalRole}
           onFunctionalRoleChange={setFunctionalRole}
           search={search}
@@ -196,6 +195,28 @@ export function UserListPage() {
       <ActiveSessionsDrawer
         open={sessionsOpen}
         onClose={() => setSessionsOpen(false)}
+      />
+
+      {/* Montado só enquanto aberto: é o que zera o formulário a cada vez. */}
+      {createOpen ? (
+        <UserFormDrawer
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          profileOptions={profilesQuery.data ?? []}
+          onCreated={(result) => {
+            setCreateOpen(false);
+            setCreated(result);
+          }}
+        />
+      ) : null}
+
+      {/* Fora do drawer de propósito: ele desmonta ao fechar, o diálogo não. */}
+      <ProvisionalPasswordDialog
+        open={created != null}
+        email={created?.member.email ?? ""}
+        provisionalPassword={created?.provisionalPassword ?? ""}
+        linkedExistingAccount={created?.linkedExistingAccount}
+        onClose={() => setCreated(null)}
       />
     </ListPageShell>
   );

@@ -1,66 +1,52 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
-import { Typography } from "../../atoms/typography";
 
 /**
- * Medidas do `auth-shell` do `apps/app` (Angular), convertidas de `rem` para px.
+ * Medidas do frame `Sign in` do design NodeX (Figma, nó `37253:28027`),
+ * lidas no render.
  */
-/** Passo da grade decorativa do fundo. */
-const GRID_STEP = 48;
-/** Área útil da página — `72rem`. */
-const CONTENT_MAX_WIDTH = 1152;
-/** Coluna do painel a partir de `lg`; abaixo disso ele empilha sob a apresentação. */
-const PANEL_COLUMN = 420;
-/** Teto do painel enquanto ele está empilhado (`28rem`). */
-const PANEL_MAX_WIDTH = 448;
-/** Raio do painel — `0.75rem`, maior que o do tema (8px), como no Angular. */
-const PANEL_RADIUS = 1.5;
+/** Coluna da vitrine — 720px dos 1441px do frame. */
+const SHOWCASE_WIDTH = 720;
+/** Card do formulário. */
+const CARD_WIDTH = 524;
+/** Raio do card — 20px, acima do raio do tema (8px). */
+const CARD_RADIUS = 20;
+/**
+ * Largura a partir da qual a vitrine cabe ao lado do card sem espremê-lo:
+ * 524 do card + respiro + 720 da coluna. Abaixo disso sobra só o formulário,
+ * centralizado na página inteira.
+ */
+const SHOWCASE_MIN_VIEWPORT = 1280;
 
 export type AuthLayoutProps = {
-  /** O painel da direita: o formulário. */
+  /** O card do centro: o formulário da rota. */
   children: ReactNode;
-  /** Marca no topo da coluna de apresentação. */
+  /** Marca no canto superior esquerdo — a `Topbar` do design. */
   brand?: ReactNode;
-  /** Etiqueta curta acima da chamada. */
-  badge?: ReactNode;
-  headline: ReactNode;
-  lead?: ReactNode;
-  /** Rodapé fixo no fim da página (fora da área centralizada). */
-  footer?: ReactNode;
+  /** Coluna da direita. Some quando a janela não a comporta. */
+  showcase?: ReactNode;
 };
 
 /**
- * Casca das telas de acesso: apresentação à esquerda, painel do formulário à
- * direita.
+ * Casca das telas de acesso — fora do shell do backoffice: sem sidebar, sem
+ * header, sem empresa ativa.
  *
  * ```
- * ┌──────────────────────────────────────────┐
- * │  marca                     ╭────────────╮│
- * │  etiqueta                  │            ││
- * │  chamada                   │ formulário ││
- * │  texto de apoio            ╰────────────╯│
- * ├──────────────────────────────────────────┤
- * │ rodapé                                   │
- * └──────────────────────────────────────────┘
+ * ┌───────────────────────┬──────────────────┐
+ * │ marca                 │                  │
+ * │                       │     vitrine      │
+ * │      ╭───────────╮    │   (ilustração    │
+ * │      │   card    │    │   + depoimento)  │
+ * │      ╰───────────╯    │                  │
+ * └───────────────────────┴──────────────────┘
  * ```
  *
- * Abaixo de `lg` as duas colunas viram uma pilha — a apresentação em cima, o
- * painel embaixo.
- *
- * Como o resto de `src/ui`, não conhece a marca: o conteúdo da apresentação
- * entra por props.
+ * Como o resto de `src/ui`, não conhece a marca: marca e vitrine entram por
+ * prop.
  */
-export function AuthLayout({
-  children,
-  brand,
-  badge,
-  headline,
-  lead,
-  footer,
-}: AuthLayoutProps) {
+export function AuthLayout({ children, brand, showcase }: AuthLayoutProps) {
   return (
     <Box
       sx={{
@@ -69,7 +55,7 @@ export function AuthLayout({
         height: "100%",
         overflowY: "auto",
         display: "flex",
-        flexDirection: "column",
+        gap: 3,
         bgcolor: "background.default",
         color: "text.primary",
       }}
@@ -79,134 +65,58 @@ export function AuthLayout({
         sx={{
           position: "relative",
           flex: 1,
+          minWidth: 0,
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden",
+          px: 3,
+          // Espaço da topbar em cima e a mesma folga embaixo, para o card ficar
+          // no centro óptico da coluna e não colidir com a marca.
+          py: 10,
         }}
       >
-        <Box
-          aria-hidden
-          sx={(theme) => {
-            const line = alpha(theme.palette.divider, 0.7);
-
-            return {
-              pointerEvents: "none",
-              position: "absolute",
-              inset: 0,
-              opacity: 0.35,
-              backgroundImage: `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px)`,
-              backgroundSize: `${GRID_STEP}px ${GRID_STEP}px`,
-              // Sem a máscara a grade compete com o formulário; assim ela só
-              // aparece no canto de cima à esquerda e some antes do painel.
-              maskImage:
-                "radial-gradient(ellipse 80% 70% at 30% 20%, black, transparent)",
-            };
-          }}
-        />
+        {brand ? (
+          <Box sx={{ position: "absolute", top: 0, left: 0, p: 3 }}>
+            {brand}
+          </Box>
+        ) : null}
 
         <Box
-          sx={{
-            position: "relative",
-            width: "100%",
-            maxWidth: CONTENT_MAX_WIDTH,
-            mx: "auto",
-            px: 3,
-            py: 5,
-            display: "grid",
-            gap: 4,
-            alignItems: "center",
-            gridTemplateColumns: {
-              xs: "minmax(0, 1fr)",
-              lg: `minmax(0, 1fr) ${PANEL_COLUMN}px`,
-            },
-            columnGap: { lg: 8 },
-          }}
+          sx={(theme) => ({
+            width: CARD_WIDTH,
+            maxWidth: "100%",
+            p: 3,
+            borderRadius: `${CARD_RADIUS}px`,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: "background.default",
+            // `drop-shadow` do design (`Alpha/Neutral/alpha-8`), não elevação
+            // do MUI: o card do desenho quase não descola do fundo.
+            filter: "drop-shadow(0px 1px 1px rgba(29, 38, 26, 0.08))",
+          })}
         >
-          <Box>
-            {brand ? <Box sx={{ mb: 3 }}>{brand}</Box> : null}
-
-            {badge ? (
-              <Typography
-                component="span"
-                sx={(theme) => ({
-                  display: "inline-block",
-                  borderRadius: "999px",
-                  border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-                  px: 1.5,
-                  py: 0.5,
-                  fontSize: "0.6875rem",
-                  fontWeight: 600,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "text.secondary",
-                })}
-              >
-                {badge}
-              </Typography>
-            ) : null}
-
-            <Typography
-              component="h1"
-              sx={{
-                mt: badge ? 3 : 0,
-                maxWidth: 448,
-                // Cresce com a janela sem precisar de breakpoint.
-                fontSize: "clamp(1.75rem, 1.4rem + 1vw, 2.25rem)",
-                fontWeight: 600,
-                lineHeight: 1.2,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {headline}
-            </Typography>
-
-            {lead ? (
-              <Typography
-                sx={{
-                  mt: 2,
-                  maxWidth: 384,
-                  fontSize: "1.0625rem",
-                  lineHeight: 1.55,
-                  color: "text.secondary",
-                }}
-              >
-                {lead}
-              </Typography>
-            ) : null}
-          </Box>
-
-          <Box
-            sx={(theme) => ({
-              width: "100%",
-              maxWidth: { xs: PANEL_MAX_WIDTH, lg: "none" },
-              mx: { xs: "auto", lg: 0 },
-              p: { xs: 3, sm: 4, lg: 4.5 },
-              borderRadius: PANEL_RADIUS,
-              border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-              bgcolor: "background.paper",
-            })}
-          >
-            {children}
-          </Box>
+          {children}
         </Box>
       </Box>
 
-      {footer ? (
+      {showcase ? (
         <Box
-          component="footer"
+          aria-hidden
           sx={(theme) => ({
             flexShrink: 0,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
-            bgcolor: alpha(theme.palette.background.paper, 0.8),
-            px: { xs: 2, sm: 2.5, lg: 5 },
-            py: { xs: 1.5, sm: 2 },
-            color: "text.secondary",
-            fontSize: "0.8125rem",
-            lineHeight: 1.4,
+            width: SHOWCASE_WIDTH,
+            alignSelf: "stretch",
+            // Sem raio: no desenho quem arredonda é o frame, não esta coluna —
+            // ela sangra até a borda da janela.
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: "background.paper",
+            overflow: "hidden",
+            display: "none",
+            [theme.breakpoints.up(SHOWCASE_MIN_VIEWPORT)]: {
+              display: "block",
+            },
           })}
         >
-          {footer}
+          {showcase}
         </Box>
       ) : null}
     </Box>

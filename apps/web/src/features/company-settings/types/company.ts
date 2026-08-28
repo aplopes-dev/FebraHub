@@ -1,8 +1,8 @@
 import {
-  DEFAULT_BRANCH_TIMEZONE,
-  EMPTY_BRANCH_ADDRESS,
-  type BranchAddress,
-} from "@/features/branches/types/branch";
+  DEFAULT_TIMEZONE,
+  EMPTY_UNIT_ADDRESS,
+  type UnitAddress,
+} from "./address";
 
 /** Formulário de Dados da empresa = cadastro do Grupo (holding / marca). */
 export type GroupSettingsValues = {
@@ -11,7 +11,7 @@ export type GroupSettingsValues = {
   holdingDocument: string;
   email: string;
   phone: string;
-  adminAddress: BranchAddress;
+  adminAddress: UnitAddress;
   timezone: string;
 };
 
@@ -25,8 +25,8 @@ export function createEmptyGroupSettingsValues(): GroupSettingsValues {
     holdingDocument: "",
     email: "",
     phone: "",
-    adminAddress: { ...EMPTY_BRANCH_ADDRESS },
-    timezone: DEFAULT_BRANCH_TIMEZONE,
+    adminAddress: { ...EMPTY_UNIT_ADDRESS },
+    timezone: DEFAULT_TIMEZONE,
   };
 }
 

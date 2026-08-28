@@ -1,4 +1,3 @@
-import { DEFAULT_BRAND_PALETTE } from "./brand-color";
 import {
   themeV1,
   themeV1BrandColor,
@@ -25,13 +24,6 @@ export const appThemeDarkOptions = themeV1DarkOptions;
 
 /** Cor de marca padrão — o padrão de quem ainda não escolheu a sua. */
 export const appDefaultBrandColor: string = themeV1BrandColor;
-
-/**
- * Degradê da marca padrão — o layout raiz o injeta no `<html>` para quem pinta
- * fora do MUI não piscar a cor chapada antes de o JS subir.
- */
-export const appDefaultBrandGradient: string | undefined =
-  DEFAULT_BRAND_PALETTE.gradient;
 
 /** Temas prontos (com a cor de marca padrão, sem a dinâmica) — úteis em testes. */
 export const appTheme = themeV1;

@@ -18,15 +18,14 @@
    * no `<html>` (inline, portanto vencendo esta regra) e `AppProviders`
    * sobrescreve com a cor escolhida pelo usuário.
    */
-  --primary: #a87f1f;
-  --primary-gradient: linear-gradient(
-    135deg,
-    #b8901f 0%,
-    #d9b441 22%,
-    #f5e7a8 50%,
-    #d9b441 78%,
-    #b8901f 100%
-  );
+  --primary: #daa428;
+
+  /*
+   * Traço do sistema. Valor de segurança: a fonte é `theme/border-color.ts`,
+   * de onde o layout raiz injeta o traço do modo ativo inline no `<html>` (e
+   * vence esta regra).
+   */
+  --border: #17140e21;
 
   /*
    * Barras de rolagem e controles nativos acompanham o modo. O MUI pinta o

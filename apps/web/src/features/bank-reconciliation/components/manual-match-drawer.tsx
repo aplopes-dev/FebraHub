@@ -119,7 +119,14 @@ function ManualMatchDrawerBody({
         exatamente com o valor da transação ({formatCurrencyBRL(transactionAmount)}).
       </Typography>
 
-      <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>
+      <Box
+        sx={{
+          border: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          borderRadius: 1,
+        }}
+      >
         <Stack
           direction="row"
           sx={{ alignItems: "center", justifyContent: "space-between", px: 2, py: 1 }}

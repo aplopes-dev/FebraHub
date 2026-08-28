@@ -6,7 +6,6 @@ import Paper from "@mui/material/Paper";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import type { VehicleModelView } from "@/features/vehicle-models/lib/vehicle-model-view-storage";
-import { brandFillHoverSx, brandFillSx } from "@/theme";
 
 type VehicleModelViewToggleProps = {
   value: VehicleModelView;
@@ -34,7 +33,7 @@ export function VehicleModelViewToggle({
           if (next != null) onChange(next);
         }}
         aria-label="Visualização"
-        sx={(theme) => ({
+        sx={{
           gap: 0.5,
           "& .MuiToggleButtonGroup-grouped": {
             border: 0,
@@ -50,13 +49,17 @@ export function VehicleModelViewToggle({
             },
           },
           "& .MuiToggleButton-root.Mui-selected": {
-            ...brandFillSx(theme),
-            "&:hover": brandFillHoverSx(theme),
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            "&:hover": {
+              bgcolor: "primary.dark",
+              color: "primary.contrastText",
+            },
             "& .MuiSvgIcon-root": {
               color: "inherit",
             },
           },
-        })}
+        }}
       >
         <ToggleButton value="grid" aria-label="Grade">
           <GridViewIcon sx={{ fontSize: 18 }} />

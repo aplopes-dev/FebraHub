@@ -46,23 +46,15 @@ function BrandedThemeProvider({
   const { mode, isDark } = useThemeMode();
 
   // A marca é a mesma nos dois modos — o botão primário no escuro tem a cor
-  // que tem no claro. `--primary` e `--primary-gradient` acompanham, para quem
-  // pinta fora do MUI (a barra de progresso de navegação).
+  // que tem no claro. `--primary` acompanha, para quem pinta fora do MUI (a
+  // barra de progresso de navegação).
   const brandPalette = useMemo(
     () => resolveBrandPalette(brandColor),
     [brandColor],
   );
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--primary", brandPalette.main);
-    // Sem degradê (cor chapada do catálogo), a var cai na própria cor — quem
-    // usa `var(--primary-gradient)` como `background-image` não precisa saber
-    // se a marca é metálica.
-    root.style.setProperty(
-      "--primary-gradient",
-      brandPalette.gradient ?? brandPalette.main,
-    );
+    document.documentElement.style.setProperty("--primary", brandPalette.main);
   }, [brandPalette]);
 
   const theme = useMemo(
@@ -75,8 +67,6 @@ function BrandedThemeProvider({
             light: brandPalette.light,
             dark: brandPalette.dark,
             contrastText: brandPalette.contrastText,
-            gradient: brandPalette.gradient,
-            gradientHover: brandPalette.gradientHover,
           },
         },
       }),

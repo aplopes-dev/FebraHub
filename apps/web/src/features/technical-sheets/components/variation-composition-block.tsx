@@ -41,6 +41,7 @@ export function VariationCompositionBlock({
       sx={{
         border: 1,
         borderColor: "divider",
+        bgcolor: "background.paper",
         borderRadius: 1,
         overflow: "hidden",
       }}
@@ -81,6 +82,7 @@ export function VariationCompositionBlock({
               sx={{
                 border: 1,
                 borderColor: "divider",
+                bgcolor: "background.paper",
                 borderRadius: 1,
                 overflow: "hidden",
                 mt: 1,

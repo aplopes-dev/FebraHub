@@ -4,7 +4,7 @@ import type {
   UpdateGroupCurrentPayload,
 } from "@/features/company-settings/api/group-current.dto";
 import type { GroupSettingsValues } from "@/features/company-settings/types/company";
-import { EMPTY_BRANCH_ADDRESS } from "@/features/branches/types/branch";
+import { EMPTY_UNIT_ADDRESS } from "../types/address";
 
 function text(value: string | null | undefined): string {
   return value ?? "";
@@ -25,7 +25,7 @@ export function toGroupSettingsValues(dto: GroupCurrentDto): GroupSettingsValues
     email: dto.email,
     phone: formatPhone(text(dto.phone)),
     adminAddress: {
-      ...EMPTY_BRANCH_ADDRESS,
+      ...EMPTY_UNIT_ADDRESS,
       ...dto.adminAddress,
     },
     timezone: dto.timezone,

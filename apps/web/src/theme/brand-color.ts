@@ -1,31 +1,18 @@
 /**
  * Cor de marca do sistema.
  *
- * Vira a `primary` do tema MUI. O padrão é o **ouro** deste projeto — um
- * degradê metálico, não uma cor chapada. A escolha é do usuário
+ * Vira a `primary` do tema MUI. O padrão é o **ouro** deste projeto. A escolha
+ * é do usuário
  * (Configurações → Dados da empresa) e vive em
  * `localStorage.company_brand_color`, propagada pelo evento
  * `brand-color-changed` (ver `brand-color-store`).
  */
 export type BrandPalette = {
-  /**
-   * A cor de verdade — cor **chapada**, sempre. É dela que saem o `alpha()`
-   * dos fundos suaves, a borda do campo em foco e o texto em `primary.main`;
-   * o degradê pinta só as superfícies preenchidas.
-   */
   main: string;
   light: string;
   dark: string;
   /** Texto sobre `main`. Ausente = branco. */
   contrastText?: string;
-  /**
-   * `background-image` das superfícies preenchidas (botão contained, chip
-   * filled). Ausente = superfície chapada, como em qualquer cor do catálogo
-   * que não seja metálica.
-   */
-  gradient?: string;
-  /** O mesmo degradê sob o cursor. Ausente = repete `gradient`. */
-  gradientHover?: string;
 };
 
 export type BrandColorOption = {
@@ -39,27 +26,21 @@ export type BrandColorOption = {
 const DEFAULT_CONTRAST_TEXT = "#FFFFFF";
 
 /**
- * Ouro da marca — o padrão do projeto.
+ * Ouro da marca — o padrão do projeto. Cor chapada: o degradê metálico foi
+ * testado e descartado.
  *
- * O `main` é o ouro fosco, escuro o bastante para servir de texto e borda
- * sobre branco; o degradê é que faz o metal, alternando o ouro velho das
- * pontas com o brilho quase creme do meio. O ângulo (135°) põe o brilho na
- * diagonal, como luz batendo na peça.
- *
- * Todos os tons do degradê são claros o bastante para levar o texto escuro do
- * `contrastText` — é por isso que ele não desce até o marrom.
+ * Sobre este ouro o texto é **escuro** (`contrastText`): branco sobre ele fica
+ * em 2,2:1, ilegível. O `dark` é o tom que serve de texto sobre superfície
+ * clara (badges, links), onde o `main` sozinho ficaria fraco — está em 4,5:1,
+ * o mínimo do AA.
  */
-export const GOLD_BRAND_COLOR = "#A87F1F";
+export const GOLD_BRAND_COLOR = "#DAA428";
 
 const GOLD_PALETTE: BrandPalette = {
   main: GOLD_BRAND_COLOR,
-  light: "#D8B44A",
-  dark: "#7A5A12",
+  light: "#E8BE55",
+  dark: "#9A7015",
   contrastText: "#1B1B1B",
-  gradient:
-    "linear-gradient(135deg, #B8901F 0%, #D9B441 22%, #F5E7A8 50%, #D9B441 78%, #B8901F 100%)",
-  gradientHover:
-    "linear-gradient(135deg, #A17C18 0%, #C39C2C 22%, #E4D189 50%, #C39C2C 78%, #A17C18 100%)",
 };
 
 /** Cor de marca padrão do sistema. */
@@ -67,8 +48,7 @@ export const DEFAULT_BRAND_COLOR = GOLD_BRAND_COLOR;
 
 /**
  * Cores oferecidas na tela de configuração — fonte única do seletor (label) e
- * do tema (paleta). A primeira é o padrão. Só o ouro é metálico; as demais são
- * chapadas.
+ * do tema (paleta). A primeira é o padrão.
  */
 export const BRAND_COLOR_OPTIONS: readonly BrandColorOption[] = [
   {
@@ -177,8 +157,8 @@ export function isBrandColor(brandColor: string): boolean {
 }
 
 /**
- * Paleta de uma cor escolhida, com os campos opcionais já resolvidos. Cor fora
- * do catálogo (hex digitado à mão) vira uma paleta chapada — melhor que cair
+ * Paleta de uma cor escolhida, com o `contrastText` já resolvido. Cor fora do
+ * catálogo (hex digitado à mão) vira uma paleta de um tom só — melhor que cair
  * no padrão e ignorar a escolha.
  */
 export function resolveBrandPalette(

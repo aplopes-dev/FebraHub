@@ -1,7 +1,6 @@
 "use client";
 
 import { applyScopeHeaders } from "@/lib/api/active-scope";
-import { applyActorScopeHeader } from "@/features/users-permissions/lib/actor-scope-storage";
 
 /**
  * Cliente HTTP da API, roteado pelo proxy same-origin do próprio app
@@ -38,7 +37,6 @@ export async function apiFetch<T>(
   const headers = new Headers(init.headers);
   // Empresa/unidade ativas — obrigatórias em toda rota de negócio da API.
   applyScopeHeaders(headers);
-  applyActorScopeHeader(headers);
   if (init.body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }

@@ -136,6 +136,7 @@ export function PurchaseInfoPanel({
             p: 1.5,
             borderRadius: 1,
             border: 1,
+            bgcolor: "background.paper",
             borderStyle: "dashed",
             borderColor: "divider",
           }}

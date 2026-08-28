@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type {
   CreateMemberPayload,
   FunctionalRoleDto,
-  GeographicScopeLevelDto,
   MemberDto,
   UpdateMemberPayload,
 } from "@/features/users-permissions/api/member.dto";
@@ -12,28 +11,10 @@ import type {
   SavePermissionProfilePayload,
 } from "@/features/users-permissions/api/permission-profile.dto";
 import { functionalRoleIsSeller } from "@/features/users-permissions/lib/functional-roles";
-import {
-  actorCanAssignScope,
-  filterMembersByActorScope,
-  memberScopeTarget,
-} from "@/features/users-permissions/lib/scope-rules";
-import type { ActorScope } from "@/features/users-permissions/types/user";
-import {
-  getMockMatrixIds,
-  getMockStoreIdsByMatrix,
-  getMockUnit,
-  MOCK_MATRIX_2_ID,
-  MOCK_MATRIX_ID,
-  MOCK_STORE_CAMPINAS_ID,
-  MOCK_STORE_ID,
-  MOCK_STORE_NORTE_ID,
-} from "@/lib/mock/mock-branches";
-
-export const MOCK_ACTOR_SCOPE_HEADER = "x-mock-actor-scope";
 
 const SEED_TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
-// ——— Catálogo de permissões DMS ———
+// ——— Catálogo de permissões ———
 
 function crudItems(
   prefix: string,
@@ -47,23 +28,27 @@ function crudItems(
   ];
 }
 
-function buildDmsCatalog(): {
+/**
+ * Módulos do backoffice de uma escola de negócios: a jornada vai do lead
+ * (CRM) à matrícula (Comercial), passa pela entrega — turmas, eventos e
+ * mentoria — e termina no acompanhamento do aluno (Secretaria, Financeiro).
+ */
+function buildPermissionCatalog(): {
   groups: PermissionCatalogGroupDto[];
   allIds: string[];
 } {
   const groups: PermissionCatalogGroupDto[] = [
     {
-      id: "vendas",
-      label: "Vendas",
+      id: "comercial",
+      label: "Comercial",
       scope: "backoffice",
       subgroups: [
-        { id: "negociacoes", label: "Negociações", items: crudItems("vendas.negociacoes", "negociações") },
-        { id: "avaliacao", label: "Avaliação de usados", items: crudItems("vendas.avaliacao", "avaliações") },
-        { id: "propostas", label: "Propostas", items: crudItems("vendas.propostas", "propostas") },
-        { id: "fi", label: "F&I e produtos agregados", items: crudItems("vendas.fi", "F&I") },
-        { id: "descontos", label: "Descontos e alçadas", items: [
-          ...crudItems("vendas.descontos", "descontos"),
-          { id: "vendas.descontos.approve", label: "Aprovar desconto acima da alçada" },
+        { id: "matriculas", label: "Matrículas", items: crudItems("comercial.matriculas", "matrículas") },
+        { id: "propostas", label: "Propostas", items: crudItems("comercial.propostas", "propostas") },
+        { id: "contratos", label: "Contratos", items: crudItems("comercial.contratos", "contratos") },
+        { id: "descontos", label: "Descontos e bolsas", items: [
+          { id: "comercial.descontos.apply", label: "Aplicar desconto dentro da alçada" },
+          { id: "comercial.descontos.approve", label: "Aprovar desconto ou bolsa acima da alçada" },
         ]},
       ],
     },
@@ -72,62 +57,69 @@ function buildDmsCatalog(): {
       label: "CRM",
       scope: "backoffice",
       subgroups: [
-        { id: "clientes", label: "Clientes", items: crudItems("crm.clientes", "clientes") },
+        { id: "alunos", label: "Alunos e empresas", items: crudItems("crm.alunos", "alunos") },
         { id: "leads", label: "Leads", items: crudItems("crm.leads", "leads") },
         { id: "agenda", label: "Agenda", items: crudItems("crm.agenda", "compromissos") },
       ],
     },
     {
-      id: "oficina",
-      label: "Oficina",
+      id: "academico",
+      label: "Acadêmico",
       scope: "backoffice",
       subgroups: [
-        { id: "os", label: "Ordens de serviço", items: crudItems("oficina.os", "OS") },
-        { id: "agendamento", label: "Agendamento", items: crudItems("oficina.agendamento", "agendamentos") },
-        { id: "orcamentos", label: "Orçamentos", items: [
-          ...crudItems("oficina.orcamentos", "orçamentos"),
-          { id: "oficina.orcamentos.approve", label: "Aprovar orçamento" },
+        { id: "turmas", label: "Turmas", items: crudItems("academico.turmas", "turmas") },
+        { id: "cronograma", label: "Cronograma e aulas", items: crudItems("academico.cronograma", "aulas") },
+        { id: "presenca", label: "Presença", items: [
+          { id: "academico.presenca.view", label: "Visualizar presença" },
+          { id: "academico.presenca.update", label: "Registrar presença" },
+        ]},
+        { id: "certificados", label: "Certificados", items: crudItems("academico.certificados", "certificados") },
+      ],
+    },
+    {
+      id: "eventos",
+      label: "Eventos e imersões",
+      scope: "backoffice",
+      subgroups: [
+        { id: "eventos", label: "Eventos", items: crudItems("eventos.eventos", "eventos") },
+        { id: "inscricoes", label: "Inscrições", items: crudItems("eventos.inscricoes", "inscrições") },
+        { id: "credenciamento", label: "Credenciamento", items: [
+          { id: "eventos.credenciamento.view", label: "Visualizar credenciamento" },
+          { id: "eventos.credenciamento.update", label: "Fazer check-in de participante" },
         ]},
       ],
     },
     {
-      id: "pecas",
-      label: "Peças",
+      id: "mentoria",
+      label: "Mentoria e consultoria",
       scope: "backoffice",
       subgroups: [
-        { id: "estoque", label: "Estoque", items: crudItems("pecas.estoque", "estoque") },
-        { id: "balcao", label: "Balcão", items: crudItems("pecas.balcao", "vendas de balcão") },
-        { id: "pedidos", label: "Pedidos", items: crudItems("pecas.pedidos", "pedidos") },
+        { id: "sessoes", label: "Sessões", items: crudItems("mentoria.sessoes", "sessões") },
+        { id: "planos", label: "Planos de ação", items: crudItems("mentoria.planos", "planos de ação") },
+        { id: "diagnosticos", label: "Diagnósticos", items: crudItems("mentoria.diagnosticos", "diagnósticos") },
       ],
     },
     {
-      id: "funilaria",
-      label: "Funilaria",
+      id: "conteudo",
+      label: "Conteúdo e EAD",
       scope: "backoffice",
       subgroups: [
-        { id: "os", label: "Ordens de serviço", items: crudItems("funilaria.os", "OS de funilaria") },
-        { id: "orcamentos", label: "Orçamentos importados", items: crudItems("funilaria.orcamentos", "orçamentos importados") },
-        { id: "pintura", label: "Pintura", items: crudItems("funilaria.pintura", "pintura") },
+        { id: "trilhas", label: "Trilhas e programas", items: crudItems("conteudo.trilhas", "trilhas") },
+        { id: "materiais", label: "Materiais de aula", items: crudItems("conteudo.materiais", "materiais") },
+        { id: "acessos", label: "Acessos do aluno", items: [
+          { id: "conteudo.acessos.view", label: "Visualizar acessos" },
+          { id: "conteudo.acessos.update", label: "Liberar ou bloquear acesso" },
+        ]},
       ],
     },
     {
-      id: "documentacao",
-      label: "Documentação",
+      id: "secretaria",
+      label: "Secretaria",
       scope: "backoffice",
       subgroups: [
-        { id: "processos", label: "Processos", items: crudItems("doc.processos", "processos") },
-        { id: "pendencias", label: "Pendências", items: crudItems("doc.pendencias", "pendências") },
-        { id: "anexos", label: "Anexos", items: crudItems("doc.anexos", "anexos") },
-      ],
-    },
-    {
-      id: "patio",
-      label: "Pátio / PDI",
-      scope: "backoffice",
-      subgroups: [
-        { id: "recebimento", label: "Recebimento", items: crudItems("patio.recebimento", "recebimentos") },
-        { id: "inspecao", label: "Inspeção", items: crudItems("patio.inspecao", "inspeções") },
-        { id: "entrega", label: "Entrega", items: crudItems("patio.entrega", "entregas") },
+        { id: "documentos", label: "Documentos", items: crudItems("secretaria.documentos", "documentos") },
+        { id: "pendencias", label: "Pendências", items: crudItems("secretaria.pendencias", "pendências") },
+        { id: "anexos", label: "Anexos", items: crudItems("secretaria.anexos", "anexos") },
       ],
     },
     {
@@ -137,10 +129,11 @@ function buildDmsCatalog(): {
       subgroups: [
         { id: "lancamentos", label: "Lançamentos", items: crudItems("fin.lancamentos", "lançamentos") },
         { id: "conciliacao", label: "Conciliação", items: crudItems("fin.conciliacao", "conciliações") },
+        { id: "inadimplencia", label: "Inadimplência", items: crudItems("fin.inadimplencia", "cobranças") },
         { id: "comissoes", label: "Comissões", items: crudItems("fin.comissoes", "comissões") },
-        { id: "margem", label: "Margem e custo", items: [
-          { id: "fin.margem.view", label: "Visualizar margem" },
-          { id: "fin.custo.view", label: "Visualizar custo" },
+        { id: "custo", label: "Receita e custo de turma", items: [
+          { id: "fin.receita.view", label: "Visualizar receita por turma" },
+          { id: "fin.custo.view", label: "Visualizar custo por turma" },
         ]},
       ],
     },
@@ -150,7 +143,7 @@ function buildDmsCatalog(): {
       scope: "backoffice",
       subgroups: [
         { id: "dre", label: "DRE", items: [{ id: "rel.dre.view", label: "Visualizar DRE" }] },
-        { id: "benchmark", label: "Benchmark entre lojas", items: [{ id: "rel.benchmark.view", label: "Visualizar benchmark" }] },
+        { id: "benchmark", label: "Benchmark entre unidades", items: [{ id: "rel.benchmark.view", label: "Visualizar benchmark" }] },
         { id: "kpis", label: "KPIs", items: [{ id: "rel.kpis.view", label: "Visualizar KPIs" }] },
       ],
     },
@@ -183,113 +176,145 @@ function buildDmsCatalog(): {
   return { groups, allIds };
 }
 
-const DMS_CATALOG = buildDmsCatalog();
+const CATALOG = buildPermissionCatalog();
 
 function allPermissionIds(): string[] {
-  return DMS_CATALOG.allIds;
+  return CATALOG.allIds;
 }
 
-function salesPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
+/** Comercial completo: da captação do lead ao contrato assinado. */
+function commercialPermissions(): string[] {
+  return CATALOG.allIds.filter(
     (id) =>
-      id.startsWith("vendas.") ||
+      id.startsWith("comercial.") ||
       id.startsWith("crm.") ||
-      id.startsWith("patio.") ||
-      id.startsWith("fin.margem") ||
       id.startsWith("rel."),
   );
 }
 
-function fiPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
-    (id) =>
-      id.startsWith("vendas.fi") ||
-      id.startsWith("vendas.propostas") ||
-      id.startsWith("vendas.negociacoes") ||
-      id.startsWith("crm.clientes"),
-  );
-}
-
-function servicePermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
-    (id) =>
-      id.startsWith("oficina.") ||
-      id.startsWith("crm.clientes") ||
-      id.startsWith("crm.agenda"),
-  );
-}
-
-function workshopManagerPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
-    (id) =>
-      id.startsWith("oficina.") ||
-      id.startsWith("funilaria.") ||
-      id.startsWith("crm.clientes") ||
-      id.startsWith("crm.agenda") ||
-      id.startsWith("rel.kpis"),
-  );
-}
-
-function technicianPermissions(): string[] {
+/** Pré-vendas mexe no funil, não no fechamento. */
+function sdrPermissions(): string[] {
   return [
-    "oficina.os.view",
-    "oficina.os.update",
-    "oficina.agendamento.view",
-    "crm.clientes.view",
+    ...CATALOG.allIds.filter(
+      (id) => id.startsWith("crm.leads") || id.startsWith("crm.agenda"),
+    ),
+    "crm.alunos.view",
+    "comercial.propostas.view",
   ];
 }
 
-function partsManagerPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
-    (id) =>
-      id.startsWith("pecas.") ||
-      id.startsWith("crm.clientes") ||
-      id.startsWith("rel.kpis"),
-  );
+/** Sucesso do aluno acompanha quem já entrou: presença, pendências, renovação. */
+function studentSuccessPermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter(
+      (id) => id.startsWith("crm.alunos") || id.startsWith("crm.agenda"),
+    ),
+    "academico.turmas.view",
+    "academico.presenca.view",
+    "academico.presenca.update",
+    "conteudo.acessos.view",
+    "secretaria.pendencias.view",
+    "secretaria.pendencias.update",
+    "comercial.matriculas.view",
+  ];
+}
+
+/** Coordenação monta a entrega: turmas, cronograma, conteúdo, certificados. */
+function academicPermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter(
+      (id) => id.startsWith("academico.") || id.startsWith("conteudo."),
+    ),
+    "crm.alunos.view",
+    "rel.kpis.view",
+  ];
+}
+
+/** Quem dá a aula: vê a turma e registra presença, não edita o programa. */
+function facilitatorPermissions(): string[] {
+  return [
+    "academico.turmas.view",
+    "academico.cronograma.view",
+    "academico.presenca.view",
+    "academico.presenca.update",
+    "conteudo.materiais.view",
+    "crm.alunos.view",
+  ];
+}
+
+function eventPermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter(
+      (id) => id.startsWith("eventos.") || id.startsWith("crm.agenda"),
+    ),
+    "crm.alunos.view",
+    "academico.turmas.view",
+  ];
+}
+
+function secretaryPermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter((id) => id.startsWith("secretaria.")),
+    "academico.certificados.view",
+    "academico.certificados.create",
+    "comercial.contratos.view",
+    "crm.alunos.view",
+  ];
+}
+
+function financePermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter((id) => id.startsWith("fin.")),
+    "comercial.contratos.view",
+    "crm.alunos.view",
+    "rel.dre.view",
+    "rel.kpis.view",
+  ];
+}
+
+function marketingPermissions(): string[] {
+  return [
+    ...CATALOG.allIds.filter((id) => id.startsWith("crm.leads")),
+    "crm.agenda.view",
+    "eventos.eventos.view",
+    "eventos.inscricoes.view",
+    "rel.kpis.view",
+  ];
 }
 
 function viewerPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter((id) => id.endsWith(".view"));
+  return CATALOG.allIds.filter((id) => id.endsWith(".view"));
 }
 
-function docPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter((id) => id.startsWith("doc."));
-}
-
+/** Contador lê tudo, menos o que revela margem da operação. */
 function accountantPermissions(): string[] {
-  return DMS_CATALOG.allIds.filter(
+  return CATALOG.allIds.filter(
     (id) =>
-      (id.endsWith(".view") && !id.startsWith("fin.margem") && !id.startsWith("fin.custo")) ||
+      (id.endsWith(".view") &&
+        !id.startsWith("fin.receita") &&
+        !id.startsWith("fin.custo")) ||
       id === "rel.dre.view" ||
       id === "rel.kpis.view",
   );
-}
-
-function cashierPermissions(): string[] {
-  return [
-    "fin.lancamentos.view",
-    "fin.lancamentos.create",
-    "crm.clientes.view",
-  ];
 }
 
 // ——— Perfis ———
 
 const PROFILE_ADMIN_ID = "00000000-0000-4000-8000-000000000101";
 const PROFILE_GERENTE_ID = "00000000-0000-4000-8000-000000000102";
-const PROFILE_VENDAS_ID = "00000000-0000-4000-8000-000000000103";
-const PROFILE_SERVICOS_ID = "00000000-0000-4000-8000-000000000104";
-const PROFILE_AVALIADOR_ID = "00000000-0000-4000-8000-000000000105";
-const PROFILE_DESPACHANTE_ID = "00000000-0000-4000-8000-000000000106";
-const PROFILE_CONTADOR_ID = "00000000-0000-4000-8000-000000000107";
-const PROFILE_CAIXA_ID = "00000000-0000-4000-8000-000000000108";
-const PROFILE_GERENTE_OFICINA_ID = "00000000-0000-4000-8000-000000000109";
-const PROFILE_GERENTE_PECAS_ID = "00000000-0000-4000-8000-000000000110";
-const PROFILE_FI_ID = "00000000-0000-4000-8000-000000000111";
-const PROFILE_TECNICO_ID = "00000000-0000-4000-8000-000000000112";
+const PROFILE_COMERCIAL_ID = "00000000-0000-4000-8000-000000000103";
+const PROFILE_SDR_ID = "00000000-0000-4000-8000-000000000104";
+const PROFILE_SUCESSO_ID = "00000000-0000-4000-8000-000000000105";
+const PROFILE_COORDENACAO_ID = "00000000-0000-4000-8000-000000000106";
+const PROFILE_FACILITADOR_ID = "00000000-0000-4000-8000-000000000107";
+const PROFILE_EVENTOS_ID = "00000000-0000-4000-8000-000000000108";
+const PROFILE_SECRETARIA_ID = "00000000-0000-4000-8000-000000000109";
+const PROFILE_FINANCEIRO_ID = "00000000-0000-4000-8000-000000000110";
+const PROFILE_MARKETING_ID = "00000000-0000-4000-8000-000000000111";
+const PROFILE_CONTADOR_ID = "00000000-0000-4000-8000-000000000112";
 const PROFILE_VIEWER_ID = "00000000-0000-4000-8000-000000000113";
 
-let mockProfiles: PermissionProfileDto[] = [
+const mockProfiles: PermissionProfileDto[] = [
   {
     id: PROFILE_ADMIN_ID,
     name: "Administrador",
@@ -303,55 +328,118 @@ let mockProfiles: PermissionProfileDto[] = [
   },
   {
     id: PROFILE_GERENTE_ID,
-    name: "Gerente de vendas",
-    description: "Supervisiona vendas, aprova descontos e vê relatórios.",
+    name: "Gerente de unidade",
+    description: "Comercial, entrega e resultado da unidade, com aprovações.",
     isSystem: false,
-    systemKey: "gerente-vendas",
-    permissionIds: salesPermissions(),
+    systemKey: "gerente-unidade",
+    permissionIds: [
+      ...commercialPermissions(),
+      ...academicPermissions(),
+      ...eventPermissions(),
+      "fin.inadimplencia.view",
+      "fin.comissoes.view",
+    ],
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: PROFILE_VENDAS_ID,
-    name: "Consultor de vendas",
-    description: "Negocia veículos e atende clientes no showroom.",
+    id: PROFILE_COMERCIAL_ID,
+    name: "Consultor comercial",
+    description: "Negocia matrículas; desconto só dentro da alçada.",
     isSystem: false,
-    systemKey: "consultor-vendas",
-    permissionIds: salesPermissions().filter((id) => !id.includes("approve") && !id.startsWith("rel.benchmark")),
+    systemKey: "consultor-comercial",
+    permissionIds: commercialPermissions().filter(
+      (id) => id !== "comercial.descontos.approve" && !id.startsWith("rel.benchmark"),
+    ),
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: PROFILE_SERVICOS_ID,
-    name: "Consultor de serviços",
-    description: "Atendimento de oficina e orçamentos.",
+    id: PROFILE_SDR_ID,
+    name: "SDR / pré-vendas",
+    description: "Qualifica leads e agenda reuniões para o comercial.",
     isSystem: false,
-    systemKey: "consultor-servicos",
-    permissionIds: servicePermissions(),
+    systemKey: "sdr",
+    permissionIds: sdrPermissions(),
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: PROFILE_AVALIADOR_ID,
-    name: "Avaliador",
-    description: "Avalia seminovos no pátio.",
+    id: PROFILE_SUCESSO_ID,
+    name: "Sucesso do aluno",
+    description: "Acompanha presença, pendências e renovação do aluno.",
     isSystem: false,
-    systemKey: "avaliador",
-    permissionIds: DMS_CATALOG.allIds.filter((id) => id.startsWith("vendas.avaliacao") || id.startsWith("patio.")),
+    systemKey: "sucesso-do-aluno",
+    permissionIds: studentSuccessPermissions(),
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
   },
   {
-    id: PROFILE_DESPACHANTE_ID,
-    name: "Despachante",
-    description: "Processos veiculares e documentação.",
+    id: PROFILE_COORDENACAO_ID,
+    name: "Coordenação acadêmica",
+    description: "Turmas, cronograma, conteúdo e certificados.",
     isSystem: false,
-    systemKey: "despachante",
-    permissionIds: docPermissions(),
+    systemKey: "coordenador-academico",
+    permissionIds: academicPermissions(),
+    deletedAt: null,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+  },
+  {
+    id: PROFILE_FACILITADOR_ID,
+    name: "Facilitador",
+    description: "Vê a turma e registra presença; não edita o programa.",
+    isSystem: false,
+    systemKey: "facilitador",
+    permissionIds: facilitatorPermissions(),
+    deletedAt: null,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+  },
+  {
+    id: PROFILE_EVENTOS_ID,
+    name: "Produção de eventos",
+    description: "Imersões e eventos: inscrições e credenciamento.",
+    isSystem: false,
+    systemKey: "producao-eventos",
+    permissionIds: eventPermissions(),
+    deletedAt: null,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+  },
+  {
+    id: PROFILE_SECRETARIA_ID,
+    name: "Secretaria acadêmica",
+    description: "Documentos, contratos, certificados e pendências.",
+    isSystem: false,
+    systemKey: "secretaria",
+    permissionIds: secretaryPermissions(),
+    deletedAt: null,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+  },
+  {
+    id: PROFILE_FINANCEIRO_ID,
+    name: "Financeiro",
+    description: "Recebimentos, inadimplência, conciliação e comissões.",
+    isSystem: false,
+    systemKey: "financeiro",
+    permissionIds: financePermissions(),
+    deletedAt: null,
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+  },
+  {
+    id: PROFILE_MARKETING_ID,
+    name: "Marketing",
+    description: "Campanhas, leads e desempenho das turmas.",
+    isSystem: false,
+    systemKey: "marketing",
+    permissionIds: marketingPermissions(),
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
@@ -359,65 +447,10 @@ let mockProfiles: PermissionProfileDto[] = [
   {
     id: PROFILE_CONTADOR_ID,
     name: "Contador",
-    description: "Leitura financeira sem margem comercial.",
+    description: "Leitura financeira, sem receita e custo por turma.",
     isSystem: false,
     systemKey: "contador",
     permissionIds: accountantPermissions(),
-    deletedAt: null,
-    createdAt: SEED_TIMESTAMP,
-    updatedAt: SEED_TIMESTAMP,
-  },
-  {
-    id: PROFILE_CAIXA_ID,
-    name: "Caixa",
-    description: "Recebimentos e movimentação de caixa.",
-    isSystem: false,
-    systemKey: "caixa",
-    permissionIds: cashierPermissions(),
-    deletedAt: null,
-    createdAt: SEED_TIMESTAMP,
-    updatedAt: SEED_TIMESTAMP,
-  },
-  {
-    id: PROFILE_GERENTE_OFICINA_ID,
-    name: "Gerente de oficina",
-    description: "Supervisiona oficina, funilaria e aprova orçamentos.",
-    isSystem: false,
-    systemKey: "gerente-oficina",
-    permissionIds: workshopManagerPermissions(),
-    deletedAt: null,
-    createdAt: SEED_TIMESTAMP,
-    updatedAt: SEED_TIMESTAMP,
-  },
-  {
-    id: PROFILE_GERENTE_PECAS_ID,
-    name: "Gerente de peças",
-    description: "Estoque, balcão, pedidos e KPIs de peças.",
-    isSystem: false,
-    systemKey: "gerente-pecas",
-    permissionIds: partsManagerPermissions(),
-    deletedAt: null,
-    createdAt: SEED_TIMESTAMP,
-    updatedAt: SEED_TIMESTAMP,
-  },
-  {
-    id: PROFILE_FI_ID,
-    name: "Consultor F&I",
-    description: "Financiamento, seguros e produtos agregados na venda.",
-    isSystem: false,
-    systemKey: "consultor-fi",
-    permissionIds: fiPermissions(),
-    deletedAt: null,
-    createdAt: SEED_TIMESTAMP,
-    updatedAt: SEED_TIMESTAMP,
-  },
-  {
-    id: PROFILE_TECNICO_ID,
-    name: "Técnico de oficina",
-    description: "Execução de serviços e apontamento de horas.",
-    isSystem: false,
-    systemKey: "tecnico-oficina",
-    permissionIds: technicianPermissions(),
     deletedAt: null,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
@@ -452,23 +485,9 @@ function enrichProfileForList(profile: PermissionProfileDto): PermissionProfileD
   };
 }
 
-function resolveBranchNames(ids: string[]): string[] {
-  return ids
-    .map((id) => getMockUnit(id)?.displayName ?? id)
-    .filter(Boolean);
-}
-
-function resolveMatrixName(matrixId: string | null): string | null {
-  if (!matrixId) return null;
-  return getMockUnit(matrixId)?.displayName ?? null;
-}
-
 function buildMemberDto(
   partial: Omit<
     MemberDto,
-    | "branchNames"
-    | "matrixName"
-    | "accessesAllBranches"
     | "isSeller"
     | "pdvCode"
     | "hasPdvPin"
@@ -477,18 +496,8 @@ function buildMemberDto(
     | "pdvPinUpdatedAt"
   > & { isSeller?: boolean },
 ): MemberDto {
-  const branchNames = resolveBranchNames(partial.branchIds);
-  const matrixName = resolveMatrixName(partial.matrixId);
-  const accessesAllBranches =
-    partial.scopeLevel === "group" ||
-    partial.scopeLevel === "matrix" ||
-    partial.role === "OWNER" ||
-    partial.role === "ADMIN";
   return {
     ...partial,
-    branchNames,
-    matrixName,
-    accessesAllBranches,
     isSeller: partial.isSeller ?? functionalRoleIsSeller(partial.functionalRole),
     pdvCode: null,
     hasPdvPin: false,
@@ -498,7 +507,7 @@ function buildMemberDto(
   };
 }
 
-let mockMembers: MemberDto[] = [
+const mockMembers: MemberDto[] = [
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000201",
     userId: "00000000-0000-4000-8000-000000000301",
@@ -506,39 +515,30 @@ let mockMembers: MemberDto[] = [
     email: "usuario@febrahub.local",
     role: "OWNER",
     active: true,
-    scopeLevel: "group",
-    matrixId: null,
     functionalRole: "ADMIN",
     permissionProfile: { id: PROFILE_ADMIN_ID, name: "Administrador", systemKey: "administrador" },
-    branchIds: [],
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000202",
     userId: "00000000-0000-4000-8000-000000000302",
-    name: "Ana Gerente",
-    email: "ana.gerente@febrahub.local",
+    name: "Ana Gestora",
+    email: "ana.gestora@febrahub.local",
     role: "ADMIN",
     active: true,
-    scopeLevel: "matrix",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "MANAGER",
-    permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de vendas", systemKey: "gerente-vendas" },
-    branchIds: [],
+    functionalRole: "UNIT_MANAGER",
+    permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de unidade", systemKey: "gerente-unidade" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000203",
     userId: "00000000-0000-4000-8000-000000000303",
-    name: "Bruno Vendas",
-    email: "bruno.vendas@febrahub.local",
+    name: "Bruno Comercial",
+    email: "bruno.comercial@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "SALES_CONSULTANT",
-    permissionProfile: { id: PROFILE_VENDAS_ID, name: "Consultor de vendas", systemKey: "consultor-vendas" },
-    branchIds: [MOCK_STORE_ID],
+    functionalRole: "COMMERCIAL_CONSULTANT",
+    permissionProfile: { id: PROFILE_COMERCIAL_ID, name: "Consultor comercial", systemKey: "consultor-comercial" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
@@ -548,53 +548,41 @@ let mockMembers: MemberDto[] = [
     email: "carla.norte@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "SALES_CONSULTANT",
-    permissionProfile: { id: PROFILE_VENDAS_ID, name: "Consultor de vendas", systemKey: "consultor-vendas" },
-    branchIds: [MOCK_STORE_NORTE_ID],
+    functionalRole: "COMMERCIAL_CONSULTANT",
+    permissionProfile: { id: PROFILE_COMERCIAL_ID, name: "Consultor comercial", systemKey: "consultor-comercial" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000205",
     userId: "00000000-0000-4000-8000-000000000305",
-    name: "Diego Oficina",
-    email: "diego.oficina@febrahub.local",
+    name: "Diego Pré-vendas",
+    email: "diego.prevendas@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "SERVICE_ADVISOR",
-    permissionProfile: { id: PROFILE_SERVICOS_ID, name: "Consultor de serviços", systemKey: "consultor-servicos" },
-    branchIds: [MOCK_STORE_ID],
+    functionalRole: "SDR",
+    permissionProfile: { id: PROFILE_SDR_ID, name: "SDR / pré-vendas", systemKey: "sdr" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000206",
     userId: "00000000-0000-4000-8000-000000000306",
-    name: "Eduardo Avaliador",
-    email: "eduardo.avaliador@febrahub.local",
+    name: "Eduardo Facilitador",
+    email: "eduardo.facilitador@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "USED_CAR_APPRAISER",
-    permissionProfile: { id: PROFILE_AVALIADOR_ID, name: "Avaliador", systemKey: "avaliador" },
-    branchIds: [MOCK_STORE_ID, MOCK_STORE_NORTE_ID],
+    functionalRole: "FACILITATOR",
+    permissionProfile: { id: PROFILE_FACILITADOR_ID, name: "Facilitador", systemKey: "facilitador" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000207",
     userId: "00000000-0000-4000-8000-000000000307",
-    name: "Fernanda Docs",
-    email: "fernanda.docs@febrahub.local",
+    name: "Fernanda Secretaria",
+    email: "fernanda.secretaria@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "matrix",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "DOC_CLERK",
-    permissionProfile: { id: PROFILE_DESPACHANTE_ID, name: "Despachante", systemKey: "despachante" },
-    branchIds: [],
+    functionalRole: "SECRETARY",
+    permissionProfile: { id: PROFILE_SECRETARIA_ID, name: "Secretaria acadêmica", systemKey: "secretaria" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
@@ -604,39 +592,30 @@ let mockMembers: MemberDto[] = [
     email: "gustavo.contador@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "group",
-    matrixId: null,
     functionalRole: "ACCOUNTANT",
     permissionProfile: { id: PROFILE_CONTADOR_ID, name: "Contador", systemKey: "contador" },
-    branchIds: [],
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000209",
     userId: "00000000-0000-4000-8000-000000000309",
-    name: "Helena Caixa",
-    email: "helena.caixa@febrahub.local",
+    name: "Helena Financeiro",
+    email: "helena.financeiro@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
-    functionalRole: "CASHIER",
-    permissionProfile: { id: PROFILE_CAIXA_ID, name: "Caixa", systemKey: "caixa" },
-    branchIds: [MOCK_STORE_ID],
+    functionalRole: "FINANCE",
+    permissionProfile: { id: PROFILE_FINANCEIRO_ID, name: "Financeiro", systemKey: "financeiro" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000210",
     userId: "00000000-0000-4000-8000-000000000310",
-    name: "Igor Auto Sul",
-    email: "igor.autosul@febrahub.local",
+    name: "Igor Sul",
+    email: "igor.sul@febrahub.local",
     role: "ADMIN",
     active: true,
-    scopeLevel: "matrix",
-    matrixId: MOCK_MATRIX_2_ID,
-    functionalRole: "MANAGER",
-    permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de vendas", systemKey: "gerente-vendas" },
-    branchIds: [],
+    functionalRole: "UNIT_MANAGER",
+    permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de unidade", systemKey: "gerente-unidade" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
@@ -646,25 +625,19 @@ let mockMembers: MemberDto[] = [
     email: "julia.campinas@febrahub.local",
     role: "MEMBER",
     active: true,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_2_ID,
-    functionalRole: "SALES_CONSULTANT",
-    permissionProfile: { id: PROFILE_VENDAS_ID, name: "Consultor de vendas", systemKey: "consultor-vendas" },
-    branchIds: [MOCK_STORE_CAMPINAS_ID],
+    functionalRole: "STUDENT_SUCCESS",
+    permissionProfile: { id: PROFILE_SUCESSO_ID, name: "Sucesso do aluno", systemKey: "sucesso-do-aluno" },
     createdAt: SEED_TIMESTAMP,
   }),
   buildMemberDto({
     id: "00000000-0000-4000-8000-000000000212",
     userId: "00000000-0000-4000-8000-000000000312",
-    name: "Ex-funcionário",
+    name: "Ex-colaborador",
     email: "ex@febrahub.local",
     role: "MEMBER",
     active: false,
-    scopeLevel: "branch",
-    matrixId: MOCK_MATRIX_ID,
     functionalRole: "VIEWER",
-    permissionProfile: { id: PROFILE_CONTADOR_ID, name: "Contador", systemKey: "contador" },
-    branchIds: [MOCK_STORE_ID],
+    permissionProfile: { id: PROFILE_VIEWER_ID, name: "Somente leitura", systemKey: "somente-leitura" },
     createdAt: SEED_TIMESTAMP,
   }),
 ];
@@ -674,52 +647,6 @@ let nextProfileSeq = 200;
 
 function mockError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
-}
-
-export function parseMockActorScope(headerValue: string | null): ActorScope {
-  if (!headerValue) {
-    return { level: "group", matrixId: null, branchId: null };
-  }
-  try {
-    const parsed = JSON.parse(headerValue) as ActorScope;
-    if (
-      parsed.level === "group" ||
-      parsed.level === "matrix" ||
-      parsed.level === "branch"
-    ) {
-      return {
-        level: parsed.level,
-        matrixId: parsed.matrixId ?? null,
-        branchId: parsed.branchId ?? null,
-      };
-    }
-  } catch {
-    // fallback
-  }
-  return { level: "group", matrixId: null, branchId: null };
-}
-
-function assertCanManageTarget(actor: ActorScope, target: {
-  scopeLevel: GeographicScopeLevelDto;
-  matrixId: string | null;
-  branchIds: string[];
-}): NextResponse | null {
-  const ok = actorCanAssignScope(
-    actor,
-    memberScopeTarget({
-      scopeLevel: target.scopeLevel,
-      matrixId: target.matrixId,
-      branchIds: target.branchIds,
-    }),
-  );
-  if (!ok) {
-    return mockError(
-      403,
-      "Forbidden",
-      "Você não pode criar ou alterar usuários fora do seu escopo de atuação.",
-    );
-  }
-  return null;
 }
 
 function paginate<T>(items: T[], page: number, perPage: number) {
@@ -769,13 +696,10 @@ export function handleMockUsersPermissionsRequest(
   method: string,
   searchParams: URLSearchParams,
   bodyText?: string | null,
-  actorScopeHeader?: string | null,
 ): NextResponse | null {
-  const actor = parseMockActorScope(actorScopeHeader ?? null);
-
   if (segments[0] === "v1" && segments[1] === "permission-catalog") {
     if (method === "GET" || method === "HEAD") {
-      return NextResponse.json({ data: DMS_CATALOG });
+      return NextResponse.json({ data: CATALOG });
     }
     return mockError(405, "MethodNotAllowed", "Método não permitido.");
   }
@@ -785,7 +709,7 @@ export function handleMockUsersPermissionsRequest(
   }
 
   if (segments[0] === "v1" && segments[1] === "members") {
-    return handleMembers(segments, method, searchParams, bodyText, actor);
+    return handleMembers(segments, method, searchParams, bodyText);
   }
 
   return null;
@@ -913,7 +837,6 @@ function handleMembers(
   method: string,
   searchParams: URLSearchParams,
   bodyText: string | null | undefined,
-  actor: ActorScope,
 ): NextResponse {
   const id = segments[2];
   const subAction = segments[3];
@@ -924,7 +847,7 @@ function handleMembers(
     const search = (searchParams.get("search") ?? "").trim().toLowerCase();
     const activeOnly = searchParams.get("active") === "true";
 
-    let items = filterMembersByActorScope(mockMembers, actor);
+    let items = [...mockMembers];
     if (activeOnly) {
       items = items.filter((member) => member.active);
     }
@@ -936,14 +859,8 @@ function handleMembers(
       );
     }
 
-    const activeCount = filterMembersByActorScope(
-      mockMembers.filter((m) => m.active),
-      actor,
-    ).length;
-    const deletedCount = filterMembersByActorScope(
-      mockMembers.filter((m) => !m.active),
-      actor,
-    ).length;
+    const activeCount = mockMembers.filter((m) => m.active).length;
+    const deletedCount = mockMembers.filter((m) => !m.active).length;
 
     const { data, meta } = paginate(items, page, perPage);
     return NextResponse.json({ data, meta, tabCounts: { active: activeCount, deleted: deletedCount } });
@@ -965,16 +882,6 @@ function handleMembers(
   if (method === "POST" && !id) {
     try {
       const payload = JSON.parse(bodyText ?? "{}") as CreateMemberPayload;
-      const scopeLevel = payload.scopeLevel ?? "branch";
-      const matrixId = scopeLevel === "group" ? null : (payload.matrixId ?? null);
-      const branchIds = scopeLevel === "branch" ? (payload.branchIds ?? []) : [];
-
-      const forbidden = assertCanManageTarget(actor, {
-        scopeLevel,
-        matrixId,
-        branchIds,
-      });
-      if (forbidden) return forbidden;
 
       const memberId = `00000000-0000-4000-8000-000000000${String(nextMemberSeq++)}`;
       const userId = `00000000-0000-4000-8000-000000000${String(nextMemberSeq++)}`;
@@ -1000,24 +907,6 @@ function handleMembers(
     try {
       const payload = JSON.parse(bodyText ?? "{}") as UpdateMemberPayload;
       const current = mockMembers[index];
-      const scopeLevel = payload.scopeLevel ?? current.scopeLevel;
-      const matrixId =
-        scopeLevel === "group"
-          ? null
-          : payload.matrixId !== undefined
-            ? payload.matrixId
-            : current.matrixId;
-      const branchIds =
-        scopeLevel === "branch"
-          ? (payload.branchIds ?? current.branchIds)
-          : [];
-
-      const forbidden = assertCanManageTarget(actor, {
-        scopeLevel,
-        matrixId,
-        branchIds,
-      });
-      if (forbidden) return forbidden;
 
       const profile = payload.permissionProfileId
         ? profileById(payload.permissionProfileId)
@@ -1046,4 +935,3 @@ function handleMembers(
   return mockError(405, "MethodNotAllowed", "Método não permitido.");
 }
 
-export { getMockMatrixIds, getMockStoreIdsByMatrix };

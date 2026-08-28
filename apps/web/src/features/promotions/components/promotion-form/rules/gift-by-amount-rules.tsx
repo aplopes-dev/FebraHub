@@ -56,6 +56,7 @@ export function GiftByAmountRules({ rules, onRulesChange }: RulesProps) {
               justifyContent: "space-between",
               border: 1,
               borderColor: "divider",
+              bgcolor: "background.paper",
               borderRadius: 1,
               p: 1.5,
               cursor: "pointer",

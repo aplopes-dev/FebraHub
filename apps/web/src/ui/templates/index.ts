@@ -7,4 +7,10 @@ export {
   DualDashboardLayout,
   type DualDashboardLayoutProps,
 } from "./dual-dashboard-layout";
-export { AuthLayout, type AuthLayoutProps } from "./auth-layout";
+export {
+  AuthLayout,
+  type AuthLayoutProps,
+  AuthShowcase,
+  type AuthShowcaseProps,
+  type AuthShowcaseTestimonial,
+} from "./auth-layout";

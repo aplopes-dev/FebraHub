@@ -16,7 +16,6 @@ import {
   formatIsoDateBR,
 } from "@/features/bank-accounts/lib/bank-account-format";
 import type { BankAccountListItem } from "@/features/bank-accounts/types/bank-account";
-import { brandFillSx } from "@/theme";
 
 type BankAccountListTableProps = {
   accounts: BankAccountListItem[];
@@ -45,7 +44,7 @@ export function BankAccountListTable({
         render: (account) => (
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
             <Box
-              sx={(theme) => ({
+              sx={{
                 width: 36,
                 height: 36,
                 flexShrink: 0,
@@ -53,9 +52,10 @@ export function BankAccountListTable({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 1,
-                ...brandFillSx(theme),
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
                 opacity: 0.9,
-              })}
+              }}
             >
               <AccountBalanceOutlined sx={{ fontSize: 16 }} />
             </Box>

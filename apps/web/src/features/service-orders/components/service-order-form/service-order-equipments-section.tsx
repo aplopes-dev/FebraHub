@@ -66,6 +66,7 @@ export function ServiceOrderEquipmentsSection({
                 borderRadius: 2,
                 border: 1,
                 borderColor: "divider",
+                bgcolor: "background.paper",
                 p: 2.5,
               }}
             >

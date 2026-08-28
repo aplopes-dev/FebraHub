@@ -85,7 +85,7 @@ export function PermissionProfileFormView({
 
           <FormSection
             title="Permissões"
-            description="Módulos do DMS: vendas, oficina, peças, documentação, financeiro e configurações."
+            description="Módulos do sistema: comercial, CRM, acadêmico, eventos, mentoria, conteúdo, secretaria, financeiro e configurações."
           >
             <Box
               sx={{

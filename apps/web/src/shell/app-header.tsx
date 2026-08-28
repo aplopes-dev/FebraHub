@@ -9,7 +9,6 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { IconButton, NavUser, toast } from "@/ui";
 import { OrganizationSwitcher } from "@/shell/organization-switcher";
-import { BranchSwitcher } from "@/shell/branch-switcher";
 import { CommandSearch } from "@/shell/command-search";
 import { NotificationsMenu } from "@/shell/notifications-menu";
 import { ThemeModeSwitch } from "@/shell/theme-mode-switch";
@@ -26,10 +25,13 @@ function ProfileMenuIcon() {
 /**
  * Barra superior do container de conteúdo.
  *
- * Três zonas: escopo (empresa/unidade) à esquerda, busca no centro, ações e
- * usuário à direita. A altura (64px) casa com o cabeçalho da sidebar, e o
- * padding lateral (20px) com o do `main` — os três blocos ficam alinhados à
- * mesma coluna do conteúdo abaixo.
+ * Duas zonas: empresa e busca à esquerda, ações e usuário à direita. A altura
+ * (64px) casa com o cabeçalho da sidebar, e o padding lateral (20px) com o do
+ * `main` — os blocos ficam alinhados à mesma coluna do conteúdo abaixo.
+ *
+ * **Sem seletor de unidade.** O produto não é multi-tenant: o escopo de
+ * unidade não é uma escolha do header. Quem lê `branchId` continua sendo o
+ * `useOrganization`.
  */
 export function AppHeader() {
   const currentUser = useCurrentUser();
@@ -40,10 +42,7 @@ export function AppHeader() {
       data-app-header
       sx={{
         display: "grid",
-        gridTemplateColumns: {
-          xs: "auto 1fr auto",
-          lg: "auto minmax(0, 1fr) auto",
-        },
+        gridTemplateColumns: "minmax(0, 1fr) auto",
         alignItems: "center",
         columnGap: { xs: 1, sm: 2 },
         width: "100%",
@@ -58,8 +57,7 @@ export function AppHeader() {
           flexWrap: "nowrap",
           alignItems: "center",
           gap: 1,
-          justifySelf: "start",
-          flexShrink: 0,
+          justifySelf: "stretch",
           minWidth: 0,
         }}
       >
@@ -84,21 +82,19 @@ export function AppHeader() {
           }}
         >
           <OrganizationSwitcher />
-          <BranchSwitcher />
         </Box>
-      </Box>
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          minWidth: 0,
-        }}
-      >
-        <Box sx={{ display: { xs: "none", lg: "flex" }, width: "100%", maxWidth: 360 }}>
+        <Box
+          sx={{
+            display: { xs: "none", lg: "flex" },
+            flex: "1 1 auto",
+            minWidth: 0,
+            maxWidth: 360,
+          }}
+        >
           <CommandSearch variant="full" />
         </Box>
-        <Box sx={{ display: { xs: "flex", lg: "none" } }}>
+        <Box sx={{ display: { xs: "flex", lg: "none" }, flexShrink: 0 }}>
           <CommandSearch variant="icon" />
         </Box>
       </Box>

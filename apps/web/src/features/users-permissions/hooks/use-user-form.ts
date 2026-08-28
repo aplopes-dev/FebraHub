@@ -6,16 +6,10 @@ import {
   toCreateMemberPayload,
   toUpdateMemberPayload,
 } from "@/features/users-permissions/api/member.mapper";
-import { useActorScope } from "@/features/users-permissions/hooks/use-actor-scope";
 import {
   useCreateMemberMutation,
   useUpdateMemberMutation,
 } from "@/features/users-permissions/hooks/use-member-mutations";
-import {
-  actorCanAssignScope,
-  defaultScopeForActor,
-  memberScopeTarget,
-} from "@/features/users-permissions/lib/scope-rules";
 import {
   createEmptyUserFormValues,
   type CreateMemberResult,
@@ -41,22 +35,10 @@ export function useUserForm({
   onCreated,
   onSaved,
 }: UseUserFormOptions = {}) {
-  const { scope: actorScope } = useActorScope();
-  const defaultScope = useMemo(
-    () => defaultScopeForActor(actorScope),
-    [actorScope],
+  const initial = useMemo(
+    () => initialValues ?? createEmptyUserFormValues(),
+    [initialValues],
   );
-
-  const initial = useMemo(() => {
-    const base = initialValues ?? createEmptyUserFormValues();
-    if (initialValues) return base;
-    return {
-      ...base,
-      scopeLevel: defaultScope.level,
-      matrixId: defaultScope.matrixId,
-      branchIds: [...defaultScope.branchIds],
-    };
-  }, [initialValues, defaultScope]);
 
   const [values, setValues] = useState<UserFormValues>(initial);
   const [baseline, setBaseline] = useState<UserFormValues>(initial);
@@ -107,25 +89,6 @@ export function useUserForm({
       toast.error("Informe um e-mail válido.");
       return false;
     }
-    if (values.scopeLevel === "matrix" && !values.matrixId) {
-      toast.error("Selecione a empresa (matriz) de atuação.");
-      return false;
-    }
-    if (values.scopeLevel === "branch" && values.branchIds.length === 0) {
-      toast.error("Selecione ao menos uma filial para este usuário.");
-      return false;
-    }
-
-    const targetScope = memberScopeTarget({
-      scopeLevel: values.scopeLevel,
-      matrixId: values.matrixId,
-      branchIds: values.branchIds,
-    });
-    if (!actorCanAssignScope(actorScope, targetScope)) {
-      toast.error("Você não pode criar ou alterar usuários fora do seu escopo de atuação.");
-      return false;
-    }
-
     try {
       if (userId) {
         await updateMutation.mutateAsync({
@@ -152,7 +115,6 @@ export function useUserForm({
   }, [
     userId,
     values,
-    actorScope,
     createMutation,
     updateMutation,
     onCreated,
@@ -169,7 +131,6 @@ export function useUserForm({
     save,
     isSaving,
     isEditing: Boolean(userId),
-    actorScope,
   };
 }
 

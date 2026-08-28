@@ -20,8 +20,6 @@ export function useUserList() {
   const tab = useUserListStore((state) => state.tab);
   const search = useUserListStore((state) => state.search);
   const debouncedSearch = useUserListStore((state) => state.debouncedSearch);
-  const matrixId = useUserListStore((state) => state.matrixId);
-  const branchId = useUserListStore((state) => state.branchId);
   const functionalRole = useUserListStore((state) => state.functionalRole);
   const page = useUserListStore((state) => state.page);
   const perPage = useUserListStore((state) => state.perPage);
@@ -29,8 +27,6 @@ export function useUserList() {
   const setTab = useUserListStore((state) => state.setTab);
   const setSearch = useUserListStore((state) => state.setSearch);
   const commitSearch = useUserListStore((state) => state.commitSearch);
-  const setMatrixId = useUserListStore((state) => state.setMatrixId);
-  const setBranchId = useUserListStore((state) => state.setBranchId);
   const setFunctionalRole = useUserListStore((state) => state.setFunctionalRole);
   const setPage = useUserListStore((state) => state.setPage);
   const setPerPage = useUserListStore((state) => state.setPerPage);
@@ -48,13 +44,11 @@ export function useUserList() {
     () => ({
       tab,
       search: debouncedSearch,
-      matrixId,
-      branchId,
       functionalRole,
       page,
       perPage,
     }),
-    [tab, debouncedSearch, matrixId, branchId, functionalRole, page, perPage],
+    [tab, debouncedSearch, functionalRole, page, perPage],
   );
 
   const query = useMembersQuery(params);
@@ -65,10 +59,6 @@ export function useUserList() {
     setTab,
     search,
     setSearch,
-    matrixId,
-    setMatrixId,
-    branchId,
-    setBranchId,
     functionalRole,
     setFunctionalRole,
     page,

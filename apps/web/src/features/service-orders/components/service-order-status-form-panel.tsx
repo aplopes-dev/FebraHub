@@ -211,6 +211,7 @@ function ServiceOrderStatusFormBody({
               justifyContent: "space-between",
               border: 1,
               borderColor: "divider",
+              bgcolor: "background.paper",
               borderRadius: 1,
               px: 1.5,
               py: 1.25,

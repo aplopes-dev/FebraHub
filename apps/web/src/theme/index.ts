@@ -7,14 +7,13 @@
  */
 export {
   appDefaultBrandColor,
-  appDefaultBrandGradient,
   appTheme,
   appThemeDark,
   appThemeDarkOptions,
   appThemeOptions,
 } from "./app-theme";
 
-export { brandFillHoverSx, brandFillSx } from "./brand-fill";
+export { BORDER_COLOR, BORDER_COLOR_DARK } from "./border-color";
 
 export {
   BRAND_COLOR_OPTIONS,

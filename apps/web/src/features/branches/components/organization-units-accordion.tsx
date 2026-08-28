@@ -105,6 +105,7 @@ function MatrixAccordionPanel({
       sx={{
         border: 1,
         borderColor: "divider",
+        bgcolor: "background.paper",
         borderRadius: "8px !important",
         overflow: "hidden",
         "&:before": { display: "none" },

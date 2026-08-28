@@ -47,7 +47,12 @@ export function SuggestedEntriesPanel({ bankStatementId, transactions }: Suggest
   if (items.length === 0) return null;
 
   return (
-    <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2 }}>
+    <Box sx={{
+          border: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          borderRadius: 2,
+        }}>
       <Stack
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}
@@ -77,6 +82,7 @@ export function SuggestedEntriesPanel({ bankStatementId, transactions }: Suggest
                 justifyContent: "space-between",
                 border: 1,
                 borderColor: "divider",
+                bgcolor: "background.paper",
                 borderRadius: 1,
                 px: 1.5,
                 py: 1,

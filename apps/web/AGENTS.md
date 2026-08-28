@@ -150,8 +150,8 @@ Breakpoints alinhados ao `apps/app` (`shell/breakpoint.ts`):
 | Mobile  | `< 600px`       | Sidebar some; drawer à esquerda via menu hambúrguer no header   |
 
 Estado em `src/shell/shell-layout-context.tsx` (`ShellLayoutProvider` no
-`DualAppShell`). O header adapta busca (ícone abaixo de `lg`), esconde
-switchers de empresa/unidade no mobile e mostra o botão de menu.
+`DualAppShell`). O header adapta busca (ícone abaixo de `lg`), esconde o
+switcher de empresa no mobile e mostra o botão de menu.
 
 No mobile a moldura flutuante (folga de 8px, raio 12px) some — o conteúdo fica
 full-bleed.
