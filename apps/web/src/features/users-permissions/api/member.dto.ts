@@ -3,7 +3,19 @@
  * traduzir via `member.mapper.ts`.
  */
 
-export type MembershipRoleDto = "OWNER" | "ADMIN" | "MEMBER";
+export type MembershipRoleDto = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+
+/** Setores do cadastro — espelha `SETORES_CADASTRO` do `apps/api`. */
+export type SectorDto =
+  | "geral"
+  | "comercial"
+  | "financeiro"
+  | "marketing"
+  | "pedagogico"
+  | "eventos"
+  | "loja"
+  | "estoque"
+  | "crm";
 
 
 export type FunctionalRoleDto =
@@ -35,6 +47,10 @@ export type MemberDto = {
   role: MembershipRoleDto;
   active: boolean;
   functionalRole: FunctionalRoleDto;
+  /** Setor principal do membro. */
+  sector: SectorDto;
+  /** Setores adicionais, sem repetir o principal. */
+  extraSectors: SectorDto[];
   /** Usuário que vende matrícula — listas comerciais. */
   isSeller: boolean;
   /** Código curto digitado no PDV (caixa). Null = sem acesso ao caixa. */
@@ -85,6 +101,8 @@ export type CreateMemberPayload = {
   permissionProfileId: string;
   role?: MembershipRoleDto;
   functionalRole?: FunctionalRoleDto;
+  sector: SectorDto;
+  extraSectors?: SectorDto[];
   isSeller?: boolean;
 };
 
@@ -93,6 +111,8 @@ export type UpdateMemberPayload = {
   active?: boolean;
   permissionProfileId?: string;
   functionalRole?: FunctionalRoleDto;
+  sector?: SectorDto;
+  extraSectors?: SectorDto[];
   /** Código PDV; `null` remove o código. */
   pdvCode?: string | null;
   isSeller?: boolean;

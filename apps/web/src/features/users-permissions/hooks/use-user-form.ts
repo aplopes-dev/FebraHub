@@ -85,6 +85,10 @@ export function useUserForm({
       toast.error("Informe o nome do usuário.");
       return false;
     }
+    if (!values.sector) {
+      toast.error("Selecione o setor principal do usuário.");
+      return false;
+    }
     if (!userId && !EMAIL_PATTERN.test(values.email.trim())) {
       toast.error("Informe um e-mail válido.");
       return false;

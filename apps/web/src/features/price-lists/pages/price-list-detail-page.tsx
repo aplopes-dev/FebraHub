@@ -1,6 +1,7 @@
 "use client";
 
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
+import { Page } from "@/components/ui/page";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Tune from "@mui/icons-material/Tune";
 
@@ -11,7 +12,6 @@ import {
   Button,
   EmptyState,
   PageHeader,
-  ScrollArea,
   SearchInput,
   Stack,
   Typography,
@@ -191,172 +191,161 @@ function PriceListDetailContent({
   const hasProducts = includedProducts.length > 0;
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        height: "100%",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <>
+        <PriceListDetailFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          onDiscard={discard}
+          onSave={() => void save()}
+          isSaving={isSaving}
+        />
+        <PriceListAddProductsDrawer
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          availableProducts={availableProducts}
+          onConfirm={addProducts}
+        />
+        <PriceListBulkEditDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          selectedCount={selectedIds.size}
+          onApply={applyBulk}
+        />
+        </>
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 3, pb: 2 }}>
-          <PriceListDetailHeader priceListName={priceList.name} />
-          <PriceListInfoCards
-            priceList={priceList}
-            productCount={includedProducts.length}
-          />
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <PriceListDetailHeader priceListName={priceList.name} />
+        <PriceListInfoCards
+          priceList={priceList}
+          productCount={includedProducts.length}
+        />
 
-          <Box
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            p: 2,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: surfaceBorderRadius,
+            bgcolor: "background.paper",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              p: 2,
-              border: 1,
-              borderColor: "divider",
-              borderRadius: surfaceBorderRadius,
-              bgcolor: "background.paper",
+              alignItems: { sm: "center" },
+              justifyContent: "space-between",
             }}
           >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Produtos da lista
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                Selecione os produtos que fazem parte desta lista e ajuste os
+                preços — individualmente ou em lote.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              {hasProducts ? (
+                <SearchInput
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar produto…"
+                  sx={{ width: { xs: 180, sm: 240 } }}
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="contained"
+                startIcon={<AddIcon fontSize="small" />}
+                onClick={() => setAddOpen(true)}
+              >
+                Gerenciar produtos
+              </Button>
+            </Stack>
+          </Stack>
+
+          {selectedIds.size > 0 ? (
             <Stack
-              direction={{ xs: "column", sm: "row" }}
+              direction="row"
               spacing={1.5}
               sx={{
-                alignItems: { sm: "center" },
-                justifyContent: "space-between",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 1.5,
+                px: 1.5,
+                py: 1,
+                border: 1,
+                borderColor: "divider",
+                borderRadius: surfaceBorderRadius,
+                bgcolor: "action.hover",
               }}
             >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Produtos da lista
-                </Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  Selecione os produtos que fazem parte desta lista e ajuste os
-                  preços — individualmente ou em lote.
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                {hasProducts ? (
-                  <SearchInput
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar produto…"
-                    sx={{ width: { xs: 180, sm: 240 } }}
-                  />
-                ) : null}
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {selectedIds.size} selecionado
+                {selectedIds.size === 1 ? "" : "s"}
+              </Typography>
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={<Tune sx={{ fontSize: 16 }} />}
+                onClick={() => setBulkOpen(true)}
+              >
+                Editar valor
+              </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteOutlined sx={{ fontSize: 16 }} />}
+                onClick={() => removeProducts([...selectedIds])}
+              >
+                Remover
+              </Button>
+              <Button type="button" variant="text" onClick={clearSelection}>
+                Limpar seleção
+              </Button>
+            </Stack>
+          ) : null}
+
+          {hasProducts ? (
+            <PriceListPricesTable
+              products={visibleProducts}
+              getPrice={getPrice}
+              onPriceChange={setPrice}
+              onRemove={(id) => removeProducts([id])}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              allSelected={allSelected}
+              someSelected={someSelected}
+              onToggleSelectAll={toggleSelectAll}
+              emptyMessage="Nenhum produto corresponde à busca."
+            />
+          ) : (
+            <EmptyState
+              icon={<AddIcon />}
+              title="Nenhum produto nesta lista"
+              description='Clique em “Gerenciar produtos” para selecionar quais produtos farão parte desta lista de preços.'
+              action={
                 <Button
                   type="button"
                   variant="contained"
-                  startIcon={<AddIcon fontSize="small" />}
                   onClick={() => setAddOpen(true)}
                 >
                   Gerenciar produtos
                 </Button>
-              </Stack>
-            </Stack>
-
-            {selectedIds.size > 0 ? (
-              <Stack
-                direction="row"
-                spacing={1.5}
-                sx={{
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: 1.5,
-                  px: 1.5,
-                  py: 1,
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: surfaceBorderRadius,
-                  bgcolor: "action.hover",
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {selectedIds.size} selecionado
-                  {selectedIds.size === 1 ? "" : "s"}
-                </Typography>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  startIcon={<Tune sx={{ fontSize: 16 }} />}
-                  onClick={() => setBulkOpen(true)}
-                >
-                  Editar valor
-                </Button>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteOutlined sx={{ fontSize: 16 }} />}
-                  onClick={() => removeProducts([...selectedIds])}
-                >
-                  Remover
-                </Button>
-                <Button type="button" variant="text" onClick={clearSelection}>
-                  Limpar seleção
-                </Button>
-              </Stack>
-            ) : null}
-
-            {hasProducts ? (
-              <PriceListPricesTable
-                products={visibleProducts}
-                getPrice={getPrice}
-                onPriceChange={setPrice}
-                onRemove={(id) => removeProducts([id])}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                allSelected={allSelected}
-                someSelected={someSelected}
-                onToggleSelectAll={toggleSelectAll}
-                emptyMessage="Nenhum produto corresponde à busca."
-              />
-            ) : (
-              <EmptyState
-                icon={<AddIcon />}
-                title="Nenhum produto nesta lista"
-                description='Clique em “Gerenciar produtos” para selecionar quais produtos farão parte desta lista de preços.'
-                action={
-                  <Button
-                    type="button"
-                    variant="contained"
-                    onClick={() => setAddOpen(true)}
-                  >
-                    Gerenciar produtos
-                  </Button>
-                }
-              />
-            )}
-          </Box>
+              }
+            />
+          )}
         </Box>
-      </ScrollArea>
-
-      <PriceListDetailFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        onDiscard={discard}
-        onSave={() => void save()}
-        isSaving={isSaving}
-      />
-
-      <PriceListAddProductsDrawer
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        availableProducts={availableProducts}
-        onConfirm={addProducts}
-      />
-
-      <PriceListBulkEditDialog
-        open={bulkOpen}
-        onOpenChange={setBulkOpen}
-        selectedCount={selectedIds.size}
-        onApply={applyBulk}
-      />
-    </Box>
+      </Box>
+    </Page>
   );
 }

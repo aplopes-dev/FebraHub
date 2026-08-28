@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { Page } from "@/components/ui/page";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { ScrollArea } from "@/ui";
 import { useCatalogScope } from "@/lib/organization-context";
 import { listAllProducts } from "@/features/products/api/products.service";
 import { useCarrierOptionsQuery } from "@/features/carriers/hooks/use-carrier-queries";
@@ -85,83 +85,70 @@ export function StockTransferFormView() {
   }, [balanceQuery.data]);
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
+    <Page
+      footer={
+        <StockTransferFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          isSaving={isSaving}
+          onDiscard={discard}
+          onSave={() => {
+            void save();
+          }}
+        />
+      }
     >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2, minWidth: 0, maxWidth: "100%" }}>
-          <StockTransferFormHeader />
+      <Stack spacing={3} sx={{ minWidth: 0, maxWidth: "100%" }}>
+        <StockTransferFormHeader />
 
-          <Box
-            sx={{
-              display: "grid",
-              gap: 3,
-              alignItems: "start",
-              gridTemplateColumns: {
-                lg: "minmax(0, 1fr) minmax(18rem, 24rem)",
-              },
-            }}
-          >
-            <StockTransferProductsPanel
-              includedProducts={includedProducts}
-              includedIds={includedIds}
-              allProducts={products}
-              balanceByProductId={balanceByProductId}
-              getLine={getLine}
-              onQuantityChange={setQuantity}
-              onBatchChange={setBatch}
-              onRemove={removeProduct}
-              onAddProducts={addProducts}
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            alignItems: "start",
+            gridTemplateColumns: {
+              lg: "minmax(0, 1fr) minmax(18rem, 24rem)",
+            },
+          }}
+        >
+          <StockTransferProductsPanel
+            includedProducts={includedProducts}
+            includedIds={includedIds}
+            allProducts={products}
+            balanceByProductId={balanceByProductId}
+            getLine={getLine}
+            onQuantityChange={setQuantity}
+            onBatchChange={setBatch}
+            onRemove={removeProduct}
+            onAddProducts={addProducts}
+          />
+
+          <Stack spacing={3} sx={{ position: { lg: "sticky" }, top: { lg: 0 } }}>
+            <StockTransferBasicsPanel
+              values={values}
+              warehouses={warehouses}
+              onFromChange={(fromWarehouseId) =>
+                setField("fromWarehouseId", fromWarehouseId)
+              }
+              onToChange={(toWarehouseId) =>
+                setField("toWarehouseId", toWarehouseId)
+              }
+              onOperatedAtChange={(operatedAt) =>
+                setField("operatedAt", operatedAt)
+              }
             />
-
-            <Stack spacing={3} sx={{ position: { lg: "sticky" }, top: { lg: 0 } }}>
-              <StockTransferBasicsPanel
-                values={values}
-                warehouses={warehouses}
-                onFromChange={(fromWarehouseId) =>
-                  setField("fromWarehouseId", fromWarehouseId)
-                }
-                onToChange={(toWarehouseId) =>
-                  setField("toWarehouseId", toWarehouseId)
-                }
-                onOperatedAtChange={(operatedAt) =>
-                  setField("operatedAt", operatedAt)
-                }
-              />
-              <StockTransferDataPanel
-                values={values}
-                carriers={carriers}
-                onCarrierChange={(carrierId) => setField("carrierId", carrierId)}
-                onResponsibleChange={(responsibleName) =>
-                  setField("responsibleName", responsibleName)
-                }
-                onNotesChange={(notes) => setField("notes", notes)}
-              />
-            </Stack>
-          </Box>
-        </Stack>
-      </ScrollArea>
-
-      <StockTransferFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        isSaving={isSaving}
-        onDiscard={discard}
-        onSave={() => {
-          void save();
-        }}
-      />
-    </Box>
+            <StockTransferDataPanel
+              values={values}
+              carriers={carriers}
+              onCarrierChange={(carrierId) => setField("carrierId", carrierId)}
+              onResponsibleChange={(responsibleName) =>
+                setField("responsibleName", responsibleName)
+              }
+              onNotesChange={(notes) => setField("notes", notes)}
+            />
+          </Stack>
+        </Box>
+      </Stack>
+    </Page>
   );
 }

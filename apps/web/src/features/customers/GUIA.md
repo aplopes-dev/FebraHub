@@ -68,6 +68,19 @@ Enquanto você edita, o sistema avisa que há **alterações não salvas**. Ao
 terminar, clique em **Salvar**. Use **Descartar alterações** se quiser voltar
 como estava. Novos cadastros entram como **Lead**.
 
+## Papéis e jornada (Febracis)
+
+A ficha é **uma só** para lead, participante de evento, aluno, ex-aluno e
+indicador — os papéis acumulam e aparecem na coluna **Papéis**. As abas usam o
+vocabulário da unidade: Leads, Em negociação, Alunos, Ex-alunos.
+
+Clicar numa linha abre a **jornada**: o que a pessoa já comprou (a escada de
+valor), os eventos em que esteve e quem ela indicou. É onde a recompra — que é
+o motor do negócio — fica visível.
+
+Os dados vêm de `src/lib/mock/mock-customers.ts`, que serve `/v1/customers` a
+partir do `src/lib/mock-db`. A tela não sabe disso: continua falando `apiFetch`.
+
 ## Em resumo
 
 Use as abas para acompanhar o estágio de cada contato, a busca para achar alguém

@@ -11,6 +11,7 @@ import {
   formatCustomerCreatedAt,
   formatCustomerSales,
 } from "@/features/customers/services/customer-list.service";
+import { CustomerRolesCell } from "@/features/customers/components/customer-roles-cell";
 import type { Customer } from "@/features/customers/types/customer";
 
 type CustomerListTableProps = {
@@ -26,6 +27,8 @@ type CustomerListTableProps = {
   somePageSelected: boolean;
   onToggleSelectAllPage: () => void;
   onToggleSelectOne: (id: string) => void;
+  /** Abre a jornada da pessoa. */
+  onRowClick?: (customer: Customer) => void;
 };
 
 export function CustomerListTable({
@@ -40,6 +43,7 @@ export function CustomerListTable({
   somePageSelected,
   onToggleSelectAllPage,
   onToggleSelectOne,
+  onRowClick,
 }: CustomerListTableProps) {
   const columns = useMemo<DataTableColumn<Customer>[]>(
     () => [
@@ -80,6 +84,11 @@ export function CustomerListTable({
         ),
       },
       {
+        id: "roles",
+        header: "Papéis",
+        render: (customer) => <CustomerRolesCell roles={customer.roles} />,
+      },
+      {
         id: "email",
         header: "E-mail",
         render: (customer) => customer.email,
@@ -114,6 +123,7 @@ export function CustomerListTable({
       columns={columns}
       rows={customers}
       getRowId={(customer) => customer.id}
+      onRowClick={onRowClick}
       emptyMessage="Nenhum cliente encontrado."
       pagination={{
         page,

@@ -104,7 +104,7 @@ export function ProductionKanban({
       )}
     >
       {(column) => (
-        <KanbanBoard key={column.id} id={column.id} className="w-[22.5rem] shrink-0">
+        <KanbanBoard key={column.id} id={column.id} sx={{ width: 360, flexShrink: 0 }}>
           <KanbanHeader>
             <Box
               component="span"

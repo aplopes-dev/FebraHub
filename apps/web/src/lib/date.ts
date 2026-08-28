@@ -28,7 +28,24 @@ export function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * `yyyy-mm-dd` → `dd/mm/aaaa`.
+ *
+ * Aceita também **instante ISO completo** (`2026-08-27T15:00:00.000Z`): o dado
+ * do comercial guarda hora, e um formatador que devolve "—" para um timestamp
+ * válido é uma armadilha — a tela mostra travessão e ninguém desconfia do
+ * formatador.
+ */
 export function formatIsoDate(value: string): string {
   const date = parseIsoDate(value);
-  return date ? date.toLocaleDateString("pt-BR") : "—";
+  if (date) return date.toLocaleDateString("pt-BR");
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const instant = new Date(value);
+    if (!Number.isNaN(instant.getTime())) {
+      return instant.toLocaleDateString("pt-BR");
+    }
+  }
+
+  return "—";
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Page } from "@/components/ui/page";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { ScrollArea, toast } from "@/ui";
+import { toast } from "@/ui";
 import { formSplitLayoutGridSx } from "@/components/ui/form/form-section-styles";
 import { useCatalogScope } from "@/lib/organization-context";
 import { listAllProducts } from "@/features/products/api/products.service";
@@ -140,139 +141,126 @@ export function PurchaseFormView({
   }
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
-    >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2, minWidth: 0, maxWidth: "100%" }}>
-          <PurchaseFormHeader title={title} />
-
-          {readOnly ? (
-            <Alert severity="info">
-              Esta compra já foi recebida e o estoque foi atualizado. Os dados
-              estão disponíveis apenas para visualização.
-            </Alert>
-          ) : null}
-
-          {/*
-            `pointerEvents: none` sozinho não bloqueava nada de verdade: o
-            teclado o ignora, então dava para chegar em quantidade, custo,
-            série, NF, fornecedor e status por Tab e editar uma compra que já
-            gerou entrada no estoque. O `fieldset disabled` fecha o caminho do
-            teclado (e tira os controles da ordem de tabulação); o
-            `pointerEvents` continua cobrindo os controles compostos do
-            `@/ui`, que não herdam o estado do fieldset. Os diálogos e o
-            picker de produtos, que renderizam em portal — FORA desta subárvore
-            —, deixam de ser montados no modo leitura (ver final do arquivo).
-          */}
-          <Box
-            component="fieldset"
-            disabled={readOnly}
-            sx={{
-              ...formSplitLayoutGridSx,
-              border: 0,
-              p: 0,
-              m: 0,
-              minInlineSize: 0,
-              ...(readOnly
-                ? {
-                    pointerEvents: "none",
-                    opacity: 0.92,
-                  }
-                : {}),
-            }}
-          >
-            <Stack spacing={3}>
-              <PurchaseProductsPanel
-                warehouseId={values.warehouseId}
-                warehouses={warehouses}
-                onWarehouseChange={(warehouseId) =>
-                  setField("warehouseId", warehouseId)
-                }
-                includedProducts={includedProducts}
-                includedIds={includedIds}
-                allProducts={products}
-                getLine={getLine}
-                onQuantityChange={setQuantity}
-                onCostPriceChange={setCostPrice}
-                onStatusChange={setLineStatus}
-                onRemove={removeProduct}
-                onAddProducts={addProducts}
-              />
-            </Stack>
-
-            <Stack spacing={3}>
-              <PurchaseSupplierPanel
-                supplierId={values.supplierId}
-                suppliers={suppliers}
-                onSupplierChange={(supplierId) =>
-                  setField("supplierId", supplierId)
-                }
-              />
-              <PurchaseInfoPanel
-                values={values}
-                onPurchasedAtChange={(purchasedAt) =>
-                  setField("purchasedAt", purchasedAt)
-                }
-                onSeriesChange={(series) => setField("series", series)}
-                onInvoiceNumberChange={(invoiceNumber) =>
-                  setField("invoiceNumber", invoiceNumber)
-                }
-                onNotesChange={(notes) => setField("notes", notes)}
-                onDeliveryStatusChange={handleDeliveryStatusChange}
-                onOpenExtras={() => setExtrasOpen(true)}
-              />
-            </Stack>
-          </Box>
-        </Stack>
-      </ScrollArea>
-
-      {readOnly ? null : (
-        <PurchaseFormFooter
-          isDirty={isDirty}
-          hasSavedOnce={hasSavedOnce}
-          isSaving={isSaving}
-          savedLabel={isEdit ? "Alterações salvas" : "Compra salva"}
-          onDiscard={discard}
-          onSave={handleSave}
-        />
-      )}
-
-      {/*
-        Renderizados em portal, fora da subárvore bloqueada — montá-los no modo
-        leitura deixava os campos 100% clicáveis e o "Aplicar" mutava o
-        formulário de uma compra já recebida.
-      */}
-      {readOnly ? null : (
+    <Page
+      footer={
         <>
-          <PurchaseExtrasDialog
-            open={extrasOpen}
-            onOpenChange={setExtrasOpen}
-            value={values.extras}
-            carriers={carriers}
-            onApply={setExtras}
+        {readOnly ? null : (
+          <PurchaseFormFooter
+            isDirty={isDirty}
+            hasSavedOnce={hasSavedOnce}
+            isSaving={isSaving}
+            savedLabel={isEdit ? "Alterações salvas" : "Compra salva"}
+            onDiscard={discard}
+            onSave={handleSave}
           />
-
-          <PurchaseReceiveConfirmDialog
-            open={receiveOpen}
-            products={products}
-            lines={values.lines}
-            onClose={() => setReceiveOpen(false)}
-            onConfirm={handleReceiveConfirm}
-          />
+        )}
+        {/*
+          Renderizados em portal, fora da subárvore bloqueada — montá-los no modo
+          leitura deixava os campos 100% clicáveis e o "Aplicar" mutava o
+          formulário de uma compra já recebida.
+        */}
+        {readOnly ? null : (
+          <>
+            <PurchaseExtrasDialog
+              open={extrasOpen}
+              onOpenChange={setExtrasOpen}
+              value={values.extras}
+              carriers={carriers}
+              onApply={setExtras}
+            />
+            <PurchaseReceiveConfirmDialog
+              open={receiveOpen}
+              products={products}
+              lines={values.lines}
+              onClose={() => setReceiveOpen(false)}
+              onConfirm={handleReceiveConfirm}
+            />
+          </>
+        )}
         </>
-      )}
-    </Box>
+      }
+    >
+      <Stack spacing={3} sx={{ minWidth: 0, maxWidth: "100%" }}>
+        <PurchaseFormHeader title={title} />
+
+        {readOnly ? (
+          <Alert severity="info">
+            Esta compra já foi recebida e o estoque foi atualizado. Os dados
+            estão disponíveis apenas para visualização.
+          </Alert>
+        ) : null}
+
+        {/*
+          `pointerEvents: none` sozinho não bloqueava nada de verdade: o
+          teclado o ignora, então dava para chegar em quantidade, custo,
+          série, NF, fornecedor e status por Tab e editar uma compra que já
+          gerou entrada no estoque. O `fieldset disabled` fecha o caminho do
+          teclado (e tira os controles da ordem de tabulação); o
+          `pointerEvents` continua cobrindo os controles compostos do
+          `@/ui`, que não herdam o estado do fieldset. Os diálogos e o
+          picker de produtos, que renderizam em portal — FORA desta subárvore
+          —, deixam de ser montados no modo leitura (ver final do arquivo).
+        */}
+        <Box
+          component="fieldset"
+          disabled={readOnly}
+          sx={{
+            ...formSplitLayoutGridSx,
+            border: 0,
+            p: 0,
+            m: 0,
+            minInlineSize: 0,
+            ...(readOnly
+              ? {
+                  pointerEvents: "none",
+                  opacity: 0.92,
+                }
+              : {}),
+          }}
+        >
+          <Stack spacing={3}>
+            <PurchaseProductsPanel
+              warehouseId={values.warehouseId}
+              warehouses={warehouses}
+              onWarehouseChange={(warehouseId) =>
+                setField("warehouseId", warehouseId)
+              }
+              includedProducts={includedProducts}
+              includedIds={includedIds}
+              allProducts={products}
+              getLine={getLine}
+              onQuantityChange={setQuantity}
+              onCostPriceChange={setCostPrice}
+              onStatusChange={setLineStatus}
+              onRemove={removeProduct}
+              onAddProducts={addProducts}
+            />
+          </Stack>
+
+          <Stack spacing={3}>
+            <PurchaseSupplierPanel
+              supplierId={values.supplierId}
+              suppliers={suppliers}
+              onSupplierChange={(supplierId) =>
+                setField("supplierId", supplierId)
+              }
+            />
+            <PurchaseInfoPanel
+              values={values}
+              onPurchasedAtChange={(purchasedAt) =>
+                setField("purchasedAt", purchasedAt)
+              }
+              onSeriesChange={(series) => setField("series", series)}
+              onInvoiceNumberChange={(invoiceNumber) =>
+                setField("invoiceNumber", invoiceNumber)
+              }
+              onNotesChange={(notes) => setField("notes", notes)}
+              onDeliveryStatusChange={handleDeliveryStatusChange}
+              onOpenExtras={() => setExtrasOpen(true)}
+            />
+          </Stack>
+        </Box>
+      </Stack>
+    </Page>
   );
 }

@@ -34,7 +34,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { ScrollArea, Box } from "@/ui";
+import { ScrollArea, Box, type BoxProps } from "@/ui";
 
 function cn(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -77,6 +77,8 @@ export type KanbanBoardProps = {
   id: string;
   children: ReactNode;
   className?: string;
+  /** Estilos MUI da coluna (largura, cor de fundo). */
+  sx?: BoxProps["sx"];
   /**
    * Permite arrastar a coluna para reordenar (somente pelo `KanbanColumnHandle`).
    * Colunas fixas devem passar `false` — elas continuam recebendo cards (drop),
@@ -89,6 +91,7 @@ export function KanbanBoard({
   id,
   children,
   className,
+  sx,
   sortable = false,
 }: KanbanBoardProps) {
   const {
@@ -116,18 +119,30 @@ export function KanbanBoard({
     <KanbanColumnDndContext.Provider
       value={{ sortable, attributes, listeners, setActivatorNodeRef }}
     >
-      <div
+      <Box
         ref={setNodeRef}
         style={style}
-        className={cn(
-          "flex h-full min-h-40 flex-col rounded-2xl border border-border/50 bg-muted/20 ring-2 transition-colors",
-          isOver ? "ring-primary/40" : "ring-transparent",
-          isDragging && "z-10 opacity-70",
-          className,
-        )}
+        className={className}
+        sx={[
+          {
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            minHeight: 160,
+            borderRadius: 2,
+            border: 1,
+            borderColor: isOver ? "primary.main" : "divider",
+            bgcolor: "muted.main",
+            transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+            boxShadow: isOver ? 3 : 0,
+            zIndex: isDragging ? 10 : undefined,
+            opacity: isDragging ? 0.7 : 1,
+          },
+          ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+        ]}
       >
         {children}
-      </div>
+      </Box>
     </KanbanColumnDndContext.Provider>
   );
 }
@@ -163,15 +178,27 @@ export function KanbanColumnHandle({
   );
 }
 
-export type KanbanHeaderProps = HTMLAttributes<HTMLDivElement>;
+export type KanbanHeaderProps = HTMLAttributes<HTMLDivElement> & {
+  sx?: BoxProps["sx"];
+};
 
-export function KanbanHeader({ className, ...props }: KanbanHeaderProps) {
+export function KanbanHeader({ className, sx, ...props }: KanbanHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 border-b border-border/50 px-4 py-3",
-        className,
-      )}
+    <Box
+      className={className}
+      sx={[
+        {
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+          px: 2,
+          py: 1.25,
+          flexShrink: 0,
+        },
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+      ]}
       {...props}
     />
   );
@@ -199,11 +226,15 @@ export function KanbanCards<T extends KanbanItem = KanbanItem>({
   const ids = items.map((item) => item.id);
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <ScrollArea sx={{ minHeight: 0, flex: 1 }}>
       <SortableContext items={ids}>
-        <div className={cn("flex flex-col gap-3 p-3", className)} {...props}>
+        <Box
+          className={className}
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}
+          {...props}
+        >
           {items.length > 0 ? items.map(children) : emptyState}
-        </div>
+        </Box>
       </SortableContext>
     </ScrollArea>
   );
@@ -225,19 +256,21 @@ export function KanbanCard({ id, children, className }: KanbanCardProps) {
   };
 
   return (
-    <div
+    <Box
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "touch-none cursor-grab active:cursor-grabbing",
-        isDragging && "opacity-40",
-        className,
-      )}
+      className={className}
+      sx={{
+        touchAction: "none",
+        cursor: "grab",
+        opacity: isDragging ? 0.4 : 1,
+        "&:active": { cursor: "grabbing" },
+      }}
       {...attributes}
       {...listeners}
     >
       {children}
-    </div>
+    </Box>
   );
 }
 

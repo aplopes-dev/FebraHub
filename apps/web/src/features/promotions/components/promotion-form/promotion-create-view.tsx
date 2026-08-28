@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
+import { Page } from "@/components/ui/page";
 import Stack from "@mui/material/Stack";
-import { ScrollArea, toast } from "@/ui";
+import { toast } from "@/ui";
 import { ProductFormHeader } from "@/features/products/components/product-form-header";
 import { PromotionStepper } from "@/features/promotions/components/promotion-form/promotion-stepper";
 import { PromotionFormFooter } from "@/features/promotions/components/promotion-form/promotion-form-footer";
@@ -96,64 +96,52 @@ export function PromotionCreateView({
   }
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <PromotionFormFooter
+          selectedType={values.type}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          canAdvance={canAdvance && !isSaving}
+          saveLabel={isEdit ? "Salvar alterações" : "Salvar promoção"}
+          onBack={goBack}
+          onNext={handleNext}
+          onSave={handleSave}
+        />
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2 }}>
-          <ProductFormHeader
-            title={isEdit ? "Editar promoção" : "Nova promoção"}
-            subtitle="Promoção"
-            backHref="/vendas/promocoes"
+      <Stack spacing={3} sx={{ pb: 2 }}>
+        <ProductFormHeader
+          title={isEdit ? "Editar promoção" : "Nova promoção"}
+          subtitle="Promoção"
+          backHref="/vendas/promocoes"
+        />
+
+        <PromotionStepper currentIndex={stepIndex} onStepClick={goToStep} />
+
+        {step === "type" ? (
+          <PromotionTypeStep
+            value={values.type}
+            onChange={setType}
+            typeLocked={isEdit}
           />
+        ) : null}
 
-          <PromotionStepper currentIndex={stepIndex} onStepClick={goToStep} />
+        {step === "general" ? (
+          <PromotionGeneralStep
+            values={values.general}
+            onFieldChange={setGeneralField}
+          />
+        ) : null}
 
-          {step === "type" ? (
-            <PromotionTypeStep
-              value={values.type}
-              onChange={setType}
-              typeLocked={isEdit}
-            />
-          ) : null}
-
-          {step === "general" ? (
-            <PromotionGeneralStep
-              values={values.general}
-              onFieldChange={setGeneralField}
-            />
-          ) : null}
-
-          {step === "rules" && values.type ? (
-            <PromotionRulesStep
-              type={values.type}
-              rules={values.rules}
-              onRulesChange={setRulesField}
-            />
-          ) : null}
-        </Stack>
-      </ScrollArea>
-
-      <PromotionFormFooter
-        selectedType={values.type}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        canAdvance={canAdvance && !isSaving}
-        saveLabel={isEdit ? "Salvar alterações" : "Salvar promoção"}
-        onBack={goBack}
-        onNext={handleNext}
-        onSave={handleSave}
-      />
-    </Box>
+        {step === "rules" && values.type ? (
+          <PromotionRulesStep
+            type={values.type}
+            rules={values.rules}
+            onRulesChange={setRulesField}
+          />
+        ) : null}
+      </Stack>
+    </Page>
   );
 }

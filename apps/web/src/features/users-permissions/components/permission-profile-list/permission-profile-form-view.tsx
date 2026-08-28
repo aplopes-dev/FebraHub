@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Page } from "@/components/ui/page";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Stack from "@mui/material/Stack";
-import { Alert, FormField, ScrollArea } from "@/ui";
+import { Alert, FormField } from "@/ui";
 import {
   EntityFormFooter,
   EntityFormHeader,
@@ -33,100 +34,87 @@ export function PermissionProfileFormView({
   const groups = catalogQuery.data?.groups ?? [];
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
+    <Page
+      footer={
+        <EntityFormFooter
+          ariaLabel="Ações do perfil de acesso"
+          mode="dirty"
+          isDirty={form.isDirty && !isSystem}
+          hasSavedOnce={form.hasSavedOnce}
+          isSaving={form.isSaving}
+          savedMessage="Perfil salvo"
+          onCancel={() => router.push(backHref)}
+          onDiscard={form.discard}
+          onSave={() => void form.save()}
+        />
+      }
     >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 4, minWidth: 0 }}>
-          <EntityFormHeader
-            title={form.isEditing ? "Editar perfil" : "Novo perfil"}
-            subtitle="Perfil de Acesso"
-            backHref={backHref}
+      <Stack spacing={3} sx={{ minWidth: 0 }}>
+        <EntityFormHeader
+          title={form.isEditing ? "Editar perfil" : "Novo perfil"}
+          subtitle="Perfil de Acesso"
+          backHref={backHref}
+        />
+
+        {isSystem ? (
+          <Alert severity="info">
+            O perfil Administrador é protegido — nome, descrição e permissões
+            não podem ser alterados.
+          </Alert>
+        ) : null}
+
+        <FormSection
+          title="Informações gerais"
+          description="Defina as informações principais deste perfil de acesso, incluindo nome e descrição."
+        >
+          <FormField
+            label="Nome do perfil"
+            value={values.name}
+            onChange={(event) => setField("name", event.target.value)}
+            disabled={isSystem}
+            required
           />
+          <FormField
+            label="Descrição"
+            value={values.description}
+            onChange={(event) => setField("description", event.target.value)}
+            disabled={isSystem}
+            multiline
+            minRows={3}
+          />
+        </FormSection>
 
-          {isSystem ? (
-            <Alert severity="info">
-              O perfil Administrador é protegido — nome, descrição e permissões
-              não podem ser alterados.
-            </Alert>
-          ) : null}
-
-          <FormSection
-            title="Informações gerais"
-            description="Defina as informações principais deste perfil de acesso, incluindo nome e descrição."
+        <FormSection
+          title="Permissões"
+          description="Módulos do sistema: comercial, CRM, acadêmico, eventos, mentoria, conteúdo, secretaria, financeiro e configurações."
+        >
+          <Box
+            sx={{
+              minWidth: 0,
+              opacity: isSystem ? 0.6 : 1,
+              pointerEvents: isSystem ? "none" : "auto",
+            }}
           >
-            <FormField
-              label="Nome do perfil"
-              value={values.name}
-              onChange={(event) => setField("name", event.target.value)}
-              disabled={isSystem}
-              required
-            />
-            <FormField
-              label="Descrição"
-              value={values.description}
-              onChange={(event) => setField("description", event.target.value)}
-              disabled={isSystem}
-              multiline
-              minRows={3}
-            />
-          </FormSection>
-
-          <FormSection
-            title="Permissões"
-            description="Módulos do sistema: comercial, CRM, acadêmico, eventos, mentoria, conteúdo, secretaria, financeiro e configurações."
-          >
-            <Box
-              sx={{
-                minWidth: 0,
-                opacity: isSystem ? 0.6 : 1,
-                pointerEvents: isSystem ? "none" : "auto",
-              }}
-            >
-              {catalogQuery.isLoading ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    py: 4,
-                  }}
-                >
-                  <CircularProgress size={24} />
-                </Box>
-              ) : (
-                <PermissionTree
-                  groups={groups}
-                  selected={selected}
-                  onChange={setPermissionIds}
-                />
-              )}
-            </Box>
-          </FormSection>
-        </Stack>
-      </ScrollArea>
-
-      <EntityFormFooter
-        ariaLabel="Ações do perfil de acesso"
-        mode="dirty"
-        isDirty={form.isDirty && !isSystem}
-        hasSavedOnce={form.hasSavedOnce}
-        isSaving={form.isSaving}
-        savedMessage="Perfil salvo"
-        onCancel={() => router.push(backHref)}
-        onDiscard={form.discard}
-        onSave={() => void form.save()}
-      />
-    </Box>
+            {catalogQuery.isLoading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  py: 4,
+                }}
+              >
+                <CircularProgress size={24} />
+              </Box>
+            ) : (
+              <PermissionTree
+                groups={groups}
+                selected={selected}
+                onChange={setPermissionIds}
+              />
+            )}
+          </Box>
+        </FormSection>
+      </Stack>
+    </Page>
   );
 }

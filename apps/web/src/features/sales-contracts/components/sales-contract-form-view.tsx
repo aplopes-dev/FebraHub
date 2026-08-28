@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { Page } from "@/components/ui/page";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
-import { ScrollArea } from "@/ui";
 import { SalesContractFormFooter } from "@/features/sales-contracts/components/sales-contract-form-footer";
 import { SalesContractFormHeader } from "@/features/sales-contracts/components/sales-contract-form-header";
 import { SalesContractGeneralSection } from "@/features/sales-contracts/components/sales-contract-general-section";
@@ -67,57 +66,45 @@ export function SalesContractFormView({
   });
 
   return (
-    <Box
+    <Page
       key={formKey}
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+      footer={
+        <SalesContractFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          onDiscard={discard}
+          onSave={save}
+        />
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2 }}>
-          <SalesContractFormHeader title={title} subtitle={subtitle} />
+      <Stack spacing={3} sx={{ pb: 2 }}>
+        <SalesContractFormHeader title={title} subtitle={subtitle} />
 
-          <Stack spacing={4} divider={<Divider flexItem />}>
-            <SalesContractGeneralSection
-              values={values}
-              customers={customers}
-              sellers={sellers}
-              onFieldChange={setField}
-              onCustomerCreated={() => {}}
-            />
-            <SalesContractItemsSection
-              includedProducts={includedProducts}
-              includedIds={includedIds}
-              allProducts={products}
-              getLine={getLine}
-              onQuantityChange={setQuantity}
-              onUnitPriceChange={setUnitPrice}
-              onRemove={removeProduct}
-              onAddProducts={addProducts}
-            />
-            <SalesContractPaymentSection
-              values={values}
-              paymentMethods={paymentMethods}
-              onFieldChange={setField}
-            />
-          </Stack>
+        <Stack spacing={4} divider={<Divider flexItem />}>
+          <SalesContractGeneralSection
+            values={values}
+            customers={customers}
+            sellers={sellers}
+            onFieldChange={setField}
+            onCustomerCreated={() => {}}
+          />
+          <SalesContractItemsSection
+            includedProducts={includedProducts}
+            includedIds={includedIds}
+            allProducts={products}
+            getLine={getLine}
+            onQuantityChange={setQuantity}
+            onUnitPriceChange={setUnitPrice}
+            onRemove={removeProduct}
+            onAddProducts={addProducts}
+          />
+          <SalesContractPaymentSection
+            values={values}
+            paymentMethods={paymentMethods}
+            onFieldChange={setField}
+          />
         </Stack>
-      </ScrollArea>
-
-      <SalesContractFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        onDiscard={discard}
-        onSave={save}
-      />
-    </Box>
+      </Stack>
+    </Page>
   );
 }

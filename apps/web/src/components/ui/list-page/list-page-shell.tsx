@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Box, type BoxProps } from "@/ui";
+import { Page } from "@/components/ui/page";
+import type { BoxProps } from "@/ui";
 
 export type ListPageShellProps = {
   children: ReactNode;
@@ -9,28 +10,20 @@ export type ListPageShellProps = {
 };
 
 /**
- * Root flex das listagens MUI do sistema
- * (PageHeader + ListPagePanel ocupam a altura do main).
+ * Casca das listagens: `PageHeader` + `ListPagePanel` ocupando a altura do
+ * `main`, com a **tabela** rolando por dentro.
  *
- * `gap: 20px` — a distância entre o cabeçalho da página e o box de conteúdo
- * no design, a mesma do padding do `main`.
+ * É um `Page` sem rolagem própria (`scroll={false}`) — numa listagem quem rola
+ * é o corpo da tabela, e uma segunda barra por fora só atrapalharia. O `gap` de
+ * 20px é a distância entre o cabeçalho da página e o box de conteúdo.
+ *
+ * Telas novas podem usar `<Page scroll={false}>` direto; este nome continua
+ * porque é o que as ~33 listagens já existentes importam.
  */
 export function ListPageShell({ children, sx }: ListPageShellProps) {
   return (
-    <Box
-      sx={[
-        {
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          minHeight: 0,
-          overflow: "hidden",
-          gap: 2.5,
-        },
-        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
-      ]}
-    >
+    <Page scroll={false} sx={sx}>
       {children}
-    </Box>
+    </Page>
   );
 }

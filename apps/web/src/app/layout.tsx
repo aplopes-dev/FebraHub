@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Archivo } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { Toaster } from "@/ui";
 import {
   BORDER_COLOR,
@@ -13,10 +13,10 @@ import {
 import { AppProviders } from "./providers";
 import "./globals.css";
 
-const archivo = Archivo({
+const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-archivo",
+  variable: "--font-manrope",
 });
 
 export const metadata: Metadata = {
@@ -40,7 +40,7 @@ export default async function RootLayout({
     <html
       lang="pt-BR"
       className={
-        mode === "dark" ? `${archivo.variable} dark` : archivo.variable
+        mode === "dark" ? `${manrope.variable} dark` : manrope.variable
       }
       // Marca e traço já no primeiro byte, para quem pinta fora do MUI (a
       // barra de progresso, regras de `globals.css`) não piscar antes do JS

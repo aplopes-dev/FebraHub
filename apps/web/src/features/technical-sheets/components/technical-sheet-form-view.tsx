@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Page } from "@/components/ui/page";
 import Box from "@mui/material/Box";
-import { Divider, ScrollArea } from "@/ui";
+import { Divider } from "@/ui";
 import { CostPricingSection } from "@/features/technical-sheets/components/cost-pricing-section";
 import { ProductCompositionSection } from "@/features/technical-sheets/components/product-composition-section";
 import { ProductionTypeSelector } from "@/features/technical-sheets/components/production-type-selector";
@@ -69,87 +70,73 @@ function TechnicalSheetFormViewInner({
   const totalCost = computeTotalCost(values.components);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
-    >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 3,
-            px: 3,
-            pt: 3,
-            pb: 4,
-            minWidth: 0,
-            maxWidth: "100%",
+    <Page
+      footer={
+        <TechnicalSheetFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          isSaving={isSaving}
+          onDiscard={discard}
+          onSave={() => {
+            void save();
           }}
-        >
-          <TechnicalSheetFormHeader productName={productName} />
+        />
+      }
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+          minWidth: 0,
+          maxWidth: "100%",
+        }}
+      >
+        <TechnicalSheetFormHeader productName={productName} />
 
-          <Box sx={{ display: "flex", justifyContent: "flex-start", mt: -1 }}>
-            <ProductionTypeSelector
-              value={values.productionType}
-              onChange={(productionType) =>
-                setField("productionType", productionType)
-              }
-            />
-          </Box>
-
-          <TechnicalSheetTabs
-            value={activeTab}
-            onValueChange={setTab}
-            showVariations={showVariations}
-            productContent={
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <ProductCompositionSection
-                  components={values.components}
-                  maxRemovableComponents={values.maxRemovableComponents}
-                  componentOptions={componentOptions}
-                  onComponentsChange={(components) =>
-                    setField("components", components)
-                  }
-                  onMaxRemovableChange={(max) =>
-                    setField("maxRemovableComponents", max)
-                  }
-                />
-                <Divider />
-                <CostPricingSection
-                  totalCost={totalCost}
-                  value={values.cost}
-                  onChange={(cost) => setField("cost", cost)}
-                />
-              </Box>
-            }
-            variationsContent={
-              <VariationsCompositionSection
-                variations={values.variations}
-                componentOptions={componentOptions}
-                onChange={(variations) => setField("variations", variations)}
-              />
+        <Box sx={{ display: "flex", justifyContent: "flex-start", mt: -1 }}>
+          <ProductionTypeSelector
+            value={values.productionType}
+            onChange={(productionType) =>
+              setField("productionType", productionType)
             }
           />
         </Box>
-      </ScrollArea>
-      <TechnicalSheetFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        isSaving={isSaving}
-        onDiscard={discard}
-        onSave={() => {
-          void save();
-        }}
-      />
-    </Box>
+
+        <TechnicalSheetTabs
+          value={activeTab}
+          onValueChange={setTab}
+          showVariations={showVariations}
+          productContent={
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <ProductCompositionSection
+                components={values.components}
+                maxRemovableComponents={values.maxRemovableComponents}
+                componentOptions={componentOptions}
+                onComponentsChange={(components) =>
+                  setField("components", components)
+                }
+                onMaxRemovableChange={(max) =>
+                  setField("maxRemovableComponents", max)
+                }
+              />
+              <Divider />
+              <CostPricingSection
+                totalCost={totalCost}
+                value={values.cost}
+                onChange={(cost) => setField("cost", cost)}
+              />
+            </Box>
+          }
+          variationsContent={
+            <VariationsCompositionSection
+              variations={values.variations}
+              componentOptions={componentOptions}
+              onChange={(variations) => setField("variations", variations)}
+            />
+          }
+        />
+      </Box>
+    </Page>
   );
 }

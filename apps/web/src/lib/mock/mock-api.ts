@@ -7,6 +7,7 @@ import {
   onMockBranchCountChange,
   setMockGroupName,
 } from "@/lib/mock/mock-branches";
+import { handleMockCustomersRequest } from "@/lib/mock/mock-customers";
 import {
   handleMockUsersPermissionsRequest,
 } from "@/lib/mock/mock-users-permissions";
@@ -129,7 +130,6 @@ export async function mockApiResponse(
   method: string,
   searchParams: URLSearchParams,
   bodyText?: string | null,
-  actorScopeHeader?: string | null,
 ): Promise<NextResponse> {
   const path = segments.join("/");
 
@@ -166,10 +166,18 @@ export async function mockApiResponse(
     method,
     searchParams,
     bodyText,
-    actorScopeHeader,
   );
   if (usersResponse) {
     return usersResponse;
+  }
+
+  const customersResponse = handleMockCustomersRequest(
+    segments,
+    method,
+    searchParams,
+  );
+  if (customersResponse) {
+    return customersResponse;
   }
 
   const vehicleModelsResponse = handleMockVehicleModelsRequest(

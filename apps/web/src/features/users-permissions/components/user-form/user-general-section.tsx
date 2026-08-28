@@ -4,19 +4,29 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { Autocomplete, FormField } from "@/ui";
+import { Autocomplete, FormField, MultiSelect } from "@/ui";
 import {
   formFieldGridSx,
   formFieldSpanSx as span,
   FormSection,
 } from "@/components/ui/form";
 import {
+  defaultPlatformRoleForRole,
   defaultProfileKeyForRole,
+  defaultSectorForRole,
   FUNCTIONAL_ROLE_OPTIONS,
 } from "@/features/users-permissions/lib/functional-roles";
+import {
+  PLATFORM_ROLE_OPTIONS,
+  PLATFORM_ROLE_OWNER,
+} from "@/features/users-permissions/lib/platform-roles";
+import { SECTOR_OPTIONS } from "@/features/users-permissions/lib/sectors";
 import type { UserFormApi } from "@/features/users-permissions/hooks/use-user-form";
 import type { PermissionProfileOption } from "@/features/users-permissions/types/permission-profile";
-import type { FunctionalRole } from "@/features/users-permissions/types/user";
+import type {
+  FunctionalRole,
+  Sector,
+} from "@/features/users-permissions/types/user";
 
 type UserGeneralFieldsProps = {
   form: UserFormApi;
@@ -57,6 +67,7 @@ export function UserGeneralFields({
   const { values, setField, isEditing } = form;
   const stacked = columns === 1;
   const fieldSpan = span(stacked ? 12 : 6);
+  const fullSpan = span(12);
 
   const selectedRole = useMemo(
     () =>
@@ -70,6 +81,38 @@ export function UserGeneralFields({
     () =>
       profileOptions.find((option) => option.id === values.profileId) ?? null,
     [profileOptions, values.profileId],
+  );
+
+  /* OWNER não se atribui pela tela; entra na lista só quando a pessoa editada
+     já é a dona da conta — senão o campo apareceria vazio para ela. */
+  const platformRoleOptions = useMemo(
+    () =>
+      values.role === "OWNER"
+        ? [PLATFORM_ROLE_OWNER, ...PLATFORM_ROLE_OPTIONS]
+        : PLATFORM_ROLE_OPTIONS,
+    [values.role],
+  );
+
+  const selectedPlatformRole = useMemo(
+    () =>
+      platformRoleOptions.find((option) => option.value === values.role) ??
+      null,
+    [platformRoleOptions, values.role],
+  );
+
+  const selectedSector = useMemo(
+    () => SECTOR_OPTIONS.find((option) => option.value === values.sector) ?? null,
+    [values.sector],
+  );
+
+  /* O principal já dá acesso ao setor dele — repeti-lo nos extras seria ruído
+     e a API recusa a duplicata. */
+  const extraSectorOptions = useMemo(
+    () =>
+      SECTOR_OPTIONS.filter((option) => option.value !== values.sector).map(
+        (option) => ({ value: option.value, label: option.label }),
+      ),
+    [values.sector],
   );
 
   useEffect(() => {
@@ -138,6 +181,18 @@ export function UserGeneralFields({
               profileOptions,
             );
             if (suggested) setField("profileId", suggested.id);
+            /* Perfil, papel na plataforma e setor são sugestões do papel
+               funcional — trocar de papel refaz as três, e as três continuam
+               editáveis logo abaixo. */
+            if (values.role !== "OWNER") {
+              setField("role", defaultPlatformRoleForRole(option.value));
+            }
+            const sector = defaultSectorForRole(option.value);
+            setField("sector", sector);
+            setField(
+              "extraSectors",
+              values.extraSectors.filter((item) => item !== sector),
+            );
           }}
           getOptionLabel={(option) => option.label}
           isOptionEqualToValue={(a, b) => a.value === b.value}
@@ -173,6 +228,69 @@ export function UserGeneralFields({
           )}
         />
       </Box>
+      <Box sx={fieldSpan}>
+        <Autocomplete
+          label="Papel na plataforma"
+          options={platformRoleOptions}
+          value={selectedPlatformRole}
+          onChange={(_, option) => {
+            if (!option) return;
+            setField("role", option.value);
+          }}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(a, b) => a.value === b.value}
+          getOptionDisabled={(option) => option.value === "OWNER"}
+          helperText="O peso da conta: administrador vê tudo, gestor responde pelo setor."
+          renderOption={(props, option) => (
+            <li {...props} key={option.value}>
+              <Stack spacing={0}>
+                <Typography variant="body2">{option.label}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {option.description}
+                </Typography>
+              </Stack>
+            </li>
+          )}
+        />
+      </Box>
+      <Box sx={fieldSpan}>
+        <Autocomplete
+          label="Setor principal"
+          options={SECTOR_OPTIONS}
+          value={selectedSector}
+          onChange={(_, option) => {
+            if (!option) return;
+            setField("sector", option.value);
+            setField(
+              "extraSectors",
+              values.extraSectors.filter((item) => item !== option.value),
+            );
+          }}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(a, b) => a.value === b.value}
+          helperText="Sobre quais dados a pessoa trabalha."
+          renderOption={(props, option) => (
+            <li {...props} key={option.value}>
+              <Stack spacing={0}>
+                <Typography variant="body2">{option.label}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {option.description}
+                </Typography>
+              </Stack>
+            </li>
+          )}
+        />
+      </Box>
+      <Box sx={fullSpan}>
+        <MultiSelect
+          label="Setores adicionais"
+          placeholder="Nenhum além do principal"
+          options={extraSectorOptions}
+          value={values.extraSectors}
+          onChange={(next) => setField("extraSectors", next as Sector[])}
+          helperText="Opcional — quem atua em mais de uma área."
+        />
+      </Box>
     </Box>
   );
 }
@@ -182,7 +300,7 @@ export function UserGeneralSection(props: UserGeneralSectionProps) {
   return (
     <FormSection
       title="Geral"
-      description="Identificação do usuário, papel funcional na escola e perfil de permissões."
+      description="Identificação do usuário, papel na escola e na plataforma, perfil de permissões e setores que ele enxerga."
     >
       <UserGeneralFields {...props} />
     </FormSection>

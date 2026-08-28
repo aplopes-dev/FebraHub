@@ -5,7 +5,7 @@ import type {
   CustomerPersonTypeDto,
   SaveCustomerPayload,
 } from "@/features/customers/api/customer.dto";
-import type { Customer } from "@/features/customers/types/customer";
+import type { Customer, CustomerRole } from "@/features/customers/types/customer";
 import {
   type CustomerAddressForm,
   type CustomerFormValues,
@@ -44,6 +44,21 @@ function formatDocumentDigits(document: string | null): string {
   return digits;
 }
 
+const KNOWN_ROLES: CustomerRole[] = [
+  "lead",
+  "participante",
+  "aluno",
+  "ex_aluno",
+  "indicador",
+];
+
+function toRoles(roles: string[] | undefined): CustomerRole[] | undefined {
+  if (!roles) return undefined;
+  return roles.filter((role): role is CustomerRole =>
+    KNOWN_ROLES.includes(role as CustomerRole),
+  );
+}
+
 export function toCustomerListItem(dto: CustomerListItemDto): Customer {
   return {
     id: dto.id,
@@ -54,6 +69,7 @@ export function toCustomerListItem(dto: CustomerListItemDto): Customer {
     createdAt: dto.createdAt,
     stage: dto.stage,
     categoryId: dto.categoryId,
+    roles: toRoles(dto.roles),
   };
 }
 

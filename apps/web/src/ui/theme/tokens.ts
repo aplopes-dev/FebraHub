@@ -102,10 +102,10 @@ export const baseTokens = {
   typography: {
     /**
      * A fonte é carregada pelo app consumidor (`next/font`) e exposta em
-     * `--font-archivo`; o fallback cobre quem não define a variável.
+     * `--font-manrope`; o fallback cobre quem não define a variável.
      */
     fontFamily: [
-      "var(--font-archivo, Archivo)",
+      "var(--font-manrope, Manrope)",
       "Inter",
       "Roboto",
       "Helvetica",

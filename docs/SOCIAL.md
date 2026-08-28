@@ -1,7 +1,13 @@
 # Redes sociais (Zernio)
 
 Painel de publicação, mensagens diretas e campanhas pagas das contas oficiais
-da Febracis Salvador. Fica em **Painéis → Redes sociais** (`/social`).
+da Febracis Salvador.
+
+> ⚠️ **Rota em migração.** No web legado ficava em *Painéis → Redes sociais* (`/social`).
+> No `apps/web` atual o destino é o módulo **Marketing** — `/marketing`, `/marketing/publicar`,
+> `/marketing/postagens`, `/marketing/mensagens`, `/marketing/campanhas`. Os itens estão no menu
+> como `disabled: true` (aparecem com "Em breve") até a tela ser portada. Ver
+> `apps/web/src/lib/navigation.ts`. A API (`modules/social/`) não mudou.
 
 O fornecedor é o [Zernio](https://docs.zernio.com) — uma API que fala com 16
 redes por trás de um contrato só. A alternativa era integrar Meta, TikTok,

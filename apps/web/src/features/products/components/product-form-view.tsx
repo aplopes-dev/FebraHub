@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Box from "@mui/material/Box";
+import { Page } from "@/components/ui/page";
 import Stack from "@mui/material/Stack";
-import { Divider, ScrollArea } from "@/ui";
+import { Divider } from "@/ui";
 import { ProductBasicsSection } from "@/features/products/components/product-basics-section";
 import { ProductAddonsSection } from "@/features/products/components/product-addons-section";
 import { ProductFormFooter } from "@/features/products/components/product-form-footer";
@@ -67,95 +67,81 @@ function ProductFormViewInner({
   const [tab, setTab] = useState<ProductFormTab>("basics");
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        // Cancela o `p: 3` do <main> — footer cola na base e nas laterais.
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
+    <Page
+      footer={
+        <ProductFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          isSaving={isSaving}
+          onDiscard={discard}
+          onSave={save}
+        />
+      }
     >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Stack
-          spacing={2}
-          sx={{ px: 3, pt: 3, pb: 2, minWidth: 0, maxWidth: "100%" }}
-        >
-          <ProductFormHeader title={title} subtitle="Produto" />
+      <Stack
+        spacing={2}
+        sx={{ minWidth: 0, maxWidth: "100%" }}
+      >
+        <ProductFormHeader title={title} subtitle="Produto" />
 
-          <ProductFormTabs
-            value={tab}
-            onValueChange={setTab}
-            basicsContent={
-              <Stack spacing={5}>
-                <ProductBasicsSection
-                  values={values}
-                  onFieldChange={setField}
-                  onImageChange={setImage}
-                />
-                <Divider />
-                <ProductUnitsSection
-                  selectedUnitIds={values.selectedUnitIds}
-                  onSelectedUnitIdsChange={(unitIds) =>
-                    setField("selectedUnitIds", unitIds)
-                  }
-                />
-                <Divider />
-                <ProductAvailabilitySection
-                  productType={values.type}
-                  value={values.availability}
-                  onChange={(availability) =>
-                    setField("availability", availability)
-                  }
-                />
-                <Divider />
-                <ProductSuppliersSection
-                  value={values.suppliers}
-                  onChange={(suppliers) => setField("suppliers", suppliers)}
-                />
-              </Stack>
-            }
-            variantsContent={
-              <ProductVariantsSection
-                variationFormat={values.variationFormat}
-                productVariations={values.productVariations}
-                onChange={({ variationFormat, productVariations }) => {
-                  setField("variationFormat", variationFormat);
-                  setField("productVariations", productVariations);
-                }}
+        <ProductFormTabs
+          value={tab}
+          onValueChange={setTab}
+          basicsContent={
+            <Stack spacing={5}>
+              <ProductBasicsSection
+                values={values}
+                onFieldChange={setField}
+                onImageChange={setImage}
               />
-            }
-            addonsContent={
-              <ProductAddonsSection
-                value={values.addons}
-                currentProductId={productId}
-                onChange={(addons) => setField("addons", addons)}
+              <Divider />
+              <ProductUnitsSection
+                selectedUnitIds={values.selectedUnitIds}
+                onSelectedUnitIdsChange={(unitIds) =>
+                  setField("selectedUnitIds", unitIds)
+                }
               />
-            }
-            suggestionsContent={
-              <ProductSuggestionsSection
-                value={values.suggestions}
-                currentProductId={productId}
-                onChange={(suggestions) => setField("suggestions", suggestions)}
+              <Divider />
+              <ProductAvailabilitySection
+                productType={values.type}
+                value={values.availability}
+                onChange={(availability) =>
+                  setField("availability", availability)
+                }
               />
-            }
-          />
-        </Stack>
-      </ScrollArea>
-
-      <ProductFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        isSaving={isSaving}
-        onDiscard={discard}
-        onSave={save}
-      />
-    </Box>
+              <Divider />
+              <ProductSuppliersSection
+                value={values.suppliers}
+                onChange={(suppliers) => setField("suppliers", suppliers)}
+              />
+            </Stack>
+          }
+          variantsContent={
+            <ProductVariantsSection
+              variationFormat={values.variationFormat}
+              productVariations={values.productVariations}
+              onChange={({ variationFormat, productVariations }) => {
+                setField("variationFormat", variationFormat);
+                setField("productVariations", productVariations);
+              }}
+            />
+          }
+          addonsContent={
+            <ProductAddonsSection
+              value={values.addons}
+              currentProductId={productId}
+              onChange={(addons) => setField("addons", addons)}
+            />
+          }
+          suggestionsContent={
+            <ProductSuggestionsSection
+              value={values.suggestions}
+              currentProductId={productId}
+              onChange={(suggestions) => setField("suggestions", suggestions)}
+            />
+          }
+        />
+      </Stack>
+    </Page>
   );
 }

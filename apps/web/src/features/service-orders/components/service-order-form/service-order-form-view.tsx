@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Page } from "@/components/ui/page";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { ScrollArea, toast } from "@/ui";
+import { toast } from "@/ui";
 import { ProductFormHeader } from "@/features/products/components/product-form-header";
 import { ServiceOrderInfoSection } from "@/features/service-orders/components/service-order-form/service-order-info-section";
 import { ServiceOrderEquipmentsSection } from "@/features/service-orders/components/service-order-form/service-order-equipments-section";
@@ -118,71 +118,60 @@ export function ServiceOrderFormView({ order }: ServiceOrderFormViewProps) {
   }
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <>
+        <ServiceOrderFormFooter
+          code={order?.code ?? "nova OS"}
+          total={total}
+          canGenerateSale={total > 0 && !isSaving}
+          onSave={handleSave}
+          onSaveAndGenerateSale={handleSaveAndGenerateSale}
+        />
+        <ServiceOrderPaymentDialog
+          order={saleTarget}
+          onOpenChange={(open) => {
+            if (!open) setSaleTarget(null);
+          }}
+          onCompleted={() => {
+            router.push(LIST_PATH);
+          }}
+        />
+        </>
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2 }}>
-          <ProductFormHeader
-            title={isEdit ? `Editar ${order.code}` : "Nova ordem de serviço"}
-            subtitle="Ordem de serviço"
-            backHref={LIST_PATH}
-          />
+      <Stack spacing={3} sx={{ pb: 2 }}>
+        <ProductFormHeader
+          title={isEdit ? `Editar ${order.code}` : "Nova ordem de serviço"}
+          subtitle="Ordem de serviço"
+          backHref={LIST_PATH}
+        />
 
-          <ServiceOrderInfoSection
-            code={order?.code ?? "Gerado ao salvar"}
-            values={values}
-            onFieldChange={setField}
-          />
+        <ServiceOrderInfoSection
+          code={order?.code ?? "Gerado ao salvar"}
+          values={values}
+          onFieldChange={setField}
+        />
 
-          <ServiceOrderEquipmentsSection
-            equipments={values.equipments}
-            onUpdate={updateEquipment}
-            onAdd={addEquipment}
-            onRemove={removeEquipment}
-          />
+        <ServiceOrderEquipmentsSection
+          equipments={values.equipments}
+          onUpdate={updateEquipment}
+          onAdd={addEquipment}
+          onRemove={removeEquipment}
+        />
 
-          <ServiceOrderLinesSection
-            lines={values.lines}
-            onUpdate={updateLine}
-            onAdd={addLine}
-            onRemove={removeLine}
-          />
+        <ServiceOrderLinesSection
+          lines={values.lines}
+          onUpdate={updateLine}
+          onAdd={addLine}
+          onRemove={removeLine}
+        />
 
-          <ServiceOrderBudgetSection
-            budget={values.budget}
-            onBudgetChange={setBudgetField}
-          />
-        </Stack>
-      </ScrollArea>
-
-      <ServiceOrderFormFooter
-        code={order?.code ?? "nova OS"}
-        total={total}
-        canGenerateSale={total > 0 && !isSaving}
-        onSave={handleSave}
-        onSaveAndGenerateSale={handleSaveAndGenerateSale}
-      />
-
-      <ServiceOrderPaymentDialog
-        order={saleTarget}
-        onOpenChange={(open) => {
-          if (!open) setSaleTarget(null);
-        }}
-        onCompleted={() => {
-          router.push(LIST_PATH);
-        }}
-      />
-    </Box>
+        <ServiceOrderBudgetSection
+          budget={values.budget}
+          onBudgetChange={setBudgetField}
+        />
+      </Stack>
+    </Page>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Box from "@mui/material/Box";
+import { Page } from "@/components/ui/page";
 import Stack from "@mui/material/Stack";
 import { useRouter } from "next/navigation";
 import { toast } from "@/ui";
-import { Divider, ScrollArea } from "@/ui";
+import { Divider } from "@/ui";
 import { EntityFormFooter } from "@/components/ui/form/entity-form-footer";
 import { EntityFormHeader } from "@/components/ui/form/entity-form-header";
 import { StockGeneralSection } from "@/features/stock/components/stock-general-section";
@@ -66,52 +66,40 @@ export function StockFormView({
   }
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <EntityFormFooter
+          mode="simple"
+          ariaLabel="Ações do formulário de estoque"
+          isSaving={isSaving}
+          onCancel={() => router.push("/estoque")}
+          onSave={handleSave}
+        />
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Stack spacing={4} sx={{ px: 3, pt: 3, pb: 2 }}>
-          <EntityFormHeader
-            title={title}
-            subtitle="Estoque"
-            backHref="/estoque"
-          />
+      <Stack spacing={4} sx={{ pb: 2 }}>
+        <EntityFormHeader
+          title={title}
+          subtitle="Estoque"
+          backHref="/estoque"
+        />
 
-          <StockGeneralSection
-            name={values.name}
-            location={values.location}
-            property={values.property}
-            onNameChange={(name) => setField("name", name)}
-            onLocationChange={(location) => setField("location", location)}
-            onPropertyChange={(property) => setField("property", property)}
-          />
+        <StockGeneralSection
+          name={values.name}
+          location={values.location}
+          property={values.property}
+          onNameChange={(name) => setField("name", name)}
+          onLocationChange={(location) => setField("location", location)}
+          onPropertyChange={(property) => setField("property", property)}
+        />
 
-          <Divider />
+        <Divider />
 
-          <StockUnitsSection
-            selectedUnitIds={values.unitIds}
-            onSelectedUnitIdsChange={(unitIds) => setField("unitIds", unitIds)}
-          />
-        </Stack>
-      </ScrollArea>
-
-      <EntityFormFooter
-        mode="simple"
-        ariaLabel="Ações do formulário de estoque"
-        isSaving={isSaving}
-        onCancel={() => router.push("/estoque")}
-        onSave={handleSave}
-      />
-    </Box>
+        <StockUnitsSection
+          selectedUnitIds={values.unitIds}
+          onSelectedUnitIdsChange={(unitIds) => setField("unitIds", unitIds)}
+        />
+      </Stack>
+    </Page>
   );
 }

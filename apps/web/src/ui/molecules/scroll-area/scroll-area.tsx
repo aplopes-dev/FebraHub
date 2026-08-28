@@ -2,25 +2,31 @@
 
 import Box from "@mui/material/Box";
 import type { BoxProps } from "@mui/material/Box";
-import type { Theme } from "@mui/material/styles";
+import { alpha, darken, type Theme } from "@mui/material/styles";
 
 function scrollbarTrackColor(theme: Theme) {
   return theme.palette.mode === "dark"
     ? "rgba(255, 255, 255, 0.06)"
-    : "rgba(31, 48, 69, 0.06)";
+    : alpha(theme.palette.muted.dark, 0.4);
 }
 
-/** Thumb visível sobre `background.default` / cards — usa tokens do tema. */
+/**
+ * Thumb visível sobre `background.default` / cards — usa tokens do tema.
+ *
+ * No claro ele sai da família creme (`muted`), não de `text.secondary`: o
+ * olivado escuro do texto pesava mais que a própria tabela ao lado e a barra
+ * roubava o olho. O creme fechado marca a posição sem virar elemento.
+ */
 function scrollbarThumbColor(theme: Theme) {
   return theme.palette.mode === "dark"
     ? "rgba(255, 255, 255, 0.32)"
-    : theme.palette.text.secondary;
+    : theme.palette.muted.dark;
 }
 
 function scrollbarThumbColorHover(theme: Theme) {
   return theme.palette.mode === "dark"
     ? "rgba(255, 255, 255, 0.48)"
-    : theme.palette.text.primary;
+    : darken(theme.palette.muted.dark, 0.12);
 }
 
 const scrollbarBaseSx = {

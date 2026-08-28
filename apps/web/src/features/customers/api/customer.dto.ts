@@ -35,6 +35,35 @@ export type CustomerListItemDto = {
   createdAt: string;
   stage: CustomerStageDto;
   categoryId: string | null;
+  /** Papéis Febracis (lead, participante, aluno, ex-aluno, indicador). */
+  roles?: string[];
+};
+
+/** Jornada da pessoa: a escada de compras, os eventos e as indicações. */
+export type CustomerJourneyDto = {
+  purchases: Array<{
+    id: string;
+    number: string;
+    productName: string;
+    netCents: number;
+    listPriceCents: number;
+    createdAt: string;
+    commercialStatus: string;
+    financialStatus: string;
+  }>;
+  events: Array<{
+    id: string;
+    editionName: string;
+    startsAt: string;
+    status: string;
+  }>;
+  referrals: Array<{ id: string; name: string; createdAt: string }>;
+  referredBy: string | null;
+  roles: string[];
+};
+
+export type CustomerJourneyResponseDto = {
+  data: CustomerJourneyDto;
 };
 
 /** Detalhe completo (create/get/update). */

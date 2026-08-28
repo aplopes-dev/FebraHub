@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
+import { Page } from "@/components/ui/page";
 import Stack from "@mui/material/Stack";
-import { Divider, ScrollArea } from "@/ui";
+import { Divider } from "@/ui";
 import { CarrierFormHeader } from "@/features/carriers/components/carrier-form-header";
 import { CarrierFormFooter } from "@/features/carriers/components/carrier-form-footer";
 import { CarrierGeneralSection } from "@/features/carriers/components/carrier-general-section";
@@ -33,56 +33,43 @@ export function CarrierFormView({
     });
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
+    <Page
+      footer={
+        <CarrierFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          isSaving={isSaving}
+          onDiscard={discard}
+          onSave={save}
+        />
+      }
     >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
-        <Stack spacing={5} sx={{ px: 3, pt: 3, pb: 2, minWidth: 0 }}>
-          <CarrierFormHeader title={title} />
+      <Stack spacing={5} sx={{ minWidth: 0 }}>
+        <CarrierFormHeader title={title} />
 
-          <CarrierGeneralSection values={values} onChange={setField} />
+        <CarrierGeneralSection values={values} onChange={setField} />
 
-          <Divider />
+        <Divider />
 
-          <CarrierUnitsSection
-            selectedUnitIds={values.unitIds}
-            onChange={(unitIds) => setField("unitIds", unitIds)}
-          />
+        <CarrierUnitsSection
+          selectedUnitIds={values.unitIds}
+          onChange={(unitIds) => setField("unitIds", unitIds)}
+        />
 
-          <Divider />
+        <Divider />
 
-          <CarrierContactSection
-            value={values.contact}
-            onChange={(contact) => setField("contact", contact)}
-          />
+        <CarrierContactSection
+          value={values.contact}
+          onChange={(contact) => setField("contact", contact)}
+        />
 
-          <Divider />
+        <Divider />
 
-          <CarrierAddressSection
-            value={values.address}
-            onChange={(address) => setField("address", address)}
-          />
-        </Stack>
-      </ScrollArea>
-
-      <CarrierFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        isSaving={isSaving}
-        onDiscard={discard}
-        onSave={save}
-      />
-    </Box>
+        <CarrierAddressSection
+          value={values.address}
+          onChange={(address) => setField("address", address)}
+        />
+      </Stack>
+    </Page>
   );
 }

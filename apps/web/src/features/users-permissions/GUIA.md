@@ -1,8 +1,8 @@
 # Usuários e Permissões — guia de uso
 
 Aqui você cadastra quem pode entrar no sistema (cada pessoa da sua equipe) e
-decide o que cada uma pode ver e fazer — desde o administrador do grupo, que vê
-tudo, até o consultor comercial de uma unidade específica.
+decide o que cada uma pode ver e fazer — desde o administrador, que vê tudo,
+até o consultor comercial, que trabalha só sobre os dados do setor dele.
 
 **Onde fica:** menu **Configurações → Usuários e Permissões**.
 
@@ -14,16 +14,20 @@ Os dados ficam salvos na empresa (não somem ao atualizar a página).
 
 O acesso de cada pessoa tem **dois eixos independentes**:
 
-1. **Escopo geográfico** — *onde* a pessoa atua na hierarquia **Grupo → Matriz → Filial**
-2. **Papel funcional + perfil** — *o que* a pessoa faz (consultor comercial, facilitador, secretaria acadêmica…)
+1. **Perfil de acesso** — *o QUE* a pessoa pode fazer: as telas e as ações
+2. **Setor** — *sobre QUAIS DADOS* ela faz: comercial, financeiro, pedagógico…
+
+Os dois aparecem lado a lado no cadastro de propósito. Um gestor do financeiro
+e um gestor do comercial têm o **mesmo** perfil de acesso e enxergam números
+diferentes — é o setor que separa.
 
 Fluxo típico:
 
 1. Você cria **perfis de acesso** — modelos de permissão com nome, como
    "Consultor comercial" ou "Coordenação acadêmica". Cada perfil marca quais
    módulos ficam liberados (Comercial, CRM, Acadêmico, Eventos, Mentoria…).
-2. Você cadastra **usuários** — escolhe o **papel funcional**, o **perfil** e o
-   **escopo** (grupo inteiro, uma matriz ou filiais específicas).
+2. Você cadastra **usuários** — escolhe o **papel funcional**, o **perfil**, o
+   **papel na plataforma** e os **setores** da pessoa.
 3. No cadastro, o sistema gera uma **senha provisória**. Mostre essa senha
    para a pessoa; no primeiro login ela será pedida a troca.
 4. Se o trabalho de alguém mudar, é só trocar o perfil dela na lista, sem
@@ -31,36 +35,51 @@ Fluxo típico:
 
 ---
 
-## Hierarquia e regras de escopo
+## Papel na plataforma
 
-| Nível | Significado | Quem enxerga |
-|---|---|---|
-| **Grupo** | Todo o grupo econômico | Todas as matrizes e filiais |
-| **Matriz** | Uma empresa (CNPJ) | A matriz e suas filiais |
-| **Filial** | Unidade da escola | Só as unidades selecionadas |
+O peso da conta, independente do que a pessoa faz no dia a dia:
 
-**Quem pode criar usuários:**
-
-| Ator | Pode atribuir escopo |
+| Papel | O que muda |
 |---|---|
-| Admin do grupo | Grupo, qualquer matriz, qualquer filial |
-| Gerente de matriz | Só sua matriz e unidades dela |
-| Operador de unidade | Só a própria unidade |
+| **Administrador** | Atravessa o catálogo inteiro: vê e faz tudo, em todo setor. |
+| **Gestor** | Responde pelo próprio setor — define metas e indicadores dele. |
+| **Membro** | Faz o que o perfil de acesso liberar, dentro dos setores dele. |
+
+**Proprietário** é o dono da conta. Ele aparece no campo quando você edita a
+própria conta dele, mas não pode ser atribuído nem removido por aqui.
+
+## Setores
+
+| Setor | Cobre |
+|---|---|
+| **Geral (diretoria)** | Direção e áreas transversais, sem recorte de setor. |
+| **Comercial** | Matrículas, funil de vendas e metas da equipe. |
+| **Financeiro** | Recebimentos, inadimplência e conciliação. |
+| **Marketing** | Campanhas, origem de leads e conteúdo. |
+| **Pedagógico** | Turmas, presença e jornada do aluno. |
+| **Eventos** | Imersões e eventos: ingressos e credenciamento. |
+| **Loja** | Balcão, pedidos e fechamento do caixa. |
+| **Estoque e suprimentos** | Saldos, movimentações e compras. |
+| **CRM** | Clientes, negócios e tarefas do relacionamento. |
+
+Cada pessoa tem **um setor principal** e, opcionalmente, **setores
+adicionais** — para quem atua em mais de uma área. O principal nunca se repete
+na lista de adicionais.
 
 ---
 
 ## A lista de usuários
 
-A tela abre com todas as pessoas cadastradas (filtradas pelo escopo do ator).
-Para cada uma você vê:
+A tela abre com todas as pessoas cadastradas. Para cada uma você vê:
 
 - **Usuário** — nome e e-mail.
-- **Escopo** — Grupo, Matriz ou Filial.
-- **Papel** — função na escola (ex.: Consultor comercial).
-- **Unidades** — resumo das unidades vinculadas.
+- **Papel** — função na escola (ex.: Consultor comercial). Abaixo dela aparece
+  o papel na plataforma quando ele não é o comum (Administrador, Gestor,
+  Proprietário).
+- **Setor** — o setor principal, com os adicionais resumidos abaixo.
 - **Perfil de acesso** — menu na linha para trocar o perfil imediatamente.
 
-**Filtros:** matriz, unidade, papel funcional e busca por nome/e-mail.
+**Filtros:** papel funcional e busca por nome/e-mail.
 
 **Abas Ativos / Excluídos:** usuários removidos vão para a aba Excluídos e
 podem ser restaurados pelo menu de três pontos.
@@ -80,17 +99,13 @@ lateral, sobre a listagem — não há página de criação.
 | E-mail | E-mail usado para entrar no sistema. |
 | Papel funcional | Função na escola (consultor comercial, facilitador, secretaria…). |
 | Perfil de acesso | Template de permissões — sugerido automaticamente ao escolher o papel. |
+| Papel na plataforma | Administrador, Gestor ou Membro — também sugerido pelo papel funcional. |
+| Setor principal | Sobre quais dados a pessoa trabalha. Sugerido pelo papel funcional. |
+| Setores adicionais | Opcional — para quem atua em mais de uma área. |
 
-### Escopo de atuação
-
-| Opção | Quando usar |
-|---|---|
-| Todo o grupo | Administradores e funções centralizadas (ex.: contador do grupo). |
-| Empresa (matriz) | Gerentes e equipes que atuam em todas as unidades de uma empresa. |
-| Unidade(s) | Equipe de uma unidade — selecione uma ou mais unidades da matriz. |
-
-Opções indisponíveis ficam desabilitadas conforme o escopo de quem está
-cadastrando.
+Escolher o **papel funcional** refaz as três sugestões (perfil, papel na
+plataforma e setor principal). Todas continuam editáveis: a sugestão é atalho,
+não regra.
 
 ### Senha
 
@@ -133,6 +148,7 @@ O botão **Sessões ativas** ainda mostra **Em breve**.
 - **Enforcement real** — perfis cadastrados ainda não bloqueiam todas as telas
   do app; a aplicação fina das permissões continua evoluindo.
 - **Convites por e-mail** e fluxo de aceite.
-- **Múltiplas memberships** — consultor em duas unidades com escopos distintos.
+- **Filtro por setor** na listagem — hoje o setor aparece na coluna, mas não
+  recorta a lista.
 - **Alçada de desconto** por perfil (módulo Comercial).
 - **Configurações de e-mail** do usuário (avisos financeiros, PIN de suporte).

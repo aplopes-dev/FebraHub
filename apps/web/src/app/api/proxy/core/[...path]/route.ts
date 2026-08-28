@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_API_ENABLED, mockApiResponse } from "@/lib/mock/mock-api";
-import { MOCK_ACTOR_SCOPE_HEADER } from "@/lib/mock/mock-users-permissions";
 
 /**
  * Proxy same-origin para a API do backend.
@@ -55,7 +54,6 @@ async function proxy(req: NextRequest, segments: string[]) {
       req.method,
       req.nextUrl.searchParams,
       bodyText,
-      req.headers.get(MOCK_ACTOR_SCOPE_HEADER),
     );
   }
 

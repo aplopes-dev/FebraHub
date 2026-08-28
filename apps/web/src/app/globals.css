@@ -46,7 +46,7 @@ body {
 body {
   margin: 0;
   font-family:
-    var(--font-archivo, Archivo), Inter, Roboto, Helvetica, Arial, sans-serif;
+    var(--font-manrope, Manrope), Inter, Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
@@ -9,10 +10,12 @@ import {
   ListLoadErrorAlert,
   ListPageShell,
 } from "@/components/ui/list-page";
+import { CustomerJourneyDrawer } from "@/features/customers/components/customer-journey-drawer";
 import { CustomerListTable } from "@/features/customers/components/customer-list-table";
 import { CustomerListTabs } from "@/features/customers/components/customer-list-tabs";
 import { CustomerListToolbar } from "@/features/customers/components/customer-list-toolbar";
 import { useCustomerList } from "@/features/customers/hooks/use-customer-list";
+import type { Customer } from "@/features/customers/types/customer";
 
 export function CustomerListPage() {
   const {
@@ -33,6 +36,7 @@ export function CustomerListPage() {
     error,
     refresh,
   } = useCustomerList();
+  const [journeyOf, setJourneyOf] = useState<Customer | null>(null);
 
   return (
     <ListPageShell>
@@ -96,10 +100,16 @@ export function CustomerListPage() {
               somePageSelected={somePageSelected}
               onToggleSelectAllPage={toggleSelectAllPage}
               onToggleSelectOne={toggleSelectOne}
+              onRowClick={setJourneyOf}
             />
           </Box>
         )}
       </ListPagePanel>
+
+      <CustomerJourneyDrawer
+        customer={journeyOf}
+        onClose={() => setJourneyOf(null)}
+      />
     </ListPageShell>
   );
 }

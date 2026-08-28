@@ -10,6 +10,12 @@ Este workspace NÃO roda dev. **TUDO** — `pnpm install`, `tsc`, `nest build`, 
 - GOTCHA: `*/` dentro de comentário JSDoc fecha o bloco; `jsonSeguro()` mantém tipo Decimal no TS mas vira string em runtime (use `as unknown as` ao castar).
 - Exceção: o deploy no HOMOLOG (66) builda a imagem Docker no próprio box da 66 — isso é o deploy, não o loop de dev.
 
+## O que é o FebraHub (escopo do produto)
+**ERP da unidade Febracis Salvador** — não é portal de dashboards. A unidade OPERA dentro dele: comercial (captação→matrícula), pedagógico (turmas/secretaria), loja (PDV/balcão/cardápio), suprimentos (compras/estoque/fornecedores), financeiro (caixa/títulos/conciliação), fiscal (NFC-e/NF-e/NFS-e), marketing e organização. A diretoria (**Dulce Mariano**) lê o consolidado no **Hub Executivo**. Começou como substituto do Power BI (fase `web/` Vite+Supabase, hoje legado) e virou ERP porque medir bem exige operar dentro do sistema.
+- Navegação = fonte de verdade dos módulos: `apps/web/src/lib/navigation.ts` (rail + painel; `disabled:true` = tela ainda não portada do legado).
+- Mesma liderança opera **Salvador e Recife** → `unidade/praça` é dimensão de primeira classe, nunca filtro improvisado.
+- Contexto de negócio (o que a Febracis vende, funil, franquia, riscos): `docs/pesquisa-febracis/`. Escopo e princípios: `docs/BRIEFING.md`.
+
 ## FebraHub — stack (pnpm monorepo)
 - **`apps/api/`** — NestJS + Prisma (Postgres `febrahub`). Módulos em `apps/api/src/modules/`. Schema `prisma/schema.prisma`; migrations `prisma/migrations/0000000000NN_*`. Storage MinIO. Auth por sessão JWT (cookie `fh_acesso`, guard só valida o JWT, não DB). Permissões via `PerfilAcesso`/`PerfilSetor` + `modules/permissoes/catalogo.ts` + `perfis-padrao.ts`.
 - **`apps/web/`** — Next.js App Router. Rotas `src/app/(app)/<hub>/` (autenticadas) e públicas na raiz (`/cardapio/[slug]`, `/painel/[slug]`, `/pedido/[id]`). Componentes `src/components/`, API clients `src/services/api/`, types `src/types/`, menu `src/lib/menu.ts`. Tailwind + CSS por feature em `src/app/*.css`.

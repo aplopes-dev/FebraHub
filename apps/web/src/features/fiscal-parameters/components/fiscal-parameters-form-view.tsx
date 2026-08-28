@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, ScrollArea } from "@/ui";
+import { Box } from "@/ui";
+import { Page } from "@/components/ui/page";
 import { FiscalInfoSection } from "@/features/fiscal-parameters/components/fiscal-info-section";
 import { FiscalParametersFormFooter } from "@/features/fiscal-parameters/components/fiscal-parameters-form-footer";
 import { FiscalParametersFormHeader } from "@/features/fiscal-parameters/components/fiscal-parameters-form-header";
@@ -63,43 +64,32 @@ function FiscalParametersFormViewInner({
     useFiscalParametersForm({ initialValues, onSave });
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        height: "100%",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <FiscalParametersFormFooter
+          isDirty={isDirty}
+          hasSavedOnce={hasSavedOnce}
+          isSaving={isSaving}
+          onDiscard={discard}
+          onSave={() => void save()}
+        />
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 4, p: 3, pb: 2 }}>
-          <FiscalParametersFormHeader productName={productName} />
-          <FiscalInfoSection
-            value={values.info}
-            onChange={(info) => setField("info", info)}
-          />
-          <FiscalSettingsSection
-            group={values.group}
-            units={values.units}
-            branches={branches}
-            inherited={inherited}
-            onGroupChange={(group) => setField("group", group)}
-            onUnitsChange={(units) => setField("units", units)}
-          />
-        </Box>
-      </ScrollArea>
-
-      <FiscalParametersFormFooter
-        isDirty={isDirty}
-        hasSavedOnce={hasSavedOnce}
-        isSaving={isSaving}
-        onDiscard={discard}
-        onSave={() => void save()}
-      />
-    </Box>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <FiscalParametersFormHeader productName={productName} />
+        <FiscalInfoSection
+          value={values.info}
+          onChange={(info) => setField("info", info)}
+        />
+        <FiscalSettingsSection
+          group={values.group}
+          units={values.units}
+          branches={branches}
+          inherited={inherited}
+          onGroupChange={(group) => setField("group", group)}
+          onUnitsChange={(units) => setField("units", units)}
+        />
+      </Box>
+    </Page>
   );
 }

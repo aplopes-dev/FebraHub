@@ -1,12 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Page } from "@/components/ui/page";
 import { useState } from "react";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { toast } from "@/ui";
-import { ScrollArea } from "@/ui";
 import { EntityFormHeader } from "@/components/ui/form/entity-form-header";
 import {
   FinancialEntryFinancialSection,
@@ -136,91 +135,78 @@ export function FinancialEntryFormView({
   }
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
+    <Page
+      footer={
+        readOnly ? null : (
+          <FinancialEntryFormFooter
+            isDirty={isDirty}
+            hasSavedOnce={hasSavedOnce}
+            isSaving={isSaving}
+            onDiscard={discard}
+            onSave={handleSave}
+          />
+        )
+      }
     >
-      <ScrollArea sx={{ minHeight: 0, flex: 1, minWidth: 0 }}>
+      <Stack
+        spacing={4}
+        sx={{ minWidth: 0, maxWidth: "100%" }}
+      >
+        <EntityFormHeader
+          title={isEdit ? "Editar lançamento" : "Novo lançamento"}
+          subtitle="Lançamento"
+          backHref={LIST_PATH}
+        />
+
+        {readOnly ? (
+          <Alert severity="info">
+            Este lançamento foi gerado por um pedido de venda e está
+            disponível apenas para visualização.
+          </Alert>
+        ) : null}
+
         <Stack
           spacing={4}
-          sx={{ px: 3, pt: 3, pb: 2, minWidth: 0, maxWidth: "100%" }}
+          sx={readOnly ? { pointerEvents: "none", opacity: 0.92 } : undefined}
         >
-          <EntityFormHeader
-            title={isEdit ? "Editar lançamento" : "Novo lançamento"}
-            subtitle="Lançamento"
-            backHref={LIST_PATH}
+          <FinancialEntryFinancialSection
+            values={values}
+            onFieldChange={setField}
+            readOnly={readOnly}
+            cardSettlement={cardSettlement}
           />
 
-          {readOnly ? (
-            <Alert severity="info">
-              Este lançamento foi gerado por um pedido de venda e está
-              disponível apenas para visualização.
-            </Alert>
-          ) : null}
+          <FinancialEntryPaymentsSection
+            values={values}
+            onAdd={addPayment}
+            onRemove={removePayment}
+            onUpdate={updatePayment}
+            readOnly={readOnly}
+          />
 
-          <Stack
-            spacing={4}
-            sx={readOnly ? { pointerEvents: "none", opacity: 0.92 } : undefined}
-          >
-            <FinancialEntryFinancialSection
-              values={values}
-              onFieldChange={setField}
-              readOnly={readOnly}
-              cardSettlement={cardSettlement}
-            />
+          <FinancialEntryPartySection
+            values={values}
+            onFieldChange={setField}
+            readOnly={readOnly}
+          />
 
-            <FinancialEntryPaymentsSection
-              values={values}
-              onAdd={addPayment}
-              onRemove={removePayment}
-              onUpdate={updatePayment}
-              readOnly={readOnly}
-            />
-
-            <FinancialEntryPartySection
-              values={values}
-              onFieldChange={setField}
-              readOnly={readOnly}
-            />
-
-            <FinancialEntryAllocationsSection
-              values={values}
-              onAddAllocation={addAllocation}
-              onRemoveAllocation={removeAllocation}
-              onUpdateAllocationField={updateAllocationField}
-              onUpdateAllocationAmount={updateAllocationAmount}
-              onUpdateAllocationPercentage={updateAllocationPercentage}
-              financialEntryId={entryId ?? null}
-              pendingAttachmentFiles={pendingAttachmentFiles}
-              onAddAttachmentFiles={addPendingAttachmentFiles}
-              onRemovePendingAttachmentFile={removePendingAttachmentFile}
-              onRemoveExistingAttachment={removeExistingAttachment}
-              readOnly={readOnly}
-              showValidation={showValidation}
-            />
-          </Stack>
+          <FinancialEntryAllocationsSection
+            values={values}
+            onAddAllocation={addAllocation}
+            onRemoveAllocation={removeAllocation}
+            onUpdateAllocationField={updateAllocationField}
+            onUpdateAllocationAmount={updateAllocationAmount}
+            onUpdateAllocationPercentage={updateAllocationPercentage}
+            financialEntryId={entryId ?? null}
+            pendingAttachmentFiles={pendingAttachmentFiles}
+            onAddAttachmentFiles={addPendingAttachmentFiles}
+            onRemovePendingAttachmentFile={removePendingAttachmentFile}
+            onRemoveExistingAttachment={removeExistingAttachment}
+            readOnly={readOnly}
+            showValidation={showValidation}
+          />
         </Stack>
-      </ScrollArea>
-
-      {readOnly ? null : (
-        <FinancialEntryFormFooter
-          isDirty={isDirty}
-          hasSavedOnce={hasSavedOnce}
-          isSaving={isSaving}
-          onDiscard={discard}
-          onSave={handleSave}
-        />
-      )}
-    </Box>
+      </Stack>
+    </Page>
   );
 }

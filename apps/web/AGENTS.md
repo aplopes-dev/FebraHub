@@ -176,6 +176,69 @@ override, a palette continuava derivada do modo claro — `action.active` ficava
 preto sobre fundo escuro, bordas de campo idem. `createAppTheme` mescla as
 options **antes** de chamar `createTheme`; mantenha assim.
 
+## `Page` — a casca de toda tela
+
+O `<main>` do shell é `overflow: hidden`: **conteúdo mais alto que a janela
+some**, sem barra de rolagem. Cada tela resolvia isso na mão, repetindo um
+envelope de margem negativa + `ScrollArea` + padding de volta — e com medidas
+que divergiam entre si (24px onde o `main` usa 20px).
+
+Use `@/components/ui/page`:
+
+```tsx
+<Page>                          // padrão: a página inteira rola
+<Page scroll={false}>           // quem rola é a tabela/quadro de dentro
+<Page footer={<FormFooter />}>  // barra de ações fixa, fora da rolagem
+```
+
+Regras que valem para telas novas:
+
+- **Toda tela começa com `Page`.** Sem ele, o conteúdo é cortado no primeiro
+  scroll que faltar.
+- `scroll={false}` **só** quando existe um container interno com rolagem
+  própria (`DataTable` com `pageScroll`, kanban, lista da sala). Duas barras
+  aninhadas é o defeito que essa opção evita.
+- Em modo rolagem, os filhos diretos **não encolhem** (`flexShrink: 0`): o que
+  não cabe desce. Sem isso o flex espreme uma faixa de cards e o bloco seguinte
+  sobe por cima dela.
+- ⚠️ **Não use `height: "100%"` em card dentro de grid/flex.** O Chrome mede o
+  card maior que a linha e o bloco de baixo invade o de cima; o `stretch` do
+  próprio grid já iguala as alturas.
+
+`ListPageShell` e `FiscalScrollablePage` continuam existindo (33 listagens e as
+telas fiscais os importam), mas hoje são só `Page` com outro nome.
+
+## Módulo Comercial — construído aqui, com dados mockados
+
+O Comercial não veio do ERP de origem: ele foi desenhado para a operação da
+Febracis Salvador (ver `docs/pesquisa-febracis/`). São cinco features novas —
+`commercial-overview`, `pipeline`, `leads`, `event-editions` e
+`commercial-sales` — mais a extensão de `customers`.
+
+**Todas leem o mesmo banco de mentira: `src/lib/mock-db/`.** É o que faz as
+telas conversarem: mover card no funil aparece na ficha, ganhar oportunidade
+gera venda em `/comercial/vendas`, matricular na sala move o contador da edição.
+Fica em `src/lib` porque cinco features precisam dele e uma feature não importa
+de outra.
+
+Duas regras do `mock-db` que não podem ser quebradas:
+
+1. **Sem `Math.random()`** — o LCG de `lcg.ts` tem semente fixa. Sorteio
+   diferente entre servidor e cliente = erro de hidratação.
+2. **Sem `new Date()` na geração** — o dataset é ancorado em `MOCK_NOW_ISO`.
+   Mudar essa constante reposiciona todas as datas de uma vez.
+
+O seam com a API é a pasta `services/` de cada feature (e `api/` em `customers`).
+Quando `apps/api` expuser o comercial, só esses arquivos trocam de corpo.
+
+`/clientes` é a exceção: já falava `apiFetch`, então foi populada pela **borda
+HTTP** (`src/lib/mock/mock-customers.ts`), sem tocar em service nenhum. Como a
+borda roda no servidor, ela tem sua própria instância do `mock-db`: matrícula
+feita na sala (cliente) não muda o papel exibido em `/clientes` até reiniciar.
+
+Rotas de detalhe (`/comercial/oportunidades/[id]`, `/comercial/eventos/[id]`,
+`.../sala`) **não** entram em `navigation.ts` — o menu lista lugares, não ações.
+
 ## Convenções
 
 - **MUI, não Tailwind.** Estilo via `sx`. Tailwind e o design system shadcn que

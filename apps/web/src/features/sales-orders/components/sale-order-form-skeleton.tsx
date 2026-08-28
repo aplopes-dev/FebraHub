@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Skeleton, Stack } from "@/ui";
+import { Page } from "@/components/ui/page";
 import { formSplitLayoutGridSx } from "@/components/ui/form";
 
 const sectionSx = {
@@ -14,22 +15,8 @@ const sectionSx = {
 /** Estrutura do formulário de pedido/venda enquanto o detalhe carrega. */
 export function SaleOrderFormSkeleton() {
   return (
-    <Box
-      component="section"
-      aria-busy
-      aria-label="Carregando dados da venda"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
-    >
-      <Stack spacing={3} sx={{ overflow: "auto", px: 3, pt: 3, pb: 2 }}>
+    <Page>
+      <Stack spacing={3} aria-busy aria-label="Carregando dados da venda">
         <Stack spacing={0.5}>
           <Skeleton variant="text" width={90} height={20} />
           <Skeleton variant="text" width={280} height={38} />
@@ -72,6 +59,6 @@ export function SaleOrderFormSkeleton() {
           </Stack>
         </Box>
       </Stack>
-    </Box>
+    </Page>
   );
 }

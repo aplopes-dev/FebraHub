@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Skeleton, Stack } from "@/ui";
+import { Page } from "@/components/ui/page";
 import {
   formCompositionSectionGridSx,
   formSectionBorderRadius,
@@ -11,34 +12,11 @@ import {
 /** Skeleton da ficha técnica enquanto detail/produto/variações/insumos carregam. */
 export function TechnicalSheetDetailSkeleton() {
   return (
-    <Box
-      component="section"
-      aria-busy
-      aria-label="Carregando ficha técnica"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        overflow: "hidden",
-        m: -3,
-        width: (theme) => `calc(100% + ${theme.spacing(6)})`,
-        maxWidth: "none",
-      }}
-    >
+    <Page>
       <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          minHeight: 0,
-          gap: 3,
-          px: 3,
-          pt: 3,
-          pb: 4,
-          overflow: "auto",
-        }}
+        aria-busy
+        aria-label="Carregando ficha técnica"
+        sx={{ display: "flex", flexDirection: "column", gap: 3 }}
       >
         <Stack spacing={1}>
           <Skeleton variant="text" width={100} height={20} />
@@ -150,6 +128,6 @@ export function TechnicalSheetDetailSkeleton() {
           sx={{ borderRadius: formSectionBorderRadius }}
         />
       </Box>
-    </Box>
+    </Page>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Page } from "@/components/ui/page";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MenuItem, ScrollArea, SearchInput, Select } from "@/ui";
+import { MenuItem, SearchInput, Select } from "@/ui";
 import { EntityFormHeader } from "@/components/ui/form/entity-form-header";
 import { ListLoadErrorAlert } from "@/components/ui/list-page";
 import { StockBalanceTable } from "@/features/stock/components/stock-balance-table";
@@ -120,118 +121,106 @@ export function StockBalancePage({ stockId }: StockBalancePageProps) {
   };
 
   return (
-    <Box
-      component="section"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-        flexDirection: "column",
-        overflow: "hidden",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
+    <Page
+      footer={
+        <ProductMovementsDrawer
+          open={drawerProduct != null}
+          onOpenChange={(open) => {
+            if (!open) setDrawerProduct(null);
+          }}
+          stockId={stockId}
+          product={
+            drawerProduct
+              ? {
+                  id: drawerProduct.productId,
+                  name: drawerProduct.productName,
+                  sku: drawerProduct.productSku,
+                }
+              : null
+          }
+        />
+      }
     >
-      <ScrollArea sx={{ flex: 1, minHeight: 0 }}>
-        <Stack spacing={3} sx={{ px: 3, pt: 3, pb: 2 }}>
-          <EntityFormHeader
-            title={stock.name}
-            subtitle="Balanço"
-            backHref="/estoque"
+      <Stack spacing={3} sx={{ pb: 2 }}>
+        <EntityFormHeader
+          title={stock.name}
+          subtitle="Balanço"
+          backHref="/estoque"
+        />
+
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: { sm: "repeat(3, minmax(0, 1fr))" },
+          }}
+        >
+          <SummaryCard label="Produtos no estoque" value={summary.total} />
+          <SummaryCard
+            label="Saldo baixo"
+            value={summary.low}
+            tone="amber"
           />
+          <SummaryCard label="Sem saldo" value={summary.empty} tone="rose" />
+        </Box>
 
-          <Box
-            sx={{
-              display: "grid",
-              gap: 1.5,
-              gridTemplateColumns: { sm: "repeat(3, minmax(0, 1fr))" },
-            }}
-          >
-            <SummaryCard label="Produtos no estoque" value={summary.total} />
-            <SummaryCard
-              label="Saldo baixo"
-              value={summary.low}
-              tone="amber"
-            />
-            <SummaryCard label="Sem saldo" value={summary.empty} tone="rose" />
-          </Box>
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            sx={{ alignItems: { sm: "center" } }}
-          >
-            <SearchInput
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar produto…"
-              sx={{ width: { xs: "100%", sm: 288 } }}
-            />
-            <FormControl sx={{ minWidth: 180 }}>
-              <InputLabel id="balance-status-label">Situação</InputLabel>
-              <Select
-                labelId="balance-status-label"
-                label="Situação"
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as StatusFilter);
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="all">Todas</MenuItem>
-                {(
-                  Object.keys(STOCK_BALANCE_STATUS_LABELS) as StockBalanceStatus[]
-                ).map((key) => (
-                  <MenuItem key={key} value={key}>
-                    {STOCK_BALANCE_STATUS_LABELS[key]}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-
-          {balanceQuery.isError ? (
-            <ListLoadErrorAlert
-              title="Não foi possível carregar o balanço"
-              onRetry={() => void balanceQuery.refetch()}
-            />
-          ) : (
-            <StockBalanceTable
-              items={result.data}
-              isLoading={balanceQuery.isLoading}
-              pageIndex={result.meta.page - 1}
-              pageCount={result.meta.totalPages}
-              totalRowCount={result.meta.total}
-              pageSize={perPage}
-              onPageIndexChange={(pageIndex) => setPage(pageIndex + 1)}
-              onPageSizeChange={(next) => {
-                setPerPage(next);
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          sx={{ alignItems: { sm: "center" } }}
+        >
+          <SearchInput
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar produto…"
+            sx={{ width: { xs: "100%", sm: 288 } }}
+          />
+          <FormControl sx={{ minWidth: 180 }}>
+            <InputLabel id="balance-status-label">Situação</InputLabel>
+            <Select
+              labelId="balance-status-label"
+              label="Situação"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value as StatusFilter);
                 setPage(1);
               }}
-              onViewMovements={(item) => setDrawerProduct(item)}
-            />
-          )}
+            >
+              <MenuItem value="all">Todas</MenuItem>
+              {(
+                Object.keys(STOCK_BALANCE_STATUS_LABELS) as StockBalanceStatus[]
+              ).map((key) => (
+                <MenuItem key={key} value={key}>
+                  {STOCK_BALANCE_STATUS_LABELS[key]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
-      </ScrollArea>
 
-      <ProductMovementsDrawer
-        open={drawerProduct != null}
-        onOpenChange={(open) => {
-          if (!open) setDrawerProduct(null);
-        }}
-        stockId={stockId}
-        product={
-          drawerProduct
-            ? {
-                id: drawerProduct.productId,
-                name: drawerProduct.productName,
-                sku: drawerProduct.productSku,
-              }
-            : null
-        }
-      />
-    </Box>
+        {balanceQuery.isError ? (
+          <ListLoadErrorAlert
+            title="Não foi possível carregar o balanço"
+            onRetry={() => void balanceQuery.refetch()}
+          />
+        ) : (
+          <StockBalanceTable
+            items={result.data}
+            isLoading={balanceQuery.isLoading}
+            pageIndex={result.meta.page - 1}
+            pageCount={result.meta.totalPages}
+            totalRowCount={result.meta.total}
+            pageSize={perPage}
+            onPageIndexChange={(pageIndex) => setPage(pageIndex + 1)}
+            onPageSizeChange={(next) => {
+              setPerPage(next);
+              setPage(1);
+            }}
+            onViewMovements={(item) => setDrawerProduct(item)}
+          />
+        )}
+      </Stack>
+    </Page>
   );
 }
 

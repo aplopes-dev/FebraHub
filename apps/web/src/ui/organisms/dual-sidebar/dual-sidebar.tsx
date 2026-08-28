@@ -798,7 +798,7 @@ export function DualSidebar({
           height: "100%",
           borderRight: 0,
           bgcolor: "transparent",
-          fontFamily: "var(--font-archivo, inherit)",
+          fontFamily: "var(--font-manrope, inherit)",
           "@media (prefers-reduced-motion: reduce)": {
             transition: "none",
           },

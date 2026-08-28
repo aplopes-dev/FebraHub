@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type {
   CreateMemberPayload,
-  FunctionalRoleDto,
   MemberDto,
+  SectorDto,
   UpdateMemberPayload,
 } from "@/features/users-permissions/api/member.dto";
 import type {
@@ -489,16 +489,20 @@ function buildMemberDto(
   partial: Omit<
     MemberDto,
     | "isSeller"
+    | "extraSectors"
     | "pdvCode"
     | "hasPdvPin"
     | "pdvLocked"
     | "pdvLockedUntil"
     | "pdvPinUpdatedAt"
-  > & { isSeller?: boolean },
+  > & { isSeller?: boolean; extraSectors?: SectorDto[] },
 ): MemberDto {
   return {
     ...partial,
     isSeller: partial.isSeller ?? functionalRoleIsSeller(partial.functionalRole),
+    extraSectors: (partial.extraSectors ?? []).filter(
+      (sector) => sector !== partial.sector,
+    ),
     pdvCode: null,
     hasPdvPin: false,
     pdvLocked: false,
@@ -514,6 +518,7 @@ const mockMembers: MemberDto[] = [
     name: "Usuário",
     email: "usuario@febrahub.local",
     role: "OWNER",
+    sector: "geral",
     active: true,
     functionalRole: "ADMIN",
     permissionProfile: { id: PROFILE_ADMIN_ID, name: "Administrador", systemKey: "administrador" },
@@ -524,7 +529,9 @@ const mockMembers: MemberDto[] = [
     userId: "00000000-0000-4000-8000-000000000302",
     name: "Ana Gestora",
     email: "ana.gestora@febrahub.local",
-    role: "ADMIN",
+    role: "MANAGER",
+    sector: "geral",
+    extraSectors: ["comercial", "financeiro"],
     active: true,
     functionalRole: "UNIT_MANAGER",
     permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de unidade", systemKey: "gerente-unidade" },
@@ -536,6 +543,7 @@ const mockMembers: MemberDto[] = [
     name: "Bruno Comercial",
     email: "bruno.comercial@febrahub.local",
     role: "MEMBER",
+    sector: "comercial",
     active: true,
     functionalRole: "COMMERCIAL_CONSULTANT",
     permissionProfile: { id: PROFILE_COMERCIAL_ID, name: "Consultor comercial", systemKey: "consultor-comercial" },
@@ -547,6 +555,7 @@ const mockMembers: MemberDto[] = [
     name: "Carla Norte",
     email: "carla.norte@febrahub.local",
     role: "MEMBER",
+    sector: "comercial",
     active: true,
     functionalRole: "COMMERCIAL_CONSULTANT",
     permissionProfile: { id: PROFILE_COMERCIAL_ID, name: "Consultor comercial", systemKey: "consultor-comercial" },
@@ -558,6 +567,8 @@ const mockMembers: MemberDto[] = [
     name: "Diego Pré-vendas",
     email: "diego.prevendas@febrahub.local",
     role: "MEMBER",
+    sector: "comercial",
+    extraSectors: ["crm"],
     active: true,
     functionalRole: "SDR",
     permissionProfile: { id: PROFILE_SDR_ID, name: "SDR / pré-vendas", systemKey: "sdr" },
@@ -569,6 +580,7 @@ const mockMembers: MemberDto[] = [
     name: "Eduardo Facilitador",
     email: "eduardo.facilitador@febrahub.local",
     role: "MEMBER",
+    sector: "pedagogico",
     active: true,
     functionalRole: "FACILITATOR",
     permissionProfile: { id: PROFILE_FACILITADOR_ID, name: "Facilitador", systemKey: "facilitador" },
@@ -580,6 +592,7 @@ const mockMembers: MemberDto[] = [
     name: "Fernanda Secretaria",
     email: "fernanda.secretaria@febrahub.local",
     role: "MEMBER",
+    sector: "pedagogico",
     active: true,
     functionalRole: "SECRETARY",
     permissionProfile: { id: PROFILE_SECRETARIA_ID, name: "Secretaria acadêmica", systemKey: "secretaria" },
@@ -591,6 +604,7 @@ const mockMembers: MemberDto[] = [
     name: "Gustavo Contador",
     email: "gustavo.contador@febrahub.local",
     role: "MEMBER",
+    sector: "financeiro",
     active: true,
     functionalRole: "ACCOUNTANT",
     permissionProfile: { id: PROFILE_CONTADOR_ID, name: "Contador", systemKey: "contador" },
@@ -602,6 +616,7 @@ const mockMembers: MemberDto[] = [
     name: "Helena Financeiro",
     email: "helena.financeiro@febrahub.local",
     role: "MEMBER",
+    sector: "financeiro",
     active: true,
     functionalRole: "FINANCE",
     permissionProfile: { id: PROFILE_FINANCEIRO_ID, name: "Financeiro", systemKey: "financeiro" },
@@ -612,7 +627,9 @@ const mockMembers: MemberDto[] = [
     userId: "00000000-0000-4000-8000-000000000310",
     name: "Igor Sul",
     email: "igor.sul@febrahub.local",
-    role: "ADMIN",
+    role: "MANAGER",
+    sector: "loja",
+    extraSectors: ["estoque"],
     active: true,
     functionalRole: "UNIT_MANAGER",
     permissionProfile: { id: PROFILE_GERENTE_ID, name: "Gerente de unidade", systemKey: "gerente-unidade" },
@@ -624,6 +641,7 @@ const mockMembers: MemberDto[] = [
     name: "Julia Campinas",
     email: "julia.campinas@febrahub.local",
     role: "MEMBER",
+    sector: "pedagogico",
     active: true,
     functionalRole: "STUDENT_SUCCESS",
     permissionProfile: { id: PROFILE_SUCESSO_ID, name: "Sucesso do aluno", systemKey: "sucesso-do-aluno" },
@@ -635,6 +653,7 @@ const mockMembers: MemberDto[] = [
     name: "Ex-colaborador",
     email: "ex@febrahub.local",
     role: "MEMBER",
+    sector: "geral",
     active: false,
     functionalRole: "VIEWER",
     permissionProfile: { id: PROFILE_VIEWER_ID, name: "Somente leitura", systemKey: "somente-leitura" },
@@ -666,9 +685,6 @@ function memberFromCreatePayload(
   userId: string,
 ): MemberDto {
   const profile = profileById(payload.permissionProfileId);
-  const scopeLevel = payload.scopeLevel ?? "branch";
-  const matrixId = scopeLevel === "group" ? null : (payload.matrixId ?? null);
-  const branchIds = scopeLevel === "branch" ? (payload.branchIds ?? []) : [];
   const functionalRole = payload.functionalRole ?? "VIEWER";
   const name = `${payload.firstName} ${payload.lastName}`.trim();
 
@@ -679,13 +695,12 @@ function memberFromCreatePayload(
     email: payload.email,
     role: payload.role ?? "MEMBER",
     active: true,
-    scopeLevel,
-    matrixId,
     functionalRole,
+    sector: payload.sector ?? "geral",
+    extraSectors: payload.extraSectors ?? [],
     permissionProfile: profile
       ? { id: profile.id, name: profile.name, systemKey: profile.systemKey }
       : null,
-    branchIds,
     isSeller: payload.isSeller,
     createdAt: new Date().toISOString(),
   });
@@ -917,10 +932,9 @@ function handleMembers(
         ...current,
         role: payload.role ?? current.role,
         active: payload.active ?? current.active,
-        scopeLevel,
-        matrixId,
-        branchIds,
         functionalRole,
+        sector: payload.sector ?? current.sector,
+        extraSectors: payload.extraSectors ?? current.extraSectors,
         isSeller: payload.isSeller ?? functionalRoleIsSeller(functionalRole),
         permissionProfile: profile
           ? { id: profile.id, name: profile.name, systemKey: profile.systemKey }

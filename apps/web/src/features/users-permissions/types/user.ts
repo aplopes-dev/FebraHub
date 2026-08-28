@@ -18,7 +18,30 @@ export function createDefaultUserGeneralSettings(): UserGeneralSettings {
   };
 }
 
-export type MembershipRole = "OWNER" | "ADMIN" | "MEMBER";
+/**
+ * Papel na plataforma — o peso da conta, independente do que a pessoa faz.
+ *
+ * `ADMIN` atravessa o catálogo inteiro de permissões; `MANAGER` (gestor)
+ * responde pelo próprio setor, podendo definir metas e indicadores dele;
+ * `MEMBER` fica no que o perfil de acesso liberar. `OWNER` é o dono da conta —
+ * existe no cadastro, mas não se atribui pela tela.
+ */
+export type MembershipRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+
+/**
+ * Setor do cadastro — o eixo "sobre quais dados". Ver `lib/sectors.ts`,
+ * que espelha `SETORES_CADASTRO` do `apps/api`.
+ */
+export type Sector =
+  | "geral"
+  | "comercial"
+  | "financeiro"
+  | "marketing"
+  | "pedagogico"
+  | "eventos"
+  | "loja"
+  | "estoque"
+  | "crm";
 
 /**
  * Papel funcional na escola — o que a pessoa faz.
@@ -52,6 +75,10 @@ export type PlatformUser = {
   profileId: string;
   role: MembershipRole;
   functionalRole: FunctionalRole;
+  /** Setor principal — o recorte de dados que a pessoa enxerga por padrão. */
+  sector: Sector;
+  /** Setores adicionais, somados ao principal. Não repete o principal. */
+  extraSectors: Sector[];
   active: boolean;
   /** Derivado do papel funcional — listas de quem vende matrícula. */
   isSeller: boolean;
@@ -78,6 +105,10 @@ export type UserFormValues = {
   name: string;
   email: string;
   functionalRole: FunctionalRole;
+  /** Papel na plataforma (admin / gestor / membro). */
+  role: MembershipRole;
+  sector: Sector;
+  extraSectors: Sector[];
   settings: UserGeneralSettings;
 };
 
@@ -90,6 +121,9 @@ export function createEmptyUserFormValues(): UserFormValues {
     name: "",
     email: "",
     functionalRole: "COMMERCIAL_CONSULTANT",
+    role: "MEMBER",
+    sector: "comercial",
+    extraSectors: [],
     settings: createDefaultUserGeneralSettings(),
   };
 }
@@ -100,6 +134,9 @@ export function userToFormValues(user: PlatformUser): UserFormValues {
     name: user.name,
     email: user.email,
     functionalRole: user.functionalRole,
+    role: user.role,
+    sector: user.sector,
+    extraSectors: [...user.extraSectors],
     settings: { ...user.settings },
   };
 }

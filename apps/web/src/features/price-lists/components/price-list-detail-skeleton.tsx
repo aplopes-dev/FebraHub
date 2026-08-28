@@ -1,26 +1,18 @@
 "use client";
 
 import { Box, Skeleton, Stack } from "@/ui";
+import { Page } from "@/components/ui/page";
 import { surfaceBorderRadius } from "@/theme/surface-styles";
 
 /** Skeleton da página de detalhe enquanto metadados/itens carregam. */
 export function PriceListDetailSkeleton() {
   return (
-    <Box
-      component="section"
-      aria-busy
-      aria-label="Carregando lista de preços"
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        height: "100%",
-        m: -3,
-        width: "calc(100% + 48px)",
-      }}
-    >
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 3 }}>
+    <Page>
+      <Box
+        aria-busy
+        aria-label="Carregando lista de preços"
+        sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+      >
         <Stack spacing={1}>
           <Skeleton variant="text" width={120} height={20} />
           <Skeleton variant="text" width={280} height={36} />
@@ -100,6 +92,6 @@ export function PriceListDetailSkeleton() {
           </Stack>
         </Box>
       </Box>
-    </Box>
+    </Page>
   );
 }
